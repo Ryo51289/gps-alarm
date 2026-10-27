@@ -53,7 +53,7 @@ Trạng thái task: `todo` · `spec` · `spec-ready` · `coding` · `in-review` 
 ## Cấu trúc repo
 
 ```
-toi-roi/
+gps-alarm/
 ├── CLAUDE.md
 ├── .claude/agents/            solution-designer, coder, reviewer, tester
 ├── docs/
@@ -90,10 +90,19 @@ dart run ../tools/tracegen --profile train_hn_dh --out ../fixtures/traces/
 
 ## Ràng buộc môi trường
 
-- Container cloud (Linux): làm được Dart, Kotlin JVM test, build APK (sau khi cài SDK ở T00).
-  **Không** chạy được Xcode/iOS và thường không có emulator → task gắn `[mac]` phải làm trên máy Mac,
-  task gắn `[device]` cần người cầm máy thật.
-- Container là tạm thời: mọi thứ cần giữ phải được commit và push lên remote (khi người dùng cho phép).
+- **Máy dev chính: Windows**, repo tại `D:\work\gps-alarm`. Claude Code chạy shell qua **Git Bash** →
+  lệnh viết dạng bash, đường dẫn tương đối hoặc `/d/work/gps-alarm`; Gradle dùng `./gradlew` trong Git Bash
+  (hoặc `gradlew.bat` trong PowerShell/cmd).
+- **Làm được trên máy này:** Flutter/Dart, build + chạy Android (emulator hoặc máy thật qua USB),
+  Kotlin JVM test, `tools/tracegen`, dataset ga/bến. Nhãn `[linux]` trong `docs/TASKS.md` = làm được ở đây.
+- **Không làm được:** Xcode/iOS → task `[mac]` (S3, T13, T17, phần iOS của T40) chờ máy Mac hoặc CI macOS.
+  Tạm thời làm **Android trước**; phương án iOS chốt ở Gate 1.
+- **Yêu cầu Windows:** bật Developer Mode (Flutter cần symlink cho plugin); Flutter SDK ở đường dẫn không có
+  dấu cách (vd `C:\src\flutter`); `git config --global core.longpaths true`; Android Studio + Android SDK +
+  cmdline-tools, đã chạy `flutter doctor --android-licenses`; bật Windows Hypervisor Platform để chạy emulator.
+- **Line ending:** repo dùng LF (`.gitattributes`, thêm ở T00); file `.bat`/`.cmd` dùng CRLF.
+- Task `[device]`: điện thoại Android cắm USB, bật USB debugging; iPhone khi có Mac.
+- Remote: GitHub `Ryo51289/gps-alarm`, nhánh `main`. **Chỉ push khi người dùng yêu cầu.**
 
 ## Quy tắc bắt buộc
 

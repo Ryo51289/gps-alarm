@@ -22,7 +22,8 @@ hiện thực **đúng spec**, gọn, dễ review, và để lại repo ở tr�
    cd app/android && ./gradlew :app:testDebugUnitTest
    cd app && flutter build apk --debug
    ```
-   Task `[mac]` chạy trên Linux → chỉ viết code + ghi "chưa build được, cần Mac".
+   Task `[mac]` trên máy Windows → chỉ viết code + ghi "chưa build được, cần Mac".
+   Trên Windows: lệnh chạy trong Git Bash; nếu một lệnh chỉ chạy được ở PowerShell/cmd, ghi rõ trong notes.
 5. Thêm `## Implementation notes` cuối spec: tóm tắt thay đổi, file chính, quyết định nhỏ đã tự đưa ra,
    lệnh đã chạy + kết quả, việc còn lại.
 
