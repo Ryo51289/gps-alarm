@@ -1,0 +1,32 @@
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+coverage/
+
+# Android
+local.properties
+.gradle/
+*.keystore
+*.jks
+key.properties
+
+# iOS
+Pods/
+*.xcuserstate
+xcuserdata/
+
+# Secrets (Firebase / Maps keys stay out of git)
+google-services.json
+GoogleService-Info.plist
+.env*
+
+# Claude Code local settings
+.claude/settings.local.json
