@@ -9,7 +9,7 @@
 | App id Android / Bundle id iOS | `app.napstop` (dev: `app.napstop.dev`) — **không đổi được sau khi phát hành** |
 | Package Kotlin / Dart | `app.napstop.core.*` / `package:napstop/` |
 
-Wireframe hiện vẫn ghi tên cũ "Tới Rồi" — khi làm UI dùng "NapStop".
+Wireframe đã đổi sang "NapStop" (tên làm việc trước đây: "Tới Rồi").
 
 ## 1. Vấn đề & mục tiêu
 Người đi xe khách/tàu đường dài hay ngủ quên và lỡ trạm. MVP 1 chứng minh: **app đánh thức đúng lúc,
