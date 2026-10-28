@@ -70,8 +70,12 @@ gps-alarm/
 
 ## Quy ước code
 
-- Dart: feature-first (`lib/features/<feature>/{data,domain,presentation}`), `very_good_analysis`
-  hoặc `flutter_lints` (chốt ở T00), không `print` — dùng logger có mức độ.
+- Dart: feature-first (`lib/features/<feature>/{data,domain,presentation}`), lint `very_good_analysis` 11
+  (chốt ở T00), không `print` — dùng logger có mức độ.
+- Dart 3.13: constructor viết `new(...)` / `const new(...)`, không lặp tên class
+  (lint `unnecessary_type_name_in_constructor`); chỗ gọi vẫn là `NapStopApp(...)`.
+- Flutter ghim **3.47.8** (Dart ≥ 3.13.7, `pubspec.yaml` có `sdk: ^3.13.7`) — máy dev và CI dùng đúng bản này;
+  nâng phiên bản phải qua task riêng.
 - Kotlin: coroutines + Flow, không blocking main thread, package `app.napstop.core.{location,trip,alarm}`.
 - Swift: Swift Concurrency, module `Core/{Location,Trip,Alarm}`.
 - Code, tên biến, comment: tiếng Anh. Chuỗi hiển thị: chỉ qua ARB, bản tiếng Việt là bản gốc.
@@ -100,10 +104,14 @@ dart run ../tools/tracegen --profile train_hn_dh --out ../fixtures/traces/
   Tạm thời làm **Android trước**; phương án iOS chốt ở Gate 1.
 - **Yêu cầu Windows:** bật Developer Mode (Flutter cần symlink cho plugin); Flutter SDK ở `D:\src\flutter`
   và `PUB_CACHE=D:\src\pub-cache` — **cùng ổ với repo** (khác ổ thì Kotlin incremental build lỗi
-  "different roots"); `JAVA_HOME` trỏ tới JBR của Android Studio (vd `C:\Program Files\Android\Android Studio\jbr`,
-  cần cho `./gradlew`); `git config --global core.longpaths true`; Android Studio + Android SDK + cmdline-tools,
-  đã chạy `flutter doctor --android-licenses`; bật Windows Hypervisor Platform để chạy emulator.
+  "different roots"); `JAVA_HOME` trỏ tới một JDK 17 bất kỳ (JBR của Android Studio hoặc MS OpenJDK 17 đều được,
+  cần cho `./gradlew`); `git config --global core.longpaths true`; Android SDK + cmdline-tools (`ANDROID_HOME`
+  đặt ở đâu cũng được), đã chạy `flutter doctor --android-licenses`; bật Windows Hypervisor Platform để chạy emulator.
   Chi tiết cài đặt: `docs/specs/T00.md` §2.
+- **Máy hiện tại:** Flutter 3.47.8 ở `D:\src\flutter`, `ANDROID_HOME=D:\work\android-sdk`, JDK = MS OpenJDK 17.
+  Máy còn một Flutter 3.41 cũ ở `D:\work\flutter` — không dùng được với project này (không resolve được lint).
+  Nếu `flutter --version` không ra 3.47.8 thì thêm vào đầu lệnh:
+  `export PATH="/d/src/flutter/bin:$PATH"; export PUB_CACHE=/d/src/pub-cache`.
 - **Line ending:** repo dùng LF (`.gitattributes`, thêm ở T00); file `.bat`/`.cmd` dùng CRLF.
 - Task `[device]`: điện thoại Android cắm USB, bật USB debugging; iPhone khi có Mac.
 - Remote: GitHub `Ryo51289/gps-alarm`, nhánh `main`. **Chỉ push khi người dùng yêu cầu.**

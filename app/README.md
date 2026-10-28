@@ -5,9 +5,9 @@ Flutter app của NapStop (báo thức theo vị trí). Tổng quan dự án, qu
 
 ## Yêu cầu
 
-- Flutter **3.47.x stable** (Dart 3.13), đặt ở `D:\src\flutter`; `PUB_CACHE=D:\src\pub-cache` (cùng ổ với repo).
-- Android SDK với platform **36** (`ANDROID_HOME`), license đã chấp nhận.
-- `JAVA_HOME` trỏ tới JDK 17+ (JBR của Android Studio), cần cho `./gradlew`.
+- Flutter **3.47.8 stable** (Dart 3.13.7), đặt ở `D:\src\flutter`; `PUB_CACHE=D:\src\pub-cache` (cùng ổ với repo).
+- Android SDK với platform **36** (`ANDROID_HOME`, đặt ở đâu cũng được), license đã chấp nhận.
+- `JAVA_HOME` trỏ tới JDK 17 (JBR của Android Studio hoặc MS OpenJDK 17), cần cho `./gradlew`.
 - Hướng dẫn cài đặt trên Windows: [`docs/specs/T00.md`](../docs/specs/T00.md) §2.
 
 ## Lệnh thường dùng (chạy trong `app/`)
