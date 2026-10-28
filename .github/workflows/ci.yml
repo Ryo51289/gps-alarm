@@ -1,4 +1,4 @@
-# NapStop CI (T01). Spec: docs/specs/T01.md
+# NapStop CI (T01, T02). Specs: docs/specs/T01.md, docs/specs/T02.md
 #
 # Every action is pinned to a full commit SHA; the release tag is in the trailing
 # comment. To update a pin, resolve the tag with
@@ -267,3 +267,47 @@ jobs:
             app/build/app/test-results/
           if-no-files-found: ignore
           retention-days: 7
+
+  tracegen:
+    name: tracegen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: tools/tracegen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Verify Dart version
+        run: |
+          dart --version 2>&1 | tee "$RUNNER_TEMP/dart-version.txt"
+          grep -F "Dart SDK version: $DART_VERSION " "$RUNNER_TEMP/dart-version.txt"
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze --fatal-infos
+
+      # Includes test/fixtures_up_to_date_test.dart: fixtures committed from Windows
+      # must be byte-identical to what the generator produces on Linux.
+      - name: Test
+        run: dart test --reporter github
+
+      - name: Validate committed fixtures
+        run: dart run bin/tracegen.dart validate --dir ../../fixtures/traces

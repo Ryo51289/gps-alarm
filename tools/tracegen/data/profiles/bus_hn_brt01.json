@@ -1,0 +1,41 @@
+{
+  "id": "bus_hn_brt01",
+  "title": "Buýt BRT01 Kim Mã → Yên Nghĩa",
+  "vehicle": "bus",
+  "route": "bus_hn_brt01",
+  "destination": "brt_yen_nghia",
+  "seed": 3001,
+  "startTime": "2026-03-14T01:30:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 60,
+  "endDwellS": 60,
+  "motion": {"accelMps2": 0.8, "decelMps2": 1.0, "cruiseJitter": 0.15, "jitterChunkM": 500},
+  "speedLimits": [
+    {"from": "brt_kim_ma", "kmh": 28}
+  ],
+  "stops": [],
+  "regularStops": {"everyM": 700, "dwellS": 25, "marginM": 300},
+  "gpsGaps": [],
+  "noise": {"sigmaM": 8, "rho": 0.9, "accMinM": 4, "speedSigmaMps": 0.4, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "distance_500",
+      "config": {"mode": "distance", "thresholdM": 500, "preAlert": true},
+      "expect": [
+        {"event": "preAlert", "notBefore": {"anchor": "route<=3300"}, "notAfter": {"anchor": "route<=2700"}, "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"},
+        {"event": "alarm", "notBefore": {"anchor": "route<=800"}, "notAfter": {"anchor": "route<=200"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "distance_1000",
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "expect": [
+        {"event": "preAlert", "notBefore": {"anchor": "route<=5300"}, "notAfter": {"anchor": "route<=4700"}, "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"},
+        {"event": "alarm", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    }
+  ]
+}

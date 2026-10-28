@@ -1,0 +1,20 @@
+{
+  "id": "rail_hn_dh",
+  "title": "Đường sắt Bắc Nam, Hà Nội → Đồng Hới",
+  "attribution": "Toạ độ có nguồn osm:*: © OpenStreetMap contributors, ODbL 1.0",
+  "waypoints": [
+    {"id": "ga_ha_noi", "name": "Ga Hà Nội", "lat": 21.0242144, "lng": 105.8410943, "source": "osm:way/220305168"},
+    {"id": "ga_phu_ly", "name": "Ga Phủ Lý", "lat": 20.5406083, "lng": 105.9130158, "source": "osm:way/628386498"},
+    {"id": "ga_nam_dinh", "name": "Ga Nam Định", "lat": 20.4214597, "lng": 106.1644406, "source": "osm:way/629976065"},
+    {"id": "ga_ninh_binh", "name": "Ga Ninh Bình", "lat": 20.2420352, "lng": 105.9745791, "source": "osm:way/630700285"},
+    {"id": "ga_bim_son", "name": "Ga Bỉm Sơn", "lat": 20.0811640, "lng": 105.8551415, "source": "osm:way/1533863320"},
+    {"id": "ga_thanh_hoa", "name": "Ga Thanh Hóa", "lat": 19.8126160, "lng": 105.7677560, "source": "osm:way/640066812"},
+    {"id": "ga_cau_giat", "name": "Ga Cầu Giát", "lat": 19.1590345, "lng": 105.6270172, "source": "osm:way/1136116875"},
+    {"id": "ga_vinh", "name": "Ga Vinh", "lat": 18.6877002, "lng": 105.6644204, "source": "osm:way/428480369"},
+    {"id": "ga_yen_trung", "name": "Ga Yên Trung", "lat": 18.5232990, "lng": 105.5876358, "source": "osm:way/1068900895"},
+    {"id": "ga_huong_pho", "name": "Ga Hương Phố", "lat": 18.1704295, "lng": 105.7076973, "source": "osm:way/1533868236"},
+    {"id": "ga_dong_le", "name": "Ga Đồng Lê", "lat": 17.8881652, "lng": 106.0222078, "source": "osm:way/1290983434"},
+    {"id": "ga_minh_le", "name": "Ga Minh Lệ", "lat": 17.7124959, "lng": 106.3705075, "source": "osm:way/1550757078"},
+    {"id": "ga_dong_hoi", "name": "Ga Đồng Hới", "lat": 17.4689199, "lng": 106.5997285, "source": "osm:way/367260095"}
+  ]
+}

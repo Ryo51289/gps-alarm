@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.0.0"
+  },
+  "trace": {
+    "id": "coach_md_tb",
+    "title": "Xe khách Mỹ Đình → Thái Bình",
+    "vehicle": "coach",
+    "gpx": "coach_md_tb.gpx",
+    "seed": 2001,
+    "noiseSeed": 2001,
+    "startTime": "2026-03-14T00:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 7425,
+    "sampleCount": 1486
+  },
+  "destination": {
+    "id": "bx_thai_binh",
+    "name": "Bến xe khách Trung tâm Thái Bình",
+    "lat": 20.4490118,
+    "lng": 106.3344734
+  },
+  "truth": {
+    "routeLengthM": 102384,
+    "destinationRouteM": 102384,
+    "arrivalT": 7310,
+    "stops": [
+      {
+        "routeM": 83080,
+        "arriveT": 5105,
+        "departT": 5280,
+        "name": "TP Nam Định"
+      }
+    ],
+    "gpsGaps": [],
+    "outliers": []
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 7280,
+        "straightT": 7280
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 7245,
+        "straightT": 7245
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 7185,
+        "straightT": 7185
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 7065,
+        "straightT": 7065
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 6950,
+        "straightT": 6950
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 6710,
+        "straightT": 6710
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 6320,
+        "straightT": 6320
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 4720,
+        "straightT": 4665
+      },
+      {
+        "thresholdM": 50000,
+        "routeT": 3210,
+        "straightT": 2825
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 7010
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 6710
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 6410
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 6110
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 5510
+      },
+      {
+        "beforeArrivalMin": 60,
+        "t": 3710
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000",
+      "status": "draft",
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "preAlert",
+          "notBefore": 6675,
+          "notAfter": 6745,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=5300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=4700",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 7145,
+          "notAfter": 7220,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "time_15",
+      "status": "draft",
+      "config": {
+        "mode": "time",
+        "thresholdMin": 15,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "preAlert",
+          "notBefore": 5450,
+          "notAfter": 5570,
+          "window": {
+            "notBefore": {
+              "anchor": "arrival",
+              "offsetS": -1860
+            },
+            "notAfter": {
+              "anchor": "arrival",
+              "offsetS": -1740
+            }
+          },
+          "ref": "PRD §4 Nhắc nhẹ: còn 30 phút; dung sai ±1 phút (PRD §1)"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 6350,
+          "notAfter": 6470,
+          "window": {
+            "notBefore": {
+              "anchor": "arrival",
+              "offsetS": -960
+            },
+            "notAfter": {
+              "anchor": "arrival",
+              "offsetS": -840
+            }
+          },
+          "ref": "PRD §4 Chế độ thời gian; dung sai ±1 phút (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    }
+  ]
+}

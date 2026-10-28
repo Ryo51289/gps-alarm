@@ -1,0 +1,38 @@
+{
+  "id": "coach_gb_phuly_overshoot",
+  "title": "Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp (quá trạm)",
+  "vehicle": "coach",
+  "route": "road_gb_phuly_kienkhe",
+  "destination": "bx_phu_ly",
+  "seed": 5001,
+  "startTime": "2026-03-14T03:00:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 60,
+  "endDwellS": 60,
+  "motion": {"accelMps2": 0.6, "decelMps2": 0.8, "cruiseJitter": 0.10, "jitterChunkM": 1000},
+  "speedLimits": [
+    {"from": "bx_giap_bat", "kmh": 30},
+    {"from": "nut_giao_phap_van", "kmh": 85},
+    {"from": "nut_giao_liem_tuyen", "kmh": 30},
+    {"from": "bx_phu_ly", "kmh": 35},
+    {"from": "ga_phu_ly", "kmh": 55}
+  ],
+  "stops": [
+    {"at": "bx_phu_ly", "dwellS": 90}
+  ],
+  "gpsGaps": [],
+  "noise": {"sigmaM": 5, "rho": 0.9, "accMinM": 3, "speedSigmaMps": 0.3, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "distance_1000_overshoot",
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "expect": [
+        {"event": "preAlert", "notBefore": {"anchor": "route<=5300"}, "notAfter": {"anchor": "route<=4700"}, "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"},
+        {"event": "alarm", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"},
+        {"event": "overshoot", "notBefore": {"anchor": "overshoot", "offsetS": -15}, "notAfter": {"anchor": "overshoot", "offsetS": 120}, "ref": "PRD §4 Quá trạm: đã vào gần đích rồi khoảng cách tăng liên tục > 1 km, tốc độ > 10 km/h"}
+      ],
+      "forbid": ["gpsLost"]
+    }
+  ]
+}

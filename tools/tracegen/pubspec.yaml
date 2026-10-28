@@ -1,0 +1,17 @@
+name: tracegen
+description: >-
+  Deterministic generator of synthetic GPS traces (GPX + expect.json) for the
+  NapStop Trip Engine tests.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  args: ^2.7.0
+  xml: ^7.1.0
+
+dev_dependencies:
+  test: ^1.33.0
+  very_good_analysis: ^11.0.0

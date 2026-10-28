@@ -1,0 +1,15 @@
+{
+  "id": "road_dn_langco",
+  "title": "Bến xe Trung tâm Đà Nẵng → Lăng Cô qua hầm Hải Vân",
+  "attribution": "Toạ độ có nguồn osm:*: © OpenStreetMap contributors, ODbL 1.0",
+  "waypoints": [
+    {"id": "bx_trung_tam_da_nang", "name": "Bến xe Trung tâm Đà Nẵng", "lat": 16.0550100, "lng": 108.1733575, "source": "osm:way/256668716"},
+    {"id": "hoa_khanh", "lat": 16.0760, "lng": 108.1500, "source": "approx"},
+    {"id": "cau_nam_o", "name": "Cầu Nam Ô", "lat": 16.1215773, "lng": 108.1227185, "source": "osm:way/160628066"},
+    {"id": "kim_lien", "lat": 16.1450, "lng": 108.1150, "source": "approx"},
+    {"id": "hai_van_tunnel_s", "name": "Cửa Nam hầm Hải Vân", "lat": 16.1630140, "lng": 108.1075642, "source": "osm:node/3074532027"},
+    {"id": "hai_van_tunnel_n", "name": "Cửa Bắc hầm Hải Vân", "lat": 16.2175803, "lng": 108.0921454, "source": "osm:node/3074683437"},
+    {"id": "lang_co_south", "lat": 16.2230, "lng": 108.0830, "source": "approx"},
+    {"id": "lang_co_center", "name": "Lăng Cô (trung tâm, QL1)", "lat": 16.2560, "lng": 108.0700, "source": "approx"}
+  ]
+}

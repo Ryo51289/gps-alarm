@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.0.0"
+  },
+  "trace": {
+    "id": "bus_hn_brt01_noisy",
+    "title": "Buýt BRT01 Kim Mã → Yên Nghĩa, GPS nhiễu (phố nhà cao tầng)",
+    "vehicle": "bus",
+    "gpx": "bus_hn_brt01_noisy.gpx",
+    "seed": 3001,
+    "noiseSeed": 6001,
+    "startTime": "2026-03-14T01:30:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 2370,
+    "sampleCount": 475
+  },
+  "destination": {
+    "id": "brt_yen_nghia",
+    "name": "Nhà chờ BRT Yên Nghĩa",
+    "lat": 20.9495996,
+    "lng": 105.7476229
+  },
+  "truth": {
+    "routeLengthM": 12890,
+    "destinationRouteM": 12890,
+    "arrivalT": 2315,
+    "stops": [
+      {
+        "routeM": 700,
+        "arriveT": 155,
+        "departT": 175
+      },
+      {
+        "routeM": 1400,
+        "arriveT": 280,
+        "departT": 300
+      },
+      {
+        "routeM": 2100,
+        "arriveT": 400,
+        "departT": 420
+      },
+      {
+        "routeM": 2800,
+        "arriveT": 525,
+        "departT": 545
+      },
+      {
+        "routeM": 3500,
+        "arriveT": 650,
+        "departT": 670
+      },
+      {
+        "routeM": 4200,
+        "arriveT": 780,
+        "departT": 800
+      },
+      {
+        "routeM": 4900,
+        "arriveT": 905,
+        "departT": 925
+      },
+      {
+        "routeM": 5600,
+        "arriveT": 1035,
+        "departT": 1055
+      },
+      {
+        "routeM": 6300,
+        "arriveT": 1160,
+        "departT": 1180
+      },
+      {
+        "routeM": 7000,
+        "arriveT": 1280,
+        "departT": 1300
+      },
+      {
+        "routeM": 7700,
+        "arriveT": 1405,
+        "departT": 1425
+      },
+      {
+        "routeM": 8400,
+        "arriveT": 1525,
+        "departT": 1545
+      },
+      {
+        "routeM": 9100,
+        "arriveT": 1655,
+        "departT": 1675
+      },
+      {
+        "routeM": 9800,
+        "arriveT": 1770,
+        "departT": 1790
+      },
+      {
+        "routeM": 10500,
+        "arriveT": 1905,
+        "departT": 1925
+      },
+      {
+        "routeM": 11200,
+        "arriveT": 2030,
+        "departT": 2050
+      },
+      {
+        "routeM": 11900,
+        "arriveT": 2155,
+        "departT": 2175
+      }
+    ],
+    "gpsGaps": [],
+    "outliers": [
+      {
+        "t": 215,
+        "kind": "random",
+        "errorM": 1154
+      },
+      {
+        "t": 595,
+        "kind": "random",
+        "errorM": 764
+      },
+      {
+        "t": 1025,
+        "kind": "random",
+        "errorM": 1229
+      },
+      {
+        "t": 1055,
+        "kind": "random",
+        "errorM": 1127
+      },
+      {
+        "t": 1120,
+        "kind": "random",
+        "errorM": 906
+      },
+      {
+        "t": 1225,
+        "kind": "random",
+        "errorM": 614
+      },
+      {
+        "t": 1625,
+        "kind": "scripted",
+        "errorM": 3307
+      },
+      {
+        "t": 1630,
+        "kind": "scripted",
+        "errorM": 3279
+      },
+      {
+        "t": 1635,
+        "kind": "scripted",
+        "errorM": 3251
+      },
+      {
+        "t": 1710,
+        "kind": "random",
+        "errorM": 530
+      },
+      {
+        "t": 2090,
+        "kind": "random",
+        "errorM": 425
+      },
+      {
+        "t": 2260,
+        "kind": "scripted",
+        "errorM": 1422
+      },
+      {
+        "t": 2265,
+        "kind": "scripted",
+        "errorM": 1461
+      },
+      {
+        "t": 2310,
+        "kind": "random",
+        "errorM": 324
+      }
+    ]
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 2285,
+        "straightT": 2285
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 2250,
+        "straightT": 2250
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 2150,
+        "straightT": 2150
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 1985,
+        "straightT": 1985
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 1810,
+        "straightT": 1810
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 1455,
+        "straightT": 1390
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 570,
+        "straightT": 485
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 2015
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 1715
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 1415
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 1115
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 515
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000_noisy",
+      "status": "draft",
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "preAlert",
+          "notBefore": 1385,
+          "notAfter": 1495,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=5300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=4700",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 2110,
+          "notAfter": 2225,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "overshoot"
+      ]
+    }
+  ]
+}

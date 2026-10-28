@@ -1,0 +1,21 @@
+{
+  "id": "road_md_tb",
+  "title": "Bến xe Mỹ Đình → Bến xe Thái Bình qua Vành đai 3, cao tốc Pháp Vân–Cầu Giẽ–Ninh Bình, QL21, Nam Định, cầu Tân Đệ, QL10",
+  "attribution": "Toạ độ có nguồn osm:*: © OpenStreetMap contributors, ODbL 1.0",
+  "waypoints": [
+    {"id": "bx_my_dinh", "name": "Bến xe Mỹ Đình", "lat": 21.0282668, "lng": 105.7775194, "source": "osm:relation/21430094"},
+    {"id": "vd3_khuat_duy_tien", "lat": 21.0060, "lng": 105.7880, "source": "approx"},
+    {"id": "vd3_nguyen_xien", "lat": 20.9890, "lng": 105.8050, "source": "approx"},
+    {"id": "vd3_linh_dam", "lat": 20.9700, "lng": 105.8270, "source": "approx"},
+    {"id": "nut_giao_phap_van", "name": "Nút giao Pháp Vân", "lat": 20.9628062, "lng": 105.8482446, "source": "osm:way/1120475357"},
+    {"id": "cao_toc_thuong_tin", "lat": 20.8600, "lng": 105.8790, "source": "approx"},
+    {"id": "nut_giao_cau_gie", "name": "Nút giao Cầu Giẽ", "lat": 20.7035676, "lng": 105.9195379, "source": "osm:way/1120475360"},
+    {"id": "cao_toc_dong_van", "lat": 20.6300, "lng": 105.9280, "source": "approx"},
+    {"id": "nut_giao_liem_tuyen", "name": "Nút giao Liêm Tuyền", "lat": 20.5391164, "lng": 105.9480171, "source": "osm:way/1120475365"},
+    {"id": "ql21_binh_luc", "lat": 20.4950, "lng": 106.0300, "source": "approx"},
+    {"id": "nam_dinh_city", "name": "TP Nam Định", "lat": 20.4350, "lng": 106.1500, "source": "approx"},
+    {"id": "cau_tan_de", "name": "Cầu Tân Đệ", "lat": 20.4437510, "lng": 106.2187529, "source": "osm:way/35978604"},
+    {"id": "ql10_vu_thu", "lat": 20.4450, "lng": 106.2800, "source": "approx"},
+    {"id": "bx_thai_binh", "name": "Bến xe khách Trung tâm Thái Bình", "lat": 20.4490118, "lng": 106.3344734, "source": "osm:way/1199387049"}
+  ]
+}

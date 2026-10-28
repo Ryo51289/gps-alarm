@@ -18,6 +18,8 @@
                    ▲ cùng bộ fixture: fixtures/traces/*.gpx + *.expect.json ▲
 ```
 
+Định dạng fixture (schema v1, T02) và quy tắc đồng hồ ảo cho harness test: `fixtures/traces/README.md`.
+
 **Nguyên tắc:** quyết định "báo hay chưa" nằm ở native để vẫn chạy khi Flutter engine đã bị huỷ.
 Flutter chỉ cấu hình chuyến, hiển thị trạng thái, và lưu lịch sử khi được đánh thức.
 

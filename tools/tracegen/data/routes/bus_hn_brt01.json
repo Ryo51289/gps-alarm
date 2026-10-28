@@ -1,0 +1,20 @@
+{
+  "id": "bus_hn_brt01",
+  "title": "Buýt nhanh BRT01 Kim Mã → Yên Nghĩa qua Giảng Võ, Láng Hạ, Lê Văn Lương, Tố Hữu, Quang Trung",
+  "attribution": "Toạ độ có nguồn osm:*: © OpenStreetMap contributors, ODbL 1.0",
+  "waypoints": [
+    {"id": "brt_kim_ma", "name": "Điểm đầu BRT Kim Mã", "lat": 21.0320888, "lng": 105.8291721, "source": "osm:node/11294871987"},
+    {"id": "giang_vo_lang_ha", "lat": 21.0210, "lng": 105.8180, "source": "approx"},
+    {"id": "lang_ha_a", "lat": 21.0183256, "lng": 105.8160795, "source": "osm:way/964868041"},
+    {"id": "lang_ha_b", "lat": 21.0132443, "lng": 105.8128302, "source": "osm:way/707812019"},
+    {"id": "nga_tu_lang", "lat": 21.0075, "lng": 105.8085, "source": "approx"},
+    {"id": "le_van_luong_a", "lat": 21.0045, "lng": 105.8048, "source": "approx"},
+    {"id": "le_van_luong_b", "lat": 21.0000, "lng": 105.7990, "source": "approx"},
+    {"id": "to_huu_start", "lat": 20.9950, "lng": 105.7915, "source": "approx"},
+    {"id": "brt_mo_lao", "name": "Nhà chờ BRT Mỗ Lao", "lat": 20.9882018, "lng": 105.7800456, "source": "osm:node/9019312711"},
+    {"id": "brt_van_phuc_2", "name": "Nhà chờ BRT Vạn Phúc 2", "lat": 20.9852670, "lng": 105.7757315, "source": "osm:node/11522308674"},
+    {"id": "quang_trung_hd", "lat": 20.9720, "lng": 105.7740, "source": "approx"},
+    {"id": "ba_la", "lat": 20.9585, "lng": 105.7580, "source": "approx"},
+    {"id": "brt_yen_nghia", "name": "Nhà chờ BRT Yên Nghĩa", "lat": 20.9495996, "lng": 105.7476229, "source": "osm:node/1281787933"}
+  ]
+}

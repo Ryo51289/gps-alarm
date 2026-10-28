@@ -1,0 +1,16 @@
+{
+  "id": "road_gb_phuly_kienkhe",
+  "title": "Bến xe Giáp Bát → cao tốc → Bến xe Phủ Lý → QL1A qua TP Phủ Lý → Kiện Khê",
+  "attribution": "Toạ độ có nguồn osm:*: © OpenStreetMap contributors, ODbL 1.0",
+  "waypoints": [
+    {"id": "bx_giap_bat", "name": "Bến xe Giáp Bát", "lat": 20.9803353, "lng": 105.8414241, "source": "osm:node/11684178759"},
+    {"id": "nut_giao_phap_van", "name": "Nút giao Pháp Vân", "lat": 20.9628062, "lng": 105.8482446, "source": "osm:way/1120475357"},
+    {"id": "cao_toc_thuong_tin", "lat": 20.8600, "lng": 105.8790, "source": "approx"},
+    {"id": "nut_giao_cau_gie", "name": "Nút giao Cầu Giẽ", "lat": 20.7035676, "lng": 105.9195379, "source": "osm:way/1120475360"},
+    {"id": "cao_toc_dong_van", "lat": 20.6300, "lng": 105.9280, "source": "approx"},
+    {"id": "nut_giao_liem_tuyen", "name": "Nút giao Liêm Tuyền", "lat": 20.5391164, "lng": 105.9480171, "source": "osm:way/1120475365"},
+    {"id": "bx_phu_ly", "name": "Bến xe Trung tâm Phủ Lý", "lat": 20.5384420, "lng": 105.9448818, "source": "osm:node/12269209867"},
+    {"id": "ga_phu_ly", "name": "Ga Phủ Lý", "lat": 20.5406083, "lng": 105.9130158, "source": "osm:way/628386498"},
+    {"id": "kien_khe", "name": "Kiện Khê", "lat": 20.4992864, "lng": 105.8945429, "source": "osm:node/4764629378"}
+  ]
+}

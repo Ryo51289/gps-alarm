@@ -1,0 +1,47 @@
+{
+  "id": "coach_md_tb",
+  "title": "Xe khách Mỹ Đình → Thái Bình",
+  "vehicle": "coach",
+  "route": "road_md_tb",
+  "destination": "bx_thai_binh",
+  "seed": 2001,
+  "startTime": "2026-03-14T00:00:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 120,
+  "endDwellS": 120,
+  "motion": {"accelMps2": 0.6, "decelMps2": 0.8, "cruiseJitter": 0.10, "jitterChunkM": 1000},
+  "speedLimits": [
+    {"from": "bx_my_dinh", "kmh": 30},
+    {"from": "nut_giao_phap_van", "kmh": 85},
+    {"from": "nut_giao_liem_tuyen", "kmh": 55},
+    {"from": "nam_dinh_city", "kmh": 30},
+    {"from": "cau_tan_de", "kmh": 50},
+    {"from": "ql10_vu_thu", "kmh": 30}
+  ],
+  "stops": [
+    {"at": "nam_dinh_city", "dwellS": 180}
+  ],
+  "gpsGaps": [],
+  "noise": {"sigmaM": 5, "rho": 0.9, "accMinM": 3, "speedSigmaMps": 0.3, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "distance_1000",
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "expect": [
+        {"event": "preAlert", "notBefore": {"anchor": "route<=5300"}, "notAfter": {"anchor": "route<=4700"}, "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"},
+        {"event": "alarm", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "time_15",
+      "config": {"mode": "time", "thresholdMin": 15, "preAlert": true},
+      "expect": [
+        {"event": "preAlert", "notBefore": {"anchor": "arrival", "offsetS": -1860}, "notAfter": {"anchor": "arrival", "offsetS": -1740}, "ref": "PRD §4 Nhắc nhẹ: còn 30 phút; dung sai ±1 phút (PRD §1)"},
+        {"event": "alarm", "notBefore": {"anchor": "arrival", "offsetS": -960}, "notAfter": {"anchor": "arrival", "offsetS": -840}, "ref": "PRD §4 Chế độ thời gian; dung sai ±1 phút (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    }
+  ]
+}

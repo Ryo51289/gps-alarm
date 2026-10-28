@@ -20,7 +20,9 @@ nào khiến app không đánh thức người dùng đúng lúc không?"**
      `docs/test-protocols/<ID>.md`: thiết bị, bước, kết quả mong đợi, cột ghi kết quả.
 3. Bổ sung test **ngoài spec** cho vùng rủi ro: biên ngưỡng (đúng 1 000 m, ETA = ngưỡng), GPS nhảy,
    accuracy kém, tàu dừng ga lâu, mất GPS gần đích, pin tụt nhanh, quá trạm, khởi động lại giữa chuyến.
-4. Trace mới: sinh bằng `tools/tracegen` (ghi lại lệnh + seed để tái tạo), không sửa tay GPX lớn.
+4. Trace mới: thêm profile JSON trong `tools/tracegen/data/profiles/`, rồi trong `tools/tracegen` chạy
+   `dart run bin/tracegen.dart generate --profile <id>` và `check`; commit cả profile lẫn fixture. Không sửa tay fixture.
+   Định dạng và quy tắc đồng hồ ảo của harness: `fixtures/traces/README.md`.
 5. Chạy toàn bộ bộ test liên quan (`flutter test`, `cd app/android && ./gradlew :app:testDevDebugUnitTest`,
    `flutter test integration_test` khi có thiết bị/emulator); FAIL → tối giản thành repro (trace nhỏ nhất /
    bước ngắn nhất).

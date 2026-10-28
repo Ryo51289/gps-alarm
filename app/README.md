@@ -30,13 +30,16 @@ cd android && ./gradlew :app:testDevDebugUnitTest
 
 Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (GitHub Actions, `ubuntu-24.04`). Chạy khi mở hoặc
 cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_dispatch`). Bỏ qua commit chỉ đổi `docs/**`, `*.md`,
-`.claude/**`. Hai job chạy song song:
+`.claude/**`. Ba job chạy song song:
 
 - Job `dart`: `flutter pub get --enforce-lockfile` · `dart format --output=none --set-exit-if-changed lib test` ·
   `flutter analyze` · `flutter test` (dev) · `flutter test --flavor prod`.
 - Job `android`: `flutter build apk --config-only` · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
   `flutter build apk --debug` · `flutter build apk --debug --flavor prod` · kiểm package id của 2 APK
   (`app.napstop.dev`, `app.napstop`) bằng `aapt2`.
+- Job `tracegen` (thư mục `tools/tracegen`): `dart pub get --enforce-lockfile` ·
+  `dart format --output=none --set-exit-if-changed .` · `dart analyze --fatal-infos` · `dart test` (gồm test golden:
+  fixture commit từ Windows phải khớp từng byte khi sinh lại trên Linux) · `validate` 6 cặp fixture.
 
 Kết quả từng job nằm ở phần **Summary** của run. Chạy test giống CI ở máy:
 

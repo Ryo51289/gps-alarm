@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.0.0"
+  },
+  "trace": {
+    "id": "coach_gb_phuly_overshoot",
+    "title": "Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp (quá trạm)",
+    "vehicle": "coach",
+    "gpx": "coach_gb_phuly_overshoot.gpx",
+    "seed": 5001,
+    "noiseSeed": 5001,
+    "startTime": "2026-03-14T03:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 3240,
+    "sampleCount": 649
+  },
+  "destination": {
+    "id": "bx_phu_ly",
+    "name": "Bến xe Trung tâm Phủ Lý",
+    "lat": 20.5384420,
+    "lng": 105.9448818
+  },
+  "truth": {
+    "routeLengthM": 59030,
+    "destinationRouteM": 50720,
+    "arrivalT": 2425,
+    "stops": [
+      {
+        "routeM": 50720,
+        "arriveT": 2425,
+        "departT": 2510,
+        "name": "Bến xe Trung tâm Phủ Lý"
+      }
+    ],
+    "gpsGaps": [],
+    "outliers": [],
+    "overshoot": {
+      "closestT": 2425,
+      "closestM": 2,
+      "t": 2620
+    }
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 2395,
+        "straightT": 2395
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 2370,
+        "straightT": 2360
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 2350,
+        "straightT": 2340
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 2310,
+        "straightT": 2295
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 2270,
+        "straightT": 2255
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 2190,
+        "straightT": 2175
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 1980,
+        "straightT": 1965
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 1340,
+        "straightT": 1325
+      },
+      {
+        "thresholdM": 50000,
+        "routeT": 160,
+        "straightT": 110
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 2125
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 1825
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 1525
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 1225
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 625
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000_overshoot",
+      "status": "draft",
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "preAlert",
+          "notBefore": 2175,
+          "notAfter": 2200,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=5300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=4700",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 2335,
+          "notAfter": 2360,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        },
+        {
+          "event": "overshoot",
+          "notBefore": 2605,
+          "notAfter": 2740,
+          "window": {
+            "notBefore": {
+              "anchor": "overshoot",
+              "offsetS": -15
+            },
+            "notAfter": {
+              "anchor": "overshoot",
+              "offsetS": 120
+            }
+          },
+          "ref": "PRD §4 Quá trạm: đã vào gần đích rồi khoảng cách tăng liên tục > 1 km, tốc độ > 10 km/h"
+        }
+      ],
+      "forbid": [
+        "gpsLost"
+      ]
+    }
+  ]
+}
