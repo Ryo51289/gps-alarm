@@ -1,0 +1,269 @@
+# NapStop CI (T01). Spec: docs/specs/T01.md
+#
+# Every action is pinned to a full commit SHA; the release tag is in the trailing
+# comment. To update a pin, resolve the tag with
+#   git ls-remote https://github.com/<owner>/<repo> 'refs/tags/<tag>' 'refs/tags/<tag>^{}'
+# (use the ^{} line if present), update SHA + comment, then run actionlint.
+#
+# FLUTTER_VERSION / DART_VERSION / ANDROID_NDK_VERSION must match the dev
+# machine (CLAUDE.md). Change them only in a dedicated Flutter upgrade task.
+name: CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.claude/**'
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.claude/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# PR runs share one group per PR, so a new push cancels the superseded run.
+# Every other run (push to main, workflow_dispatch) gets its own group via
+# run_id, so it is never cancelled or replaced while queued.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FLUTTER_VERSION: '3.47.8'
+  DART_VERSION: '3.13.7'
+  # = ndkVersion of Flutter 3.47.8 (flutter_tools gradle_utils.dart); not preinstalled on ubuntu-24.04.
+  ANDROID_NDK_VERSION: '28.2.13676358'
+
+defaults:
+  run:
+    shell: bash
+    working-directory: app
+
+jobs:
+  dart:
+    name: dart
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Verify Flutter and Dart versions
+        run: |
+          flutter --version
+          flutter --version --machine > "$RUNNER_TEMP/flutter-version.json"
+          jq -e --arg f "$FLUTTER_VERSION" --arg d "$DART_VERSION" \
+            '.frameworkVersion == $f and .channel == "stable" and (.dartSdkVersion | startswith($d))' \
+            "$RUNNER_TEMP/flutter-version.json"
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyze
+        run: flutter analyze
+
+      # No --flavor on purpose: the flavor probe test compares the raw appFlavor
+      # to 'dev', so this run also proves pubspec default-flavor is dev.
+      - name: Test (default flavor = dev)
+        run: |
+          mkdir -p build/ci
+          flutter test --reporter github --file-reporter json:build/ci/test-dev.json \
+            --dart-define=NAPSTOP_EXPECT_FLAVOR=dev
+
+      - name: Test (flavor prod)
+        run: |
+          mkdir -p build/ci
+          flutter test --flavor prod --reporter github --file-reporter json:build/ci/test-prod.json \
+            --dart-define=NAPSTOP_EXPECT_FLAVOR=prod
+
+      - name: Job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          summary="$GITHUB_STEP_SUMMARY"
+          printf '%s\n' '### dart' '' '| Check | Result |' '|---|---|' >> "$summary"
+          if [[ -s "$RUNNER_TEMP/flutter-version.json" ]]; then
+            jq -r '"| Flutter | \(.frameworkVersion) (\(.channel), Dart \(.dartSdkVersion), rev \(.frameworkRevision[0:10])) |"' \
+              "$RUNNER_TEMP/flutter-version.json" >> "$summary"
+          else
+            echo '| Flutter | unknown |' >> "$summary"
+          fi
+          for flavor in dev prod; do
+            file="build/ci/test-$flavor.json"
+            if [[ -s "$file" ]]; then
+              jq -rs --arg flavor "$flavor" '
+                [.[] | select(.type == "testDone" and .hidden == false)] as $done
+                | "| Dart tests (\($flavor)) | \($done | map(select(.result == "success" and (.skipped | not))) | length) passed, \($done | map(select(.skipped)) | length) skipped, \($done | map(select(.result != "success")) | length) failed |"' \
+                "$file" >> "$summary"
+            else
+              echo "| Dart tests ($flavor) | not run |" >> "$summary"
+            fi
+          done
+
+      - name: Upload Dart test results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dart-test-results
+          path: app/build/ci/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  android:
+    name: android
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            app/android/**/*.gradle.kts
+            app/android/gradle.properties
+            app/android/gradle/wrapper/gradle-wrapper.properties
+            app/pubspec.lock
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Verify Flutter, Dart and Java versions
+        run: |
+          flutter --version
+          flutter --version --machine > "$RUNNER_TEMP/flutter-version.json"
+          jq -e --arg f "$FLUTTER_VERSION" --arg d "$DART_VERSION" \
+            '.frameworkVersion == $f and .channel == "stable" and (.dartSdkVersion | startswith($d))' \
+            "$RUNNER_TEMP/flutter-version.json"
+          java -version
+
+      # The project sets -Xmx8G; private-repo runners have 8 GB RAM. User-home
+      # gradle.properties overrides the project file.
+      - name: Size Gradle for the CI runner
+        run: |
+          mkdir -p "$HOME/.gradle"
+          echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError' \
+            >> "$HOME/.gradle/gradle.properties"
+
+      - name: Install Android NDK ${{ env.ANDROID_NDK_VERSION }}
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ANDROID_NDK_VERSION" < /dev/null
+          # sdkmanager may exit 0 after skipping a package (e.g. unaccepted license).
+          test -f "$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION/source.properties"
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      # gradlew is not committed (T00); Flutter injects it and marks it executable.
+      - name: Generate Gradle wrapper and local.properties
+        run: |
+          flutter build apk --config-only
+          test -x android/gradlew
+
+      - name: Kotlin unit tests (JVM)
+        working-directory: app/android
+        run: ./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest
+
+      - name: Build debug APK (default flavor = dev)
+        run: flutter build apk --debug
+
+      - name: Build debug APK (flavor prod)
+        run: flutter build apk --debug --flavor prod
+
+      - name: Verify APK package names
+        run: |
+          aapt2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$aapt2"
+          out="$RUNNER_TEMP/apk.md"
+          printf '%s\n' '| APK | Package | Size |' '|---|---|---|' > "$out"
+          status=0
+          for pair in 'app-dev-debug.apk app.napstop.dev' 'app-prod-debug.apk app.napstop'; do
+            read -r name expected <<< "$pair"
+            apk="build/app/outputs/flutter-apk/$name"
+            if [[ ! -f "$apk" ]]; then
+              echo "::error::$apk not found"
+              status=1
+              continue
+            fi
+            actual="$("$aapt2" dump packagename "$apk")"
+            echo "| $name | $actual | $(du -h "$apk" | cut -f1) |" >> "$out"
+            if [[ "$actual" != "$expected" ]]; then
+              echo "::error::$name has package '$actual', expected '$expected'"
+              status=1
+            fi
+          done
+          exit "$status"
+
+      - name: Job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          summary="$GITHUB_STEP_SUMMARY"
+          printf '%s\n' '### android' '' >> "$summary"
+          if [[ -s "$RUNNER_TEMP/flutter-version.json" ]]; then
+            jq -r '"- Flutter \(.frameworkVersion) (Dart \(.dartSdkVersion))"' "$RUNNER_TEMP/flutter-version.json" >> "$summary"
+          fi
+          echo "- JDK: $(java -version 2>&1 | head -n 1)" >> "$summary"
+          echo >> "$summary"
+          python3 - >> "$summary" <<'PY'
+          import glob
+          import xml.etree.ElementTree as ET
+
+          print("| Kotlin task | Tests | Failures | Errors | Skipped |")
+          print("|---|---|---|---|---|")
+          for task in ("testDevDebugUnitTest", "testProdDebugUnitTest"):
+              files = sorted(glob.glob(f"build/app/test-results/{task}/TEST-*.xml"))
+              if not files:
+                  print(f"| {task} | not run | | | |")
+                  continue
+              totals = [0, 0, 0, 0]
+              for path in files:
+                  root = ET.parse(path).getroot()
+                  for i, key in enumerate(("tests", "failures", "errors", "skipped")):
+                      totals[i] += int(root.get(key, "0"))
+              print(f"| {task} | " + " | ".join(str(n) for n in totals) + " |")
+          PY
+          if [[ -s "$RUNNER_TEMP/apk.md" ]]; then
+            echo >> "$summary"
+            cat "$RUNNER_TEMP/apk.md" >> "$summary"
+          fi
+
+      - name: Upload Android test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-test-reports
+          path: |
+            app/build/app/reports/tests/
+            app/build/app/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

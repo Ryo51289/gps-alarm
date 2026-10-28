@@ -26,6 +26,28 @@ flutter build apk --config-only
 cd android && ./gradlew :app:testDevDebugUnitTest
 ```
 
+## CI
+
+Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (GitHub Actions, `ubuntu-24.04`). Chạy khi mở hoặc
+cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_dispatch`). Bỏ qua commit chỉ đổi `docs/**`, `*.md`,
+`.claude/**`. Hai job chạy song song:
+
+- Job `dart`: `flutter pub get --enforce-lockfile` · `dart format --output=none --set-exit-if-changed lib test` ·
+  `flutter analyze` · `flutter test` (dev) · `flutter test --flavor prod`.
+- Job `android`: `flutter build apk --config-only` · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
+  `flutter build apk --debug` · `flutter build apk --debug --flavor prod` · kiểm package id của 2 APK
+  (`app.napstop.dev`, `app.napstop`) bằng `aapt2`.
+
+Kết quả từng job nằm ở phần **Summary** của run. Chạy test giống CI ở máy:
+
+```bash
+flutter test --dart-define=NAPSTOP_EXPECT_FLAVOR=dev
+flutter test --flavor prod --dart-define=NAPSTOP_EXPECT_FLAVOR=prod
+```
+
+Không có define thì test `AppFlavor.current` bị skip. Phiên bản Flutter/Dart/NDK của CI nằm ở khối `env` trong workflow
+(`FLUTTER_VERSION`, `DART_VERSION`, `ANDROID_NDK_VERSION`), phải trùng máy dev; nâng Flutter thì sửa cả 3 cùng lúc.
+
 ## Flavor
 
 | Flavor | Android application id | Tên app | Ghi chú |
