@@ -1,4 +1,15 @@
-# PRD — Tới Rồi MVP 1 (báo thức theo vị trí, không backend)
+# PRD — NapStop MVP 1 (báo thức theo vị trí, không backend)
+
+## 0. Tên & thương hiệu (chốt 2026-10-28)
+| Hạng mục | Giá trị |
+|---|---|
+| Tên app | **NapStop** (bản dev: "NapStop Dev"); tên thương hiệu, không dịch |
+| Tagline | "Ngủ không lỡ trạm" (vi) · "Nap. We'll wake you at your stop." (en, nháp) |
+| Tên miền | `napstop.app` |
+| App id Android / Bundle id iOS | `app.napstop` (dev: `app.napstop.dev`) — **không đổi được sau khi phát hành** |
+| Package Kotlin / Dart | `app.napstop.core.*` / `package:napstop/` |
+
+Wireframe hiện vẫn ghi tên cũ "Tới Rồi" — khi làm UI dùng "NapStop".
 
 ## 1. Vấn đề & mục tiêu
 Người đi xe khách/tàu đường dài hay ngủ quên và lỡ trạm. MVP 1 chứng minh: **app đánh thức đúng lúc,

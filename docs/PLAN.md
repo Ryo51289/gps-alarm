@@ -1,4 +1,4 @@
-# Kế hoạch tới bản demo — Tới Rồi MVP 1
+# Kế hoạch tới bản demo — NapStop MVP 1
 
 ## Định nghĩa "bản demo xong" (Definition of Done)
 1. **Cài được:** APK (Play Internal Testing) + bản iOS (TestFlight).

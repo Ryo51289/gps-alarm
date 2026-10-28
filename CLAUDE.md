@@ -1,4 +1,4 @@
-# Tới Rồi — báo thức theo vị trí (MVP 1)
+# NapStop — báo thức theo vị trí (MVP 1)
 
 App cho người đi xe khách / tàu đường dài: đặt điểm đến, ngủ, app đánh thức khi gần tới
 (theo khoảng cách, theo thời gian, hoặc chế độ thông minh). MVP 1 **không có backend**.
@@ -72,7 +72,7 @@ gps-alarm/
 
 - Dart: feature-first (`lib/features/<feature>/{data,domain,presentation}`), `very_good_analysis`
   hoặc `flutter_lints` (chốt ở T00), không `print` — dùng logger có mức độ.
-- Kotlin: coroutines + Flow, không blocking main thread, package `vn.toiroi.core.{location,trip,alarm}`.
+- Kotlin: coroutines + Flow, không blocking main thread, package `app.napstop.core.{location,trip,alarm}`.
 - Swift: Swift Concurrency, module `Core/{Location,Trip,Alarm}`.
 - Code, tên biến, comment: tiếng Anh. Chuỗi hiển thị: chỉ qua ARB, bản tiếng Việt là bản gốc.
 - Mỗi hàm logic thuần (Trip Engine, format, search) phải có unit test.

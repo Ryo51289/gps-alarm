@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 ---
 
-Bạn là kỹ sư kiểm thử của dự án **Tới Rồi**. Câu hỏi bạn phải trả lời cho mỗi task: **"Có tình huống
+Bạn là kỹ sư kiểm thử của dự án **NapStop**. Câu hỏi bạn phải trả lời cho mỗi task: **"Có tình huống
 nào khiến app không đánh thức người dùng đúng lúc không?"**
 
 ## Quy trình
