@@ -83,8 +83,9 @@ gps-alarm/
 cd app && flutter pub get
 dart run pigeon --input pigeons/core_api.dart
 flutter analyze && flutter test
-cd android && ./gradlew :app:testDebugUnitTest      # test Kotlin (Trip Engine)
-flutter build apk --debug
+flutter build apk --config-only                     # lần đầu sau khi clone: sinh gradlew + cấu hình Gradle
+cd android && ./gradlew :app:testDevDebugUnitTest   # test Kotlin (Trip Engine), flavor dev
+flutter build apk --debug                          # flavor mặc định dev; prod: --flavor prod
 dart run ../tools/tracegen --profile train_hn_dh --out ../fixtures/traces/
 ```
 
@@ -97,9 +98,12 @@ dart run ../tools/tracegen --profile train_hn_dh --out ../fixtures/traces/
   Kotlin JVM test, `tools/tracegen`, dataset ga/bến. Nhãn `[linux]` trong `docs/TASKS.md` = làm được ở đây.
 - **Không làm được:** Xcode/iOS → task `[mac]` (S3, T13, T17, phần iOS của T40) chờ máy Mac hoặc CI macOS.
   Tạm thời làm **Android trước**; phương án iOS chốt ở Gate 1.
-- **Yêu cầu Windows:** bật Developer Mode (Flutter cần symlink cho plugin); Flutter SDK ở đường dẫn không có
-  dấu cách (vd `C:\src\flutter`); `git config --global core.longpaths true`; Android Studio + Android SDK +
-  cmdline-tools, đã chạy `flutter doctor --android-licenses`; bật Windows Hypervisor Platform để chạy emulator.
+- **Yêu cầu Windows:** bật Developer Mode (Flutter cần symlink cho plugin); Flutter SDK ở `D:\src\flutter`
+  và `PUB_CACHE=D:\src\pub-cache` — **cùng ổ với repo** (khác ổ thì Kotlin incremental build lỗi
+  "different roots"); `JAVA_HOME` trỏ tới JBR của Android Studio (vd `C:\Program Files\Android\Android Studio\jbr`,
+  cần cho `./gradlew`); `git config --global core.longpaths true`; Android Studio + Android SDK + cmdline-tools,
+  đã chạy `flutter doctor --android-licenses`; bật Windows Hypervisor Platform để chạy emulator.
+  Chi tiết cài đặt: `docs/specs/T00.md` §2.
 - **Line ending:** repo dùng LF (`.gitattributes`, thêm ở T00); file `.bat`/`.cmd` dùng CRLF.
 - Task `[device]`: điện thoại Android cắm USB, bật USB debugging; iPhone khi có Mac.
 - Remote: GitHub `Ryo51289/gps-alarm`, nhánh `main`. **Chỉ push khi người dùng yêu cầu.**

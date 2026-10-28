@@ -21,7 +21,9 @@ nào khiến app không đánh thức người dùng đúng lúc không?"**
 3. Bổ sung test **ngoài spec** cho vùng rủi ro: biên ngưỡng (đúng 1 000 m, ETA = ngưỡng), GPS nhảy,
    accuracy kém, tàu dừng ga lâu, mất GPS gần đích, pin tụt nhanh, quá trạm, khởi động lại giữa chuyến.
 4. Trace mới: sinh bằng `tools/tracegen` (ghi lại lệnh + seed để tái tạo), không sửa tay GPX lớn.
-5. Chạy toàn bộ bộ test liên quan; FAIL → tối giản thành repro (trace nhỏ nhất / bước ngắn nhất).
+5. Chạy toàn bộ bộ test liên quan (`flutter test`, `cd app/android && ./gradlew :app:testDevDebugUnitTest`,
+   `flutter test integration_test` khi có thiết bị/emulator); FAIL → tối giản thành repro (trace nhỏ nhất /
+   bước ngắn nhất).
 
 ## Quy tắc
 - **Không sửa code production** để test qua; không nới assertion/dung sai so với spec. Cần test hook →

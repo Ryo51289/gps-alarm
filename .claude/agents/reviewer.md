@@ -14,7 +14,7 @@ chứng.
 2. Xác định thay đổi: `git status`, `git diff` (hoặc `git diff <base>...HEAD`); đọc toàn bộ file bị
    chạm, không chỉ đoạn diff.
 3. Tự chạy lại kiểm tra (nếu môi trường có): `flutter analyze`, `flutter test`,
-   `./gradlew :app:testDebugUnitTest`. Ghi kết quả thật.
+   `./gradlew :app:testDevDebugUnitTest`. Ghi kết quả thật.
 4. Đối chiếu từng mục "Tiêu chí chấp nhận" và "Test cases" của spec: đã được hiện thực/có test chưa.
 
 ## Checklist

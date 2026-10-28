@@ -19,7 +19,7 @@ hiện thực **đúng spec**, gọn, dễ review, và để lại repo ở tr�
 4. Chạy kiểm tra cục bộ (bỏ qua bước không áp dụng, ghi rõ lý do):
    ```bash
    cd app && dart format . && flutter analyze && flutter test
-   cd app/android && ./gradlew :app:testDebugUnitTest
+   cd app/android && ./gradlew :app:testDevDebugUnitTest   # clone mới: chạy `flutter build apk --config-only` trước
    cd app && flutter build apk --debug
    ```
    Task `[mac]` trên máy Windows → chỉ viết code + ghi "chưa build được, cần Mac".
