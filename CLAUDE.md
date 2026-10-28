@@ -73,9 +73,11 @@ gps-alarm/
 - Dart: feature-first (`lib/features/<feature>/{data,domain,presentation}`), lint `very_good_analysis` 11
   (chốt ở T00), không `print` — dùng logger có mức độ.
 - Dart 3.13: constructor viết `new(...)` / `const new(...)`, không lặp tên class
-  (lint `unnecessary_type_name_in_constructor`); chỗ gọi vẫn là `NapStopApp(...)`.
+  (lint `unnecessary_type_name_in_constructor`); chỗ gọi vẫn là `NapStopApp(...)`. Constructor riêng: `new _(...)`.
+  Factory **không** dùng `new`: không tên viết `factory (...)`, có tên viết `factory name(...)`
+  (`factory new(...)` là lỗi biên dịch `factory_constructor_new_name`).
 - Flutter ghim **3.47.8** (Dart ≥ 3.13.7, `pubspec.yaml` có `sdk: ^3.13.7`) — máy dev và CI dùng đúng bản này;
-  nâng phiên bản phải qua task riêng.
+  nâng phiên bản phải qua task riêng, sửa cùng lúc `FLUTTER_VERSION`, `DART_VERSION`, `ANDROID_NDK_VERSION` trong `ci.yml`.
 - Kotlin: coroutines + Flow, không blocking main thread, package `app.napstop.core.{location,trip,alarm}`.
 - Swift: Swift Concurrency, module `Core/{Location,Trip,Alarm}`.
 - Code, tên biến, comment: tiếng Anh. Chuỗi hiển thị: chỉ qua ARB, bản tiếng Việt là bản gốc.
@@ -90,8 +92,17 @@ flutter analyze && flutter test
 flutter build apk --config-only                     # lần đầu sau khi clone: sinh gradlew + cấu hình Gradle
 cd android && ./gradlew :app:testDevDebugUnitTest   # test Kotlin (Trip Engine), flavor dev
 flutter build apk --debug                          # flavor mặc định dev; prod: --flavor prod
-dart run ../tools/tracegen --profile train_hn_dh --out ../fixtures/traces/
+flutter test --dart-define=NAPSTOP_EXPECT_FLAVOR=dev  # giống CI; prod: --flavor prod --dart-define=...=prod
+
+# Trace giả lập (chạy trong tools/tracegen; mặc định ghi vào ../../fixtures/traces)
+cd tools/tracegen && dart pub get
+dart run bin/tracegen.dart generate --profile train_hn_dh   # hoặc --all
+dart run bin/tracegen.dart check && dart test               # fixture commit phải khớp generator
 ```
+
+CI: `.github/workflows/ci.yml`, 3 job `dart`, `android`, `tracegen` (chi tiết: `app/README.md` mục CI).
+Định dạng fixture dùng chung Dart/Kotlin/Swift: `fixtures/traces/README.md` (schema v1). Trace mới = thêm profile
+trong `tools/tracegen/data/profiles/` rồi `generate`; **không sửa tay fixture**.
 
 ## Ràng buộc môi trường
 
