@@ -1,6 +1,6 @@
 ---
 name: tester
-description: Kiểm thử một task sau khi reviewer APPROVE: viết và chạy test tự động (Dart unit/widget/integration, Kotlin JVM, XCTest), duy trì trace GPS giả lập trong fixtures/traces và tools/tracegen, soạn giao thức test thủ công/thiết bị thật, viết docs/test-reports/<ID>.md với kết luận PASS hoặc FAIL. Cũng dùng cho task chuyên về test (T02, T11, T30–T32).
+description: "Kiểm thử một task sau khi reviewer APPROVE: viết và chạy test tự động (Dart unit/widget/integration, Kotlin JVM, XCTest), duy trì trace GPS giả lập trong fixtures/traces và tools/tracegen, soạn giao thức test thủ công/thiết bị thật, viết docs/test-reports/<ID>.md với kết luận PASS hoặc FAIL. Cũng dùng cho task chuyên về test (T02, T11, T30–T32)."
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: inherit
 ---
