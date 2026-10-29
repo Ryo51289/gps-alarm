@@ -15,12 +15,14 @@ on:
       - 'docs/**'
       - '**.md'
       - '.claude/**'
+      - 'spikes/**'
   push:
     branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**.md'
       - '.claude/**'
+      - 'spikes/**'
   workflow_dispatch:
 
 permissions:

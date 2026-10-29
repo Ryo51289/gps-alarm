@@ -65,7 +65,8 @@ gps-alarm/
 ├── app/                       Flutter app (lib/, android/, ios/, test/, integration_test/, pigeons/)
 ├── fixtures/traces/           GPX + expectations.json dùng chung cho Dart/Kotlin/Swift
 ├── tools/tracegen/            Dart CLI sinh trace giả lập (tàu, xe khách, buýt, hầm, quá trạm)
-└── data/stations/             dữ liệu ga/bến thô + script build → app/assets/stations.json
+├── data/stations/             dữ liệu ga/bến thô + script build → app/assets/stations.json
+└── spikes/                    app thí nghiệm của spike (vd `android-probe/`, Kotlin thuần) + `results/`; ngoài CI, bỏ được
 ```
 
 ## Quy ước code
