@@ -12,13 +12,15 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
-/** Full-screen alarm on the lock screen (S2 §5.3). Opened only through the notification's full-screen intent. */
+/**
+ * Full-screen alarm on the lock screen (S2 §5.3). Opened only through the notification's full-screen intent.
+ * `singleInstance`: a later alarm reuses this instance through [onNewIntent], so it always shows the current run and closes
+ * itself whenever no alarm is ringing ([AlarmState], Vòng 4 #3).
+ */
 class AlarmActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,12 +37,15 @@ class AlarmActivity : ComponentActivity() {
 
         setContentView(R.layout.activity_alarm)
         findViewById<View>(R.id.alarmRoot).applySystemBarsPadding()
-        findViewById<TextView>(R.id.alarmPlanned).text =
-            getString(R.string.alarm_planned, intent.getStringExtra(EXTRA_PLANNED).orEmpty())
-        findViewById<TextView>(R.id.alarmSource).text =
-            getString(R.string.alarm_source, intent.getStringExtra(EXTRA_SRC).orEmpty())
+        bind(intent)
         findViewById<Button>(R.id.btnDismiss).setOnClickListener {
-            startService(ProbeService.dismissIntent(this, ProbeService.BY_ACTIVITY))
+            // Routed to the service that rings (S2 Vòng 4 V4-1).
+            val dismiss = if (AlarmState.owner == AlarmState.OWNER_RING) {
+                AlarmRingService.dismissIntent(this, ProbeService.BY_ACTIVITY)
+            } else {
+                ProbeService.dismissIntent(this, ProbeService.BY_ACTIVITY)
+            }
+            startService(dismiss)
             finish()
         }
 
@@ -49,23 +54,46 @@ class AlarmActivity : ComponentActivity() {
             override fun handleOnBackPressed() = Unit
         })
 
-        if (savedInstanceState == null) {
-            val keyguardLocked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
-            val interactiveBefore = ProbeService.interactiveAtTrigger
-            EventLog.log(
-                "alarm_ui_shown",
-                "keyguardLocked" to keyguardLocked,
-                "interactive" to getSystemService(PowerManager::class.java).isInteractive,
-                "viaFsi" to (keyguardLocked || interactiveBefore == false),
-            )
-        }
+        if (savedInstanceState == null) logShown()
 
-        // Close when the alarm is not (or no longer) ringing: notification action, timeout, stale intent.
+        // Close when the alarm is not (or no longer) ringing: notification action, "Dừng lượt", timeout, stale intent.
+        // Collected for the whole life of the activity (not only while STARTED), so a stopped instance is closed too.
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                ProbeService.alarmActive.filter { !it }.collect { finish() }
-            }
+            AlarmState.active.filter { !it }.collect { finish() }
         }
+    }
+
+    /** FSI of a later alarm while this (singleInstance) activity still exists: show that alarm, log it like a new screen. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        bind(intent)
+        logShown()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!AlarmState.active.value) finish()
+    }
+
+    private fun bind(intent: Intent) {
+        findViewById<TextView>(R.id.alarmPlanned).text =
+            getString(R.string.alarm_planned, intent.getStringExtra(EXTRA_PLANNED).orEmpty())
+        findViewById<TextView>(R.id.alarmSource).text =
+            getString(R.string.alarm_source, intent.getStringExtra(EXTRA_SRC).orEmpty())
+    }
+
+    /** Only while an alarm rings: a screen that closes at once in onStart is not "shown". */
+    private fun logShown() {
+        if (!AlarmState.active.value) return
+        val keyguardLocked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
+        val interactiveBefore = AlarmState.interactiveAtTrigger
+        EventLog.log(
+            "alarm_ui_shown",
+            "keyguardLocked" to keyguardLocked,
+            "interactive" to getSystemService(PowerManager::class.java).isInteractive,
+            "viaFsi" to (keyguardLocked || interactiveBefore == false),
+        )
     }
 
     companion object {

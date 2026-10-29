@@ -42,6 +42,14 @@ Trạng thái: **Đề xuất** (từ spike S5, 2026-10-29) — chờ product ow
 - (+) Không cần khai báo/video vị trí nền; ít bước cấp quyền hơn; phù hợp nguyên tắc "minimum scope" của Play.
 - (−) Không tự phục hồi theo dõi từ nền sau reboot, và có thể không phục hồi sau khi OEM giết tiến trình
   (`START_STICKY` — **chưa rõ**, S1 đo). Người đang ngủ sẽ không thấy notification "chạm để tiếp tục".
+  Emulator Android 14 (2026-10-29): sticky restart **vẫn có** vị trí khi chỉ có "Khi dùng ứng dụng"; khởi động lại bằng exact alarm
+  (watchdog, ranh giới pha, dự phòng báo thức) thì **`SecurityException`** — exact alarm không nằm trong danh sách miễn trừ
+  while-in-use [A2]. Cần xác nhận trên máy thật (S1 R2).
+- (−) **Đường báo thức không được phụ thuộc việc khởi động lại FGS `location` từ nền** (S1/S2 smoke test emulator, lỗi #1: báo thức
+  dự phòng không kêu khi không có vị trí nền). Hệ quả cho T16: âm báo + thông báo toàn màn hình phải chạy được từ một service riêng
+  không cần quyền vị trí, khởi động từ exact alarm (FGS `systemExempted` cho app giữ quyền exact alarm, hoặc `mediaPlayback`) [A3];
+  cho T15: luôn giữ một exact alarm dự phòng cho báo thức để còn kêu khi FGS `location` đã chết; cho S5: khai thêm kiểu FGS
+  này trên Play Console. Kiểm trên máy thật bằng S2-11 (`docs/spikes/S2.md` mục "Vòng 4").
 - Thay đổi tài liệu khi được duyệt: PRD §3 màn 0 (Android: "Khi dùng ứng dụng" + "Chính xác"); ARCHITECTURE §6 rủi ro 4
   trỏ tới S5 + ADR này; spec T15/T21 theo danh sách quyền ở S5 §8.1.
 - Không có thay đổi phá vỡ cho task đã `done` (T00–T02 chưa khai quyền nào).

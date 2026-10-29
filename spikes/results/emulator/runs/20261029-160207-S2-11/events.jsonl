@@ -1,0 +1,15 @@
+{"ev":"run_start","t":"2026-10-29T16:02:07.475+07:00","et":6865337,"run":"20261029-160207-S2-11","pid":26284,"seq":3,"kind":"S2","label":"S2-11","durationMin":1,"densePhaseMin":1,"alarmAtEnd":true,"watchdog":true,"delayMin":1,"scenario":"S2-11","manufacturer":"Google","brand":"google","model":"sdk_gphone64_x86_64","sdk":34,"release":"14","display":"sdk_gphone64_x86_64-userdebug 14 UE1A.230829.050 12077443 dev-keys","secPatch":"2023-09-05","gms":"OK"}
+{"ev":"perm_snapshot","t":"2026-10-29T16:02:07.494+07:00","et":6865355,"run":"20261029-160207-S2-11","pid":26284,"seq":4,"fine":true,"coarse":true,"bg":false,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":1}
+{"ev":"alarm_scheduled","t":"2026-10-29T16:02:07.508+07:00","et":6865370,"run":"20261029-160207-S2-11","pid":26284,"seq":5,"deadline":"2026-10-29T16:03:07.460+07:00","fallbackExact":true}
+{"ev":"svc_start_cmd","t":"2026-10-29T16:02:07.979+07:00","et":6865841,"run":"20261029-160207-S2-11","pid":26284,"seq":6,"src":"user","flags":0,"startId":1}
+{"ev":"perm_snapshot","t":"2026-10-29T16:02:08.003+07:00","et":6865864,"run":"20261029-160207-S2-11","pid":26284,"seq":7,"fine":true,"coarse":true,"bg":false,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":1}
+{"ev":"svc_fg_ok","t":"2026-10-29T16:02:08.005+07:00","et":6865866,"run":"20261029-160207-S2-11","pid":26284,"seq":8,"src":"user"}
+{"ev":"phase_switch","t":"2026-10-29T16:02:08.032+07:00","et":6865894,"run":"20261029-160207-S2-11","pid":26284,"seq":9,"from":"sparse","to":"dense","boundary":"2026-10-29T16:02:07.460+07:00","lateMs":0,"via":"start"}
+{"ev":"loc_req","t":"2026-10-29T16:02:08.088+07:00","et":6865952,"run":"20261029-160207-S2-11","pid":26284,"seq":10,"priority":"HIGH","intervalMs":10000,"phase":"dense"}
+{"ev":"battery","t":"2026-10-29T16:02:08.129+07:00","et":6865991,"run":"20261029-160207-S2-11","pid":26284,"seq":11,"lvl":100,"chg":false}
+{"ev":"fix","t":"2026-10-29T16:02:11.892+07:00","et":6869753,"run":"20261029-160207-S2-11","pid":26284,"seq":12,"n":1,"acc":5.0,"spd":0.0,"prov":"fused","ageMs":16,"dM":null}
+{"ev":"fix","t":"2026-10-29T16:02:21.961+07:00","et":6879822,"run":"20261029-160207-S2-11","pid":26284,"seq":13,"n":2,"acc":5.0,"spd":1.7723963260650635,"prov":"fused","ageMs":10,"dM":19.1}
+{"ev":"svc_cmd","t":"2026-10-29T16:02:30.264+07:00","et":6888126,"run":"20261029-160207-S2-11","pid":26284,"seq":14,"action":"sim_kill","startId":2}
+{"ev":"svc_destroy","t":"2026-10-29T16:02:30.367+07:00","et":6888229,"run":"20261029-160207-S2-11","pid":26284,"seq":15}
+{"ev":"svc_cmd","t":"2026-10-29T16:02:56.992+07:00","et":6914853,"run":"20261029-160207-S2-11","pid":26284,"seq":16,"action":"stop","startId":1}
+{"ev":"run_stop","t":"2026-10-29T16:02:57.023+07:00","et":6914885,"run":"20261029-160207-S2-11","pid":26284,"seq":17,"by":"user"}

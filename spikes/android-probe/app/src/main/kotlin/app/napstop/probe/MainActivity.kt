@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var btnStartS2: Button
     private lateinit var btnStopRun: Button
     private lateinit var btnSelfKill: Button
+    private lateinit var btnSimKill: Button
 
     // Lint InvalidFragmentVersionForActivityResult is a false positive here: fragment 1.0.0 only comes in
     // transitively (play-services-base) and this is a ComponentActivity, not a FragmentActivity.
@@ -68,6 +69,7 @@ class MainActivity : ComponentActivity() {
         btnStartS2 = findViewById(R.id.btnStartS2)
         btnStopRun = findViewById(R.id.btnStopRun)
         btnSelfKill = findViewById(R.id.btnSelfKill)
+        btnSimKill = findViewById(R.id.btnSimKill)
 
         showDeviceInfo()
         btnStartS1.setOnClickListener { startS1() }
@@ -77,6 +79,8 @@ class MainActivity : ComponentActivity() {
             startService(ProbeService.selfKillIntent(this))
             Toast.makeText(this, R.string.self_kill_sent, Toast.LENGTH_LONG).show()
         }
+        // S2 Vòng 4 V4-1: stop the location service but keep the run and its exact alarms (no root needed).
+        btnSimKill.setOnClickListener { startService(ProbeService.simKillIntent(this)) }
         findViewById<Button>(R.id.btnResults).setOnClickListener {
             startActivity(Intent(this, SummaryActivity::class.java))
         }
@@ -358,10 +362,14 @@ class MainActivity : ComponentActivity() {
         AlertDialog.Builder(this)
             .setTitle(R.string.confirm_stop_title)
             .setMessage(R.string.confirm_stop_message)
-            .setPositiveButton(R.string.confirm_yes) { _, _ -> startService(ProbeService.stopIntent(this)) }
+            .setPositiveButton(R.string.confirm_yes) { _, _ -> startService(stopRunIntent()) }
             .setNegativeButton(R.string.confirm_cancel, null)
             .show()
     }
+
+    /** "Dừng lượt" goes to the service that rings, if any (S2 Vòng 4 V4-1); otherwise to ProbeService as before. */
+    private fun stopRunIntent(): Intent =
+        if (AlarmState.owner == AlarmState.OWNER_RING) AlarmRingService.stopIntent(this) else ProbeService.stopIntent(this)
 
     private fun showMessage(message: String) {
         AlertDialog.Builder(this).setMessage(message).setPositiveButton(R.string.ok, null).show()
@@ -376,6 +384,7 @@ class MainActivity : ComponentActivity() {
         btnStopRun.isEnabled = cfg != null
         // Only while the service runs: otherwise startService would create a non-foreground sticky service (S1 5.5).
         btnSelfKill.isEnabled = cfg != null && ProbeService.running
+        btnSimKill.isEnabled = cfg != null && ProbeService.running
         if (cfg == null) {
             runStatus.setText(R.string.run_none)
             return

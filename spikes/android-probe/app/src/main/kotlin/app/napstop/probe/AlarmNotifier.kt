@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
@@ -61,7 +62,16 @@ object AlarmNotifier {
             .build()
     }
 
-    fun alarmNotification(context: Context, plannedClock: String, src: String): Notification {
+    /**
+     * [dismissTarget]: the service that posted the notification and rings (ProbeService or AlarmRingService, S2 Vòng 4
+     * V4-1); its "Tắt" action sends ACTION_DISMISS (by=notif_action) there.
+     */
+    fun alarmNotification(
+        context: Context,
+        plannedClock: String,
+        src: String,
+        dismissTarget: Class<out Service>,
+    ): Notification {
         val alarmPi = PendingIntent.getActivity(
             context,
             REQ_ALARM_UI,
@@ -71,7 +81,9 @@ object AlarmNotifier {
         val dismissPi = PendingIntent.getService(
             context,
             REQ_DISMISS,
-            ProbeService.dismissIntent(context, ProbeService.BY_NOTIF_ACTION),
+            Intent(context, dismissTarget)
+                .setAction(ProbeService.ACTION_DISMISS)
+                .putExtra(ProbeService.EXTRA_BY, ProbeService.BY_NOTIF_ACTION),
             PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(context, CHANNEL_ALARM)

@@ -91,6 +91,8 @@
         <item>S2-8 · Mở khoá, đang phát video</item>
         <item>S2-9 · Báo thức cuối lượt S1</item>
         <item>S2-10 · Android 17, audio hardening</item>
+        <item>S2-11 · Như S2-3, vị trí khi dùng app, tắt service</item>
+        <item>S2-12 · Im lặng, chế độ khác chặn báo thức</item>
     </string-array>
 
     <!-- Main: running run -->
@@ -103,6 +105,7 @@
     <string name="phase_dense">dày (10 s)</string>
     <string name="btn_stop_run">Dừng lượt</string>
     <string name="btn_self_kill">Tự huỷ process sau 60 giây</string>
+    <string name="btn_sim_kill">Tắt service (giữ lượt)</string>
     <string name="btn_view_results">Xem kết quả</string>
     <string name="confirm_stop_title">Dừng lượt?</string>
     <string name="confirm_stop_message">Lượt đang chạy sẽ kết thúc và ghi run_stop (by=user).</string>

@@ -14,7 +14,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Exact alarms of a run: watchdog every 15 min (S1 §5.4), sparse → dense phase boundary (S1 §5.4) and the alarm fallback at
- * deadline + 60 s (S2 §5.1). Exact alarms are exempt from the FGS background-start restriction [A6].
+ * deadline + 60 s (S2 §5.1). Exact alarms are exempt from the FGS background-start restriction [A6], but not from the
+ * while-in-use rule of a `location` FGS [A2]: restarts from here fail without background location (that is R2 data).
  */
 class WatchdogReceiver : BroadcastReceiver() {
 
@@ -82,17 +83,31 @@ class WatchdogReceiver : BroadcastReceiver() {
         if (!ProbeService.phaseTick(finish)) finish.run()
     }
 
+    /**
+     * ALARM_FALLBACK (S2 §5.1, Vòng 4 V4-1). Always, even with the watchdog off: this is the alarm's own safety net. A dead
+     * ProbeService is **not** restarted from here (a `location` FGS cannot start from the background without background
+     * location [A1][A2]); AlarmRingService rings without location instead.
+     */
     private fun onFallback(context: Context, store: RunStore) {
-        if (store.alarmFired) return
-        if (ProbeService.triggerFallback()) return
-        // Always, even with the watchdog off: this is the alarm's own safety net (S2 §5.1).
-        startService(context, ProbeService.SRC_ALARM_FALLBACK, FOR_ALARM_FALLBACK, ProbeService.TRIGGER_FALLBACK)
+        when (AlarmRoute.forFallback(store.alarmFired, ProbeService.running)) {
+            AlarmRoute.Fallback.NONE -> Unit
+            AlarmRoute.Fallback.PROBE_SERVICE -> if (!ProbeService.triggerFallback()) startRingService(context)
+            AlarmRoute.Fallback.RING_SERVICE -> startRingService(context)
+        }
+    }
+
+    private fun startRingService(context: Context) {
+        try {
+            ContextCompat.startForegroundService(context, AlarmRingService.ringIntent(context))
+        } catch (e: Exception) {
+            EventLog.log("wd_restart_fail", "for" to FOR_ALARM_FALLBACK, "ex" to e.javaClass.name, "msg" to e.message)
+        }
     }
 
     /** Each restart mechanism has its own src (S1 §5.4); [forWhat] only labels a failure in `wd_restart_fail`. */
-    private fun startService(context: Context, src: String, forWhat: String, trigger: String? = null) {
+    private fun startService(context: Context, src: String, forWhat: String) {
         try {
-            ContextCompat.startForegroundService(context, ProbeService.startIntent(context, src, trigger))
+            ContextCompat.startForegroundService(context, ProbeService.startIntent(context, src))
         } catch (e: Exception) {
             EventLog.log("wd_restart_fail", "for" to forWhat, "ex" to e.javaClass.name, "msg" to e.message)
         }

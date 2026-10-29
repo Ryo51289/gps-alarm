@@ -28,14 +28,22 @@ cd /d/work/gps-alarm/spikes/android-probe
 ./gradlew :app:assembleDebug                               # → app/build/outputs/apk/debug/app-debug.apk
 adb devices -l                                             # lấy <serial>
 adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk   # KHÔNG dùng -g
-adb -s <serial> pull /sdcard/Android/data/app.napstop.probe/files/runs ../results/<yyyyMMdd>-<hang>-<model>/
+mkdir -p ../results/<yyyyMMdd>-<hang>-<model>
+adb -s <serial> pull //sdcard/Android/data/app.napstop.probe/files/runs ../results/<yyyyMMdd>-<hang>-<model>/
 adb -s <serial> logcat -d -v threadtime > ../results/<...>/logcat.txt   # tuỳ chọn, ngay sau lượt
 ```
+
+`//sdcard` (gạch chéo kép) là cố ý: Git Bash (MSYS) đổi `/sdcard/...` thành `C:/Program Files/Git/sdcard/...`. Cách khác:
+`MSYS_NO_PATHCONV=1 adb -s <serial> pull /sdcard/... ../results/<...>/` (đích phải là đường dẫn tương đối hoặc `D:/...`, không dùng
+`/d/...`). PowerShell/cmd dùng dạng thường `/sdcard/...`.
 
 Nếu máy không có thư mục trên (bộ nhớ ngoài không dùng được), log nằm ở bộ nhớ trong:
 `adb -s <serial> exec-out run-as app.napstop.probe tar c files/runs > ../results/<...>/runs.tar`.
 
 Chỉ có bản `debug` (biến thể `release` bị tắt trong `app/build.gradle.kts`).
+
+Nút **"Tắt service (giữ lượt)"** (mục "Lượt đang chạy"): dừng service vị trí nhưng giữ lượt và mọi exact alarm (giả lập service bị
+giết mà không tự khởi động lại, không cần root). Dùng cho M-WD và kịch bản S2-11: báo thức dự phòng kêu từ `AlarmRingService`.
 
 ## Log
 

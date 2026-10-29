@@ -10,7 +10,8 @@ import java.time.format.DateTimeFormatter
 import kotlin.random.Random
 
 /**
- * U03–U27 (docs/spikes/S1.md §7.1, docs/spikes/S2.md §5.5). Times are seconds after run start.
+ * U03–U50 (docs/spikes/S1.md §7.1 + "Vòng 4" V4-8, docs/spikes/S2.md §5.5 + "Vòng 4" V4-3 + "Vòng 5" V5-7 + "Vòng 5b").
+ * Times are seconds after run start.
  * The S1 base fixture (U03) has 10 h, boundary at 9 h (32 400 s) with `phase_switch via=alarm lateMs=0`.
  */
 class RunAnalyzerTest {
@@ -62,7 +63,7 @@ class RunAnalyzerTest {
     /** Alarm at the end: trigger 36 000.5, sound 36 001.5, UI, dismissed by the activity at 36 042. */
     private fun alarmEvents(): List<ProbeEvent> = listOf(
         ev(36_000.5, "alarm_trigger", "src" to "fix", "planned" to iso(36_000.0), "lateMs" to 500),
-        ev(36_000.6, "perm_snapshot", "zen" to 3, "ringer" to 0, "alarmVol" to 5, "alarmVolMax" to 7),
+        ev(36_000.6, "perm_snapshot", "zen" to 1, "ringer" to 0, "alarmVol" to 5, "alarmVolMax" to 7),
         ev(36_001.5, "alarm_sound_start", "ok" to true, "focus" to "granted", "alarmVol" to 5, "alarmVolMax" to 7, "muted" to false),
         ev(36_001.6, "alarm_vibrate", "ok" to true, "hasVibrator" to true),
         ev(36_001.7, "alarm_notif_posted", "fsiAllowed" to true, "notifEnabled" to true, "chAlarmImp" to 4),
@@ -81,6 +82,7 @@ class RunAnalyzerTest {
         stop: Pair<Long, String>? = 36_042L to "alarm_dismissed",
         extra: List<ProbeEvent> = emptyList(),
         battery: List<ProbeEvent>? = null,
+        fixAgeMs: Long? = 5,
     ): List<ProbeEvent> {
         seq = 0
         val out = ArrayList<ProbeEvent>()
@@ -98,7 +100,13 @@ class RunAnalyzerTest {
         out += ev(0, "phase_alarm_scheduled", "boundary" to iso(boundary.toDouble()), "exact" to true)
         if (alarmAtEnd) out += ev(0, "alarm_scheduled", "deadline" to iso(36_000.0), "fallbackExact" to true)
         out += battery ?: listOf(ev(1, "battery", "lvl" to 96, "chg" to false))
-        fixes.forEach { out += ev(it, "fix", "acc" to 12.0, "spd" to null, "prov" to "fused", "ageMs" to 5, "dM" to 3.0) }
+        fixes.forEach {
+            out += if (fixAgeMs == null) {
+                ev(it, "fix", "acc" to 12.0, "spd" to null, "prov" to "fused", "dM" to 3.0)
+            } else {
+                ev(it, "fix", "acc" to 12.0, "spd" to null, "prov" to "fused", "ageMs" to fixAgeMs, "dM" to 3.0)
+            }
+        }
         if (!noSwitch) {
             out += switch ?: ev(
                 boundary.toDouble(), "phase_switch", "from" to "sparse", "to" to "dense",
@@ -123,6 +131,12 @@ class RunAnalyzerTest {
         chAlarmImp: Int? = null,
         errors: List<String> = emptyList(),
         stop: Pair<Long, String>? = null, // default: right after the alarm is dismissed
+        vibrate: Boolean = false,
+        soundFields: Map<String, Any?>? = null, // replaces every alarm_sound_start field except ok
+        snapshot: Map<String, Any?>? = null, // perm_snapshot right after the trigger
+        dismissBy: String = "activity",
+        dismissAfterMs: Long = 42_000,
+        sdk: Int = 35,
     ): List<ProbeEvent> {
         seq = 0
         val out = ArrayList<ProbeEvent>()
@@ -130,7 +144,7 @@ class RunAnalyzerTest {
             0, "run_start",
             "kind" to "S2", "label" to "S2-1", "durationMin" to 2, "densePhaseMin" to 2, "alarmAtEnd" to true,
             "watchdog" to true, "delayMin" to 2, "scenario" to "S2-1", "manufacturer" to "samsung",
-            "model" to "SM-A546E", "sdk" to 35, "release" to "15",
+            "model" to "SM-A546E", "sdk" to sdk, "release" to "15",
         )
         out += ev(0, "alarm_scheduled", "deadline" to iso(120.0), "fallbackExact" to true)
         out += ev(0.2, "phase_switch", "from" to "sparse", "to" to "dense", "boundary" to iso(0.0), "lateMs" to 0, "via" to "start")
@@ -138,7 +152,11 @@ class RunAnalyzerTest {
         if (triggerSrc != null) {
             val trig = 120.0 + lateMs / 1000.0
             out += ev(trig, "alarm_trigger", "src" to triggerSrc, "planned" to iso(120.0), "lateMs" to lateMs)
-            out += ev(trig + 1, "alarm_sound_start", "ok" to soundOk, "focus" to "granted", "alarmVol" to 5, "alarmVolMax" to 7)
+            snapshot?.let { out += ev(trig + 0.1, "perm_snapshot", *it.toList().toTypedArray()) }
+            val sound = linkedMapOf<String, Any?>("ok" to soundOk)
+            sound.putAll(soundFields ?: mapOf("focus" to "granted", "alarmVol" to 5, "alarmVolMax" to 7))
+            out += ev(trig + 1, "alarm_sound_start", *sound.toList().toTypedArray())
+            if (vibrate) out += ev(trig + 1.05, "alarm_vibrate", "ok" to true, "hasVibrator" to true)
             errors.forEach { out += ev(trig + 1.1, "alarm_error", "step" to it, "ex" to "java.lang.SecurityException") }
             if (notifPosted) {
                 out += ev(
@@ -147,7 +165,7 @@ class RunAnalyzerTest {
                 )
             }
             if (uiShown) out += ev(trig + 2, "alarm_ui_shown", "keyguardLocked" to true, "interactive" to true)
-            out += ev(trig + 42, "alarm_dismissed", "by" to "activity", "afterMs" to 42_000)
+            out += ev(trig + 42, "alarm_dismissed", "by" to dismissBy, "afterMs" to dismissAfterMs)
         }
         val runStop = stop ?: (120L + lateMs / 1000L + 42L to "alarm_dismissed")
         out += ev(runStop.first, "run_stop", "by" to runStop.second)
@@ -930,10 +948,766 @@ class RunAnalyzerTest {
         assertEquals(Verdict.PASS, visible.verdict)
     }
 
+    // ---- Vòng 4: audible alarm and DND (U35, S2 V4-2) ----
+
+    @Test
+    fun `U35a DND total silence with a playing player fails as not audible`() {
+        val events = s2Run(
+            uiShown = false,
+            chAlarmImp = 4,
+            vibrate = true,
+            soundFields = mapOf("focus" to "granted", "alarmVol" to 0, "alarmVolMax" to 7, "muted" to true),
+            snapshot = mapOf("zen" to 3, "ringer" to 0),
+            dismissBy = "user_stop",
+            stop = 170L to "user",
+        )
+        val s = analyzeRun(events)
+        val a = s.alarm!!
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertTrue(a.soundOk)
+        assertFalse(a.audible)
+        assertEquals(
+            listOf("luồng báo thức bị tắt tiếng", "âm lượng báo thức 0", "Không làm phiền: hoàn toàn tắt tiếng"),
+            a.silencedBy,
+        )
+        assertEquals(VibrationEvidence.BLOCKED, a.vibration)
+        assertFalse(a.notifVisible)
+        assertEquals(listOf("Không làm phiền chặn"), a.notifHiddenBy)
+        assertTrue(s.reasons.toString(), s.reasons.any { it.startsWith("không nghe được:") })
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("TẮT TIẾNG"))
+        assertTrue(text, text.contains("rung: bị Không làm phiền chặn"))
+        assertTrue(text, text.contains("đủ điều kiện hiện: không"))
+        assertFalse(text, text.contains("âm thanh OK"))
+        assertFalse(text, text.contains("rung OK"))
+        assertFalse(text, text.contains("hiện được: có"))
+    }
+
+    @Test
+    fun `U35b DND priority whose applied policy blocks alarms fails`() {
+        val s = analyzeRun(
+            s2Run(
+                vibrate = true,
+                uiShown = false,
+                soundFields = mapOf(
+                    "focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7, "muted" to false, "zen" to 2,
+                    "zenAlarms" to false, "zenAlarmsActive" to false,
+                ),
+            ),
+        )
+        val a = s.alarm!!
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.contains("không nghe được: Không làm phiền chặn báo thức"))
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains(
+                "(thông tin) luồng báo thức không bị tắt tiếng dù Không làm phiền chặn báo thức, đối chiếu biên bản nghe",
+            ),
+        )
+        assertFalse(a.notifVisible)
+        assertEquals(listOf("Không làm phiền chặn"), a.notifHiddenBy)
+        assertEquals(VibrationEvidence.BLOCKED, a.vibration)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("DND PRIORITY (báo thức: chặn)"))
+    }
+
+    @Test
+    fun `U35c DND priority that allows alarms passes`() {
+        val s = analyzeRun(
+            s2Run(
+                vibrate = true,
+                soundFields = mapOf(
+                    "focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7, "muted" to false, "zen" to 2,
+                    "zenAlarms" to true, "zenAlarmsActive" to true,
+                ),
+            ),
+        )
+        val a = s.alarm!!
+        assertEquals(Verdict.PASS, s.verdict)
+        assertTrue(a.audible)
+        assertEquals(VibrationEvidence.REQUESTED, a.vibration)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("rung: đã yêu cầu (không xác minh được)"))
+        assertTrue(text, text.contains("DND PRIORITY (báo thức: cho phép)"))
+        assertTrue(text, text.contains("âm thanh: đang phát (âm lượng 6/7, focus granted)"))
+    }
+
+    @Test
+    fun `U35d DND alarms only passes`() {
+        val s = analyzeRun(
+            s2Run(soundFields = mapOf("focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7, "muted" to false, "zen" to 4)),
+        )
+        assertEquals(Verdict.PASS, s.verdict)
+        assertTrue(s.alarm!!.audible)
+    }
+
+    @Test
+    fun `U35e old log without the new fields still passes`() {
+        val s = analyzeRun(s2Run(soundFields = mapOf("focus" to "granted"), snapshot = mapOf("zen" to 1, "ringer" to 2)))
+        assertEquals(Verdict.PASS, s.verdict)
+        assertTrue(s.alarm!!.silencedBy.isEmpty())
+        assertTrue(s.alarm!!.audible)
+    }
+
+    @Test
+    fun `U35f S1 run with a muted alarm stream fails`() {
+        val alarm = alarmEvents().map {
+            if (it.ev != "alarm_sound_start") {
+                it
+            } else {
+                ev(
+                    36_001.5, "alarm_sound_start", "ok" to true, "focus" to "granted", "alarmVol" to 0, "alarmVolMax" to 7,
+                    "muted" to true,
+                )
+            }
+        }
+        val s = analyzeRun(s1Run(alarm = alarm))
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains("không nghe được: luồng báo thức bị tắt tiếng, âm lượng báo thức 0"),
+        )
+    }
+
+    // ---- Vòng 4: stale fixes (U36, S1 V4-3) ----
+
+    /** X run, fresh fixes up to 3:00:00, death at 3:01:00, sticky restart at 3:01:02 (pid 200); [after] from 3:01:03. */
+    private fun u36Events(after: List<ProbeEvent>, fixes: List<Long>, stop: Pair<Long, String>, label: String): List<ProbeEvent> {
+        val extra = buildList {
+            add(ev(10_862, "proc_start", "importance" to 125, pid = 200))
+            add(
+                ev(
+                    10_862, "exit_info", "reason" to 2, "reasonName" to "REASON_SIGNALED", "exitTs" to epochMs(10_860.0),
+                    pid = 200,
+                ),
+            )
+            add(ev(10_862, "svc_start_cmd", "src" to "sticky", "flags" to 0, "startId" to 1, pid = 200))
+            add(ev(10_862, "svc_fg_ok", pid = 200))
+            addAll(after)
+        }
+        return s1Run(
+            label = label,
+            fixes = fixes,
+            noSwitch = label == "X",
+            alarmAtEnd = label != "X",
+            stop = stop,
+            extra = extra,
+        )
+    }
+
+    @Test
+    fun `U36a a cached fix after the restart is not a recovery`() {
+        val events = u36Events(
+            after = listOf(
+                ev(10_863, "fix", "acc" to 20.0, "prov" to "fused", "ageMs" to 84_873, pid = 200),
+                ev(10_864, "svc_destroy", pid = 200),
+            ),
+            fixes = defaultFixes().filter { it <= 10_800L },
+            stop = 12_600L to "user",
+            label = "X",
+        )
+        val s = analyzeRun(events)
+        assertNull(s.exits.single().recoveryS)
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("process chết không hồi phục") })
+        assertEquals(1, s.staleFixes)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("· không hồi phục"))
+        assertFalse(text, text.contains("có vị trí lại sau"))
+        assertTrue(text, text.contains(" · bỏ qua 1 vị trí cũ"))
+    }
+
+    @Test
+    fun `U36b a cached fix next to a fresh one does not change the recovery`() {
+        val events = u36Events(
+            after = listOf(
+                ev(10_863, "fix", "acc" to 20.0, "prov" to "fused", "ageMs" to 130_589, pid = 200),
+                ev(10_863, "fix", "acc" to 8.0, "prov" to "fused", "ageMs" to 3, pid = 200),
+            ),
+            fixes = defaultFixes(),
+            stop = 36_042L to "alarm_dismissed",
+            label = "A",
+        )
+        val s = analyzeRun(events)
+        assertEquals(3L, s.exits.single().recoveryS)
+        assertEquals(1, s.staleFixes)
+        assertTrue(s.reasons.toString(), s.reasons.contains("(thông tin) bỏ qua 1 vị trí cũ (tuổi > 60 s)"))
+    }
+
+    @Test
+    fun `U36c fixes without ageMs are fresh`() {
+        val withAge = analyzeRun(s1Run())
+        val s = analyzeRun(s1Run(fixAgeMs = null))
+        assertEquals(withAge, s)
+        assertEquals(Verdict.PASS, s.verdict)
+        assertEquals(0, s.staleFixes)
+    }
+
+    @Test
+    fun `U36d a cached fix inside a dense gap does not split it`() {
+        val fixes = defaultFixes().filterNot { it in 33_010L..33_190L }
+        val stale = listOf(ev(33_100, "fix", "acc" to 20.0, "prov" to "fused", "ageMs" to 120_000))
+        val s = analyzeRun(s1Run(fixes = fixes, extra = stale))
+        assertEquals(200L, s.fixGapMaxS["dense"])
+        val gap = s.gapsOverPass.single()
+        assertEquals(200L, gap.lengthS)
+        assertEquals(Verdict.FAIL, gap.level)
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertEquals(1, s.staleFixes)
+    }
+
+    // ---- Vòng 4: restart labels (U37, S1 V4-4) ----
+
+    /** R2-2 shape: force-stopped while ringing (exit at T = TS + 3), the user opens the app 30 s later. */
+    private fun u37Events(watchdogAfterS: Long? = null): List<ProbeEvent> {
+        val exitT = TS + 3
+        val after = buildList {
+            add(ev(exitT + 30, "proc_start", "importance" to 100, pid = 200))
+            add(
+                ev(
+                    exitT + 30, "exit_info", "reason" to 10, "reasonName" to "REASON_USER_REQUESTED",
+                    "exitTs" to epochMs(exitT), "desc" to "[FORCE STOP]", pid = 200,
+                ),
+            )
+            if (watchdogAfterS != null) {
+                add(ev(exitT + watchdogAfterS, "svc_start_cmd", "src" to "watchdog", "flags" to 0, "startId" to 1, pid = 200))
+            }
+            add(ev(exitT + (watchdogAfterS ?: 0L) + 60, "run_stop", "by" to "user", pid = 200))
+        }
+        return s2Ringing(after)
+    }
+
+    @Test
+    fun `U37a a new process opened by the user is not a restart`() {
+        val s = analyzeRun(u37Events())
+        val e = s.exits.single()
+        assertEquals("app_opened", e.restartSrc)
+        assertEquals(30L, e.restartS)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("không tự khởi động lại (process mới do mở app sau 30 s)"))
+        assertFalse(text, text.contains("(?)"))
+    }
+
+    @Test
+    fun `U37b a sticky restart keeps its source and delay`() {
+        val e = analyzeRun(u07Events()).exits.single()
+        assertEquals(90L, e.restartS)
+        assertEquals("sticky", e.restartSrc)
+    }
+
+    @Test
+    fun `U37c a background process without a service start is process_only`() {
+        val fixes = defaultFixes().apply {
+            remove(10_980L)
+            add(10_985L)
+            sort()
+        }
+        val extra = listOf(
+            ev(10_905, "proc_start", "importance" to 400, pid = 200),
+            ev(10_905, "exit_info", "reason" to 13, "exitTs" to epochMs(10_860.0), pid = 200),
+        )
+        val s = analyzeRun(s1Run(fixes = fixes, extra = extra))
+        val e = s.exits.single()
+        assertEquals("process_only", e.restartSrc)
+        assertEquals(45L, e.restartS)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("process chạy lại sau 45 s nhưng service không khởi động"))
+    }
+
+    @Test
+    fun `U37d a later service start wins over the opened app`() {
+        val e = analyzeRun(u37Events(watchdogAfterS = 900L)).exits.single()
+        assertEquals("watchdog", e.restartSrc)
+        assertEquals(900L, e.restartS)
+    }
+
+    // ---- Vòng 4: fallback alarm from AlarmRingService (U38, S2 V4-1) ----
+
+    /**
+     * S2-11: fixes every 10 s, "Tắt service (giữ lượt)" at +20 s, fallback at deadline + 60.1 s from AlarmRingService
+     * (same pid). [ringFg]: (type, ok, ex) of each alarm_ring_fg; [sound]: alarm_sound_start ok=true and the alarm screen.
+     */
+    private fun u38Events(ringFg: List<Triple<String, Boolean, String?>>, sound: Boolean = true): List<ProbeEvent> {
+        seq = 0
+        val out = ArrayList<ProbeEvent>()
+        out += ev(
+            0, "run_start",
+            "kind" to "S2", "label" to "S2-11", "durationMin" to 2, "densePhaseMin" to 2, "alarmAtEnd" to true,
+            "watchdog" to true, "delayMin" to 2, "scenario" to "S2-11", "manufacturer" to "Google",
+            "model" to "sdk_gphone64_x86_64", "sdk" to 34, "release" to "14",
+        )
+        out += ev(0, "alarm_scheduled", "deadline" to iso(120.0), "fallbackExact" to true)
+        out += ev(0.2, "phase_switch", "from" to "sparse", "to" to "dense", "boundary" to iso(0.0), "lateMs" to 0, "via" to "start")
+        for (s in 0L..20L step 10) out += ev(s, "fix", "acc" to 8.0, "ageMs" to 50)
+        out += ev(20.0, "svc_cmd", "action" to "sim_kill", "startId" to 3)
+        out += ev(20.1, "svc_destroy")
+        val trig = 180.1
+        for ((type, ok, ex) in ringFg) {
+            out += if (ok) {
+                ev(trig, "alarm_ring_fg", "type" to type, "ok" to true)
+            } else {
+                ev(trig, "alarm_ring_fg", "type" to type, "ok" to false, "ex" to ex, "msg" to "not allowed")
+            }
+        }
+        out += ev(
+            trig, "alarm_trigger", "src" to "fallback", "svc" to "ring", "planned" to iso(120.0), "lateMs" to 60_100,
+            "interactive" to false, "keyguardLocked" to true, "idle" to false,
+        )
+        out += ev(trig, "perm_snapshot", "zen" to 2, "ringer" to 0)
+        if (ringFg.none { it.second }) {
+            out += ev(trig + 0.1, "alarm_error", "step" to "ring_fg", "ex" to ringFg.lastOrNull()?.third)
+            out += ev(trig + 0.2, "alarm_notif_posted", "fsiAllowed" to true, "notifEnabled" to true, "chAlarmImp" to 4)
+            out += ev(400, "run_stop", "by" to "user")
+            return out
+        }
+        out += ev(trig + 0.1, "alarm_vibrate", "ok" to true, "hasVibrator" to true)
+        out += ev(trig + 0.2, "alarm_notif_posted", "fsiAllowed" to true, "notifEnabled" to true, "chAlarmImp" to 4)
+        if (sound) {
+            out += ev(
+                trig + 1, "alarm_sound_start", "ok" to true, "focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7,
+                "muted" to false, "zen" to 2, "zenAlarms" to true,
+            )
+            out += ev(trig + 1.5, "alarm_ui_shown", "keyguardLocked" to true, "interactive" to true, "viaFsi" to true)
+        }
+        out += ev(trig + 31, "alarm_dismissed", "by" to "activity", "afterMs" to 30_000)
+        out += ev(trig + 31.1, "run_stop", "by" to "alarm_dismissed")
+        return out
+    }
+
+    @Test
+    fun `U38a fallback from the ring service after the simulated kill warns`() {
+        val s = analyzeRun(u38Events(listOf(Triple("systemExempted", true, null))))
+        val a = s.alarm!!
+        assertEquals(Verdict.WARN, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("kích hoạt bằng dự phòng") })
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("báo thức trễ 60 s") })
+        assertTrue(s.reasons.none { it.contains("không kích hoạt") })
+        assertEquals("ring", a.ringSvc)
+        assertEquals("systemExempted", a.ringFgType)
+        assertTrue(a.ringFgFails.isEmpty())
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("nguồn fallback (service báo thức riêng, systemExempted)"))
+        assertTrue(text, text.contains("(thông tin) service bị tắt bằng nút giả lập lúc +0:00:20"))
+        assertFalse(text, text.contains("FGS báo thức:"))
+    }
+
+    @Test
+    fun `U38b systemExempted refused then mediaPlayback is recorded`() {
+        val s = analyzeRun(
+            u38Events(
+                listOf(
+                    Triple("systemExempted", false, "android.app.ForegroundServiceTypeNotAllowedException"),
+                    Triple("mediaPlayback", true, null),
+                ),
+            ),
+        )
+        val a = s.alarm!!
+        assertEquals("mediaPlayback", a.ringFgType)
+        assertEquals(listOf("systemExempted: android.app.ForegroundServiceTypeNotAllowedException"), a.ringFgFails)
+        assertEquals(Verdict.WARN, s.verdict)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("systemExempted lỗi"))
+        assertTrue(
+            text,
+            text.contains("FGS báo thức: mediaPlayback (systemExempted lỗi: ForegroundServiceTypeNotAllowedException)"),
+        )
+    }
+
+    @Test
+    fun `U38c no FGS type works so the fallback is silent and fails`() {
+        val s = analyzeRun(
+            u38Events(
+                listOf(
+                    Triple("systemExempted", false, "android.app.ForegroundServiceTypeNotAllowedException"),
+                    Triple("mediaPlayback", false, "android.app.ForegroundServiceStartNotAllowedException"),
+                ),
+            ),
+        )
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("báo thức không phát âm") })
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("lỗi báo thức ở bước: ring_fg") })
+        assertNull(s.alarm!!.ringFgType)
+        assertEquals(2, s.alarm!!.ringFgFails.size)
+    }
+
+    @Test
+    fun `ringSvc defaults to probe for logs without svc`() {
+        assertEquals("probe", analyzeRun(s2Run()).alarm!!.ringSvc)
+    }
+
     @Test
     fun `S2 stopped by the user before the deadline is not evaluated`() {
         val s = analyzeRun(s2Run(triggerSrc = null, stop = 60L to "user"))
         assertEquals(Verdict.WARN, s.verdict)
+    }
+
+    // ---- Vòng 5: observed evidence beats the default DND policy (U40–U46, S2 V5-1) ----
+
+    private fun dndSound(vararg extra: Pair<String, Any?>): Map<String, Any?> =
+        linkedMapOf<String, Any?>("focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7, "muted" to false, "zen" to 2)
+            .apply { putAll(extra) }
+
+    private fun mutedDndSound(vararg extra: Pair<String, Any?>): Map<String, Any?> =
+        linkedMapOf<String, Any?>("focus" to "granted", "alarmVol" to 0, "alarmVolMax" to 7, "muted" to true, "zen" to 2)
+            .apply { putAll(extra) }
+
+    private val maybeNotAudible = "có thể không nghe được: cài đặt Không làm phiền mặc định chặn báo thức, " +
+        "luồng báo thức không bị tắt tiếng (chưa rõ chế độ đang bật)"
+
+    @Test
+    fun `U40 a mode that allows alarms beats the blocking default policy`() {
+        val s = analyzeRun(s2Run(vibrate = true, soundFields = dndSound("zenAlarms" to false, "zenAlarmsActive" to true)))
+        val a = s.alarm!!
+        assertEquals(Verdict.PASS, s.verdict)
+        assertTrue(a.audible)
+        assertTrue(a.silencedBy.isEmpty())
+        assertEquals(VibrationEvidence.REQUESTED, a.vibration)
+        assertTrue(a.notifVisible)
+        assertEquals(true, a.zenAlarmsActive)
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains("(thông tin) cài đặt Không làm phiền mặc định chặn báo thức, chế độ đang bật cho phép"),
+        )
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("DND PRIORITY (báo thức: cho phép; mặc định: chặn)"))
+        assertTrue(text, text.contains("đủ điều kiện hiện: có (FSI: có)"))
+        assertFalse(text, text.contains("TẮT TIẾNG"))
+        assertFalse(text, text.contains("rung: bị Không làm phiền chặn"))
+        assertFalse(text, text.contains("đủ điều kiện hiện: không"))
+        assertFalse(text, text.contains("không nghe được"))
+    }
+
+    @Test
+    fun `U41 old log with only the blocking default policy and an open stream warns`() {
+        val s = analyzeRun(
+            s2Run(
+                lateMs = 4_545,
+                vibrate = true,
+                soundFields = dndSound("zenAlarms" to false),
+                snapshot = mapOf("zen" to 2, "alarmVol" to 6),
+                dismissAfterMs = 24_952,
+            ),
+        )
+        val a = s.alarm!!
+        assertEquals(Verdict.WARN, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.contains(maybeNotAudible))
+        assertTrue(s.reasons.toString(), s.reasons.none { it.startsWith("không nghe được") })
+        assertTrue(a.audible)
+        assertEquals(VibrationEvidence.REQUESTED, a.vibration)
+        assertTrue(a.notifVisible)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("âm thanh: đang phát (âm lượng 6/7, focus granted)"))
+        assertTrue(text, text.contains("DND PRIORITY (báo thức mặc định: chặn)"))
+        assertTrue(text, text.contains("màn báo thức hiện trên màn khoá: có"))
+        assertFalse(text, text.contains("đủ điều kiện hiện: không"))
+    }
+
+    @Test
+    fun `U42 a blocking default policy confirmed by the muted stream fails, with or without the applied policy`() {
+        val variants = listOf(
+            "a" to mutedDndSound("zenAlarms" to false),
+            "b" to mutedDndSound("zenAlarms" to false, "zenAlarmsActive" to false),
+        )
+        for ((variant, sound) in variants) {
+            val s = analyzeRun(
+                s2Run(
+                    vibrate = true,
+                    uiShown = false,
+                    soundFields = sound,
+                    dismissBy = "user_stop",
+                    stop = 170L to "user",
+                ),
+            )
+            val a = s.alarm!!
+            assertEquals(variant, Verdict.FAIL, s.verdict)
+            assertTrue(
+                s.reasons.toString(),
+                s.reasons.contains(
+                    "không nghe được: luồng báo thức bị tắt tiếng, âm lượng báo thức 0, Không làm phiền chặn báo thức",
+                ),
+            )
+            assertEquals(variant, VibrationEvidence.BLOCKED, a.vibration)
+            assertEquals(variant, listOf("Không làm phiền chặn"), a.notifHiddenBy)
+            assertTrue(s.reasons.toString(), s.reasons.none { it.contains("đối chiếu biên bản nghe") })
+            val text = RunAnalyzer.render(s)
+            val dnd = if (variant == "a") "DND PRIORITY (báo thức mặc định: chặn)" else "DND PRIORITY (báo thức: chặn)"
+            assertTrue(text, text.contains(dnd))
+        }
+    }
+
+    @Test
+    fun `U43 a mode that blocks alarms while the default allows them fails`() {
+        val s = analyzeRun(
+            s2Run(vibrate = true, uiShown = false, soundFields = mutedDndSound("zenAlarms" to true, "zenAlarmsActive" to false)),
+        )
+        val a = s.alarm!!
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertEquals(
+            listOf("luồng báo thức bị tắt tiếng", "âm lượng báo thức 0", "Không làm phiền chặn báo thức"),
+            a.silencedBy,
+        )
+        assertEquals(VibrationEvidence.BLOCKED, a.vibration)
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("DND PRIORITY (báo thức: chặn; mặc định: cho phép)"))
+    }
+
+    @Test
+    fun `U44a the alarm screen shown overrides the predicted hidden notification`() {
+        val s = analyzeRun(
+            s2Run(
+                chAlarmImp = 4,
+                vibrate = true,
+                soundFields = mapOf("focus" to "granted", "alarmVol" to 0, "alarmVolMax" to 7, "muted" to true),
+                snapshot = mapOf("zen" to 3, "ringer" to 0),
+            ),
+        )
+        val a = s.alarm!!
+        assertEquals(Verdict.FAIL, s.verdict)
+        assertEquals(
+            listOf("luồng báo thức bị tắt tiếng", "âm lượng báo thức 0", "Không làm phiền: hoàn toàn tắt tiếng"),
+            a.silencedBy,
+        )
+        assertTrue(s.reasons.toString(), s.reasons.any { it.startsWith("không nghe được:") })
+        assertEquals(VibrationEvidence.BLOCKED, a.vibration)
+        assertTrue(a.notifHiddenBy.isEmpty())
+        assertTrue(a.notifVisible)
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains("(thông tin) màn báo thức đã hiện dù dự đoán thông báo bị ẩn (Không làm phiền chặn)"),
+        )
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("thông báo: đã gửi, đủ điều kiện hiện: có"))
+        assertFalse(text, text.contains("đủ điều kiện hiện: không"))
+    }
+
+    @Test
+    fun `U44b the alarm screen shown with app notifications off passes`() {
+        val s = analyzeRun(s2Run(vibrate = true, notifEnabled = false))
+        assertEquals(Verdict.PASS, s.verdict)
+        assertTrue(s.alarm!!.notifVisible)
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains("(thông tin) màn báo thức đã hiện dù dự đoán thông báo bị ẩn (thông báo của app đang tắt)"),
+        )
+    }
+
+    @Test
+    fun `U45 old log with the default policy allowing alarms passes`() {
+        val s = analyzeRun(s2Run(vibrate = true, soundFields = dndSound("zenAlarms" to true)))
+        assertEquals(Verdict.PASS, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.none { it.contains("có thể không nghe được") })
+        val text = RunAnalyzer.render(s)
+        assertTrue(text, text.contains("DND PRIORITY (báo thức mặc định: cho phép)"))
+    }
+
+    @Test
+    fun `U46 an unreadable applied policy warns and names the exception`() {
+        val s = analyzeRun(
+            s2Run(vibrate = true, soundFields = dndSound("zenAlarms" to false, "zenActiveErr" to "SecurityException")),
+        )
+        assertEquals(Verdict.WARN, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.contains(maybeNotAudible))
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains("(thông tin) không đọc được chính sách Không làm phiền đang áp dụng (SecurityException)"),
+        )
+    }
+
+    // ---- Vòng 5b: an unknown applied policy never passes (U50, S2 V5b-1) ----
+
+    private val activeUnknownWarn = "có thể không nghe được: không đọc được chính sách Không làm phiền đang áp dụng, " +
+        "chế độ đang bật có thể chặn báo thức"
+
+    @Test
+    fun `U50a an applied policy that fails to read warns even when the default allows alarms`() {
+        val s = analyzeRun(
+            s2Run(sdk = 34, vibrate = true, soundFields = dndSound("zenAlarms" to true, "zenActiveErr" to "SecurityException")),
+        )
+        assertEquals(Verdict.WARN, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.contains(activeUnknownWarn))
+        assertTrue(
+            s.reasons.toString(),
+            s.reasons.contains("(thông tin) không đọc được chính sách Không làm phiền đang áp dụng (SecurityException)"),
+        )
+        assertTrue(s.alarm!!.audible)
+        assertTrue(s.reasons.toString(), s.reasons.none { it.startsWith("không nghe được") })
+    }
+
+    @Test
+    fun `U50b API 29 without the applied policy warns`() {
+        val s = analyzeRun(s2Run(sdk = 29, vibrate = true, soundFields = dndSound("zenAlarms" to true)))
+        assertEquals(Verdict.WARN, s.verdict)
+        assertTrue(s.reasons.toString(), s.reasons.contains(activeUnknownWarn))
+        assertTrue(s.reasons.toString(), s.reasons.none { it.contains("(thông tin) không đọc được") })
+    }
+
+    @Test
+    fun `U50c API 28 without the applied policy passes`() {
+        val s = analyzeRun(s2Run(sdk = 28, vibrate = true, soundFields = dndSound("zenAlarms" to true)))
+        assertEquals(s.reasons.toString(), Verdict.PASS, s.verdict)
+    }
+
+    @Test
+    fun `U50d a log from before round 5 on API 34 still passes`() {
+        val s = analyzeRun(s2Run(sdk = 34, vibrate = true, soundFields = dndSound("zenAlarms" to true)))
+        assertEquals(s.reasons.toString(), Verdict.PASS, s.verdict)
+    }
+
+    @Test
+    fun `U50e at most one maybe-not-audible reason per run`() {
+        val s = analyzeRun(s2Run(sdk = 29, vibrate = true, soundFields = dndSound("zenAlarms" to false)))
+        assertEquals(Verdict.WARN, s.verdict)
+        assertEquals(listOf(maybeNotAudible), s.reasons.filter { it.startsWith("có thể không nghe được:") })
+    }
+
+    // ---- Vòng 5: gaps after svc_destroy (U47, S2 V5-2) ----
+
+    /** M-FB1 shape: S1 X 18 min (dense 9), one cached fix, service stopped by the button at +37.9 s, fallback at +19:00. */
+    private fun u47Events(): List<ProbeEvent> {
+        seq = 0
+        val out = ArrayList<ProbeEvent>()
+        out += ev(
+            0, "run_start",
+            "run" to "20261029-151900-S1-X",
+            "kind" to "S1", "label" to "X", "durationMin" to 18, "densePhaseMin" to 9, "alarmAtEnd" to true,
+            "watchdog" to false, "delayMin" to null, "scenario" to null, "manufacturer" to "Google",
+            "model" to "sdk_gphone64_x86_64", "sdk" to 34, "release" to "14",
+        )
+        out += ev(0, "phase_alarm_scheduled", "boundary" to iso(540.0), "exact" to true)
+        out += ev(0, "alarm_scheduled", "deadline" to iso(1_080.0), "fallbackExact" to true)
+        out += ev(0, "svc_start_cmd", "src" to "user", "flags" to 0, "startId" to 1)
+        out += ev(0, "svc_fg_ok")
+        out += ev(1, "battery", "lvl" to 100, "chg" to false)
+        out += ev(1, "fix", "acc" to 5.0, "prov" to "fused", "ageMs" to 100_946)
+        out += ev(37, "svc_cmd", "action" to "sim_kill", "startId" to 2)
+        out += ev(37.9, "svc_destroy")
+        out += ev(540, "phase_alarm", "lateMs" to 18, "alive" to false, "action" to "none")
+        val trig = 1_140.1
+        out += ev(trig, "alarm_ring_fg", "type" to "systemExempted", "ok" to true)
+        out += ev(
+            trig, "alarm_trigger", "src" to "fallback", "svc" to "ring", "planned" to iso(1_080.0), "lateMs" to 60_100,
+            "interactive" to false, "keyguardLocked" to true, "idle" to false,
+        )
+        out += ev(trig, "perm_snapshot", "zen" to 1, "ringer" to 2)
+        out += ev(trig + 0.1, "alarm_vibrate", "ok" to true, "hasVibrator" to true)
+        out += ev(trig + 0.2, "alarm_notif_posted", "fsiAllowed" to true, "notifEnabled" to true, "chAlarmImp" to 4)
+        out += ev(trig + 0.6, "alarm_ui_shown", "keyguardLocked" to true, "interactive" to true, "viaFsi" to true)
+        out += ev(
+            trig + 1, "alarm_sound_start", "ok" to true, "focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7,
+            "muted" to false, "zen" to 1,
+        )
+        out += ev(trig + 23, "alarm_dismissed", "by" to "activity", "afterMs" to 22_733)
+        out += ev(trig + 23.1, "run_stop", "by" to "alarm_dismissed")
+        return out
+    }
+
+    @Test
+    fun `U47 gaps after the service was stopped do not say the service is alive`() {
+        val s = analyzeRun(u47Events())
+        assertEquals(2, s.gapsOverPass.size)
+        val sparse = s.gapsOverPass.single { it.phase == "sparse" }
+        val dense = s.gapsOverPass.single { it.phase == "dense" }
+        assertEquals(epochMs(0.0), sparse.startWallMs)
+        for (gap in listOf(sparse, dense)) {
+            assertFalse(gap.serviceAlive)
+            assertEquals(epochMs(37.9), gap.serviceStoppedWallMs)
+        }
+        // Levels as before the fix: 540 s sparse (> 7 min) warns, 540 s dense (> 3 min) fails.
+        assertEquals(Verdict.WARN, sparse.level)
+        assertEquals(Verdict.FAIL, dense.level)
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("(service vị trí đã dừng lúc +0:00:37)") })
+        val text = RunAnalyzer.render(s)
+        val gapLine = text.lines().single { it.startsWith("Khoảng trống > ngưỡng:") }
+        assertTrue(gapLine, gapLine.contains("service vị trí đã dừng lúc +0:00:37"))
+        assertFalse(text, text.contains("service sống"))
+    }
+
+    @Test
+    fun `U47c a gap with the service alive and no svc_destroy is unchanged`() {
+        val s = analyzeRun(u23Events('d'))
+        val gap = s.gapsOverPass.single()
+        assertTrue(gap.serviceAlive)
+        assertNull(gap.serviceStoppedWallMs)
+        assertTrue(s.reasons.toString(), s.reasons.any { it.contains("service sống, không nhận vị trí") })
+    }
+
+    // ---- Vòng 5: fallback reason by ringing service (U48, S2 V5-3) ----
+
+    @Test
+    fun `U48 the fallback reason follows the ringing service`() {
+        val ring = analyzeRun(u38Events(listOf(Triple("systemExempted", true, null))))
+        assertTrue(ring.reasons.toString(), ring.reasons.contains("kích hoạt bằng dự phòng (service vị trí không chạy)"))
+        assertTrue(ring.reasons.toString(), ring.reasons.none { it.contains("FLP không giao vị trí đúng hạn") })
+        val probe = analyzeRun(s2Run(triggerSrc = "fallback", lateMs = 61_000))
+        assertTrue(probe.reasons.toString(), probe.reasons.contains("kích hoạt bằng dự phòng (FLP không giao vị trí đúng hạn)"))
+    }
+
+    // ---- Vòng 5: a new process started for the fallback ring service (U49, S2 V5-4) ----
+
+    /**
+     * M-FB3 shape: S2-11 1 min, pid 100 stopped by the button at +23 s, killed at +31 s; pid 200 starts at +2:00 and the
+     * ring service (alarm_ring_fg + alarm_trigger) runs [ringAfterS] later; dismissed by the 5 min timeout.
+     */
+    private fun u49Events(ringAfterS: Double = 0.1, importance: Int = 300): List<ProbeEvent> {
+        seq = 0
+        val out = ArrayList<ProbeEvent>()
+        out += ev(
+            0, "run_start",
+            "kind" to "S2", "label" to "S2-11", "durationMin" to 1, "densePhaseMin" to 1, "alarmAtEnd" to true,
+            "watchdog" to true, "delayMin" to 1, "scenario" to "S2-11", "manufacturer" to "Google",
+            "model" to "sdk_gphone64_x86_64", "sdk" to 34, "release" to "14",
+        )
+        out += ev(0, "alarm_scheduled", "deadline" to iso(60.0), "fallbackExact" to true)
+        out += ev(0, "svc_start_cmd", "src" to "user", "flags" to 0, "startId" to 1)
+        out += ev(0.2, "phase_switch", "from" to "sparse", "to" to "dense", "boundary" to iso(0.0), "lateMs" to 0, "via" to "start")
+        for (s in 4L..14L step 10) out += ev(s, "fix", "acc" to 5.0, "ageMs" to 12)
+        out += ev(23, "svc_cmd", "action" to "sim_kill", "startId" to 2)
+        out += ev(23.1, "svc_destroy")
+        out += ev(120, "proc_start", "importance" to importance, pid = 200)
+        out += ev(
+            120.03, "exit_info", "reason" to 10, "reasonName" to "REASON_USER_REQUESTED", "exitTs" to epochMs(31.0),
+            "desc" to "[KILL BACKGROUND] kill background", pid = 200,
+        )
+        val trig = 120 + ringAfterS
+        out += ev(trig, "alarm_ring_fg", "type" to "systemExempted", "ok" to true, pid = 200)
+        out += ev(
+            trig + 0.02, "alarm_trigger", "src" to "fallback", "svc" to "ring", "planned" to iso(60.0), "lateMs" to 60_000,
+            "interactive" to false, "keyguardLocked" to true, "idle" to false, pid = 200,
+        )
+        out += ev(trig + 0.1, "alarm_vibrate", "ok" to true, "hasVibrator" to true, pid = 200)
+        out += ev(trig + 0.2, "alarm_notif_posted", "fsiAllowed" to true, "notifEnabled" to true, "chAlarmImp" to 4, pid = 200)
+        out += ev(trig + 0.7, "alarm_ui_shown", "keyguardLocked" to true, "interactive" to true, "viaFsi" to true, pid = 200)
+        out += ev(
+            trig + 1.1, "alarm_sound_start", "ok" to true, "focus" to "granted", "alarmVol" to 6, "alarmVolMax" to 7,
+            "muted" to false, "zen" to 2, "zenAlarms" to true, pid = 200,
+        )
+        out += ev(trig + 301, "alarm_dismissed", "by" to "timeout", "afterMs" to 300_150, pid = 200)
+        out += ev(trig + 301.1, "run_stop", "by" to "alarm_timeout", pid = 200)
+        return out
+    }
+
+    @Test
+    fun `U49a a new process that runs the fallback ring service is alarm_ring`() {
+        val s = analyzeRun(u49Events())
+        val e = s.exits.single()
+        assertEquals("alarm_ring", e.restartSrc)
+        assertEquals(89L, e.restartS)
+        assertNull(s.restartsBySrc["alarm_ring"])
+        val text = RunAnalyzer.render(s)
+        assertTrue(
+            text,
+            text.contains(" · process chạy lại sau 1 ph 29 s (service báo thức dự phòng), service vị trí không khởi động"),
+        )
+        assertFalse(text, text.contains("nhưng service không khởi động"))
+    }
+
+    @Test
+    fun `U49b a ring service later than the window is process_only`() {
+        assertEquals("process_only", analyzeRun(u49Events(ringAfterS = 15.0)).exits.single().restartSrc)
+    }
+
+    @Test
+    fun `U49c a foreground new process stays app_opened`() {
+        assertEquals("app_opened", analyzeRun(u49Events(importance = 100)).exits.single().restartSrc)
     }
 
     @Test

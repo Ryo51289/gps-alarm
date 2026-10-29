@@ -1,6 +1,5 @@
 package app.napstop.probe
 
-import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.app.Service
 import android.content.BroadcastReceiver
@@ -25,8 +24,6 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -95,6 +92,7 @@ class ProbeService : Service() {
                 handler.post { if (player != null) stopAlarm(BY_USER_STOP) else finishRun(BY_USER) }
             }
             ACTION_SELF_KILL -> handler.post { onSelfKillCommand(startId) }
+            ACTION_SIM_KILL -> handler.post { onSimKillCommand(startId) }
             ACTION_DISMISS -> {
                 val by = intent.getStringExtra(EXTRA_BY) ?: BY_ACTIVITY
                 EventLog.log("svc_cmd", "action" to "dismiss", "by" to by, "startId" to startId)
@@ -109,7 +107,6 @@ class ProbeService : Service() {
     /** Start (user/watchdog/boot) or sticky restart (null intent). startForeground is the very first thing. */
     private fun startCommand(intent: Intent?, flags: Int, startId: Int) {
         val src = if (intent == null) SRC_STICKY else intent.getStringExtra(EXTRA_SRC) ?: SRC_USER
-        val trigger = intent?.getStringExtra(EXTRA_TRIGGER)
         val fgError = try {
             ServiceCompat.startForeground(
                 this,
@@ -130,10 +127,10 @@ class ProbeService : Service() {
         }
         EventLog.log("svc_fg_ok", "src" to src)
         foreground = true
-        handler.post { onStarted(trigger) }
+        handler.post { onStarted() }
     }
 
-    private fun onStarted(trigger: String?) {
+    private fun onStarted() {
         val c = store.activeRun()
         if (c == null) {
             stopService()
@@ -142,7 +139,15 @@ class ProbeService : Service() {
         cfg = c
         EventLog.currentRunId = c.runId
         if (store.alarmFired && player == null) {
-            // The process died while the alarm was ringing: do not ring twice (S2 §5.1); end the run.
+            if (AlarmState.isRinging(AlarmState.OWNER_RING)) {
+                // The fallback alarm rings from AlarmRingService in this process (e.g. watchdog restart while ringing):
+                // that service owns the alarm and ends the run; this restart only steps aside.
+                stopService()
+                return
+            }
+            // The process died while the alarm was ringing: do not ring twice (S2 §5.1); end the run. Its ongoing
+            // notification (id 2) outlived the process: cancel it, or the next alarm only updates it (no FSI, Vòng 4 #2).
+            getSystemService(NotificationManager::class.java).cancel(AlarmNotifier.ID_ALARM)
             EventLog.log("alarm_error", "step" to "interrupted", "ex" to "restart_after_fire", "msg" to null)
             finishRun(BY_AUTO)
             return
@@ -157,7 +162,6 @@ class ProbeService : Service() {
             )
         }
         WatchdogReceiver.schedulePhaseBoundary(this, c, store.phaseSwitched)
-        if (trigger == TRIGGER_FALLBACK) triggerAlarm(SRC_FALLBACK)
         tick(VIA_START)
         updateNotification(force = true)
     }
@@ -273,19 +277,7 @@ class ProbeService : Service() {
         val now = System.currentTimeMillis()
         val deadline = c.deadlineWallMs ?: now
         val pm = getSystemService(PowerManager::class.java)
-        val km = getSystemService(KeyguardManager::class.java)
-        val interactive = pm.isInteractive
-        interactiveAtTrigger = interactive
-        EventLog.log(
-            "alarm_trigger",
-            "src" to src,
-            "planned" to EventLog.iso(deadline),
-            "lateMs" to now - deadline,
-            "interactive" to interactive,
-            "keyguardLocked" to km.isKeyguardLocked,
-            "idle" to pm.isDeviceIdleMode,
-        )
-        DeviceSnapshot.logPermSnapshot(this)
+        AlarmEvents.trigger(this, src, AlarmState.OWNER_PROBE, deadline, now)
         alarmStep("wakelock") {
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "probe:alarm").apply {
                 setReferenceCounted(false)
@@ -294,17 +286,15 @@ class ProbeService : Service() {
         }
         alarmStartElapsed = SystemClock.elapsedRealtime()
         player = AlarmPlayer(this, handler).also { it.start() }
-        alarmActiveFlow.value = true
+        AlarmState.set(AlarmState.OWNER_PROBE)
         alarmStep("notif") {
             val nm = getSystemService(NotificationManager::class.java)
             // Never startActivity from the service (background activity start limits); FSI only (S2 §4.1 [N3]).
-            nm.notify(AlarmNotifier.ID_ALARM, AlarmNotifier.alarmNotification(this, clock(deadline), src))
-            EventLog.log(
-                "alarm_notif_posted",
-                "fsiAllowed" to DeviceSnapshot.permState(this).let { it.fsi ?: true },
-                "notifEnabled" to nm.areNotificationsEnabled(),
-                "chAlarmImp" to nm.getNotificationChannel(AlarmNotifier.CHANNEL_ALARM)?.importance,
+            nm.notify(
+                AlarmNotifier.ID_ALARM,
+                AlarmNotifier.alarmNotification(this, clock(deadline), src, ProbeService::class.java),
             )
+            AlarmEvents.notifPosted(this, nm)
         }
         handler.postDelayed(alarmTimeout, ALARM_TIMEOUT_MS)
     }
@@ -315,7 +305,7 @@ class ProbeService : Service() {
         } else {
             // Stale notification (alarm no longer ringing in this process).
             getSystemService(NotificationManager::class.java).cancel(AlarmNotifier.ID_ALARM)
-            alarmActiveFlow.value = false
+            AlarmState.clear(AlarmState.OWNER_PROBE)
             if (store.activeRun() != null) finishRun(BY_AUTO) else stopService()
         }
     }
@@ -341,7 +331,7 @@ class ProbeService : Service() {
         }
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
-        alarmActiveFlow.value = false
+        AlarmState.clear(AlarmState.OWNER_PROBE)
     }
 
     private inline fun alarmStep(step: String, block: () -> Unit) {
@@ -384,6 +374,26 @@ class ProbeService : Service() {
         }
         EventLog.log("svc_cmd", "action" to "self_kill", "startId" to startId)
         scheduleSelfKill()
+    }
+
+    /**
+     * "Tắt service (giữ lượt)" (S2 Vòng 4 V4-1): stops this service like a kill without sticky restart, but keeps the run
+     * in RunStore and every exact alarm (watchdog, phase boundary, alarm fallback). Ignored (logged) when no run is active
+     * or the service is not in the foreground.
+     */
+    private fun onSimKillCommand(startId: Int) {
+        if (cfg == null || !foreground) {
+            EventLog.log("svc_cmd", "action" to "sim_kill", "startId" to startId, "ignored" to true)
+            if (cfg == null && !foreground) stopSelf()
+            return
+        }
+        EventLog.log("svc_cmd", "action" to "sim_kill", "startId" to startId)
+        if (registeredPhase != null) fused.removeLocationUpdates(locationCallback)
+        registeredPhase = null
+        handler.removeCallbacks(timerCheck)
+        foreground = false
+        // stopSelf(): a stopped service is not restarted by START_STICKY.
+        stopService()
     }
 
     private fun scheduleSelfKill() {
@@ -484,20 +494,18 @@ class ProbeService : Service() {
         const val ACTION_STOP = "app.napstop.probe.action.STOP"
         const val ACTION_SELF_KILL = "app.napstop.probe.action.SELF_KILL"
         const val ACTION_DISMISS = "app.napstop.probe.action.DISMISS"
+        const val ACTION_SIM_KILL = "app.napstop.probe.action.SIM_KILL"
         const val EXTRA_SRC = "src"
-        const val EXTRA_TRIGGER = "trigger"
         const val EXTRA_BY = "by"
 
         const val SRC_USER = "user"
         const val SRC_STICKY = "sticky"
         const val SRC_WATCHDOG = "watchdog"
         const val SRC_PHASE_ALARM = "phase_alarm"
-        const val SRC_ALARM_FALLBACK = "alarm_fallback"
         const val SRC_BOOT = "boot"
         const val SRC_PKG_REPLACED = "pkg_replaced"
         const val SRC_FIX = "fix"
         const val SRC_FALLBACK = "fallback"
-        const val TRIGGER_FALLBACK = "fallback"
 
         const val VIA_ALARM = "alarm"
         const val VIA_FIX = "fix"
@@ -530,30 +538,24 @@ class ProbeService : Service() {
         var lastFixElapsed = 0L
             private set
 
-        /** Screen state when the alarm fired, for AlarmActivity's `viaFsi`. */
-        @Volatile
-        var interactiveAtTrigger: Boolean? = null
-            private set
-
         @Volatile
         private var instance: ProbeService? = null
-
-        private val alarmActiveFlow = MutableStateFlow(false)
-        val alarmActive: StateFlow<Boolean> get() = alarmActiveFlow
 
         fun clock(epochMs: Long): String =
             Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(CLOCK)
 
-        fun startIntent(context: Context, src: String, trigger: String? = null): Intent =
+        fun startIntent(context: Context, src: String): Intent =
             Intent(context, ProbeService::class.java)
                 .setAction(ACTION_START)
                 .putExtra(EXTRA_SRC, src)
-                .apply { if (trigger != null) putExtra(EXTRA_TRIGGER, trigger) }
 
         fun stopIntent(context: Context): Intent = Intent(context, ProbeService::class.java).setAction(ACTION_STOP)
 
         fun selfKillIntent(context: Context): Intent =
             Intent(context, ProbeService::class.java).setAction(ACTION_SELF_KILL)
+
+        fun simKillIntent(context: Context): Intent =
+            Intent(context, ProbeService::class.java).setAction(ACTION_SIM_KILL)
 
         fun dismissIntent(context: Context, by: String): Intent =
             Intent(context, ProbeService::class.java).setAction(ACTION_DISMISS).putExtra(EXTRA_BY, by)
@@ -563,6 +565,9 @@ class ProbeService : Service() {
          * the while-in-use exemption [A1][A2].
          */
         fun startRun(context: Context, cfg: RunConfig) {
+            // A previous alarm notification may have outlived its process (died while ringing): a new notify() with the
+            // same id would only update it, without FSI or heads-up (Vòng 4 #2).
+            context.getSystemService(NotificationManager::class.java).cancel(AlarmNotifier.ID_ALARM)
             RunStore(context).startRun(cfg)
             EventLog.currentRunId = cfg.runId
             val fields = linkedMapOf<String, Any?>(

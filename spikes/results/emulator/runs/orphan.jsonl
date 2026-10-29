@@ -1,0 +1,60 @@
+{"ev":"proc_start","t":"2026-10-29T11:18:40.743+07:00","et":106886,"run":"","pid":3590,"seq":1,"importance":100}
+{"ev":"svc_destroy","t":"2026-10-29T11:33:55.514+07:00","et":1021657,"run":"","pid":3590,"seq":66}
+{"ev":"svc_destroy","t":"2026-10-29T11:38:40.449+07:00","et":1306592,"run":"","pid":3590,"seq":102}
+{"ev":"svc_destroy","t":"2026-10-29T11:44:22.939+07:00","et":1649082,"run":"","pid":3590,"seq":137}
+{"ev":"svc_destroy","t":"2026-10-29T11:49:02.611+07:00","et":1928755,"run":"","pid":3590,"seq":154}
+{"ev":"svc_destroy","t":"2026-10-29T11:52:43.378+07:00","et":2149520,"run":"","pid":3590,"seq":189}
+{"ev":"svc_destroy","t":"2026-10-29T11:56:51.460+07:00","et":2397603,"run":"","pid":3590,"seq":230}
+{"ev":"svc_destroy","t":"2026-10-29T12:03:09.169+07:00","et":2775312,"run":"","pid":3590,"seq":284}
+{"ev":"proc_start","t":"2026-10-29T12:03:36.487+07:00","et":2802630,"run":"","pid":12996,"seq":1,"importance":100}
+{"ev":"exit_info","t":"2026-10-29T12:03:36.581+07:00","et":2802724,"run":"","pid":12996,"seq":2,"reason":8,"reasonName":"REASON_PERMISSION_CHANGE","exitTs":1793250215572,"desc":"permissions revoked","importance":100,"status":0}
+{"ev":"svc_destroy","t":"2026-10-29T12:07:14.976+07:00","et":3021119,"run":"","pid":12996,"seq":39}
+{"ev":"svc_destroy","t":"2026-10-29T12:10:42.123+07:00","et":3228266,"run":"","pid":12996,"seq":74}
+{"ev":"svc_destroy","t":"2026-10-29T12:12:59.007+07:00","et":3365150,"run":"","pid":14834,"seq":8}
+{"ev":"svc_destroy","t":"2026-10-29T12:17:43.241+07:00","et":3649383,"run":"","pid":15671,"seq":5}
+{"ev":"svc_destroy","t":"2026-10-29T12:20:48.920+07:00","et":3835063,"run":"","pid":15671,"seq":37}
+{"ev":"proc_start","t":"2026-10-29T12:21:24.157+07:00","et":3870300,"run":"","pid":16610,"seq":1,"importance":100}
+{"ev":"exit_info","t":"2026-10-29T12:21:24.312+07:00","et":3870455,"run":"","pid":16610,"seq":2,"reason":8,"reasonName":"REASON_PERMISSION_CHANGE","exitTs":1793251283243,"desc":"permissions revoked","importance":100,"status":0}
+{"ev":"svc_destroy","t":"2026-10-29T12:32:53.765+07:00","et":4559908,"run":"","pid":17243,"seq":26}
+{"ev":"svc_destroy","t":"2026-10-29T12:54:57.857+07:00","et":5884000,"run":"","pid":18092,"seq":18}
+{"ev":"svc_destroy","t":"2026-10-29T12:57:54.586+07:00","et":6060729,"run":"","pid":18092,"seq":47}
+{"ev":"svc_destroy","t":"2026-10-29T13:00:26.398+07:00","et":6212541,"run":"","pid":18092,"seq":76}
+{"ev":"svc_destroy","t":"2026-10-29T13:02:27.633+07:00","et":6333776,"run":"","pid":18092,"seq":105}
+{"ev":"svc_destroy","t":"2026-10-29T13:05:23.426+07:00","et":6509569,"run":"","pid":21302,"seq":8}
+{"ev":"svc_destroy","t":"2026-10-29T13:08:19.288+07:00","et":6685431,"run":"","pid":21302,"seq":40}
+{"ev":"svc_destroy","t":"2026-10-29T13:10:06.778+07:00","et":6792923,"run":"","pid":22343,"seq":8}
+{"ev":"svc_cmd","t":"2026-10-29T13:10:32.874+07:00","et":6819017,"run":"","pid":22343,"seq":9,"action":"dismiss","by":"notif_action","startId":1}
+{"ev":"svc_destroy","t":"2026-10-29T13:10:32.908+07:00","et":6819051,"run":"","pid":22343,"seq":10}
+{"ev":"svc_destroy","t":"2026-10-29T13:13:35.712+07:00","et":7001854,"run":"","pid":22343,"seq":47}
+{"ev":"proc_start","t":"2026-10-29T14:09:02.668+07:00","et":80530,"run":"","pid":3999,"seq":1,"importance":100}
+{"ev":"svc_destroy","t":"2026-10-29T14:13:25.502+07:00","et":343364,"run":"","pid":3999,"seq":36}
+{"ev":"proc_start","t":"2026-10-29T14:15:37.847+07:00","et":475709,"run":"","pid":6431,"seq":1,"importance":100}
+{"ev":"exit_info","t":"2026-10-29T14:15:37.928+07:00","et":475790,"run":"","pid":6431,"seq":2,"reason":8,"reasonName":"REASON_PERMISSION_CHANGE","exitTs":1793258136860,"desc":"permissions revoked","importance":100,"status":0}
+{"ev":"svc_destroy","t":"2026-10-29T14:31:43.149+07:00","et":1441011,"run":"","pid":9994,"seq":5}
+{"ev":"svc_destroy","t":"2026-10-29T14:34:08.484+07:00","et":1586346,"run":"","pid":9994,"seq":34}
+{"ev":"svc_destroy","t":"2026-10-29T14:36:47.769+07:00","et":1745630,"run":"","pid":11479,"seq":8}
+{"ev":"svc_destroy","t":"2026-10-29T14:38:56.025+07:00","et":1873889,"run":"","pid":11479,"seq":37}
+{"ev":"svc_destroy","t":"2026-10-29T14:41:29.192+07:00","et":2027054,"run":"","pid":11479,"seq":67}
+{"ev":"svc_destroy","t":"2026-10-29T14:44:17.071+07:00","et":2194933,"run":"","pid":11479,"seq":101}
+{"ev":"svc_destroy","t":"2026-10-29T14:46:14.593+07:00","et":2312455,"run":"","pid":11479,"seq":130}
+{"ev":"svc_destroy","t":"2026-10-29T14:49:36.037+07:00","et":2513899,"run":"","pid":11479,"seq":160}
+{"ev":"svc_destroy","t":"2026-10-29T14:53:08.212+07:00","et":2726073,"run":"","pid":11479,"seq":190}
+{"ev":"svc_destroy","t":"2026-10-29T14:58:27.980+07:00","et":3045841,"run":"","pid":11479,"seq":220}
+{"ev":"svc_destroy","t":"2026-10-29T15:03:25.007+07:00","et":3342868,"run":"","pid":11479,"seq":255}
+{"ev":"svc_destroy","t":"2026-10-29T15:17:28.229+07:00","et":4186090,"run":"","pid":11479,"seq":322}
+{"ev":"proc_start","t":"2026-10-29T15:18:17.442+07:00","et":4235304,"run":"","pid":20303,"seq":1,"importance":100}
+{"ev":"exit_info","t":"2026-10-29T15:18:17.525+07:00","et":4235387,"run":"","pid":20303,"seq":2,"reason":8,"reasonName":"REASON_PERMISSION_CHANGE","exitTs":1793261896711,"desc":"permissions revoked","importance":100,"status":0}
+{"ev":"svc_destroy","t":"2026-10-29T16:00:58.382+07:00","et":6796244,"run":"","pid":23537,"seq":76}
+{"ev":"proc_start","t":"2026-10-29T16:01:43.699+07:00","et":6841560,"run":"","pid":26284,"seq":1,"importance":100}
+{"ev":"exit_info","t":"2026-10-29T16:01:43.785+07:00","et":6841647,"run":"","pid":26284,"seq":2,"reason":8,"reasonName":"REASON_PERMISSION_CHANGE","exitTs":1793264502774,"desc":"permissions revoked","importance":100,"status":0}
+{"ev":"svc_destroy","t":"2026-10-29T16:02:57.172+07:00","et":6915034,"run":"","pid":26284,"seq":18}
+{"ev":"proc_start","t":"2026-10-29T16:47:41.810+07:00","et":50810,"run":"","pid":2466,"seq":1,"importance":300}
+{"ev":"svc_destroy","t":"2026-10-29T16:51:50.991+07:00","et":299997,"run":"","pid":2466,"seq":30}
+{"ev":"svc_destroy","t":"2026-10-29T16:58:32.221+07:00","et":701224,"run":"","pid":2466,"seq":73}
+{"ev":"svc_destroy","t":"2026-10-29T17:02:09.466+07:00","et":918467,"run":"","pid":2466,"seq":102}
+{"ev":"svc_destroy","t":"2026-10-29T17:04:59.409+07:00","et":1088410,"run":"","pid":2466,"seq":131}
+{"ev":"svc_destroy","t":"2026-10-29T17:09:15.833+07:00","et":1344833,"run":"","pid":2466,"seq":160}
+{"ev":"svc_destroy","t":"2026-10-29T17:13:20.779+07:00","et":1589779,"run":"","pid":2466,"seq":189}
+{"ev":"proc_start","t":"2026-10-29T17:15:19.054+07:00","et":1708056,"run":"","pid":11823,"seq":1,"importance":100}
+{"ev":"exit_info","t":"2026-10-29T17:15:19.190+07:00","et":1708190,"run":"","pid":11823,"seq":2,"reason":8,"reasonName":"REASON_PERMISSION_CHANGE","exitTs":1793268915468,"desc":"permissions revoked","importance":400,"status":0}
+{"ev":"svc_destroy","t":"2026-10-29T17:28:03.064+07:00","et":2472065,"run":"","pid":11823,"seq":76}

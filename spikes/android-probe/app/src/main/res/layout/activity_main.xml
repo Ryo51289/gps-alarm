@@ -228,6 +228,11 @@
             style="@style/ProbeButton"
             android:text="@string/btn_self_kill" />
 
+        <Button
+            android:id="@+id/btnSimKill"
+            style="@style/ProbeButton"
+            android:text="@string/btn_sim_kill" />
+
         <!-- 6. Results -->
         <Button
             android:id="@+id/btnResults"

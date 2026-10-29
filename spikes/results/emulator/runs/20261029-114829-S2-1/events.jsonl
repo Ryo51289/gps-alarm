@@ -1,0 +1,16 @@
+{"ev":"run_start","t":"2026-10-29T11:48:29.797+07:00","et":1895940,"run":"20261029-114829-S2-1","pid":3590,"seq":138,"kind":"S2","label":"S2-1","durationMin":2,"densePhaseMin":2,"alarmAtEnd":true,"watchdog":true,"delayMin":2,"scenario":"S2-1","manufacturer":"Google","brand":"google","model":"sdk_gphone64_x86_64","sdk":34,"release":"14","display":"sdk_gphone64_x86_64-userdebug 14 UE1A.230829.050 12077443 dev-keys","secPatch":"2023-09-05","gms":"OK"}
+{"ev":"perm_snapshot","t":"2026-10-29T11:48:29.814+07:00","et":1895957,"run":"20261029-114829-S2-1","pid":3590,"seq":139,"fine":true,"coarse":true,"bg":true,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":2}
+{"ev":"alarm_scheduled","t":"2026-10-29T11:48:29.824+07:00","et":1895967,"run":"20261029-114829-S2-1","pid":3590,"seq":140,"deadline":"2026-10-29T11:50:29.794+07:00","fallbackExact":true}
+{"ev":"svc_start_cmd","t":"2026-10-29T11:48:29.966+07:00","et":1896110,"run":"20261029-114829-S2-1","pid":3590,"seq":141,"src":"user","flags":0,"startId":1}
+{"ev":"perm_snapshot","t":"2026-10-29T11:48:30.006+07:00","et":1896149,"run":"20261029-114829-S2-1","pid":3590,"seq":142,"fine":true,"coarse":true,"bg":true,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":2}
+{"ev":"svc_fg_ok","t":"2026-10-29T11:48:30.010+07:00","et":1896153,"run":"20261029-114829-S2-1","pid":3590,"seq":143,"src":"user"}
+{"ev":"phase_switch","t":"2026-10-29T11:48:30.034+07:00","et":1896177,"run":"20261029-114829-S2-1","pid":3590,"seq":144,"from":"sparse","to":"dense","boundary":"2026-10-29T11:48:29.794+07:00","lateMs":0,"via":"start"}
+{"ev":"loc_req","t":"2026-10-29T11:48:30.038+07:00","et":1896181,"run":"20261029-114829-S2-1","pid":3590,"seq":145,"priority":"HIGH","intervalMs":10000,"phase":"dense"}
+{"ev":"battery","t":"2026-10-29T11:48:30.058+07:00","et":1896201,"run":"20261029-114829-S2-1","pid":3590,"seq":146,"lvl":100,"chg":false}
+{"ev":"fix","t":"2026-10-29T11:48:34.108+07:00","et":1900251,"run":"20261029-114829-S2-1","pid":3590,"seq":147,"n":1,"acc":5.0,"spd":0.0,"prov":"fused","ageMs":34,"dM":null}
+{"ev":"screen","t":"2026-10-29T11:48:36.982+07:00","et":1903125,"run":"20261029-114829-S2-1","pid":3590,"seq":148,"on":false}
+{"ev":"fix","t":"2026-10-29T11:48:44.378+07:00","et":1910535,"run":"20261029-114829-S2-1","pid":3590,"seq":149,"n":2,"acc":5.0,"spd":1.7647817134857178,"prov":"fused","ageMs":178,"dM":19.1}
+{"ev":"screen","t":"2026-10-29T11:48:44.513+07:00","et":1910656,"run":"20261029-114829-S2-1","pid":3590,"seq":150,"on":true}
+{"ev":"fix","t":"2026-10-29T11:48:54.273+07:00","et":1920416,"run":"20261029-114829-S2-1","pid":3590,"seq":151,"n":3,"acc":5.0,"spd":1.9002888202667236,"prov":"fused","ageMs":9,"dM":19.1}
+{"ev":"svc_cmd","t":"2026-10-29T11:49:02.416+07:00","et":1928559,"run":"20261029-114829-S2-1","pid":3590,"seq":152,"action":"stop","startId":2}
+{"ev":"run_stop","t":"2026-10-29T11:49:02.445+07:00","et":1928588,"run":"20261029-114829-S2-1","pid":3590,"seq":153,"by":"user"}

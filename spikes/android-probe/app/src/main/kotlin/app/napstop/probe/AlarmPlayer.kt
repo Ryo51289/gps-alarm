@@ -1,5 +1,6 @@
 package app.napstop.probe
 
+import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -20,11 +21,12 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Alarm sound + vibration (S2 §5.2 step 3). Must be used from one thread with a Looper (`probe-loc`).
+ * Alarm sound + vibration (S2 §5.2 step 3). Must be used from one thread with a Looper (`probe-loc` or `probe-ring`).
  * Does not change system volume. Every step logs; a failing step logs `alarm_error` and the next steps still run.
  */
 class AlarmPlayer(private val context: Context, private val handler: Handler) {
     private val audio = context.getSystemService(AudioManager::class.java)
+    private val notifications = context.getSystemService(NotificationManager::class.java)
     private val attributes: AudioAttributes = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_ALARM)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -60,6 +62,8 @@ class AlarmPlayer(private val context: Context, private val handler: Handler) {
             mp.start()
         }
         val check = Runnable {
+            val zen = runCatching { notifications.currentInterruptionFilter }.getOrNull()
+            val (zenActive, zenActiveErr) = activeAllowsAlarms(zen)
             EventLog.log(
                 "alarm_sound_start",
                 "ok" to (runCatching { player?.isPlaying }.getOrNull() == true),
@@ -67,6 +71,10 @@ class AlarmPlayer(private val context: Context, private val handler: Handler) {
                 "alarmVol" to audio.getStreamVolume(AudioManager.STREAM_ALARM),
                 "alarmVolMax" to audio.getStreamMaxVolume(AudioManager.STREAM_ALARM),
                 "muted" to audio.isStreamMute(AudioManager.STREAM_ALARM),
+                "zen" to zen,
+                "zenAlarms" to zenAllowsAlarms(zen),
+                "zenAlarmsActive" to zenActive,
+                "zenActiveErr" to zenActiveErr,
             )
         }
         soundCheck = check
@@ -90,6 +98,33 @@ class AlarmPlayer(private val context: Context, private val handler: Handler) {
                 }
             }
             EventLog.log("alarm_vibrate", "ok" to hasVibrator, "hasVibrator" to hasVibrator)
+        }
+    }
+
+    /**
+     * S2 Vòng 4 V4-2: only for DND PRIORITY (API 28+), whether the user's DND policy lets alarms through; null otherwise or
+     * when the policy cannot be read [N7]. This is the user's *default* policy (S2 Vòng 5 V5-1), kept for reading only.
+     */
+    private fun zenAllowsAlarms(zen: Int?): Boolean? {
+        if (zen != NotificationManager.INTERRUPTION_FILTER_PRIORITY || Build.VERSION.SDK_INT < 28) return null
+        return runCatching {
+            (notifications.notificationPolicy.priorityCategories and
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS) != 0
+        }.getOrNull()
+    }
+
+    /**
+     * S2 Vòng 5 V5-1: only for DND PRIORITY on API 30+, whether the currently applied (consolidated) policy lets alarms
+     * through, so a schedule/mode with its own policy is seen [N8][N10]. Returns (allowed, null), or (null, exception class
+     * name) when the policy cannot be read, or (null, null) when it does not apply.
+     */
+    private fun activeAllowsAlarms(zen: Int?): Pair<Boolean?, String?> {
+        if (zen != NotificationManager.INTERRUPTION_FILTER_PRIORITY || Build.VERSION.SDK_INT < 30) return null to null
+        return try {
+            ((notifications.consolidatedNotificationPolicy.priorityCategories and
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS) != 0) to null
+        } catch (e: Exception) {
+            null to e.javaClass.simpleName
         }
     }
 

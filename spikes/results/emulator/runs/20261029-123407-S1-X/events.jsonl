@@ -1,0 +1,36 @@
+{"ev":"run_start","t":"2026-10-29T12:34:07.671+07:00","et":4633814,"run":"20261029-123407-S1-X","pid":17243,"seq":27,"kind":"S1","label":"X","durationMin":18,"densePhaseMin":9,"alarmAtEnd":true,"watchdog":false,"delayMin":null,"scenario":null,"manufacturer":"Google","brand":"google","model":"sdk_gphone64_x86_64","sdk":34,"release":"14","display":"sdk_gphone64_x86_64-userdebug 14 UE1A.230829.050 12077443 dev-keys","secPatch":"2023-09-05","gms":"OK"}
+{"ev":"perm_snapshot","t":"2026-10-29T12:34:07.678+07:00","et":4633821,"run":"20261029-123407-S1-X","pid":17243,"seq":28,"fine":true,"coarse":true,"bg":false,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":2}
+{"ev":"phase_alarm_scheduled","t":"2026-10-29T12:34:07.686+07:00","et":4633829,"run":"20261029-123407-S1-X","pid":17243,"seq":29,"boundary":"2026-10-29T12:43:07.662+07:00","exact":true}
+{"ev":"alarm_scheduled","t":"2026-10-29T12:34:07.703+07:00","et":4633846,"run":"20261029-123407-S1-X","pid":17243,"seq":30,"deadline":"2026-10-29T12:52:07.662+07:00","fallbackExact":true}
+{"ev":"svc_start_cmd","t":"2026-10-29T12:34:07.983+07:00","et":4634126,"run":"20261029-123407-S1-X","pid":17243,"seq":31,"src":"user","flags":0,"startId":1}
+{"ev":"perm_snapshot","t":"2026-10-29T12:34:08.010+07:00","et":4634153,"run":"20261029-123407-S1-X","pid":17243,"seq":32,"fine":true,"coarse":true,"bg":false,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":2}
+{"ev":"svc_fg_ok","t":"2026-10-29T12:34:08.012+07:00","et":4634155,"run":"20261029-123407-S1-X","pid":17243,"seq":33,"src":"user"}
+{"ev":"phase_alarm_scheduled","t":"2026-10-29T12:34:08.034+07:00","et":4634176,"run":"20261029-123407-S1-X","pid":17243,"seq":34,"boundary":"2026-10-29T12:43:07.662+07:00","exact":true}
+{"ev":"loc_req","t":"2026-10-29T12:34:08.037+07:00","et":4634184,"run":"20261029-123407-S1-X","pid":17243,"seq":35,"priority":"BALANCED","intervalMs":180000,"phase":"sparse"}
+{"ev":"battery","t":"2026-10-29T12:34:08.071+07:00","et":4634213,"run":"20261029-123407-S1-X","pid":17243,"seq":36,"lvl":100,"chg":false}
+{"ev":"fix","t":"2026-10-29T12:34:08.072+07:00","et":4634215,"run":"20261029-123407-S1-X","pid":17243,"seq":37,"n":1,"acc":5.0,"spd":1.8864681720733643,"prov":"fused","ageMs":75605,"dM":null}
+{"ev":"screen","t":"2026-10-29T12:34:14.611+07:00","et":4640753,"run":"20261029-123407-S1-X","pid":17243,"seq":38,"on":false}
+{"ev":"fix","t":"2026-10-29T12:35:52.475+07:00","et":4738618,"run":"20261029-123407-S1-X","pid":17243,"seq":39,"n":2,"acc":5.0,"spd":null,"prov":"fused","ageMs":2,"dM":0.0}
+{"ev":"fix","t":"2026-10-29T12:38:52.477+07:00","et":4918620,"run":"20261029-123407-S1-X","pid":17243,"seq":40,"n":3,"acc":5.0,"spd":null,"prov":"fused","ageMs":3,"dM":0.0}
+{"ev":"screen","t":"2026-10-29T12:39:08.329+07:00","et":4934472,"run":"20261029-123407-S1-X","pid":17243,"seq":41,"on":true}
+{"ev":"svc_cmd","t":"2026-10-29T12:39:15.481+07:00","et":4941626,"run":"20261029-123407-S1-X","pid":17243,"seq":42,"action":"self_kill","startId":2}
+{"ev":"self_kill_scheduled","t":"2026-10-29T12:39:15.488+07:00","et":4941631,"run":"20261029-123407-S1-X","pid":17243,"seq":43,"delayMs":60000}
+{"ev":"screen","t":"2026-10-29T12:39:16.819+07:00","et":4942961,"run":"20261029-123407-S1-X","pid":17243,"seq":44,"on":false}
+{"ev":"self_kill_now","t":"2026-10-29T12:40:15.504+07:00","et":5001647,"run":"20261029-123407-S1-X","pid":17243,"seq":45}
+{"ev":"proc_start","t":"2026-10-29T12:40:17.138+07:00","et":5003281,"run":"20261029-123407-S1-X","pid":18092,"seq":1,"importance":125}
+{"ev":"exit_info","t":"2026-10-29T12:40:17.181+07:00","et":5003323,"run":"20261029-123407-S1-X","pid":18092,"seq":2,"reason":2,"reasonName":"REASON_SIGNALED","exitTs":1793252415537,"desc":"","importance":125,"status":9}
+{"ev":"svc_start_cmd","t":"2026-10-29T12:40:17.256+07:00","et":5003399,"run":"20261029-123407-S1-X","pid":18092,"seq":3,"src":"sticky","flags":0,"startId":3}
+{"ev":"perm_snapshot","t":"2026-10-29T12:40:17.279+07:00","et":5003422,"run":"20261029-123407-S1-X","pid":18092,"seq":4,"fine":true,"coarse":true,"bg":false,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":2}
+{"ev":"svc_fg_ok","t":"2026-10-29T12:40:17.282+07:00","et":5003425,"run":"20261029-123407-S1-X","pid":18092,"seq":5,"src":"sticky"}
+{"ev":"phase_alarm_scheduled","t":"2026-10-29T12:40:17.297+07:00","et":5003440,"run":"20261029-123407-S1-X","pid":18092,"seq":6,"boundary":"2026-10-29T12:43:07.662+07:00","exact":true}
+{"ev":"loc_req","t":"2026-10-29T12:40:17.316+07:00","et":5003459,"run":"20261029-123407-S1-X","pid":18092,"seq":7,"priority":"BALANCED","intervalMs":180000,"phase":"sparse"}
+{"ev":"fix","t":"2026-10-29T12:40:17.348+07:00","et":5003491,"run":"20261029-123407-S1-X","pid":18092,"seq":8,"n":4,"acc":5.0,"spd":null,"prov":"fused","ageMs":84873,"dM":null}
+{"ev":"battery","t":"2026-10-29T12:40:17.795+07:00","et":5003938,"run":"20261029-123407-S1-X","pid":18092,"seq":9,"lvl":100,"chg":false}
+{"ev":"svc_destroy","t":"2026-10-29T12:40:18.779+07:00","et":5004922,"run":"20261029-123407-S1-X","pid":18092,"seq":10}
+{"ev":"phase_alarm","t":"2026-10-29T12:43:07.732+07:00","et":5173875,"run":"20261029-123407-S1-X","pid":18092,"seq":11,"lateMs":70,"alive":false,"action":"none"}
+{"ev":"svc_start_cmd","t":"2026-10-29T12:53:07.721+07:00","et":5773864,"run":"20261029-123407-S1-X","pid":18092,"seq":12,"src":"alarm_fallback","flags":0,"startId":1}
+{"ev":"perm_snapshot","t":"2026-10-29T12:53:07.737+07:00","et":5773880,"run":"20261029-123407-S1-X","pid":18092,"seq":13,"fine":true,"coarse":true,"bg":false,"notif":true,"notifEnabled":true,"fsi":true,"exact":true,"ignBatOpt":false,"bgRestricted":false,"bucket":"ACTIVE","powerSave":false,"chTrackingImp":2,"chAlarmImp":4,"alarmVol":6,"alarmVolMax":7,"ringer":0,"zen":2}
+{"ev":"svc_fg_fail","t":"2026-10-29T12:53:07.739+07:00","et":5773882,"run":"20261029-123407-S1-X","pid":18092,"seq":14,"src":"alarm_fallback","ex":"java.lang.SecurityException","msg":"Starting FGS with type location callerApp=ProcessRecord{7065f68 18092:app.napstop.probe/u0a192} targetSDK=36 requires permissions: all of the permissions allOf=true [android.permission.FOREGROUND_SERVICE_LOCATION] any of the permissions allOf=false [android.permission.ACCESS_COARSE_LOCATION, android.permission.ACCESS_FINE_LOCATION]  and the app must be in the eligible state/exemptions to access the foreground only permission"}
+{"ev":"svc_destroy","t":"2026-10-29T12:53:07.752+07:00","et":5773895,"run":"20261029-123407-S1-X","pid":18092,"seq":15}
+{"ev":"svc_cmd","t":"2026-10-29T12:54:57.683+07:00","et":5883826,"run":"20261029-123407-S1-X","pid":18092,"seq":16,"action":"stop","startId":1}
+{"ev":"run_stop","t":"2026-10-29T12:54:57.742+07:00","et":5883884,"run":"20261029-123407-S1-X","pid":18092,"seq":17,"by":"user"}
