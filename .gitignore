@@ -30,3 +30,9 @@ GoogleService-Info.plist
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# ios-builder (S3): downloaded IPAs; XcodeGen output is generated on the runner
+/dist/
+spikes/ios-probe/*.xcodeproj/
+spikes/ios-probe/ProbeCore/.build/
+spikes/ios-probe/ProbeCore/.swiftpm/

@@ -1,0 +1,23 @@
+{
+  "project": "gps-alarm",
+  "platform": "ios",
+  "github": {
+    "owner": "Ryo51289",
+    "repo": "gps-alarm"
+  },
+  "provider": "github",
+  "codemagic": {},
+  "bitrise": {},
+  "ios": {
+    "path": "spikes/ios-probe",
+    "scheme": "NapStopProbe",
+    "bundleId": "app.napstop.probe",
+    "configuration": "Debug"
+  },
+  "flutter": {
+    "watch": {}
+  },
+  "reactNative": {},
+  "kmp": {},
+  "mobai": {}
+}
