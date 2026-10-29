@@ -12,7 +12,7 @@ Môi trường: `[linux]` container/máy Linux · `[mac]` cần macOS + Xcode ·
 |---|---|---|---|---|---|
 | T00 | Toolchain + khung repo: cài Flutter & Android SDK, `flutter create` trong `app/` (app id `app.napstop`), lint, cấu trúc thư mục, flavor `dev`/`prod` | linux | — | done | `flutter analyze` sạch, `flutter build apk --debug` thành công |
 | T01 | CI GitHub Actions: analyze, test Dart, test Kotlin JVM, build APK debug | linux | T00 | done | Workflow xanh trên PR mẫu |
-| T02 | `tools/tracegen` (Dart CLI) + 6 trace đầu: tàu HN→Đồng Hới, xe khách Mỹ Đình→Thái Bình, buýt nội thành, hầm Hải Vân (mất GPS 6 phút), quá trạm, GPS nhiễu | linux | T00 | testing | GPX hợp lệ + `*.expect.json` (mốc báo kỳ vọng) cho mỗi trace |
+| T02 | `tools/tracegen` (Dart CLI) + 6 trace đầu: tàu HN→Đồng Hới, xe khách Mỹ Đình→Thái Bình, buýt nội thành, hầm Hải Vân (mất GPS 6 phút), quá trạm, GPS nhiễu | linux | T00 | done | GPX hợp lệ + `*.expect.json` (mốc báo kỳ vọng) cho mỗi trace |
 
 ## Phase 1 — Spikes rủi ro (Gate: Go / No-go)
 
