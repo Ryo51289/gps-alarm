@@ -18,11 +18,11 @@ Môi trường: `[linux]` container/máy Linux · `[mac]` cần macOS + Xcode ·
 
 | ID | Task | Env | Phụ thuộc | Trạng thái | Tiêu chí hoàn thành |
 |---|---|---|---|---|---|
-| S1 | Android: foreground service location sống 10 giờ trên Xiaomi/Oppo/Vivo/Samsung (có/không tắt tối ưu pin) | linux + device | T00 | todo | Bảng kết quả từng máy, log thời gian sống, khuyến nghị |
-| S2 | Android: báo thức kêu khi khoá máy + im lặng + DND, kích hoạt từ service (full-screen intent, `USAGE_ALARM`) | linux + device | T00 | todo | Video/biên bản 4 máy; quyền & policy Play cần khai |
+| S1 | Android: foreground service location sống 10 giờ trên Xiaomi/Oppo/Vivo/Samsung (có/không tắt tối ưu pin) | linux + device | T00 | testing | Bảng kết quả từng máy, log thời gian sống, khuyến nghị |
+| S2 | Android: báo thức kêu khi khoá máy + im lặng + DND, kích hoạt từ service (full-screen intent, `USAGE_ALARM`) | linux + device | T00 | testing | Video/biên bản 4 máy; quyền & policy Play cần khai |
 | S3 | iOS: kích hoạt báo thức từ nền khi chạm mốc vị trí — AlarmKit (iOS 26) và fallback (Time Sensitive, Critical Alerts) | mac + device | — | todo | Biên bản: kêu được không, âm lượng, khi im lặng/Focus; quyết định phương án |
 | S4 | Đo pin 10 giờ với chiến lược lấy mẫu thưa→dày (Android + iOS) | device | S1, S3 | todo | % pin / 10 giờ mỗi máy; đề xuất tham số |
-| S5 | Chính sách store: khai báo vị trí nền (Play), full-screen intent, App Store "Always" location; soạn mô tả + kịch bản video | linux | — | todo | Checklist nộp store + bản nháp mô tả |
+| S5 | Chính sách store: khai báo vị trí nền (Play), full-screen intent, App Store "Always" location; soạn mô tả + kịch bản video | linux | — | spec | Checklist nộp store + bản nháp mô tả |
 
 ## Phase 2 — Core engine
 

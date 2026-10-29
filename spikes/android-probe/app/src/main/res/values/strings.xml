@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NapStop Probe</string>
+
+    <!-- Notification channels -->
+    <string name="channel_tracking">Theo dõi thí nghiệm</string>
+    <string name="channel_alarm">Báo thức thí nghiệm</string>
+
+    <!-- Notifications -->
+    <string name="notif_tracking_title">NapStop Probe đang chạy</string>
+    <string name="notif_tracking_waiting">Đang khởi động…</string>
+    <string name="notif_tracking_text_nofix">Lượt %1$s · đang chờ vị trí</string>
+    <string name="notif_tracking_text">Lượt %1$s · %2$d vị trí · lần cuối %3$s</string>
+    <string name="notif_alarm_title">Báo thức thử (S2)</string>
+    <string name="notif_alarm_text">Mốc %1$s · nguồn %2$s</string>
+    <string name="notif_alarm_dismiss">Tắt</string>
+
+    <!-- Main: sections -->
+    <string name="section_device">Thiết bị</string>
+    <string name="section_perms">Quyền &amp; nguồn</string>
+    <string name="section_s1">Thí nghiệm S1</string>
+    <string name="section_s2">Thí nghiệm S2</string>
+    <string name="section_running">Lượt đang chạy</string>
+
+    <!-- Main: device -->
+    <string name="device_info">Hãng: %1$s (%2$s)\nModel: %3$s\nAndroid: %4$s (SDK %5$d)\nBản dựng: %6$s\nBản vá bảo mật: %7$s\nGoogle Play services: %8$s</string>
+
+    <!-- Main: permission rows -->
+    <string name="perm_fine">Vị trí chính xác</string>
+    <string name="perm_bg">Vị trí nền (\"Luôn cho phép\")</string>
+    <string name="perm_bg_label">Tên trên máy: \"%1$s\"</string>
+    <string name="perm_notif">Thông báo</string>
+    <string name="perm_fsi">Báo thức toàn màn hình</string>
+    <string name="perm_exact">Báo thức chính xác</string>
+    <string name="perm_battery">Tối ưu pin</string>
+    <string name="perm_bg_restricted">Hạn chế nền</string>
+    <string name="perm_bucket">Nhóm chờ (standby bucket)</string>
+    <string name="perm_power_save">Tiết kiệm pin hệ thống</string>
+    <string name="perm_alarm_volume">Âm lượng báo thức</string>
+    <string name="perm_app_settings">Cài đặt app (cho bước của hãng)</string>
+
+    <string name="status_granted">Đã cấp</string>
+    <string name="status_denied">Chưa cấp</string>
+    <string name="status_na">Không áp dụng</string>
+    <string name="status_na_always">Không áp dụng (luôn có)</string>
+    <string name="status_coarse_only">Chỉ vị trí gần đúng</string>
+    <string name="status_notif_blocked">Đã cấp nhưng thông báo đang tắt</string>
+    <string name="status_battery_optimized">Đang tối ưu</string>
+    <string name="status_battery_exempt">Đã miễn</string>
+    <string name="status_yes">Có</string>
+    <string name="status_no">Không</string>
+    <string name="status_on">Bật</string>
+    <string name="status_off">Tắt</string>
+    <string name="status_volume">%1$d/%2$d</string>
+
+    <string name="btn_grant">Cấp quyền</string>
+    <string name="btn_open_settings">Mở cài đặt</string>
+    <string name="btn_request_exempt">Xin miễn</string>
+    <string name="btn_exempt_list">Danh sách</string>
+    <string name="btn_open_app_page">Mở trang app</string>
+
+    <!-- Main: S1 -->
+    <string name="s1_label">Cấu hình</string>
+    <string name="s1_label_a">A</string>
+    <string name="s1_label_b">B</string>
+    <string name="s1_label_r1">R1</string>
+    <string name="s1_label_r2">R2</string>
+    <string name="s1_label_other">Khác</string>
+    <string name="s1_duration">Thời lượng (giờ)</string>
+    <string name="s1_dense">Pha dày cuối (phút)</string>
+    <string name="s1_alarm_at_end">Báo thức khi kết thúc</string>
+    <string name="watchdog">Watchdog</string>
+    <string name="btn_start_s1">Bắt đầu S1</string>
+
+    <!-- Main: S2 -->
+    <string name="s2_scenario">Kịch bản</string>
+    <string name="s2_delay">Thời gian trễ</string>
+    <string name="s2_delay_1">1 phút</string>
+    <string name="s2_delay_2">2 phút</string>
+    <string name="s2_delay_5">5 phút</string>
+    <string name="s2_delay_30">30 phút</string>
+    <string name="btn_start_s2">Bắt đầu S2</string>
+    <string-array name="s2_scenarios">
+        <item>S2-1 · Khoá, chuông bình thường</item>
+        <item>S2-2 · Khoá, im lặng</item>
+        <item>S2-3 · Im lặng + Không làm phiền</item>
+        <item>S2-4 · Như S2-3, tắt quyền toàn màn hình</item>
+        <item>S2-5 · Như S2-3, Doze ép bằng adb</item>
+        <item>S2-6 · Như S2-3, vuốt app khỏi đa nhiệm</item>
+        <item>S2-7 · Như S2-3, thu hồi quyền Thông báo</item>
+        <item>S2-8 · Mở khoá, đang phát video</item>
+        <item>S2-9 · Báo thức cuối lượt S1</item>
+        <item>S2-10 · Android 17, audio hardening</item>
+    </string-array>
+
+    <!-- Main: running run -->
+    <string name="run_none">Không có lượt nào đang chạy.</string>
+    <string name="run_status">Lượt: %1$s\nLoại: %2$s · nhãn %3$s\nĐã chạy: %4$s / kế hoạch %5$s\nSố vị trí: %6$d\nVị trí cuối: %7$s\nPha hiện tại: %8$s\nGiờ báo thức: %9$s</string>
+    <string name="run_last_fix_ago">cách đây %1$s</string>
+    <string name="run_last_fix_none">chưa có</string>
+    <string name="run_alarm_none">không có</string>
+    <string name="phase_sparse">thưa (180 s)</string>
+    <string name="phase_dense">dày (10 s)</string>
+    <string name="btn_stop_run">Dừng lượt</string>
+    <string name="btn_self_kill">Tự huỷ process sau 60 giây</string>
+    <string name="btn_view_results">Xem kết quả</string>
+    <string name="confirm_stop_title">Dừng lượt?</string>
+    <string name="confirm_stop_message">Lượt đang chạy sẽ kết thúc và ghi run_stop (by=user).</string>
+    <string name="confirm_yes">Dừng</string>
+    <string name="confirm_cancel">Huỷ</string>
+    <string name="self_kill_sent">Process sẽ tự huỷ sau 60 giây. Bấm Home rồi tắt màn hình.</string>
+
+    <!-- Main: start validation -->
+    <string name="err_no_location">Chưa có quyền vị trí. Cấp quyền \"Vị trí chính xác\" trước khi bắt đầu.</string>
+    <string name="err_bad_numbers">Thời lượng hoặc pha dày không hợp lệ (thời lượng &gt; 0, pha dày từ 0 đến thời lượng).</string>
+    <string name="warn_missing_title">Thiếu quyền</string>
+    <string name="warn_missing_message">Lượt vẫn bắt đầu, nhưng đang thiếu: %1$s</string>
+    <string name="ok">OK</string>
+
+    <!-- Summary -->
+    <string name="summary_title">Kết quả các lượt</string>
+    <string name="summary_empty">Chưa có lượt nào.</string>
+    <string name="summary_pick">Chọn một lượt để xem tóm tắt.</string>
+    <string name="summary_corrupt">Dòng log hỏng (bỏ qua): %1$d</string>
+    <string name="summary_running">(lượt này còn đang chạy)</string>
+    <string name="btn_share_summary">Chia sẻ tóm tắt</string>
+    <string name="btn_delete_run">Xoá lượt</string>
+    <string name="confirm_delete_title">Xoá lượt?</string>
+    <string name="confirm_delete_message">Xoá thư mục log của lượt %1$s trên máy. Không hoàn tác được.</string>
+    <string name="confirm_delete_yes">Xoá</string>
+    <string name="share_chooser">Chia sẻ tóm tắt</string>
+
+    <!-- Alarm screen -->
+    <string name="alarm_title">BÁO THỨC THỬ</string>
+    <string name="alarm_planned">Mốc %1$s</string>
+    <string name="alarm_source">Nguồn kích hoạt: %1$s</string>
+    <string name="btn_alarm_dismiss">Tắt báo thức</string>
+</resources>

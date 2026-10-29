@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scroll"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFFFF">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- 1. Device -->
+        <TextView
+            style="@style/ProbeSection"
+            android:layout_marginTop="0dp"
+            android:text="@string/section_device" />
+
+        <TextView
+            android:id="@+id/deviceInfo"
+            style="@style/ProbeText"
+            android:textIsSelectable="true" />
+
+        <!-- 2. Permissions & power: rows inflated from row_perm.xml -->
+        <TextView
+            style="@style/ProbeSection"
+            android:text="@string/section_perms" />
+
+        <LinearLayout
+            android:id="@+id/permContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <!-- 3. S1 -->
+        <TextView
+            style="@style/ProbeSection"
+            android:text="@string/section_s1" />
+
+        <TextView
+            style="@style/ProbeText"
+            android:text="@string/s1_label" />
+
+        <RadioGroup
+            android:id="@+id/s1Label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checkedButton="@+id/s1LabelA"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/s1LabelA"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s1_label_a" />
+
+            <RadioButton
+                android:id="@+id/s1LabelB"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s1_label_b" />
+
+            <RadioButton
+                android:id="@+id/s1LabelR1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s1_label_r1" />
+
+            <RadioButton
+                android:id="@+id/s1LabelR2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s1_label_r2" />
+
+            <RadioButton
+                android:id="@+id/s1LabelOther"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s1_label_other" />
+        </RadioGroup>
+
+        <TextView
+            style="@style/ProbeText"
+            android:layout_marginTop="8dp"
+            android:labelFor="@+id/s1Duration"
+            android:text="@string/s1_duration" />
+
+        <EditText
+            android:id="@+id/s1Duration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:digits="0123456789.,"
+            android:importantForAutofill="no"
+            android:inputType="numberDecimal"
+            android:minHeight="48dp"
+            android:text="10" />
+
+        <TextView
+            style="@style/ProbeText"
+            android:layout_marginTop="8dp"
+            android:labelFor="@+id/s1Dense"
+            android:text="@string/s1_dense" />
+
+        <EditText
+            android:id="@+id/s1Dense"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:importantForAutofill="no"
+            android:inputType="number"
+            android:minHeight="48dp"
+            android:text="60" />
+
+        <CheckBox
+            android:id="@+id/s1AlarmAtEnd"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:minHeight="48dp"
+            android:text="@string/s1_alarm_at_end" />
+
+        <CheckBox
+            android:id="@+id/s1Watchdog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:minHeight="48dp"
+            android:text="@string/watchdog" />
+
+        <Button
+            android:id="@+id/btnStartS1"
+            style="@style/ProbeButton"
+            android:text="@string/btn_start_s1" />
+
+        <!-- 4. S2 -->
+        <TextView
+            style="@style/ProbeSection"
+            android:text="@string/section_s2" />
+
+        <TextView
+            style="@style/ProbeText"
+            android:text="@string/s2_scenario" />
+
+        <Spinner
+            android:id="@+id/s2Scenario"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:entries="@array/s2_scenarios"
+            android:minHeight="48dp" />
+
+        <TextView
+            style="@style/ProbeText"
+            android:layout_marginTop="8dp"
+            android:text="@string/s2_delay" />
+
+        <RadioGroup
+            android:id="@+id/s2Delay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checkedButton="@+id/s2Delay2"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/s2Delay1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s2_delay_1" />
+
+            <RadioButton
+                android:id="@+id/s2Delay2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s2_delay_2" />
+
+            <RadioButton
+                android:id="@+id/s2Delay5"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s2_delay_5" />
+
+            <RadioButton
+                android:id="@+id/s2Delay30"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/s2_delay_30" />
+        </RadioGroup>
+
+        <CheckBox
+            android:id="@+id/s2Watchdog"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:minHeight="48dp"
+            android:text="@string/watchdog" />
+
+        <Button
+            android:id="@+id/btnStartS2"
+            style="@style/ProbeButton"
+            android:text="@string/btn_start_s2" />
+
+        <!-- 5. Running run -->
+        <TextView
+            style="@style/ProbeSection"
+            android:text="@string/section_running" />
+
+        <TextView
+            android:id="@+id/runStatus"
+            style="@style/ProbeText"
+            android:text="@string/run_none"
+            android:textIsSelectable="true" />
+
+        <Button
+            android:id="@+id/btnStopRun"
+            style="@style/ProbeButton"
+            android:text="@string/btn_stop_run" />
+
+        <Button
+            android:id="@+id/btnSelfKill"
+            style="@style/ProbeButton"
+            android:text="@string/btn_self_kill" />
+
+        <!-- 6. Results -->
+        <Button
+            android:id="@+id/btnResults"
+            style="@style/ProbeButton"
+            android:layout_marginTop="20dp"
+            android:text="@string/btn_view_results" />
+    </LinearLayout>
+</ScrollView>
