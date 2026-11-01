@@ -1,0 +1,3 @@
+# Test tags (T20). Golden tests: flutter test --update-goldens --tags golden
+tags:
+  golden: {}

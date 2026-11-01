@@ -1,0 +1,7 @@
+{
+  "@@locale": "vi",
+  "commonBack": "Quay lại",
+  "@commonBack": {
+    "description": "Tooltip and screen reader label of the back button at the top of a screen."
+  }
+}

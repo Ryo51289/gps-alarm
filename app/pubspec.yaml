@@ -14,6 +14,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
+  # gen-l10n (T20). intl version is pinned by flutter_localizations.
+  flutter_localizations:
+    sdk: flutter
+  intl: any
 
 dev_dependencies:
   flutter_test:
@@ -22,8 +26,24 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # gen-l10n from l10n.yaml (T20); output in lib/l10n/gen (not committed).
+  generate: true
   # Offline station dataset (T24), built by tools/stationgen. Loaded lazily.
   assets:
     - assets/stations.json
+    # Be Vietnam Pro license, shown on the license page (T20).
+    - assets/fonts/BeVietnamPro/OFL.txt
+  # Be Vietnam Pro (T20), see assets/fonts/BeVietnamPro/README.md.
+  fonts:
+    - family: BeVietnamPro
+      fonts:
+        - asset: assets/fonts/BeVietnamPro/BeVietnamPro-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/BeVietnamPro/BeVietnamPro-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BeVietnamPro/BeVietnamPro-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BeVietnamPro/BeVietnamPro-Bold.ttf
+          weight: 700
   # Used when no --flavor is given (flutter run, flutter build apk --debug).
   default-flavor: dev

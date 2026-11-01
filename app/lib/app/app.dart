@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:napstop/app/flavor.dart';
+import 'package:napstop/app/locales.dart';
+import 'package:napstop/core/design/theme/nap_themes.dart';
+import 'package:napstop/l10n/gen/app_localizations.dart';
 
-/// Brand name. Not translated, so it is the only display string allowed
-/// outside ARB until gen-l10n is set up (T20).
+/// Brand name, not translated (CLAUDE.md); the only display string outside
+/// ARB.
 const String kAppName = 'NapStop';
 
 class NapStopApp extends StatelessWidget {
@@ -13,7 +16,15 @@ class NapStopApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(title: kAppName, home: _PlaceholderPage());
+    return MaterialApp(
+      title: kAppName,
+      theme: NapThemes.light(),
+      darkTheme: NapThemes.dark(),
+      // themeMode: ThemeMode.system (default). T28 sets the user choice.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: kAppSupportedLocales,
+      home: const _PlaceholderPage(),
+    );
   }
 }
 

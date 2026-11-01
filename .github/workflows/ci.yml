@@ -1,4 +1,4 @@
-# NapStop CI (T01, T02, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T24.md
+# NapStop CI (T01, T02, T20, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T20.md, docs/specs/T24.md
 #
 # Every action is pinned to a full commit SHA; the release tag is in the trailing
 # comment. To update a pin, resolve the tag with
@@ -125,7 +125,10 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dart-test-results
-          path: app/build/ci/
+          # failures/: golden diff images (T20).
+          path: |
+            app/build/ci/
+            app/test/**/failures/
           if-no-files-found: ignore
           retention-days: 7
 

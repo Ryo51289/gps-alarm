@@ -65,13 +65,43 @@ Không có define thì test `AppFlavor.current` bị skip. Phiên bản Flutter/
 Dart đọc flavor qua `AppFlavor.current` (`lib/app/flavor.dart`, dựa trên `appFlavor`).
 iOS flavor: chưa có (cần Mac). Phải tạo scheme `dev`/`prod` trước khi `flutter run` trên iOS.
 
+## Design system, catalog, golden (T20)
+
+Token, theme, component nằm ở `lib/core/design/` (import `package:napstop/core/design/design.dart`). Màu đọc qua
+`context.napColors`, chữ qua `context.napText` / `context.napStyle(NapTypography.caption)`, khoảng cách `NapSpace`,
+bo góc `NapRadii`, icon `NapIcons`. Không hard-code hex hay `Icons.*` trong feature. Spec: `docs/specs/T20.md`.
+
+```bash
+flutter run -t lib/main_catalog.dart                 # catalog: đổi light/dark/alarm, cỡ chữ, vi/en
+flutter test --update-goldens --tags golden          # sinh lại 30 ảnh golden (test/core/design/goldens/)
+flutter test --tags golden                           # chỉ chạy golden
+```
+
+- Catalog là công cụ dev, entrypoint riêng; `main.dart` không import nên mã catalog không vào APK.
+- Golden vẽ chữ bằng font `FlutterTest` (ô vuông) và bóng đặc để giống nhau trên Windows và Linux; comparator
+  (`test/helpers/nap_golden_comparator.dart`) cho lệch tối đa 0,1% pixel. Ảnh lỗi nằm ở `test/**/failures/`
+  (không commit; CI upload kèm artifact `dart-test-results` khi fail). Chỉ cập nhật golden khi thay đổi giao diện là
+  cố ý, và xem ảnh mới trước khi commit.
+- Font Be Vietnam Pro (4 weight) bundle trong `assets/fonts/BeVietnamPro/` (nguồn + SHA-256 ở README trong đó).
+
+## Chuỗi hiển thị (ARB, gen-l10n)
+
+- Bản gốc tiếng Việt `lib/l10n/app_vi.arb`, bản dịch `lib/l10n/app_en.arb`. Mỗi khoá cần `@khoá.description` (tiếng
+  Anh) và có mặt ở cả hai file (test `test/app/l10n_arb_test.dart`). Tiền tố theo feature (`home…`), dùng chung `common…`.
+- `flutter pub get` tự sinh `lib/l10n/gen/` (không commit); sinh tay: `flutter gen-l10n`.
+  Dùng: `AppLocalizations.of(context).commonBack`.
+- Ngôn ngữ máy khác vi/en → tiếng Việt (`kAppSupportedLocales`, vi đứng đầu).
+
 ## Cấu trúc `lib/`
 
 ```
 lib/
-├── main.dart          entrypoint duy nhất
-├── app/               NapStopApp, AppFlavor
+├── main.dart          entrypoint của app
+├── main_catalog.dart  entrypoint catalog design system (chỉ dev)
+├── app/               NapStopApp, AppFlavor, kAppSupportedLocales
 ├── core/              dùng chung: platform bridge (Pigeon), logging, utils
+│   └── design/        design system: tokens, theme, component Nap*, catalog/
+├── l10n/              app_vi.arb (gốc), app_en.arb; gen/ do gen-l10n sinh
 └── features/<feature>/{data,domain,presentation}
 ```
 
