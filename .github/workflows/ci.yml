@@ -1,4 +1,4 @@
-# NapStop CI (T01, T02, T20, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T20.md, docs/specs/T24.md
+# NapStop CI (T01, T02, T14, T20, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T14.md, docs/specs/T20.md, docs/specs/T24.md
 #
 # Every action is pinned to a full commit SHA; the release tag is in the trailing
 # comment. To update a pin, resolve the tag with
@@ -76,8 +76,17 @@ jobs:
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
 
+      # T14: generated Pigeon code is committed; it must match the input.
+      - name: Check Pigeon output is up to date
+        run: |
+          dart run pigeon --input pigeons/core_api.dart
+          dart format lib/core/bridge/core_api.g.dart
+          paths=(lib/core/bridge android/app/src/main/kotlin/app/napstop/core/bridge ios/Runner/Bridge)
+          git diff --exit-code -- "${paths[@]}"
+          test -z "$(git status --porcelain -- "${paths[@]}")"
+
       - name: Check formatting
-        run: dart format --output=none --set-exit-if-changed lib test
+        run: dart format --output=none --set-exit-if-changed lib test integration_test
 
       - name: Analyze
         run: flutter analyze

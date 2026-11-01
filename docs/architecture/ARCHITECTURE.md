@@ -49,35 +49,59 @@ Flutter chỉ cấu hình chuyến, hiển thị trạng thái, và lưu lịch 
 - Tham số: một bảng `EngineParams` (T10 §5), ghi đè qua **một** khoá Remote Config `trip_engine_params` (chuỗi JSON),
   cố định suốt chuyến.
 
-## 3. Pigeon API (phác thảo — chốt ở T14)
+## 3. Pigeon API (chốt ở T14)
+
+Nguồn chuẩn là `docs/specs/T14.md` §3 và `app/pigeons/core_api.dart`; mục này chỉ tóm tắt.
+
+Pigeon 29.1.0 (ghim cứng). Code sinh commit vào repo: Dart `lib/core/bridge/core_api.g.dart`, Kotlin
+`app.napstop.core.bridge` (`CoreApi.g.kt`), Swift `ios/Runner/Bridge/CoreApi.g.swift`; CI kiểm code sinh khớp input.
+Mọi kiểu có hậu tố `Msg`. Dart dùng qua lớp mỏng `CoreBridge` (`lib/core/bridge/core_bridge.dart`), lỗi → `BridgeException`.
+
 ```dart
-@HostApi() abstract class TripHostApi {
-  void startTrip(TripConfigMsg config);      // bắt đầu foreground service / location updates. Android: chỉ gọi khi activity
-                                             // đang hiển thị (ADR-001 #2); thiếu quyền §7.3 → lỗi, không khởi động
-  void stopTrip();
-  TripStateMsg? currentTrip();               // khôi phục UI sau khi app bị kill (đọc view từ snapshot, T10 §7)
-  void setBatteryChoice(BatteryChoiceMsg choice); // màn 7 → UserAction (T10 §2.2, §4.9)
-  void startSimulation(String traceAsset, double speedFactor);
+@HostApi() abstract class TripHostApi {            // mọi hàm @async (Kotlin suspend / Swift async)
+  void startTrip(TripConfigMsg config, double destLat, double destLng, SimulationMsg? simulation);
+      // Android: chỉ khi activity đang hiển thị (ADR-001 #2). Lỗi: invalid-config, trip-active, permission-missing,
+      // not-foreground, start-failed, simulation-unavailable, internal (T14 §4)
+  void stopTrip(String tripId);                    // UserAction STOP_TRIP; tripId lạ = no-op
+  ActiveTripMsg? currentTrip();                    // config + TripStateMsg đọc từ snapshot (sống qua process chết, T10 §7)
+  void setBatteryChoice(String tripId, BatteryChoiceMsg choice); // màn 7 → UserAction BATTERY_*
+  void dismiss(String tripId); void snooze(String tripId);       // UserAction DISMISS / SNOOZE
+  List<FinishedTripMsg> pendingFinishedTrips();    // hàng đợi chuyến đã kết thúc (lịch sử T28), lấy → ghi drift → ack
+  void ackFinishedTrips(List<String> tripIds);
 }
 @HostApi() abstract class PermissionHostApi {
-  PermissionStatusMsg status();              // các mục §7 của nền tảng đang chạy; Android KHÔNG có vị trí nền (ADR-001)
-  @async PermissionStatusMsg request(PermissionKindMsg kind); // prompt hệ thống: location, notifications, alarmKit (T14 chốt)
-  void openSettings(SettingsTargetMsg target);
-  DeviceInfoMsg deviceInfo();                // hãng máy → màn hướng dẫn pin
+  PermissionStatusMsg status();                    // các mục §7 của nền tảng đang chạy; Android KHÔNG có vị trí nền (ADR-001)
+  @async PermissionStatusMsg request(PermissionKindMsg kind);   // location | notifications | alarmKit
+  bool openSettings(SettingsTargetMsg target);
+  DeviceInfoMsg deviceInfo();                      // hãng máy → màn hướng dẫn pin
 }
-// PermissionStatusMsg (T14 chốt tên): location (notDetermined | denied | whileInUse | always — `always` chỉ có trên iOS),
-//   precise, locationServicesEnabled, notifications, fullScreenIntent (Android), exactAlarm (Android),
+// PermissionStatusMsg: location (notDetermined | denied | whileInUse | always — `always` chỉ có trên iOS), precise,
+//   locationServicesEnabled, notifications, fullScreenIntent (Android), exactAlarm (Android),
 //   batteryOptimizationIgnored (Android), alarmKit (iOS 26+). Mục không áp dụng = notApplicable.
 // SettingsTargetMsg: appDetails, locationServices, notifications, fullScreenIntent, exactAlarm, batteryOptimization.
-@HostApi() abstract class AlarmHostApi {
-  void previewSound(String soundId, double volume);
-  void dismiss(String method); void snooze();  // → UserAction DISMISS / SNOOZE
-}
-@FlutterApi() abstract class TripFlutterApi {
-  void onState(TripStateMsg state);          // TripStateMsg = TripView (T10 §2.4)
-  void onEvent(TripEventMsg event);          // sự kiện T10 §2.3, dạng dẹt: type + trường nullable
-}
+@HostApi() abstract class AlarmHostApi { void previewSound(String soundId, double volume); void stopPreview(); }
+@EventChannelApi() abstract class TripEventChannelApi { TripUpdateMsg tripUpdates(); }
+// TripUpdateMsg là sealed: TripStateUpdateMsg(TripStateMsg = TripView T10 §2.4), PreAlertMsg, AlarmMsg, SnoozedMsg,
+//   GpsLostMsg, GpsRecoveredMsg, LowBatteryRiskMsg, OvershootMsg, ArrivedMsg, TripEndedMsg(FinishedTripMsg).
+// Mỗi Step: một TripStateUpdateMsg rồi các sự kiện theo thứ tự T10 §2.3; khi Dart bắt đầu nghe thì phát lại view mới nhất;
+//   không người nghe thì không gửi (kết thúc chuyến vẫn còn trong pendingFinishedTrips).
 ```
+- **Không lớp Pigeon nào chứa toạ độ** (T14 D5): Pigeon sinh `toString` in mọi trường. Toạ độ chỉ đi qua tham số
+  `destLat`/`destLng` của `startTrip`; Dart tự lưu đích theo `tripId` (drift). Không log message Pigeon.
+- `dismiss`/`snooze` nằm ở `TripHostApi` và nhận `tripId`: lệnh tới trễ của chuyến cũ là no-op (T14 D10).
+- Mô phỏng đi qua `startTrip(…, simulation)`, cùng pipeline với chuyến thật (T14 D11). Trước T15/T18, Android chạy
+  `StubTripBackend` với kịch bản `stub/normal`, `stub/gps_lost`, `stub/low_battery`, `stub/overshoot`, `stub/no_fix`.
+- `pendingFinishedTrips` + `ackFinishedTrips`: chuyến thường kết thúc khi Flutter không chạy, nên lịch sử đi qua hàng
+  đợi bền hai pha thay vì chỉ qua stream (T14 D12).
+- Phát lại view cho **mọi** subscriber: native chỉ thấy `onListen` của subscriber Dart đầu tiên (stream broadcast), nên
+  `CoreBridge.updates` giữ `TripStateUpdateMsg` gần nhất và gửi ngay cho subscriber đến sau. Không phát lại sự kiện cũ,
+  bỏ sau `TripEndedMsg` của chuyến đó, xoá khi không còn ai nghe.
+- Android: backend sống theo process, có thể có 2 engine Flutter cùng lúc. Mỗi engine gắn listener riêng
+  (`TripBackend.addListener` trả `ListenerHandle`) và chỉ gỡ đúng listener của mình. Lỗi trong vòng tick (ví dụ ghi
+  snapshot khi đầy bộ nhớ) được bắt và ghi log tên lớp, không làm crash app.
+
+> **Quy tắc cho backend thật (T15/T17, review T14 R2-1):** lỗi ghi snapshot không bao giờ được chặn việc kêu báo thức, thông báo
+> hay full-screen. Engine kêu và commit trạng thái trong bộ nhớ trước; ghi đĩa là best-effort, có thử lại ở Step sau.
 
 ## 4. Dữ liệu cục bộ (drift)
 - `trips(id, destinationName, lat, lng, mode, threshold, startedAt, alarmAt, dismissedAt, result, distanceKm, vehicleGuess)`;

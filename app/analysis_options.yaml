@@ -3,6 +3,8 @@ include: package:very_good_analysis/analysis_options.yaml
 analyzer:
   exclude:
     - "**/*.g.dart"
+    # Pigeon input, parsed by Pigeon itself; classic constructors (T14 §3.2).
+    - pigeons/**
     - lib/l10n/gen/**
     - build/**
     - android/**

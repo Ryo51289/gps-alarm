@@ -1,0 +1,85 @@
+# NapStop iOS compile check (T14 Q1 = A). Spec: docs/specs/T14.md
+#
+# Manual only (workflow_dispatch): compiles the Flutter app for the iOS simulator,
+# which compiles the Pigeon Swift output (ios/Runner/Bridge/CoreApi.g.swift) and the
+# iOS stub (CoreBridgeStub.swift). No signing, nothing is uploaded. About 10-15 min
+# of macOS runner time per run; run it when Swift code changes (T14, T17).
+#
+# Actions are pinned to the same SHAs as ci.yml. FLUTTER_VERSION must match the dev
+# machine (CLAUDE.md) and ci.yml.
+name: iOS compile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.47.8'
+
+defaults:
+  run:
+    shell: bash
+    working-directory: app
+
+jobs:
+  ios-simulator:
+    name: ios-simulator
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Versions
+        run: |
+          flutter --version
+          xcodebuild -version
+          # Confirms the flags used below exist in this Flutter (spec T14 [FL-SIM]).
+          flutter build ios --help | grep -E -- '--simulator|--no-codesign|--debug'
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      # flutter/flutter#176820: pubspec `default-flavor` also applies to iOS, but the
+      # iOS project has no `dev` scheme yet (T00 R2). Edit the runner's checkout only.
+      - name: Drop default-flavor for iOS (runner checkout only)
+        run: |
+          sed -i '' '/^  default-flavor: dev$/d' pubspec.yaml
+          # Explicit if: `bash -e` ignores a failing `! cmd`, so that form only
+          # works as the last line of the script.
+          if grep -n 'default-flavor' pubspec.yaml; then
+            echo "::error::default-flavor is still in pubspec.yaml"
+            exit 1
+          fi
+
+      - name: Build iOS app for the simulator (no signing)
+        run: flutter build ios --simulator --debug --no-codesign
+
+      - name: Job summary
+        if: always()
+        continue-on-error: true
+        run: |
+          {
+            echo '### ios-simulator'
+            echo
+            echo "- Flutter: $(flutter --version | head -n 1)"
+            echo "- Xcode: $(xcodebuild -version | head -n 1)"
+            app="$(find build/ios -maxdepth 3 -name 'Runner.app' -type d | head -n 1)"
+            echo "- Runner.app: ${app:-not built}"
+          } >> "$GITHUB_STEP_SUMMARY"

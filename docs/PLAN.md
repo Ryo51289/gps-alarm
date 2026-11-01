@@ -57,3 +57,5 @@ của environment) và **là tạm thời** → cần một remote Git (GitHub) 
 ## Nhịp làm việc
 - Mỗi ngày: orchestrator chạy vòng agent cho các task sẵn sàng, cuối ngày tóm tắt (task xong, blocker, câu hỏi).
 - Mỗi Gate: báo cáo ngắn gồm demo/ảnh chụp, kết quả test, rủi ro còn lại, đề xuất cho phase sau.
+
+> **Quyết định PO (02/11/2026):** bắt đầu Phase 3 (giao diện: T21, T22, T23, T25…) song song với Phase 2, dùng stub của T14 thay cho engine thật. Gate 2 vẫn duyệt engine (trace test xanh) trước khi nối màn hình với engine thật.

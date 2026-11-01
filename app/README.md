@@ -32,7 +32,8 @@ Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (GitHub Actio
 cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_dispatch`). Bỏ qua commit chỉ đổi `docs/**`, `*.md`,
 `.claude/**`. Bốn job chạy song song:
 
-- Job `dart`: `flutter pub get --enforce-lockfile` · `dart format --output=none --set-exit-if-changed lib test` ·
+- Job `dart`: `flutter pub get --enforce-lockfile` · kiểm code Pigeon sinh ra khớp input (T14) ·
+  `dart format --output=none --set-exit-if-changed lib test integration_test` ·
   `flutter analyze` · `flutter test` (dev) · `flutter test --flavor prod`.
 - Job `android`: `flutter build apk --config-only` · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
   `flutter build apk --debug` · `flutter build apk --debug --flavor prod` · kiểm package id của 2 APK
@@ -83,6 +84,55 @@ flutter test --tags golden                           # chỉ chạy golden
   (không commit; CI upload kèm artifact `dart-test-results` khi fail). Chỉ cập nhật golden khi thay đổi giao diện là
   cố ý, và xem ảnh mới trước khi commit.
 - Font Be Vietnam Pro (4 weight) bundle trong `assets/fonts/BeVietnamPro/` (nguồn + SHA-256 ở README trong đó).
+
+## Cầu nối native (Pigeon, T14)
+
+Định nghĩa API: [`pigeons/core_api.dart`](pigeons/core_api.dart) (spec `docs/specs/T14.md` §3). Pigeon ghim **29.1.0**
+(`dev_dependencies`, không `^`). Code sinh được **commit**:
+
+| Nền tảng | File sinh | Viết tay |
+|---|---|---|
+| Dart | `lib/core/bridge/core_api.g.dart` | `core_bridge.dart` (`CoreBridge`, `StubTraces`), `bridge_exception.dart` |
+| Android | `android/app/src/main/kotlin/app/napstop/core/bridge/CoreApi.g.kt` | `BridgeRegistrar`, `TripHostApiImpl`, `TripConfigValidator`, `stub/` |
+| iOS | `ios/Runner/Bridge/CoreApi.g.swift` | `CoreBridgeStub.swift` (trạng thái trong bộ nhớ, chờ T17) |
+
+```bash
+# Sau khi sửa pigeons/core_api.dart (chạy trong app/), commit cả 3 file sinh trong CÙNG commit:
+dart run pigeon --input pigeons/core_api.dart
+dart format lib/core/bridge/core_api.g.dart
+```
+
+- CI (job `dart`, bước "Check Pigeon output is up to date") sinh lại rồi `git diff --exit-code`: quên sinh lại thì fail.
+- **Quyền riêng tư:** không lớp Pigeon nào được chứa toạ độ (Pigeon sinh `toString` in mọi trường); toạ độ chỉ đi qua
+  tham số `destLat`/`destLng` của `startTrip`. Không log message Pigeon (có `destinationName`). Test
+  `test/core/bridge/bridge_source_scan_test.dart` chặn.
+- Dart dùng `CoreBridge` (một stream `updates` dùng chung; ai nghe sau cũng nhận ngay `TripStateUpdateMsg` gần nhất,
+  không nhận lại sự kiện cũ; lỗi native → `BridgeException` với `BridgeErrorCode`).
+- Android trước T15 chạy **stub có kịch bản** (`StubTripBackend`, snapshot ở `noBackupFilesDir/napstop_stub`, nên
+  `currentTrip()` vẫn đọc được sau khi process chết). Chọn kịch bản qua `SimulationMsg.traceAsset`:
+
+  | `traceAsset` (`StubTraces.*`) | Diễn biến (thời gian ảo, chia cho `speedFactor` ra thời gian thật) |
+  |---|---|
+  | `stub/normal` | có fix sau 5 s, nhắc nhẹ, báo chính (SMART ≈ 738 s → 12,3 s thật ở 60×) |
+  | `stub/gps_lost` | mất GPS từ 60 s tới 240 s |
+  | `stub/low_battery` | pin 30 % giảm dần, cảnh báo pin ở 30 s (màn 7) |
+  | `stub/overshoot` | chạy quá đích, `OvershootMsg` khi đã qua ≥ 1 km |
+  | `stub/no_fix` | không bao giờ có fix: `GpsLostMsg(neverAcquired)` ở 120 s, báo `timeout` ở 4 giờ |
+
+  `startTrip` không có `simulation` = `stub/normal` ở 1× (báo sau ~12 phút; `currentTrip().simulation` = null). Stub chỉ
+  tick khi Dart đang nghe `updates`.
+  Quyền: `PermissionHostApi` trả cố định (thật ở T21), `deviceInfo()` đọc thật; `AlarmHostApi` không phát âm (T16).
+- Test: Dart `flutter test test/core/bridge`; Kotlin `cd android && ./gradlew :app:testDevDebugUnitTest`; tích hợp I01
+  trên emulator/máy Android (API 26+):
+
+  ```bash
+  flutter devices
+  flutter test integration_test/bridge_smoke_test.dart -d <device-id>
+  ```
+
+- iOS chỉ được kiểm bằng biên dịch: workflow chạy tay
+  [`.github/workflows/ios-compile.yml`](../.github/workflows/ios-compile.yml) (`flutter build ios --simulator --debug
+  --no-codesign` trên macOS). Chạy khi đổi code Swift.
 
 ## Chuỗi hiển thị (ARB, gen-l10n)
 
