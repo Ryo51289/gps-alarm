@@ -1,6 +1,6 @@
 # ADR-001 — Android: chỉ dùng vị trí "Khi dùng ứng dụng" + foreground service, không xin vị trí nền (MVP 1)
 
-Trạng thái: **Đề xuất** (từ spike S5, 2026-10-29) — chờ product owner duyệt ở Gate 1; xem lại sau kết quả S1.
+Trạng thái: **Đã duyệt** (product owner, Gate 1, 2026-11-01). Đề xuất từ spike S5 (2026-10-29); xem lại khi có kết quả S1 trên máy thật.
 
 ## Bối cảnh
 
