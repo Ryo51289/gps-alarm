@@ -1,0 +1,20 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API (synthetic test snapshot)",
+  "osm3s": {
+    "timestamp_osm_base": "2026-11-01T00:00:00Z",
+    "timestamp_areas_base": "2026-10-31T23:00:00Z",
+    "copyright": "Synthetic test data, not from OpenStreetMap."
+  },
+  "elements": [
+    {"type": "node", "id": 1, "lat": 17.46892, "lon": 106.59973, "tags": {"railway": "station", "name": "Đồng Hới"}},
+    {"type": "way", "id": 2, "center": {"lat": 21.02827, "lon": 105.77752}, "nodes": [10, 11, 12, 10], "tags": {"amenity": "bus_station", "name": "Bến xe Mỹ Đình"}},
+    {"type": "relation", "id": 3, "center": {"lat": 16.8167, "lon": 107.1}, "members": [], "tags": {"amenity": "bus_station", "name": "Bến xe Đông Hà"}},
+    {"type": "area", "id": 3600000001, "tags": {"name": "Tỉnh Quảng Bình", "admin_level": "4"}},
+    {"type": "node", "id": 1},
+    {"type": "area", "id": 3600000002, "tags": {"name": "Thành phố Hà Nội", "name:vi": "Hà Nội", "admin_level": "4"}},
+    {"type": "way", "id": 2},
+    {"type": "area", "id": 3600000003, "tags": {"name": "Tỉnh Quảng Trị", "admin_level": "4"}},
+    {"type": "relation", "id": 3}
+  ]
+}

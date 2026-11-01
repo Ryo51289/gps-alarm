@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "drop": [
+    {"osm": "n11813149166", "reason": "Amusement-park mini train in Thống Nhất park, not a railway station (OSM tags: network=Tầu Hỏa mini, operator=C.ty Công viên Thống Nhất, railway=yes)", "source": "odbl:https://www.openstreetmap.org/node/11813149166"},
+    {"osm": "n13316655061", "reason": "Planned Cần Giờ station, not in service (OSM tags: building=construction)", "source": "odbl:https://www.openstreetmap.org/node/13316655061"},
+    {"osm": "n14101144180", "reason": "Planned Cần Giờ station, not in service (OSM tags: building=construction)", "source": "odbl:https://www.openstreetmap.org/node/14101144180"},
+    {"osm": "w674647531", "reason": "Ferry terminal (amenity=ferry_terminal) tagged train=yes; ferry terminals are out of scope", "source": "odbl:https://www.openstreetmap.org/way/674647531"},
+    {"osm": "n7121064062", "reason": "Station of the Sa Pa - Mường Hoa tourist mountain railway, not the national rail network (node has no network=VN:railway and no railway operator); search 'sapa' must not pick it over Bến xe khách Sa Pa", "source": "odbl:https://www.openstreetmap.org/node/7121064062"},
+    {"osm": "n5592212588", "reason": "Station of the Sa Pa - Mường Hoa tourist mountain railway, not the national rail network (node has no network=VN:railway and no railway operator)", "source": "odbl:https://www.openstreetmap.org/node/5592212588"},
+    {"osm": "n13922085297", "reason": "Industrial apatite railway, no passenger service (OSM tags: operator=APA, network=đường sắt Pom Hán - Tằng Lỏong)", "source": "odbl:https://www.openstreetmap.org/node/13922085297"},
+    {"osm": "n5936550803", "reason": "Industrial apatite railway, no passenger service (OSM tags: operator=APA)", "source": "odbl:https://www.openstreetmap.org/node/5936550803"},
+    {"osm": "n4195713189", "reason": "amenity=bus_station named like the train station osm:n5406339121 Ga Đồng Hới (about 33 m away); duplicate search row", "source": "odbl:https://www.openstreetmap.org/node/4195713189"},
+    {"osm": "n4195730290", "reason": "amenity=bus_station named like the train station osm:n6937762808 Ga Yên Bái (about 38 m away); duplicate search row", "source": "odbl:https://www.openstreetmap.org/node/4195730290"},
+    {"osm": "n13451983943", "reason": "amenity=bus_station named like the train station osm:n11188111546 Ga Dụ Nghĩa (about 97 m away); duplicate search row", "source": "odbl:https://www.openstreetmap.org/node/13451983943"}
+  ],
+  "patch": [
+    {"osm": "n1534833900", "set": {"name": "Bến xe khách Quy Nhơn"}, "reason": "name:vi is only the generic word 'Bến xe'; use the node's own name tag (name=Bến xe khách Quy Nhơn) as display name", "source": "odbl:https://www.openstreetmap.org/node/1534833900"}
+  ],
+  "add": []
+}

@@ -22,5 +22,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Offline station dataset (T24), built by tools/stationgen. Loaded lazily.
+  assets:
+    - assets/stations.json
   # Used when no --flavor is given (flutter run, flutter build apk --debug).
   default-flavor: dev

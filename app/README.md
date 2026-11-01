@@ -30,7 +30,7 @@ cd android && ./gradlew :app:testDevDebugUnitTest
 
 Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (GitHub Actions, `ubuntu-24.04`). Chạy khi mở hoặc
 cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_dispatch`). Bỏ qua commit chỉ đổi `docs/**`, `*.md`,
-`.claude/**`. Ba job chạy song song:
+`.claude/**`. Bốn job chạy song song:
 
 - Job `dart`: `flutter pub get --enforce-lockfile` · `dart format --output=none --set-exit-if-changed lib test` ·
   `flutter analyze` · `flutter test` (dev) · `flutter test --flavor prod`.
@@ -40,6 +40,10 @@ cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_disp
 - Job `tracegen` (thư mục `tools/tracegen`): `dart pub get --enforce-lockfile` ·
   `dart format --output=none --set-exit-if-changed .` · `dart analyze --fatal-infos` · `dart test` (gồm test golden:
   fixture commit từ Windows phải khớp từng byte khi sinh lại trên Linux) · `validate` 6 cặp fixture.
+- Job `stationgen` (thư mục `tools/stationgen`, T24): `dart pub get --enforce-lockfile` ·
+  `dart format --output=none --set-exit-if-changed .` · `dart analyze --fatal-infos` · `dart test` (gồm test golden:
+  `app/assets/stations.json` và `data/stations/BUILD_REPORT.md` phải khớp từng byte khi build lại trên Linux) ·
+  `dart run bin/stationgen.dart check` (ngưỡng A1–A5). Không bước nào gọi mạng; `fetch` chỉ chạy tay.
 
 Kết quả từng job nằm ở phần **Summary** của run. Chạy test giống CI ở máy:
 

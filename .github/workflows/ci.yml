@@ -1,4 +1,4 @@
-# NapStop CI (T01, T02). Specs: docs/specs/T01.md, docs/specs/T02.md
+# NapStop CI (T01, T02, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T24.md
 #
 # Every action is pinned to a full commit SHA; the release tag is in the trailing
 # comment. To update a pin, resolve the tag with
@@ -313,3 +313,48 @@ jobs:
 
       - name: Validate committed fixtures
         run: dart run bin/tracegen.dart validate --dir ../../fixtures/traces
+
+  stationgen:
+    name: stationgen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+        working-directory: tools/stationgen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          pub-cache: true
+
+      - name: Verify Dart version
+        run: |
+          dart --version 2>&1 | tee "$RUNNER_TEMP/dart-version.txt"
+          grep -F "Dart SDK version: $DART_VERSION " "$RUNNER_TEMP/dart-version.txt"
+
+      - name: Install dependencies
+        run: dart pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze
+        run: dart analyze --fatal-infos
+
+      # Includes test/stations_up_to_date_test.dart: app/assets/stations.json and
+      # data/stations/BUILD_REPORT.md built on Windows must be byte-identical on Linux.
+      # No step touches the network: only `fetch` does, and CI never runs it.
+      - name: Test
+        run: dart test --reporter github
+
+      - name: Check committed dataset (A1-A5)
+        run: dart run bin/stationgen.dart check

@@ -1,0 +1,8 @@
+{
+  "fetchedAt": "2026-11-01T12:31:05Z",
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "osmBase": "2026-11-01T12:28:41Z",
+  "areasBase": "2026-11-01T07:59:34Z",
+  "bytes": 371841,
+  "query": "[out:json][timeout:300];\narea[\"ISO3166-1\"=\"VN\"][admin_level=2][boundary=administrative]->.vn;\n(\n  nwr(area.vn)[railway~\"^(station|halt)$\"];\n  nwr(area.vn)[public_transport=station][train=yes];\n  nwr(area.vn)[amenity=bus_station];\n  nwr(area.vn)[public_transport=station][bus=yes];\n)->.st;\n.st out center;\nrel(area.vn)[boundary=administrative][admin_level=4];\nmap_to_area->.provs;\nforeach.provs->.p(\n  .p out tags;\n  nwr.st(area.p);\n  out ids;\n);\n"
+}
