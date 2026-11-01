@@ -36,3 +36,9 @@ GoogleService-Info.plist
 spikes/ios-probe/*.xcodeproj/
 spikes/ios-probe/ProbeCore/.build/
 spikes/ios-probe/ProbeCore/.swiftpm/
+
+# Xcode archives (xtool SDK source; never commit or snapshot)
+*.xip
+
+# Office lock files
+~$*
