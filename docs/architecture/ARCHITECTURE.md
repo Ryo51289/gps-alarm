@@ -52,17 +52,23 @@ Flutter chỉ cấu hình chuyến, hiển thị trạng thái, và lưu lịch 
 ## 3. Pigeon API (phác thảo — chốt ở T14)
 ```dart
 @HostApi() abstract class TripHostApi {
-  void startTrip(TripConfigMsg config);      // bắt đầu foreground service / location updates
+  void startTrip(TripConfigMsg config);      // bắt đầu foreground service / location updates. Android: chỉ gọi khi activity
+                                             // đang hiển thị (ADR-001 #2); thiếu quyền §7.3 → lỗi, không khởi động
   void stopTrip();
   TripStateMsg? currentTrip();               // khôi phục UI sau khi app bị kill (đọc view từ snapshot, T10 §7)
   void setBatteryChoice(BatteryChoiceMsg choice); // màn 7 → UserAction (T10 §2.2, §4.9)
   void startSimulation(String traceAsset, double speedFactor);
 }
 @HostApi() abstract class PermissionHostApi {
-  PermissionStatusMsg status();              // location always, notifications, full-screen, battery opt
+  PermissionStatusMsg status();              // các mục §7 của nền tảng đang chạy; Android KHÔNG có vị trí nền (ADR-001)
+  @async PermissionStatusMsg request(PermissionKindMsg kind); // prompt hệ thống: location, notifications, alarmKit (T14 chốt)
   void openSettings(SettingsTargetMsg target);
   DeviceInfoMsg deviceInfo();                // hãng máy → màn hướng dẫn pin
 }
+// PermissionStatusMsg (T14 chốt tên): location (notDetermined | denied | whileInUse | always — `always` chỉ có trên iOS),
+//   precise, locationServicesEnabled, notifications, fullScreenIntent (Android), exactAlarm (Android),
+//   batteryOptimizationIgnored (Android), alarmKit (iOS 26+). Mục không áp dụng = notApplicable.
+// SettingsTargetMsg: appDetails, locationServices, notifications, fullScreenIntent, exactAlarm, batteryOptimization.
 @HostApi() abstract class AlarmHostApi {
   void previewSound(String soundId, double volume);
   void dismiss(String method); void snooze();  // → UserAction DISMISS / SNOOZE
@@ -99,8 +105,63 @@ T10 §5 (chỉnh qua Remote Config), quy tắc chọn tier ở T10 §4.12. Lớp
 
 ## 6. Rủi ro kỹ thuật (xử lý ở Phase 1 — spikes)
 1. iOS: phát báo thức to khi app đang chạy nền vì vị trí (AlarmKit/fallback).
-2. Android OEM (Xiaomi/Oppo/Vivo) diệt foreground service.
+2. Android OEM (Xiaomi/Oppo/Vivo) diệt foreground service. Không có vị trí nền (ADR-001) nên không khởi động lại FGS `location` từ
+   nền được (sticky restart: S1 đo trên máy thật); lưới an toàn là báo dự phòng theo ETA bằng exact alarm (T10 §4.10, T15) và âm báo
+   trong service riêng không cần quyền vị trí (T16).
 3. Pin trong 10 giờ.
-4. Duyệt store: quyền vị trí nền, full-screen intent.
+4. Duyệt store: FGS `location` (khai use case Navigation / ride tracking), full-screen intent và quyền báo thức chính xác (khai là
+   app báo thức), FGS phát âm báo. **Không** xin vị trí nền trên Android ([ADR-001](adr/001-android-foreground-only-location.md));
+   iOS xin When In Use, Always tuỳ chọn. Phân tích và checklist nộp store: `docs/spikes/S5.md` (§4, §8, mục "Cập nhật sau Gate 1");
+   danh sách quyền: §7.
 
 Mọi thay đổi kiến trúc → ADR trong `adr/NNN-ten.md` (bối cảnh, quyết định, hệ quả).
+
+## 7. Quyền theo nền tảng (MVP 1)
+
+Nguồn chuẩn cho manifest (T15, T16), Info.plist (T17), màn 0 / thẻ "Sẵn sàng" (T21, T22) và khai báo store (T40). Căn cứ: ADR-001,
+S2 §6 + Vòng 4, S5 §4–§8 + "Cập nhật sau Gate 1", S3 K3–K4, T10 §2.6/§4.10. Thêm hoặc bớt quyền phải có spec/ADR. Mức bắt buộc
+khi bắt đầu chuyến: PRD §3.1.
+
+### 7.1 Android — manifest đích
+
+| Quyền / khai báo | Mục đích | Màn 0 | Đọc trạng thái | Mở cài đặt |
+|---|---|---|---|---|
+| `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION` (xin cùng một lần) | FGS `location` theo dõi chuyến | "Khi dùng ứng dụng" + "Chính xác" | `checkSelfPermission`; chỉ COARSE = gần đúng; `LocationManager.isLocationEnabled()` | xin lại FINE + COARSE; `ACTION_APPLICATION_DETAILS_SETTINGS`; `ACTION_LOCATION_SOURCE_SETTINGS` |
+| `FOREGROUND_SERVICE` + `FOREGROUND_SERVICE_LOCATION`; `LocationService` `foregroundServiceType="location"` | theo dõi chuyến | — | — | — |
+| `POST_NOTIFICATIONS` (runtime, API 33+) | thông báo thường trực, báo thức, "Chuyến đi bị gián đoạn" | Có: API 33+ xin quyền; mọi API kiểm, bị tắt thì cảnh báo | `areNotificationsEnabled()` (mọi API) | `ACTION_APP_NOTIFICATION_SETTINGS` |
+| `USE_FULL_SCREEN_INTENT` | màn báo thức trên màn khoá | API 34+ khi chưa cấp | `canUseFullScreenIntent()` | `ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT` |
+| `USE_EXACT_ALARM` (API 33+) + `SCHEDULE_EXACT_ALARM` `maxSdkVersion="32"` | báo dự phòng theo ETA, `wakeAtMs` (T10 §2.6, §4.10); điều kiện dùng FGS `systemExempted` | chỉ khi `canScheduleExactAlarms() == false` | `canScheduleExactAlarms()` (API 31+) | `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` |
+| `FOREGROUND_SERVICE_SYSTEM_EXEMPTED` + `FOREGROUND_SERVICE_MEDIA_PLAYBACK`; `AlarmRingService` `foregroundServiceType="systemExempted\|mediaPlayback"`, `android:process=":ring"` | phát âm báo không cần quyền vị trí, khởi động được từ exact alarm (ADR-001 Hệ quả, S2 V4-1, T10 RK14); thứ tự kiểu do T16 chốt | — | — | — |
+| `RECEIVE_BOOT_COMPLETED` | sau reboot: thông báo "Chuyến đi bị gián đoạn", đặt lại báo dự phòng (T10 §7.2 `MISSING`) | — | — | — |
+| `VIBRATE`, `WAKE_LOCK` | rung, giữ CPU khi kêu | — | — | — |
+| `INTERNET`, `ACCESS_NETWORK_STATE` | bản đồ, Places, Firebase | — | — | — |
+| Tối ưu pin: **không khai quyền** | giảm rủi ro OEM diệt FGS | hướng dẫn + màn 9 | `PowerManager.isIgnoringBatteryOptimizations()` | `ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS` |
+
+**Không khai:** `ACCESS_BACKGROUND_LOCATION` (ADR-001), `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `SYSTEM_ALERT_WINDOW`,
+`ACCESS_NOTIFICATION_POLICY`, FGS `specialUse` / `shortService` / `dataSync`. Kiểm **manifest đã merge**: plugin có thể tự thêm
+`ACCESS_BACKGROUND_LOCATION`, khi đó phải gỡ bằng `tools:node="remove"` (S5 §8.1).
+
+Quyền báo thức chính xác: phương án A của PO (T19 Q1, 2026-11-01) — `USE_EXACT_ALARM` khai trên Play là app báo thức. Play từ chối ở
+bản internal → chuyển sang `SCHEDULE_EXACT_ALARM` cho mọi API (người dùng tự cấp trên màn 0), không đổi cách đọc trạng thái.
+
+Ràng buộc FGS `location` (ADR-001 #2–#4): chỉ `startForegroundService` khi activity đang hiển thị (nút "Bắt đầu theo dõi") hoặc từ
+lúc người dùng chạm notification của app; không khởi động bằng exact alarm hay `BOOT_COMPLETED` (Android 14+: `SecurityException`;
+Android 11–13: service chạy nhưng không có vị trí; T10 §2.6).
+Dừng ngay khi chuyến kết thúc; trần thời lượng theo T10 §4.13. Lưu ý: `mediaPlayback` không được khởi động từ `BOOT_COMPLETED` khi
+target 35+, nên báo ngay sau reboot dùng `systemExempted` (T16).
+
+### 7.2 iOS — Info.plist / capability
+
+| Khoá / capability | Mục đích | Màn 0 | Đọc trạng thái | Mở cài đặt |
+|---|---|---|---|---|
+| `NSLocationWhenInUseUsageDescription`, `UIBackgroundModes=[location]`; `allowsBackgroundLocationUpdates = true`, bắt đầu cập nhật khi app đang mở; iOS 17+: thêm `CLBackgroundActivitySession` | theo dõi chuyến; mức tối thiểu | "Khi dùng ứng dụng" + "Chính xác" | `authorizationStatus`, `accuracyAuthorization`, `locationServicesEnabled()` | `openSettingsURLString` |
+| `NSLocationAlwaysAndWhenInUseUsageDescription` | chỉ khi T17 dùng vùng `CLMonitor` quanh đích (§5); thay S3 K4 #17 "hai chuỗi quyền vị trí": không dùng Always thì không khai | không | — | — |
+| `NSAlarmKitUsageDescription` (iOS 26+) | báo thức vượt Im lặng/Tập trung | Có | `AlarmManager.authorizationState` | `openSettingsURLString` |
+| Thông báo (`UNUserNotificationCenter`), capability Time Sensitive | trạng thái, nhắc nhẹ, kênh báo iOS < 26 | Có | `notificationSettings()` | `openNotificationSettingsURLString` |
+
+Không bật `audio` background mode. Critical Alerts chỉ dùng nếu Apple duyệt entitlement; demo không phụ thuộc (S5 F10).
+
+### 7.3 Quy tắc bắt đầu chuyến
+
+`startTrip` chỉ chạy khi có vị trí ("Khi dùng ứng dụng" hoặc cao hơn) + chính xác + định vị bật + ít nhất một kênh báo thức
+(Android: luôn có; iOS: AlarmKit hoặc thông báo). Còn lại là cảnh báo (PRD §3.1). Hàm kiểm tra viết bằng Dart thuần (T21).

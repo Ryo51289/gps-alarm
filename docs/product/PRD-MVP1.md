@@ -29,7 +29,7 @@ tài khoản, thanh toán, bản đồ offline.
 ## 3. Màn hình
 | # | Màn | Ghi chú MVP 1 |
 |---|---|---|
-| 0 | Cấp quyền | Vị trí "Luôn cho phép", thông báo/báo thức toàn màn hình, tắt tối ưu pin (nhận diện hãng máy) |
+| 0 | Cấp quyền | Vị trí "Khi dùng ứng dụng" + "Chính xác" (Android **không** xin vị trí nền — ADR-001); thông báo; Android: báo thức toàn màn hình, báo thức chính xác (chỉ khi máy chưa cấp), hướng dẫn tắt tối ưu pin theo hãng; iOS 26+: báo thức (AlarmKit). Chi tiết và mức bắt buộc: §3.1 |
 | 1 | Trang chủ | Ô tìm kiếm, điểm đã lưu (Nhà/Quê/Công ty), chuyến gần đây, thẻ "Sẵn sàng" (quyền + pin + âm lượng) |
 | 2 | Chọn điểm đến | Dataset ga/bến offline (tìm không dấu) → fallback Places; bản đồ ghim, vòng tròn vùng báo |
 | 3 | Cài đặt báo | 3 chế độ, nhắc nhẹ, kiểu báo, cách tắt, cảnh báo khoảng cách quá ngắn |
@@ -41,6 +41,30 @@ tài khoản, thanh toán, bản đồ offline.
 | 9 | Hướng dẫn tắt tối ưu pin | Theo hãng: Xiaomi, Samsung, Oppo, Vivo; 3 bước + chạy thử 30 giây |
 | 11 | Lịch sử | Kết quả mỗi chuyến: tỉnh đúng lúc / báo lại / lỡ trạm / đã dừng; "Đặt lại" 1 chạm |
 | 12 | Cài đặt chung | Âm báo, âm lượng, tăng dần, rung, flash, ưu tiên tai nghe, mặc định chuyến, đơn vị, giờ, giao diện, ngôn ngữ |
+
+### 3.1 Màn 0 — quyền theo nền tảng
+
+_Cập nhật 2026-11-01 theo T19 (ADR-001 đã duyệt ở Gate 1): Android chỉ xin vị trí "Khi dùng ứng dụng"; danh sách quyền kỹ thuật ở
+ARCHITECTURE §7._
+
+| Mục | Android | iOS | Khi thiếu |
+|---|---|---|---|
+| Vị trí "Khi dùng ứng dụng" | Có | Có | Không bắt đầu chuyến được |
+| Vị trí "Chính xác" | Có | Có | Không bắt đầu chuyến được (vị trí gần đúng sai số vài km, không báo đúng mốc) |
+| Định vị của máy đang bật | Có | Có | Không bắt đầu chuyến được |
+| Thông báo | Có (Android 13+: xin quyền; bản cũ hơn: chỉ kiểm, vì người dùng vẫn tắt được trong Cài đặt) | Có | Android: vẫn bắt đầu được, cảnh báo đỏ. iOS: bắt buộc nếu không có AlarmKit (iOS < 26 hoặc bị từ chối) |
+| Báo thức toàn màn hình | Có (Android 14+, khi chưa cấp) | — | Vẫn kêu, chỉ hiện thông báo nổi thay cho màn hình báo thức; cảnh báo đỏ |
+| Báo thức chính xác ("Báo thức và lời nhắc") | Chỉ khi máy chưa cấp | — | Không đặt được báo thức dự phòng; cảnh báo đỏ |
+| Báo thức (AlarmKit) | — | Có (iOS 26+) | Báo thức không kêu khi máy đang Im lặng; cảnh báo đỏ |
+| Tối ưu pin theo hãng (màn 9) | Hướng dẫn | — | Không chặn; nhắc ở thẻ "Sẵn sàng" |
+
+- **Android không xin vị trí nền ("Luôn cho phép")** và không xin miễn tối ưu pin trực tiếp (chỉ mở trang Cài đặt + hướng dẫn theo
+  hãng) — chính sách Google Play, S5.
+- **iOS:** "Khi dùng ứng dụng" là mức tối thiểu và app phải chạy đúng với mức này. "Luôn cho phép" không có trên màn 0; chỉ đề nghị
+  sau, và chỉ khi có tính năng dùng tới (T17).
+- Mỗi quyền có màn giải thích ngắn trước hộp thoại hệ thống. Bị từ chối thì hiện nút "Mở Cài đặt".
+- Bắt đầu chuyến cần: vị trí "Khi dùng ứng dụng" + "Chính xác" + định vị bật + ít nhất một cách báo thức kêu được
+  (Android: luôn có; iOS: AlarmKit hoặc Thông báo).
 
 ## 4. Quy tắc hành vi (giá trị mặc định — designer chốt chi tiết trong spec T10, có thể chỉnh qua Remote Config)
 
@@ -83,6 +107,20 @@ khoảng cách (tối thiểu 3 km).
 - Đã qua điểm gần đích nhất (đích nằm xa tuyến đường): chưa báo mà xe đã tiến lại gần đích (gần hơn lúc bắt đầu ≥ 500 m),
   qua điểm gần đích nhất (cách đích < 3 km, hoặc xa hơn khi ngưỡng lớn) và đang xa dần (thêm ≥ 500 m, tốc độ > 10 km/h)
   → báo luôn.
+
+**Theo dõi chuyến** _(cập nhật 2026-11-01 theo T19 / ADR-001)_
+- Theo dõi chỉ bắt đầu khi người dùng bấm "Bắt đầu theo dõi" lúc app đang mở (Android không cho tự bắt đầu từ nền). Thông báo
+  thường trực hiện trạng thái chuyến và có nút Dừng.
+- Theo dõi dừng ngay khi chuyến kết thúc: đã tắt báo thức (kể cả ở màn quá trạm), người dùng bấm Dừng, hoặc báo thức
+  không được tắt trong 1 giờ sau lần kêu gần nhất.
+- Chuyến kéo dài quá trần thời lượng (gấp đôi ETA tại vị trí hợp lệ đầu tiên, từ 4 đến 48 giờ) mà chưa báo thì app
+  **báo thức** "Chuyến đi lâu hơn dự kiến", không dừng lặng lẽ (T10 §4.13).
+- Android không có quyền vị trí nền, nên **không tự theo dõi lại** được sau khi máy khởi động lại (và có thể cả khi hệ thống tắt app;
+  S1 đo trên máy thật). Khi đó app đặt lại báo thức dự phòng theo giờ báo dự kiến (tính từ ETA cuối cùng; giờ đó đã qua thì báo
+  ngay) và hiện thông báo "Chuyến đi bị gián đoạn — chạm để tiếp tục theo dõi". Người đang ngủ sẽ không thấy thông báo này.
+  Lúc đó chỉ còn báo dự phòng đánh thức họ, theo ETA cuối cùng nên có thể lệch.
+- iOS: app bị tắt giữa chuyến thì iOS không mở lại để theo dõi tiếp; báo thức dự phòng đặt sẵn vẫn kêu (S3; trên iOS < 26 hoặc khi
+  AlarmKit bị từ chối, báo dự phòng là thông báo Time Sensitive, không kêu khi Im lặng — xem §3.1).
 
 **Lịch sử:** lưu điểm đến, phương tiện (tự đoán theo tốc độ), chế độ báo, thời điểm báo/tắt, kết quả
 (`on_time` / `snoozed` / `missed` / `cancelled` — dừng chuyến trước khi báo, hiển thị "Đã dừng"), quãng đường.

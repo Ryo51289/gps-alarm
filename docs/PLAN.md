@@ -49,9 +49,9 @@ của environment) và **là tạm thời** → cần một remote Git (GitHub) 
 | Rủi ro | Dấu hiệu | Phương án |
 |---|---|---|
 | iOS không phát được báo thức to từ nền | Spike S3 thất bại | Time Sensitive + âm thanh 30 giây lặp lại + xin Critical Alerts; demo iOS ghi rõ giới hạn |
-| OEM diệt service | Spike S1: service chết < 10 giờ | Màn hướng dẫn pin bắt buộc trước chuyến đầu + watchdog tự khởi động lại + nhắc trong thẻ "Sẵn sàng" |
+| OEM diệt service | Spike S1: service chết < 10 giờ | Màn hướng dẫn pin trước chuyến đầu (không chặn) + báo dự phòng theo ETA bằng exact alarm và âm báo trong service riêng (ADR-001, T15/T16; không tự khởi động lại FGS `location` từ nền) + nhắc trong thẻ "Sẵn sàng" |
 | Pin > 15% | Spike S4 | Nới chiến lược lấy mẫu, dùng geofence nhiều hơn khi còn xa |
-| Store từ chối quyền nền | Spike S5 | Chuẩn bị video + mô tả sớm; nộp bản internal sớm để biết phản hồi |
+| Store từ chối FGS `location` / full-screen intent / quyền báo thức chính xác (Android đã bỏ vị trí nền — ADR-001) | Spike S5 | Chuẩn bị video + mô tả sớm; nộp bản internal sớm để biết phản hồi |
 | Thiếu người field test | Phase 4 trễ | Lên lịch sẵn 3 chuyến thật từ tuần 6 |
 
 ## Nhịp làm việc
