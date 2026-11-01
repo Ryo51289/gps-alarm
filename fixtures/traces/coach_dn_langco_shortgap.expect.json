@@ -1,0 +1,234 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.1.0"
+  },
+  "trace": {
+    "id": "coach_dn_langco_shortgap",
+    "title": "Xe khách Đà Nẵng → Lăng Cô, mất GPS 2 phút khi còn xa đích",
+    "vehicle": "coach",
+    "gpx": "coach_dn_langco_shortgap.gpx",
+    "seed": 4001,
+    "noiseSeed": 4001,
+    "startTime": "2026-03-14T02:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 2040,
+    "sampleCount": 385
+  },
+  "destination": {
+    "id": "lang_co_center",
+    "name": "Lăng Cô (trung tâm, QL1)",
+    "lat": 16.2560000,
+    "lng": 108.0700000
+  },
+  "truth": {
+    "routeLengthM": 25508,
+    "destinationRouteM": 25508,
+    "arrivalT": 1925,
+    "stops": [],
+    "gpsGaps": [
+      {
+        "fromT": 405,
+        "toT": 525
+      }
+    ],
+    "outliers": []
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 1905,
+        "straightT": 1905
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 1880,
+        "straightT": 1880
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 1835,
+        "straightT": 1835
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 1755,
+        "straightT": 1755
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 1680,
+        "straightT": 1680
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 1515,
+        "straightT": 1500
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 1245,
+        "straightT": 1235
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 120,
+        "straightT": null
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 1625
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 1325
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 1025
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 725
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 125
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000_shortgap",
+      "status": "final",
+      "testIds": [
+        "TR13"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false
+      },
+      "expect": [
+        {
+          "event": "gpsLost",
+          "cause": "NO_FIX_TIMEOUT",
+          "notBefore": 405,
+          "notAfter": 520,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": -5
+            }
+          },
+          "ref": "T10 TR13: PRD §4 Mất GPS (T10 §4.8)"
+        },
+        {
+          "event": "gpsRecovered",
+          "notBefore": 525,
+          "notAfter": 555,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 30
+            }
+          },
+          "ref": "T10 TR13: PRD §4 Mất GPS"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 1810,
+          "notAfter": 1865,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR13: PRD §4 Mất GPS: ETA ≥ 20 phút thì không báo trong lúc mất tín hiệu"
+        },
+        {
+          "event": "alarm",
+          "reason": "DISTANCE",
+          "notBefore": 1810,
+          "notAfter": 1865,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR13: PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "overshoot"
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 2040,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 2040,
+          "notAfter": 2040,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    }
+  ]
+}

@@ -24,13 +24,26 @@
   "cases": [
     {
       "id": "distance_1000_gps_lost",
+      "status": "final",
+      "testIds": ["TR05"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false},
       "expect": [
-        {"event": "gpsLost", "notBefore": {"anchor": "gpsGap[0].start"}, "notAfter": {"anchor": "gpsGap[0].end", "offsetS": -5}, "ref": "PRD §4 Mất GPS"},
-        {"event": "alarm", "notBefore": {"anchor": "gpsGap[0].start"}, "notAfter": {"anchor": "gpsGap[0].end", "offsetS": -5}, "ref": "PRD §4 Mất GPS: ETA ước tính < 20 phút khi đang mất tín hiệu thì báo luôn"},
+        {"event": "gpsLost", "cause": "NO_FIX_TIMEOUT", "notBefore": {"anchor": "gpsGap[0].start"}, "notAfter": {"anchor": "gpsGap[0].start", "offsetS": 90}, "ref": "PRD §4 Mất GPS"},
+        {"event": "alarm", "reason": "GPS_LOST", "notBefore": {"anchor": "gpsGap[0].start"}, "notAfter": {"anchor": "gpsGap[0].start", "offsetS": 90}, "ref": "PRD §4 Mất GPS: ETA ước tính < 20 phút khi đang mất tín hiệu thì báo luôn"},
         {"event": "gpsRecovered", "notBefore": {"anchor": "gpsGap[0].end"}, "notAfter": {"anchor": "gpsGap[0].end", "offsetS": 60}, "ref": "PRD §4 Mất GPS"}
       ],
       "forbid": ["overshoot"]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "UNKNOWN"},
+      "forbid": []
     }
   ]
 }

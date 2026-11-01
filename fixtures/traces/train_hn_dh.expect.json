@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "trace": {
     "id": "train_hn_dh",
@@ -151,7 +151,10 @@
   "cases": [
     {
       "id": "distance_1000",
-      "status": "draft",
+      "status": "final",
+      "testIds": [
+        "TR01"
+      ],
       "config": {
         "mode": "distance",
         "thresholdM": 1000,
@@ -176,6 +179,7 @@
         },
         {
           "event": "alarm",
+          "reason": "DISTANCE",
           "notBefore": 33680,
           "notAfter": 33715,
           "window": {
@@ -198,7 +202,10 @@
     },
     {
       "id": "time_15",
-      "status": "draft",
+      "status": "final",
+      "testIds": [
+        "TR02"
+      ],
       "config": {
         "mode": "time",
         "thresholdMin": 15,
@@ -223,6 +230,7 @@
         },
         {
           "event": "alarm",
+          "reason": "TIME",
           "notBefore": 32830,
           "notAfter": 32950,
           "window": {
@@ -242,6 +250,493 @@
         "gpsLost",
         "overshoot"
       ]
+    },
+    {
+      "id": "smart",
+      "status": "final",
+      "testIds": [
+        "TR08"
+      ],
+      "config": {
+        "mode": "smart",
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "SMART_TIME",
+          "notBefore": 33130,
+          "notAfter": 33250,
+          "window": {
+            "notBefore": {
+              "anchor": "arrival",
+              "offsetS": -660
+            },
+            "notAfter": {
+              "anchor": "arrival",
+              "offsetS": -540
+            }
+          },
+          "ref": "T10 TR08: PRD §4 Thông minh, nhánh thời gian còn 10 phút (T10 §4.5); dung sai ±1 phút (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "distance_1000_snooze",
+      "status": "final",
+      "testIds": [
+        "TR18"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "actions": [
+          {
+            "at": {
+              "anchor": "event:alarm",
+              "offsetS": 20
+            },
+            "action": "snooze"
+          },
+          {
+            "at": {
+              "anchor": "event:snoozed",
+              "offsetS": 80
+            },
+            "action": "dismiss"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "DISTANCE",
+          "notBefore": 33680,
+          "notAfter": 33715,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR18: PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "expectAfter": [
+        {
+          "event": "snoozed",
+          "after": {
+            "anchor": "event:alarm",
+            "offsetS": 0
+          },
+          "withinS": [
+            20,
+            20
+          ],
+          "ref": "T10 TR18: PRD §4 Báo lại (người dùng bấm Báo lại 20 s sau khi kêu)"
+        },
+        {
+          "event": "alarm",
+          "reason": "SNOOZE_END",
+          "ringNow": true,
+          "after": {
+            "anchor": "event:alarm",
+            "offsetS": 0
+          },
+          "withinS": [
+            80,
+            85
+          ],
+          "ref": "T10 TR18: PRD §4 Báo lại sau snoozeS = 60 s (T10 §5)"
+        },
+        {
+          "event": "tripEnded",
+          "after": {
+            "anchor": "event:snoozed",
+            "offsetS": 0
+          },
+          "withinS": [
+            80,
+            80
+          ],
+          "ref": "T10 TR18: PRD §4 Tắt báo kết thúc chuyến"
+        }
+      ],
+      "expectOutcome": "SNOOZED",
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "distance_1000_kill",
+      "status": "final",
+      "testIds": [
+        "TR22"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "kill": {
+          "t": 31390,
+          "anchor": "arrival",
+          "offsetS": -2400
+        }
+      },
+      "expect": [],
+      "expectFallback": {
+        "asOfT": 31385,
+        "notBefore": 33259,
+        "notAfter": 33679,
+        "window": {
+          "modeAt": {
+            "anchor": "straight<=1000",
+            "offsetS": 0
+          },
+          "modeAtT": 33700,
+          "killT": 31390,
+          "estimateT": 33559,
+          "toleranceS": [
+            -300,
+            120
+          ]
+        },
+        "ref": "T10 TR22: S3 K4 #5 giờ báo dự phòng theo ETA (T10 §4.10, chế độ khoảng cách)"
+      },
+      "forbid": []
+    },
+    {
+      "id": "distance_1000_kill_rang",
+      "status": "final",
+      "testIds": [
+        "TR23"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "kill": {
+          "t": 31390,
+          "anchor": "arrival",
+          "offsetS": -2400
+        },
+        "relaunch": {
+          "at": {
+            "anchor": "osFallbackFired",
+            "offsetS": 40
+          },
+          "fallbackStatus": "auto"
+        }
+      },
+      "expect": [],
+      "expectAfter": [
+        {
+          "event": "alarm",
+          "reason": "FALLBACK",
+          "ringNow": false,
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            0
+          ],
+          "ref": "T10 TR23: S3 #1, T10 §7.2 RANG: báo dự phòng đã kêu thì không kêu lại"
+        }
+      ],
+      "forbid": [],
+      "forbidAfter": [
+        {
+          "event": "alarm",
+          "ringNow": true,
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": -5
+          }
+        }
+      ]
+    },
+    {
+      "id": "distance_1000_kill_missing",
+      "status": "final",
+      "testIds": [
+        "TR24"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "kill": {
+          "t": 31390,
+          "anchor": "arrival",
+          "offsetS": -2400
+        },
+        "relaunch": {
+          "at": {
+            "anchor": "osFallbackFired",
+            "offsetS": 40
+          },
+          "fallbackStatus": "MISSING"
+        }
+      },
+      "expect": [],
+      "expectAfter": [
+        {
+          "event": "alarm",
+          "reason": "FALLBACK_MISSED",
+          "ringNow": true,
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            0
+          ],
+          "ref": "T10 TR24: T10 §7.2 MISSING: báo dự phòng bị hệ điều hành làm mất thì kêu ngay"
+        }
+      ],
+      "forbid": [],
+      "forbidMatch": [
+        {
+          "event": "alarm",
+          "reason": "FALLBACK"
+        }
+      ]
+    },
+    {
+      "id": "distance_1000_kill_pending",
+      "status": "final",
+      "testIds": [
+        "TR25"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "kill": {
+          "t": 31390,
+          "anchor": "arrival",
+          "offsetS": -2400
+        },
+        "relaunch": {
+          "at": {
+            "t": 31990,
+            "anchor": "arrival",
+            "offsetS": -1800
+          },
+          "fallbackStatus": "PENDING"
+        }
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "DISTANCE",
+          "notBefore": 33680,
+          "notAfter": 33715,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR25: PRD §4 Chế độ khoảng cách sau khi khôi phục (T10 §7.2 PENDING); dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "expectAfter": [
+        {
+          "event": "gpsLost",
+          "cause": "NO_FIX_TIMEOUT",
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            0
+          ],
+          "ref": "T10 TR25: T10 §7.2: fix cuối trong snapshot đã cũ hơn lostAfterS"
+        },
+        {
+          "event": "gpsRecovered",
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            30
+          ],
+          "ref": "T10 TR25: PRD §4 Mất GPS: có fix lại sau khi khôi phục"
+        }
+      ],
+      "forbid": []
+    },
+    {
+      "id": "time_15_kill",
+      "status": "final",
+      "testIds": [
+        "TR28"
+      ],
+      "config": {
+        "mode": "time",
+        "thresholdMin": 15,
+        "preAlert": true,
+        "kill": {
+          "t": 31390,
+          "anchor": "arrival",
+          "offsetS": -2400
+        }
+      },
+      "expect": [],
+      "expectFallback": {
+        "asOfT": 31385,
+        "notBefore": 32530,
+        "notAfter": 32950,
+        "window": {
+          "modeAt": {
+            "anchor": "arrival",
+            "offsetS": -900
+          },
+          "modeAtT": 32890,
+          "killT": 31390,
+          "estimateT": 32830,
+          "toleranceS": [
+            -300,
+            120
+          ]
+        },
+        "ref": "T10 TR28: S3 K4 #5 (giờ dự phòng theo ETA); T10 review vòng 1 #10"
+      },
+      "forbid": []
+    },
+    {
+      "id": "distance_1000_kill_osdismiss",
+      "status": "final",
+      "testIds": [
+        "TR34"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "kill": {
+          "t": 31390,
+          "anchor": "arrival",
+          "offsetS": -2400
+        },
+        "relaunch": {
+          "at": {
+            "anchor": "osFallbackFired",
+            "offsetS": 60
+          },
+          "fallbackStatus": "auto"
+        },
+        "osDismiss": {
+          "offsetS": 20
+        }
+      },
+      "expect": [],
+      "expectAfter": [
+        {
+          "event": "alarm",
+          "reason": "FALLBACK",
+          "ringNow": false,
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            0
+          ],
+          "ref": "T10 TR34: T10 §7.2 DISMISSED: người dùng đã tắt báo dự phòng"
+        },
+        {
+          "event": "tripEnded",
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            0
+          ],
+          "ref": "T10 TR34: T10 §7.2 DISMISSED: kết thúc chuyến ngay khi khôi phục"
+        }
+      ],
+      "expectOutcome": "ON_TIME",
+      "forbid": [],
+      "forbidAfter": [
+        {
+          "event": "alarm",
+          "ringNow": true,
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": -5
+          }
+        }
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 33905,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 33905,
+          "notAfter": 33905,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
     }
   ]
 }

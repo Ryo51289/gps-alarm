@@ -1,0 +1,10 @@
+{
+  "id": "rail_dl_dh",
+  "title": "Đường sắt Bắc Nam, Đồng Lê → Đồng Hới",
+  "attribution": "Toạ độ có nguồn osm:*: © OpenStreetMap contributors, ODbL 1.0",
+  "waypoints": [
+    {"id": "ga_dong_le", "name": "Ga Đồng Lê", "lat": 17.8881652, "lng": 106.0222078, "source": "osm:way/1290983434"},
+    {"id": "ga_minh_le", "name": "Ga Minh Lệ", "lat": 17.7124959, "lng": 106.3705075, "source": "osm:way/1550757078"},
+    {"id": "ga_dong_hoi", "name": "Ga Đồng Hới", "lat": 17.4689199, "lng": 106.5997285, "source": "osm:way/367260095"}
+  ]
+}

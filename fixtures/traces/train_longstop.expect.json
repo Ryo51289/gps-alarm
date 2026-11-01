@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.1.0"
+  },
+  "trace": {
+    "id": "train_longstop",
+    "title": "Tàu Đồng Lê → Đồng Hới, đỗ ga Minh Lệ 7 phút",
+    "vehicle": "train",
+    "gpx": "train_longstop.gpx",
+    "seed": 7001,
+    "noiseSeed": 7001,
+    "startTime": "2026-03-15T01:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 4755,
+    "sampleCount": 952
+  },
+  "destination": {
+    "id": "ga_dong_hoi",
+    "name": "Ga Đồng Hới",
+    "lat": 17.4689199,
+    "lng": 106.5997285
+  },
+  "truth": {
+    "routeLengthM": 78115,
+    "destinationRouteM": 78115,
+    "arrivalT": 4640,
+    "stops": [
+      {
+        "routeM": 41730,
+        "arriveT": 2275,
+        "departT": 2690,
+        "name": "Ga Minh Lệ"
+      }
+    ],
+    "gpsGaps": [],
+    "outliers": []
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 4600,
+        "straightT": 4600
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 4580,
+        "straightT": 4580
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 4550,
+        "straightT": 4550
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 4495,
+        "straightT": 4495
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 4445,
+        "straightT": 4445
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 4345,
+        "straightT": 4345
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 4090,
+        "straightT": 4090
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 3320,
+        "straightT": 3320
+      },
+      {
+        "thresholdM": 50000,
+        "routeT": 1540,
+        "straightT": 1510
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 4340
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 4040
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 3740
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 3440
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 2840
+      },
+      {
+        "beforeArrivalMin": 60,
+        "t": 1040
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "time_15",
+      "status": "final",
+      "testIds": [
+        "TR12"
+      ],
+      "config": {
+        "mode": "time",
+        "thresholdMin": 15,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "TIME",
+          "notBefore": 3680,
+          "notAfter": 3800,
+          "window": {
+            "notBefore": {
+              "anchor": "arrival",
+              "offsetS": -960
+            },
+            "notAfter": {
+              "anchor": "arrival",
+              "offsetS": -840
+            }
+          },
+          "ref": "T10 TR12: PRD §4 Chế độ thời gian, bỏ qua lần dừng ga đã kết thúc khi tính ETA (T10 §4.4); dung sai ±1 phút (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "time_10",
+      "status": "final",
+      "testIds": [
+        "TR12"
+      ],
+      "config": {
+        "mode": "time",
+        "thresholdMin": 10,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "TIME",
+          "notBefore": 3980,
+          "notAfter": 4100,
+          "window": {
+            "notBefore": {
+              "anchor": "arrival",
+              "offsetS": -660
+            },
+            "notAfter": {
+              "anchor": "arrival",
+              "offsetS": -540
+            }
+          },
+          "ref": "T10 TR12: PRD §4 Chế độ thời gian, bỏ qua lần dừng ga đã kết thúc khi tính ETA (T10 §4.4); dung sai ±1 phút (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 4755,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 4755,
+          "notAfter": 4755,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    }
+  ]
+}

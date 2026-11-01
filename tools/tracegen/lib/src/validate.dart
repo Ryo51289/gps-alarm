@@ -1,13 +1,14 @@
 /// Fixture validation: GPX structure and GPX + expect consistency
-/// (spec T02 §7.5).
+/// (spec T02 §7.5, T11 §5.2).
 library;
 
 import 'dart:convert';
 
+import 'package:tracegen/src/anchor.dart';
 import 'package:tracegen/src/fmt.dart';
 import 'package:tracegen/src/gpx_writer.dart';
 import 'package:tracegen/src/paths.dart';
-import 'package:tracegen/src/profile.dart' show kEventNames;
+import 'package:tracegen/src/profile.dart';
 import 'package:xml/xml.dart';
 
 /// Parsed facts of a GPX file needed by the pair checks.
@@ -213,6 +214,10 @@ List<String> validatePair({
   destination?.optStr('name');
   destination?.number('lat');
   destination?.number('lng');
+  if ((destination?.has('offsetM') ?? false) &&
+      destination?.integer('offsetM') == 0) {
+    err('destination.offsetM', 'must be omitted when 0');
+  }
 
   final truth = root.obj('truth');
   truth?.integer('routeLengthM');
@@ -251,6 +256,13 @@ List<String> validatePair({
       ..integer('closestM')
       ..integer('t');
   }
+  final hasClosest = truth?.has('closest') ?? false;
+  if (hasClosest) {
+    truth?.obj('closest')
+      ?..integer('t')
+      ..integer('straightM')
+      ..integer('departT');
+  }
 
   final milestones = root.obj('milestones');
   for (final m in milestones?.objList('distance') ?? const <_J>[]) {
@@ -270,60 +282,18 @@ List<String> validatePair({
   }
 
   final caseIds = <String>{};
+  final env = _CaseEnv(
+    interval: interval,
+    duration: duration,
+    gapCount: gaps.length,
+    hasClosest: hasClosest,
+  );
   for (final c in root.objList('cases') ?? const <_J>[]) {
     final caseId = c.str('id');
     if (caseId != null && !caseIds.add(caseId)) {
       err('${c.path}.id', 'duplicate case id "$caseId"');
     }
-    final status = c.str('status');
-    if (status != null && status != 'draft' && status != 'final') {
-      err('${c.path}.status', 'must be draft or final');
-    }
-    final config = c.obj('config');
-    final mode = config?.str('mode');
-    if (mode == 'distance') {
-      config?.integer('thresholdM');
-    } else if (mode == 'time') {
-      config?.integer('thresholdMin');
-    } else if (mode != null) {
-      err('${c.path}.config.mode', 'must be distance or time');
-    }
-    config?.boolean('preAlert');
-    final expected = <String>{};
-    for (final e in c.objList('expect') ?? const <_J>[]) {
-      final event = e.str('event');
-      if (event != null) {
-        if (!kEventNames.contains(event)) {
-          err('${e.path}.event', 'unknown event "$event"');
-        }
-        expected.add(event);
-      }
-      final nb = e.integer('notBefore');
-      final na = e.integer('notAfter');
-      e
-        ..obj('window')
-        ..str('ref');
-      if (nb != null && na != null) {
-        final max = duration ?? na;
-        if (!(0 <= nb && nb <= na && na <= max)) {
-          err(
-            e.path,
-            'need 0 <= notBefore ($nb) <= notAfter ($na) <= '
-            'durationS ($max)',
-          );
-        }
-      }
-    }
-    final forbid = c.list('forbid') ?? const <Object?>[];
-    for (var k = 0; k < forbid.length; k++) {
-      final event = forbid[k];
-      final where = '${c.path}.forbid[$k]';
-      if (event is! String || !kEventNames.contains(event)) {
-        err(where, 'unknown event "$event"');
-      } else if (expected.contains(event)) {
-        err(where, 'event "$event" is both expected and forbidden');
-      }
-    }
+    _validateCase(c, env);
   }
 
   if (gpx == null) {
@@ -438,6 +408,16 @@ final class _J {
 
   bool has(String key) => map.containsKey(key);
 
+  /// Must-understand rule inside `cases[]` (T11 §1): unknown keys are
+  /// errors.
+  void allowOnly(Set<String> keys) {
+    for (final k in map.keys) {
+      if (!keys.contains(k)) {
+        err(at(k), 'unknown key (keys inside cases[] must be understood)');
+      }
+    }
+  }
+
   Object? raw(String key) => map[key];
 
   T? _get<T>(String key, String type) {
@@ -485,5 +465,618 @@ final class _J {
       }
     }
     return out;
+  }
+}
+
+final class _CaseEnv {
+  const new({
+    required this.interval,
+    required this.duration,
+    required this.gapCount,
+    required this.hasClosest,
+  });
+
+  final int? interval;
+  final int? duration;
+  final int gapCount;
+  final bool hasClosest;
+}
+
+const Set<String> _filterKeys = {'event', 'reason', 'ringNow', 'cause'};
+
+/// Checks one `cases[i]` of a fixture (T11 §2.2–§2.4, §5.2, §5.3).
+void _validateCase(_J c, _CaseEnv env) {
+  final err = c.err;
+  c.allowOnly(const {
+    'id',
+    'status',
+    'testIds',
+    'config',
+    'samplingModes',
+    'expect',
+    'expectAfter',
+    'expectFallback',
+    'expectOutcome',
+    'expectSummary',
+    'forbid',
+    'forbidMatch',
+    'forbidAfter',
+  });
+  final status = c.str('status');
+  if (status != null && status != 'draft' && status != 'final') {
+    err(c.at('status'), 'must be draft or final');
+  }
+  final testIds = c.has('testIds') ? c.list('testIds') : null;
+  if (testIds != null) {
+    final seen = <String>{};
+    for (var k = 0; k < testIds.length; k++) {
+      final v = testIds[k];
+      if (v is! String || !kTestIdPattern.hasMatch(v)) {
+        err(c.at('testIds[$k]'), 'must match ${kTestIdPattern.pattern}');
+      } else if (!seen.add(v)) {
+        err(c.at('testIds[$k]'), 'duplicate test id "$v"');
+      }
+    }
+  }
+  if (status == 'final' && (testIds == null || testIds.isEmpty)) {
+    err(c.at('testIds'), 'a final case needs a non-empty testIds');
+  }
+
+  final checker = _CaseChecker(c, env);
+  final config = c.obj('config');
+  final cfg = config == null ? null : checker.config(config);
+  final paramNames = cfg?.paramNames ?? const <String>[];
+  final hasKill = cfg?.hasKill ?? false;
+  final hasRelaunch = cfg?.hasRelaunch ?? false;
+  if (c.has('samplingModes')) {
+    final l = c.list('samplingModes');
+    if (l != null &&
+        (l.length != 1 ||
+            l.single is! String ||
+            !kSamplingModes.contains(l.single))) {
+      err(c.at('samplingModes'), 'must be ["all"] or ["policy"]');
+    }
+  }
+
+  // Expectations.
+  final expectFilters = <EventFilter>[];
+  for (final e in c.objList('expect') ?? const <_J>[]) {
+    e.allowOnly(const {
+      ..._filterKeys,
+      'notBefore',
+      'notAfter',
+      'window',
+      'ref',
+    });
+    final filter = checker.filterOf(e);
+    if (filter != null) {
+      expectFilters.add(filter);
+    }
+    final nb = e.integer('notBefore');
+    final na = e.integer('notAfter');
+    final window = e.obj('window');
+    window?.allowOnly(const {'notBefore', 'notAfter'});
+    checker
+      ..edge(window?.obj('notBefore'), AnchorUse.window)
+      ..edge(window?.obj('notAfter'), AnchorUse.window);
+    e.str('ref');
+    if (nb != null && na != null) {
+      final max = env.duration ?? na;
+      if (!(0 <= nb && nb <= na && na <= max)) {
+        err(
+          e.path,
+          'need 0 <= notBefore ($nb) <= notAfter ($na) <= '
+          'durationS ($max)',
+        );
+      }
+    }
+  }
+  final expectAfter = <(EventFilter, AfterRef, int)>[];
+  if (c.has('expectAfter')) {
+    for (final e in c.objList('expectAfter') ?? const <_J>[]) {
+      e.allowOnly(const {..._filterKeys, 'after', 'withinS', 'ref'});
+      final filter = checker.filterOf(e);
+      final after = checker.timePoint(e.obj('after'), AnchorUse.after);
+      final within = checker.pair(e, 'withinS');
+      if (within != null && (within.$1 < 0 || within.$1 > within.$2)) {
+        err(e.at('withinS'), 'need 0 <= lo <= hi');
+      }
+      e.str('ref');
+      if (filter != null && after != null && within != null) {
+        expectAfter.add((filter, after, within.$1));
+      }
+    }
+  }
+  if (c.has('expectFallback')) {
+    final f = c.obj('expectFallback');
+    if (f != null) {
+      checker.fallback(
+        f,
+        killT: cfg?.killT,
+        hasKill: hasKill,
+        paramNames: paramNames,
+      );
+    }
+  }
+  if (c.has('expectOutcome')) {
+    final v = c.str('expectOutcome');
+    if (v != null && !kOutcomes.contains(v)) {
+      err(c.at('expectOutcome'), 'unknown outcome "$v"');
+    }
+  }
+  if (c.has('expectSummary')) {
+    final s = c.obj('expectSummary');
+    s?.allowOnly(const {'vehicleGuess'});
+    final v = s?.str('vehicleGuess');
+    if (v != null && !kVehicleGuesses.contains(v)) {
+      err(s!.at('vehicleGuess'), 'unknown vehicle guess "$v"');
+    }
+  }
+
+  // Forbidden events.
+  final forbid = <String>[];
+  final forbidList = c.list('forbid') ?? const <Object?>[];
+  for (var k = 0; k < forbidList.length; k++) {
+    final event = forbidList[k];
+    if (event is! String || !kEventNames.contains(event)) {
+      err(c.at('forbid[$k]'), 'unknown event "$event"');
+      forbid.add('');
+    } else {
+      forbid.add(event);
+    }
+  }
+  final forbidMatch = <EventFilter>[];
+  if (c.has('forbidMatch')) {
+    for (final e in c.objList('forbidMatch') ?? const <_J>[]) {
+      e.allowOnly(_filterKeys);
+      final filter = checker.filterOf(e);
+      if (filter != null) {
+        forbidMatch.add(filter);
+      }
+    }
+  }
+  final forbidAfter = <(EventFilter, AfterRef)>[];
+  if (c.has('forbidAfter')) {
+    for (final e in c.objList('forbidAfter') ?? const <_J>[]) {
+      e.allowOnly(const {..._filterKeys, 'after'});
+      final filter = checker.filterOf(e);
+      final after = checker.timePoint(e.obj('after'), AnchorUse.after);
+      if (filter != null && after != null) {
+        forbidAfter.add((filter, after));
+      }
+    }
+  }
+
+  for (final (anchor, where) in checker.anchors) {
+    final message = anchorReferenceError(
+      anchor,
+      hasKill: hasKill,
+      hasRelaunch: hasRelaunch,
+      hasClosest: env.hasClosest,
+      paramNames: paramNames,
+    );
+    if (message != null) {
+      err(where, message);
+    }
+  }
+  for (final issue in checkCaseConsistency(
+    expect: expectFilters,
+    expectAfter: expectAfter,
+    forbid: forbid,
+    forbidMatch: forbidMatch,
+    forbidAfter: forbidAfter,
+  )) {
+    err(c.at(issue.path), issue.message);
+  }
+}
+
+/// Facts of `cases[i].config` needed by the other checks.
+typedef _ConfigFacts = ({
+  List<String> paramNames,
+  bool hasKill,
+  int? killT,
+  bool hasRelaunch,
+});
+
+/// Field checks shared by the parts of one case.
+final class _CaseChecker {
+  new(this.c, this.env);
+
+  final _J c;
+  final _CaseEnv env;
+
+  /// Every anchor of the case with its path, for the reference checks.
+  final List<(Anchor, String)> anchors = [];
+
+  void Function(String where, String message) get err => c.err;
+
+  void multiple(String where, int v) {
+    final interval = env.interval;
+    if (interval != null && interval > 0 && v % interval != 0) {
+      err(where, 'must be a multiple of sampleIntervalS ($interval)');
+    }
+  }
+
+  void inTrace(String where, int t) {
+    final duration = env.duration;
+    if (t < 0 || (duration != null && t > duration)) {
+      err(where, 't = $t is outside [0, durationS ($duration)]');
+    }
+  }
+
+  Anchor? anchorOf(_J o, AnchorUse use) {
+    final text = o.str('anchor');
+    if (text == null) {
+      return null;
+    }
+    final Anchor anchor;
+    try {
+      anchor = Anchor.parse(text);
+    } on AnchorException catch (x) {
+      err(o.at('anchor'), x.message);
+      return null;
+    }
+    final useError = anchorUseError(anchor, use);
+    if (useError != null) {
+      err(o.at('anchor'), useError);
+    }
+    if ((anchor.kind == AnchorKind.gpsGapStart ||
+            anchor.kind == AnchorKind.gpsGapEnd) &&
+        anchor.value >= env.gapCount) {
+      err(
+        o.at('anchor'),
+        'gap index ${anchor.value} out of range (${env.gapCount} gap(s))',
+      );
+    }
+    anchors.add((anchor, o.at('anchor')));
+    return anchor;
+  }
+
+  /// Window edge `{anchor, offsetS}`; [newKey] = offset must be a multiple
+  /// of the interval.
+  void edge(_J? o, AnchorUse use, {bool newKey = false}) {
+    if (o == null) {
+      return;
+    }
+    o.allowOnly(const {'anchor', 'offsetS'});
+    anchorOf(o, use);
+    final offset = o.integer('offsetS');
+    if (newKey && offset != null) {
+      multiple(o.at('offsetS'), offset);
+    }
+  }
+
+  /// Fixture form of an `At` (T11 §2.3); null when invalid.
+  AfterRef? timePoint(_J? p, AnchorUse use) {
+    if (p == null) {
+      return null;
+    }
+    p.allowOnly(const {'t', 'anchor', 'offsetS'});
+    Anchor? anchor;
+    int? offset;
+    final anchored = p.has('anchor');
+    if (anchored) {
+      anchor = anchorOf(p, use);
+      offset = p.integer('offsetS');
+      if (offset != null) {
+        multiple(p.at('offsetS'), offset);
+        final interval = env.interval;
+        final offsetError = anchor == null || interval == null
+            ? null
+            : inputRunOffsetError(anchor, use, offset, interval);
+        if (offsetError != null) {
+          err(p.at('offsetS'), offsetError);
+        }
+      }
+    } else if (p.has('offsetS')) {
+      err(p.at('offsetS'), 'only allowed together with anchor');
+    }
+    int? t;
+    if (anchor != null && anchor.isRun) {
+      if (p.has('t')) {
+        err(p.at('t'), 'a run-time anchor has no t');
+      }
+    } else if (!anchored || anchor != null) {
+      t = p.integer('t');
+      if (t != null) {
+        multiple(p.at('t'), t);
+        inTrace(p.at('t'), t);
+      }
+    }
+    if (anchored) {
+      return anchor == null || offset == null
+          ? null
+          : (anchor: anchor.text, offset: offset);
+    }
+    return t == null ? null : (anchor: null, offset: t);
+  }
+
+  EventFilter? filterOf(_J e) {
+    final event = e.str('event');
+    if (event == null) {
+      return null;
+    }
+    if (!kEventNames.contains(event)) {
+      err(e.at('event'), 'unknown event "$event"');
+      return null;
+    }
+    var ok = true;
+    for (final key in const ['reason', 'ringNow', 'cause']) {
+      if (e.has(key)) {
+        final message = filterError(event, key, e.raw(key));
+        if (message != null) {
+          err(e.at(key), message);
+          ok = false;
+        }
+      }
+    }
+    if (!ok) {
+      return null;
+    }
+    return EventFilter(
+      event: event,
+      reason: e.raw('reason') as String?,
+      ringNow: e.raw('ringNow') as bool?,
+      cause: e.raw('cause') as String?,
+    );
+  }
+
+  (int, int)? pair(_J o, String key) {
+    final l = o.list(key);
+    if (l == null) {
+      return null;
+    }
+    if (l.length != 2 || l[0] is! int || l[1] is! int) {
+      err(o.at(key), 'must be an array of 2 integers');
+      return null;
+    }
+    return (l[0]! as int, l[1]! as int);
+  }
+
+  _ConfigFacts config(_J config) {
+    config.allowOnly(const {
+      'mode',
+      'thresholdM',
+      'thresholdMin',
+      'preAlert',
+      'vehicleHint',
+      'params',
+      'battery',
+      'actions',
+      'kill',
+      'relaunch',
+      'osDismiss',
+      'osSim',
+      'osRingMaxS',
+    });
+    void range(String key, int lo, int hi) {
+      final v = config.integer(key);
+      if (v != null && (v < lo || v > hi)) {
+        err(config.at(key), 'must be in [$lo, $hi]');
+      }
+    }
+
+    void absent(String key, String mode) {
+      if (config.has(key)) {
+        err(config.at(key), 'not allowed in $mode mode');
+      }
+    }
+
+    final mode = config.str('mode');
+    switch (mode) {
+      case null:
+        break;
+      case 'distance':
+        range('thresholdM', 200, 10000);
+        absent('thresholdMin', mode);
+      case 'time':
+        range('thresholdMin', 5, 60);
+        absent('thresholdM', mode);
+      case 'smart':
+        absent('thresholdM', mode);
+        absent('thresholdMin', mode);
+      default:
+        err(config.at('mode'), 'must be distance, time or smart');
+    }
+    config.boolean('preAlert');
+    if (config.has('vehicleHint')) {
+      final hint = config.str('vehicleHint');
+      if (hint != null && !kVehicleHints.contains(hint)) {
+        err(config.at('vehicleHint'), 'unknown vehicle hint "$hint"');
+      }
+    }
+    final paramNames = <String>[];
+    if (config.has('params')) {
+      final params = config.obj('params');
+      for (final MapEntry(:key, :value)
+          in params?.map.entries ?? const <MapEntry<String, Object?>>[]) {
+        paramNames.add(key);
+        final where = params!.at(key);
+        if (kIntParams.contains(key)) {
+          if (value is! int) {
+            err(where, 'type I parameter must be a JSON integer');
+          }
+        } else if (kDoubleParams.contains(key)) {
+          if (value is! num || !value.isFinite) {
+            err(where, 'must be a number');
+          } else if (!hasAtMostParamDecimals(value)) {
+            err(where, 'type D parameter has more than 4 decimals');
+          }
+        } else {
+          err(where, 'unknown engine parameter');
+        }
+      }
+    }
+    if (config.has('battery')) {
+      int? previous;
+      for (final b in config.objList('battery') ?? const <_J>[]) {
+        b.allowOnly(const {'t', 'levelPct', 'charging'});
+        final t = b.integer('t');
+        if (t != null) {
+          multiple(b.at('t'), t);
+          inTrace(b.at('t'), t);
+          if (previous != null && t <= previous) {
+            err(b.at('t'), 'must increase strictly');
+          }
+          previous = t;
+        }
+        final level = b.integer('levelPct');
+        if (level != null && (level < 0 || level > 100)) {
+          err(b.at('levelPct'), 'must be in [0, 100]');
+        }
+        b.boolean('charging');
+      }
+    }
+    if (config.has('actions')) {
+      for (final a in config.objList('actions') ?? const <_J>[]) {
+        a.allowOnly(const {'at', 'action'});
+        final action = a.str('action');
+        if (action != null && !kActions.contains(action)) {
+          err(a.at('action'), 'unknown action "$action"');
+        }
+        timePoint(a.obj('at'), AnchorUse.action);
+      }
+    }
+    final hasKill = config.has('kill');
+    int? killT;
+    if (hasKill) {
+      final kill = config.obj('kill');
+      timePoint(kill, AnchorUse.kill);
+      final t = kill?.raw('t');
+      killT = t is int ? t : null;
+    }
+    final hasRelaunch = config.has('relaunch');
+    String? fallbackStatus;
+    if (hasRelaunch) {
+      final r = config.obj('relaunch');
+      r?.allowOnly(const {'at', 'fallbackStatus'});
+      if (!hasKill) {
+        err(config.at('relaunch'), 'needs config.kill');
+      }
+      final at = r?.obj('at');
+      timePoint(at, AnchorUse.relaunch);
+      final t = at?.raw('t');
+      if (t is int && killT != null && t <= killT) {
+        err(at!.at('t'), 'must be after config.kill (t = $killT)');
+      }
+      fallbackStatus = r?.str('fallbackStatus');
+      if (fallbackStatus != null &&
+          !kFallbackStatuses.contains(fallbackStatus)) {
+        err(r!.at('fallbackStatus'), 'unknown status "$fallbackStatus"');
+      }
+    }
+    if (config.has('osDismiss')) {
+      final d = config.obj('osDismiss');
+      d?.allowOnly(const {'offsetS'});
+      if (fallbackStatus != 'auto') {
+        err(
+          config.at('osDismiss'),
+          'needs config.relaunch with fallbackStatus auto',
+        );
+      }
+      final offset = d?.integer('offsetS');
+      if (d != null && offset != null) {
+        if (offset <= 0) {
+          err(d.at('offsetS'), 'must be > 0');
+        }
+        multiple(d.at('offsetS'), offset);
+      }
+    }
+    if (config.has('osSim')) {
+      final osSim = config.boolean('osSim');
+      if (osSim == false && fallbackStatus == 'auto') {
+        err(
+          config.at('osSim'),
+          'relaunch with fallbackStatus auto needs osSim',
+        );
+      }
+    }
+    if (config.has('osRingMaxS')) {
+      final v = config.integer('osRingMaxS');
+      if (v != null && v <= 0) {
+        err(config.at('osRingMaxS'), 'must be > 0');
+      }
+    }
+    return (
+      paramNames: paramNames,
+      hasKill: hasKill,
+      killT: killT,
+      hasRelaunch: hasRelaunch,
+    );
+  }
+
+  /// `expectFallback` against the formula of T11 §5.3.
+  void fallback(
+    _J f, {
+    required int? killT,
+    required bool hasKill,
+    required List<String> paramNames,
+  }) {
+    f.allowOnly(const {'asOfT', 'notBefore', 'notAfter', 'window', 'ref'});
+    if (!hasKill) {
+      err(f.path, 'needs config.kill');
+    }
+    final lagParams = paramNames.where(kFallbackFormulaParams.contains);
+    if (lagParams.isNotEmpty) {
+      err(
+        f.path,
+        'cannot be checked when params override ${lagParams.join(', ')}',
+      );
+    }
+    final asOfT = f.integer('asOfT');
+    final nb = f.integer('notBefore');
+    final na = f.integer('notAfter');
+    f.str('ref');
+    final w = f.obj('window');
+    if (w == null) {
+      return;
+    }
+    w.allowOnly(const {
+      'modeAt',
+      'modeAtT',
+      'killT',
+      'estimateT',
+      'toleranceS',
+    });
+    edge(w.obj('modeAt'), AnchorUse.modeAt, newKey: true);
+    final modeAtT = w.integer('modeAtT');
+    final wKill = w.integer('killT');
+    final estimate = w.integer('estimateT');
+    final tol = pair(w, 'toleranceS');
+    if (killT != null && wKill != null && wKill != killT) {
+      err(w.at('killT'), 'is $wKill but config.kill.t is $killT');
+    }
+    final interval = env.interval;
+    if (wKill != null &&
+        interval != null &&
+        asOfT != null &&
+        asOfT != wKill - interval) {
+      err(
+        f.at('asOfT'),
+        'must be killT - sampleIntervalS (${wKill - interval})',
+      );
+    }
+    if (modeAtT == null || wKill == null || estimate == null || tol == null) {
+      return;
+    }
+    final (lo, hi) = tol;
+    if (lo > hi) {
+      err(w.at('toleranceS'), 'need lo <= hi');
+    }
+    final lead = modeAtT - wKill - 600;
+    final early = (lead < 0 ? 0 : lead) ~/ 10;
+    final want = modeAtT + 30 - (early > 1800 ? 1800 : early);
+    if (estimate != want) {
+      err(w.at('estimateT'), 'is $estimate but T11 §5.3 gives $want');
+    }
+    final max = env.duration ?? estimate + hi;
+    final wantNb = (estimate + lo).clamp(0, max);
+    final wantNa = (estimate + hi).clamp(0, max);
+    if (nb != null && nb != wantNb) {
+      err(f.at('notBefore'), 'is $nb but estimateT + toleranceS[0] = $wantNb');
+    }
+    if (na != null && na != wantNa) {
+      err(f.at('notAfter'), 'is $na but estimateT + toleranceS[1] = $wantNa');
+    }
   }
 }

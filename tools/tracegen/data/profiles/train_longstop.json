@@ -1,0 +1,55 @@
+{
+  "id": "train_longstop",
+  "title": "Tàu Đồng Lê → Đồng Hới, đỗ ga Minh Lệ 7 phút",
+  "vehicle": "train",
+  "route": "rail_dl_dh",
+  "destination": "ga_dong_hoi",
+  "seed": 7001,
+  "startTime": "2026-03-15T01:00:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 60,
+  "endDwellS": 120,
+  "motion": {"accelMps2": 0.2, "decelMps2": 0.3, "cruiseJitter": 0.08, "jitterChunkM": 2000},
+  "speedLimits": [
+    {"from": "ga_dong_le", "kmh": 70}
+  ],
+  "stops": [
+    {"at": "ga_minh_le", "dwellS": 420}
+  ],
+  "gpsGaps": [],
+  "noise": {"sigmaM": 6, "rho": 0.9, "accMinM": 3, "speedSigmaMps": 0.3, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "time_15",
+      "status": "final",
+      "testIds": ["TR12"],
+      "config": {"mode": "time", "thresholdMin": 15, "preAlert": true},
+      "expect": [
+        {"event": "alarm", "reason": "TIME", "notBefore": {"anchor": "arrival", "offsetS": -960}, "notAfter": {"anchor": "arrival", "offsetS": -840}, "ref": "T10 TR12: PRD §4 Chế độ thời gian, bỏ qua lần dừng ga đã kết thúc khi tính ETA (T10 §4.4); dung sai ±1 phút (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "time_10",
+      "status": "final",
+      "testIds": ["TR12"],
+      "config": {"mode": "time", "thresholdMin": 10, "preAlert": true},
+      "expect": [
+        {"event": "alarm", "reason": "TIME", "notBefore": {"anchor": "arrival", "offsetS": -660}, "notAfter": {"anchor": "arrival", "offsetS": -540}, "ref": "T10 TR12: PRD §4 Chế độ thời gian, bỏ qua lần dừng ga đã kết thúc khi tính ETA (T10 §4.4); dung sai ±1 phút (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "UNKNOWN"},
+      "forbid": []
+    }
+  ]
+}

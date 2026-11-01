@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.1.0"
+  },
+  "trace": {
+    "id": "coach_dn_langco_neardest",
+    "title": "Xe khách Đà Nẵng → Lăng Cô (nam), đích ngay sau cửa Bắc hầm Hải Vân",
+    "vehicle": "coach",
+    "gpx": "coach_dn_langco_neardest.gpx",
+    "seed": 4001,
+    "noiseSeed": 4001,
+    "startTime": "2026-03-14T02:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 1730,
+    "sampleCount": 275
+  },
+  "destination": {
+    "id": "lang_co_south",
+    "lat": 16.2230000,
+    "lng": 108.0830000
+  },
+  "truth": {
+    "routeLengthM": 21584,
+    "destinationRouteM": 21584,
+    "arrivalT": 1615,
+    "stops": [],
+    "gpsGaps": [
+      {
+        "fromT": 1175,
+        "toT": 1535
+      }
+    ],
+    "outliers": []
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 1590,
+        "straightT": 1590
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 1565,
+        "straightT": 1565
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 1520,
+        "straightT": 1520
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 1460,
+        "straightT": 1455
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 1410,
+        "straightT": 1400
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 1305,
+        "straightT": 1290
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 1000,
+        "straightT": 980
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 1315
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 1015
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 715
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 415
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000_neardest",
+      "status": "final",
+      "testIds": [
+        "TR14"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false
+      },
+      "expect": [
+        {
+          "event": "gpsLost",
+          "cause": "NO_FIX_TIMEOUT",
+          "notBefore": 1175,
+          "notAfter": 1265,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 90
+            }
+          },
+          "ref": "T10 TR14: PRD §4 Mất GPS (T10 §4.8)"
+        },
+        {
+          "event": "alarm",
+          "reason": "GPS_LOST",
+          "notBefore": 1175,
+          "notAfter": 1265,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 90
+            }
+          },
+          "ref": "T10 TR14: PRD §4 Mất GPS: đích sát cửa hầm, ETA < 20 phút thì báo luôn"
+        },
+        {
+          "event": "gpsRecovered",
+          "notBefore": 1535,
+          "notAfter": 1595,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 60
+            }
+          },
+          "ref": "T10 TR14: PRD §4 Mất GPS"
+        }
+      ],
+      "forbid": [
+        "overshoot"
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 1730,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 1730,
+          "notAfter": 1730,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    }
+  ]
+}

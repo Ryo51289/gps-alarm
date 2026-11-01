@@ -39,14 +39,23 @@ Future<(Profile, Route)> loadMutated({
 
 void main() {
   group('ProfileRepository (TC19)', () {
-    test('lists the six profiles in id order', () {
+    test('lists the fifteen profiles in id order', () {
       expect(ProfileRepository(dataDir).profileIds(), [
         'bus_hn_brt01',
         'bus_hn_brt01_noisy',
+        'bus_hn_brt01_noisy_traps',
+        'bus_hn_slow',
+        'coach_dn_langco_neardest',
+        'coach_dn_langco_shortgap',
         'coach_dn_langco_tunnel',
+        'coach_gb_phuly_offroute',
         'coach_gb_phuly_overshoot',
         'coach_md_tb',
         'train_hn_dh',
+        'train_hn_dh_midgap',
+        'train_hn_dh_stopgap',
+        'train_longstop',
+        'train_longstop_nospd',
       ]);
     });
 
@@ -56,8 +65,13 @@ void main() {
       expect(p.vehicle, Vehicle.coach);
       expect(p.noiseSeed, p.seed);
       expect(p.gpsGaps.single.durationS, 360);
-      expect(p.cases.single.status, 'draft');
-      expect(p.cases.single.preAlert, isFalse);
+      expect(p.cases, hasLength(2));
+      final gpsLost = p.cases.first;
+      expect(gpsLost.status, 'final');
+      expect(gpsLost.testIds, ['TR05']);
+      expect(gpsLost.preAlert, isFalse);
+      expect(gpsLost.expect.first.filter.cause, 'NO_FIX_TIMEOUT');
+      expect(p.cases.last.expectSummaryVehicle, 'UNKNOWN');
       expect(r.waypoints, hasLength(8));
     });
 
@@ -151,7 +165,7 @@ void main() {
             '$profileFile: cases[1].id',
             (p) {
               final c = arr(p['cases']);
-              c.add(deepCopy(c[0]));
+              c.insert(1, deepCopy(c[0]));
             },
             null,
           ),

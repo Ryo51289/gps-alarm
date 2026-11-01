@@ -1,7 +1,9 @@
-# Fixture trace GPS (schema v1)
+# Fixture trace GPS (schema v1, bổ sung T11)
 
 Văn bản chuẩn của định dạng fixture dùng chung cho Trip Engine Dart / Kotlin (T12) / Swift (T13) và chế độ giả lập (T18).
-Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7. Bộ sinh: [`tools/tracegen`](../../tools/tracegen/README.md).
+Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [`docs/specs/T11.md`](../../docs/specs/T11.md) §2–§5
+(khoá case mới, quy tắc harness), [`docs/specs/T10.md`](../../docs/specs/T10.md) §8 (hợp đồng harness). Bộ sinh:
+[`tools/tracegen`](../../tools/tracegen/README.md).
 
 - Mọi file ở đây do `tracegen` sinh, **không sửa tay**. Muốn đổi: sửa `tools/tracegen/data/profiles/<id>.json` (hoặc route),
   chạy `cd tools/tracegen && dart run bin/tracegen.dart generate --all`, commit cả hai. CI kiểm byte bằng
@@ -9,22 +11,31 @@ Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7. Bộ s
 - Dữ liệu **tổng hợp**, không phải hành trình thật. Toạ độ ga/bến lấy từ © OpenStreetMap contributors, giấy phép
   [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
 
-## Sáu trace
+## Mười lăm trace (51 case, tất cả `final`)
 
-| id | Mô tả | Kịch bản chính | Quy tắc PRD §4 liên quan |
+| id | Mô tả | Kịch bản chính | Test T10 |
 |---|---|---|---|
-| `train_hn_dh` | Tàu SE Hà Nội → Đồng Hới (≈ 477 km, ≈ 9,4 h) | 7 lần dừng ga (2–10 phút), không dừng trong 60 phút cuối | Chế độ khoảng cách, thời gian, nhắc nhẹ; bỏ qua dừng ga khi tính ETA |
-| `coach_md_tb` | Xe khách Mỹ Đình → Thái Bình (≈ 102 km, ≈ 2,1 h) | Cao tốc 85 km/h, dừng 3 phút ở Nam Định | Chế độ khoảng cách, thời gian, nhắc nhẹ |
-| `bus_hn_brt01` | Buýt BRT01 Kim Mã → Yên Nghĩa (≈ 12,9 km, ≈ 40 phút) | 17 trạm cách ≈ 700 m, tốc độ ≤ 28 km/h | Chế độ khoảng cách 500 m / 1 km; xe chậm |
-| `coach_dn_langco_tunnel` | Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân | Mất GPS 360 s trong hầm, đích ≈ 5 km sau cửa Bắc | Mất GPS: ETA < 20 phút thì báo luôn |
-| `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | Quá trạm |
-| `bus_hn_brt01_noisy` | Như `bus_hn_brt01`, GPS nhiễu (phố nhà cao tầng) | σ 25 m, 30 % mẫu thiếu tốc độ, outlier 300–1500 m, 2 nhóm điểm nhảy giả: "còn 600 m" khi thực tế còn 4 km; khi còn 400 m, khoảng cách tới đích tăng vọt lên 1800 m trong 2 mẫu (điểm giả ở phía xe đã đi qua) | Không báo sai sớm, không báo quá trạm sai |
+| `train_hn_dh` | Tàu SE Hà Nội → Đồng Hới (≈ 477 km, ≈ 9,4 h) | 7 lần dừng ga (2–10 phút), không dừng trong 60 phút cuối | TR01, TR02, TR08, TR18, TR22–TR25, TR27, TR28, TR34 |
+| `train_hn_dh_midgap` | Như `train_hn_dh`, mất GPS 15 phút giữa tuyến | Gap 900 s ở ga Cầu Giát (pha lấy mẫu thưa) | TR15, TR27 |
+| `train_hn_dh_stopgap` | Như `train_hn_dh` tới Đồng Lê (trùng từng mẫu), sau Đồng Lê chạy 45 km/h; mất GPS từ lúc đỗ Đồng Lê | Gap từ `arriveT + 5` của lần đỗ Đồng Lê tới `arrivalT + 60` | TR30, TR27 |
+| `train_longstop` | Tàu Đồng Lê → Đồng Hới (≈ 78 km, ≈ 79 phút) | Đỗ ga Minh Lệ ≈ 7 phút, kết thúc ≥ 300 s trước mốc báo 15 phút | TR12, TR27 |
+| `train_longstop_nospd` | Như `train_longstop`, không có tốc độ khi đỗ | GPX giống hệt `train_longstop` trừ `spd` ở mọi tick đang dừng | TR31, TR27 |
+| `coach_md_tb` | Xe khách Mỹ Đình → Thái Bình (≈ 102 km, ≈ 2,1 h) | Cao tốc 85 km/h, dừng 3 phút ở Nam Định | TR03, TR09, TR20, TR21, TR26, TR27, TR29 |
+| `bus_hn_brt01` | Buýt BRT01 Kim Mã → Yên Nghĩa (≈ 12,9 km, ≈ 40 phút) | 17 trạm cách ≈ 700 m, tốc độ ≤ 28 km/h | TR04, TR27 |
+| `bus_hn_slow` | Buýt Kim Mã → Yên Nghĩa, kẹt xe 30 phút cuối | Từ Vạn Phúc 2: 7,1–11,9 km/h | TR10, TR11, TR27 |
+| `bus_hn_brt01_noisy` | Như `bus_hn_brt01`, GPS nhiễu (phố nhà cao tầng) | σ 25 m, 30 % mẫu thiếu tốc độ, outlier 300–1500 m, 2 nhóm điểm nhảy giả: "còn 600 m" khi thực tế còn 4 km; khi còn 400 m, khoảng cách tới đích tăng vọt lên 1800 m trong 2 mẫu (điểm giả ở phía xe đã đi qua) | TR07, TR27 |
+| `bus_hn_brt01_noisy_traps` | Như `bus_hn_brt01_noisy`, thêm 2 nhóm bẫy | Mồi "còn 2 km" khi thực tế còn 5,3–6 km; khi còn 250 m, 3 điểm giả cách đích 1800 m **bên kia đích** | TR16, TR17, TR27 |
+| `coach_dn_langco_tunnel` | Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân | Mất GPS 360 s trong hầm, đích ≈ 5 km sau cửa Bắc | TR05, TR27 |
+| `coach_dn_langco_shortgap` | Như trên, không mất GPS trong hầm | Mất GPS 120 s ở Hoà Khánh, khi còn > 20 km chim bay | TR13, TR27 |
+| `coach_dn_langco_neardest` | Đà Nẵng → Lăng Cô (nam) | Mất GPS 360 s trong hầm, đích ≈ 1,15 km chim bay sau cửa Bắc | TR14, TR27 |
+| `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | TR06, TR19, TR27, TR33, TR35 |
+| `coach_gb_phuly_offroute` | Như trên, đích dời 1,5 km khỏi đường | `destinationOffsetM: 1500` (phía nam), không bao giờ vào ngưỡng 1 km | TR32, TR27 |
 
-Nhóm điểm nhảy thứ 2 của `bus_hn_brt01_noisy` nằm **phía sau** xe, trên đoạn tuyến đã đi (không nằm bên kia đích). Nó đánh lừa
-bộ phát hiện quá trạm dựa trên khoảng cách chim bay; với bộ phát hiện chiếu vị trí lên tuyến, nó chỉ trông như xe nhảy lùi.
-Biến thể điểm giả nằm sau đích để T11 bổ sung.
+Nhóm điểm nhảy "còn 400 m" của `bus_hn_brt01_noisy` nằm **phía sau** xe, trên đoạn tuyến đã đi (không nằm bên kia đích). Nó đánh
+lừa bộ phát hiện quá trạm dựa trên khoảng cách chim bay; với bộ phát hiện chiếu vị trí lên tuyến, nó chỉ trông như xe nhảy lùi.
+Biến thể điểm giả nằm bên kia đích (`side: beyond`) có trong `bus_hn_brt01_noisy_traps`.
 
-Số liệu chính xác (độ dài, thời lượng, giờ tới…) nằm trong `truth` của từng `expect.json`.
+Số liệu chính xác (độ dài, thời lượng, giờ tới…) nằm trong `truth` của từng `expect.json`. Truy vết TR ↔ case: `testIds` của case.
 
 ## 1. Tên file
 
@@ -64,7 +75,8 @@ Mọi file UTF-8 không BOM, xuống dòng LF, có `\n` cuối file.
 - `napstop:acc` (bắt buộc): độ chính xác ngang, mét, 1 chữ số thập phân, > 0. Ngữ nghĩa như Android
   `Location.getAccuracy()` (bán kính tin cậy 68 %) / iOS `CLLocation.horizontalAccuracy`.
 - `napstop:spd` (tuỳ chọn): tốc độ mặt đất, m/s, 2 chữ số thập phân, ≥ 0. **Vắng** = thiết bị không báo tốc độ (Android
-  `hasSpeed() == false`, iOS `speed < 0`).
+  `hasSpeed() == false`, iOS `speed < 0`). Trace sinh với `dropSpeedAtStops` (`train_longstop_nospd`) không có `spd` ở mọi
+  tick xe đang dừng (đầu tuyến, ga giữa, đích).
 - Mất GPS = **`trkseg` mới** (khuyến nghị của GPX 1.1 khi mất tín hiệu). Trong một `trkseg`, các mẫu cách đều
   `sampleIntervalS`.
 - `<type>` = phương tiện (`train`, `coach`, `bus`).
@@ -77,8 +89,8 @@ speed?, timestamp)`; `t = time − startTime` (giây). Thời gian tăng nghiêm
 **kể cả trong khoảng mất GPS** (các tick `fromT <= t < toT` không có mẫu nào), và gọi engine ở mọi tick để các quy tắc theo
 thời gian (phát hiện mất GPS, "đang mất tín hiệu mà ETA < 20 phút thì báo luôn") phát được ngay trong khoảng mất GPS. Không
 được chỉ gọi engine khi có mẫu mới: khi đó engine chỉ "thấy" khoảng mất GPS ở mẫu `toT`, tức là sau khi xe đã ra khỏi hầm.
-Sự kiện phát ra khi xử lý tick (hoặc mẫu) `t` được tính là xảy ra lúc `t`. Vì vậy cửa sổ `gpsLost`/`alarm` của case hầm kết
-thúc ở `gpsGap[0].end − sampleIntervalS` (tick cuối còn trong khoảng mất GPS), không phải ở `toT`.
+Sự kiện phát ra khi xử lý tick (hoặc mẫu) `t` được tính là xảy ra lúc `t`. Vì vậy cửa sổ `gpsLost`/`alarm` của case hầm nằm
+trọn trong khoảng mất GPS (`[gpsGap[0].start, gpsGap[0].start + 90]`), không bao giờ tới `toT`. Quy tắc đầy đủ: §6.
 
 ## 3. `expect.json`
 
@@ -87,7 +99,7 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
 ```json
 {
   "schemaVersion": 1,
-  "generator": {"name": "tracegen", "version": "1.0.0"},
+  "generator": {"name": "tracegen", "version": "1.1.0"},
   "trace": {
     "id": "coach_dn_langco_tunnel",
     "title": "Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân (mất GPS 6 phút)",
@@ -116,16 +128,18 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
   "cases": [
     {
       "id": "distance_1000_gps_lost",
-      "status": "draft",
+      "status": "final",
+      "testIds": ["TR05"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false},
       "expect": [
         {
           "event": "alarm",
+          "reason": "GPS_LOST",
           "notBefore": 1175,
-          "notAfter": 1530,
+          "notAfter": 1265,
           "window": {
             "notBefore": {"anchor": "gpsGap[0].start", "offsetS": 0},
-            "notAfter": {"anchor": "gpsGap[0].end", "offsetS": -5}
+            "notAfter": {"anchor": "gpsGap[0].start", "offsetS": 90}
           },
           "ref": "PRD §4 Mất GPS: ETA ước tính < 20 phút khi đang mất tín hiệu thì báo luôn"
         }
@@ -141,56 +155,221 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
 | Đường dẫn | Kiểu | Ý nghĩa |
 |---|---|---|
 | `schemaVersion` | int | `1`. Consumer gặp số lớn hơn bản mình hỗ trợ thì **phải fail** |
-| `generator.name`, `.version` | string | `tracegen`, semver của generator |
-| `trace.id`, `.title`, `.vehicle`, `.gpx` | string | `vehicle` ∈ `train`, `coach`, `bus` (đáp án cho "đoán phương tiện"); `gpx` = tên file cùng thư mục |
+| `generator.name`, `.version` | string | `tracegen`, semver của generator (hiện `1.1.0`) |
+| `trace.id`, `.title`, `.vehicle`, `.gpx` | string | `vehicle` ∈ `train`, `coach`, `bus`; `gpx` = tên file cùng thư mục |
 | `trace.seed`, `.noiseSeed` | int | để tái tạo |
 | `trace.startTime` | string | = `time` của trkpt đầu |
 | `trace.sampleIntervalS`, `.durationS`, `.sampleCount` | int | `durationS` = t của trkpt cuối; `sampleCount` = số trkpt |
-| `destination.id`, `.name`, `.lat`, `.lng` | string, number (7 số lẻ) | điểm đến (waypoint trên tuyến); `name` có thể vắng |
-| `truth.routeLengthM`, `.destinationRouteM`, `.arrivalT` | int | độ dài tuyến; vị trí của đích dọc tuyến; tick đầu tiên tới đích |
+| `destination.id`, `.name`, `.lat`, `.lng` | string, number (7 số lẻ) | `lat`/`lng` là **đích hiệu dụng** engine dùng (`destLat/Lng`). `id`/`name` là waypoint đích trên tuyến; `name` có thể vắng |
+| `destination.offsetM` | int (tuỳ chọn) | chỉ có khi đích bị dời khỏi waypoint (≠ 0): dương = bên trái hướng đi tới waypoint, âm = bên phải. Khi đó `lat`/`lng` là điểm đã dời |
+| `truth.routeLengthM`, `.destinationRouteM`, `.arrivalT` | int | độ dài tuyến; vị trí của waypoint đích dọc tuyến; tick đầu tiên tới waypoint đích |
 | `truth.stops[]` | `{routeM, arriveT, departT, name?}` | các lần dừng giữa tuyến (ga, bến, trạm buýt, kể cả dừng tại đích); `name` chỉ có với stop là waypoint có tên |
 | `truth.gpsGaps[]` | `{fromT, toT}` | không có mẫu nào với `fromT <= t < toT`; mẫu đầu tiên sau khi có lại GPS ở `toT` |
 | `truth.outliers[]` | `{t, kind, errorM}` | `kind` ∈ `random`, `scripted`; `errorM` = sai số so với vị trí thật |
-| `truth.overshoot` | `{closestT, closestM, t}` (tuỳ chọn) | chỉ có khi tuyến chạy tiếp ≥ 1 km sau đích; `t` = tick đầu tiên sau khi rời đích có khoảng cách chim bay ≥ `closestM + 1000` |
-| `milestones.distance[]` | `{thresholdM, routeT, straightT}` | tick đầu tiên còn ≤ X m (dọc tuyến; chim bay); `straightT = null` nếu ngay từ đầu đã ≤ X. X ∈ 200, 500, 1000, 2000, 3000, 5000, 10000, 25000, 50000, chỉ ghi X < quãng đường ban đầu |
+| `truth.overshoot` | `{closestT, closestM, t}` (tuỳ chọn) | chỉ có khi tuyến chạy tiếp ≥ 1 km sau đích; `t` = tick đầu tiên sau khi rời đích có khoảng cách chim bay (tới đích hiệu dụng) ≥ `closestM + 1000`. Trên trace có `destination.offsetM`, đây là quá trạm **hình học** tính theo đích dời: khi `closestM ≥ max(1000, thresholdM nếu mode distance)` (`nearRadius`, T10 §4.11) engine không bao giờ phát quá trạm, nên **không** dùng anchor `overshoot` của trace đó để đặt kỳ vọng |
+| `truth.closest` | `{t, straightM, departT}` (tuỳ chọn) | chỉ có khi có `destination.offsetM`. `t` = tick **đầu tiên** có khoảng cách chim bay nhỏ nhất `dMin`; `straightM` = `round(dMin)`; `departT` = tick đầu tiên sau `t` có khoảng cách ≥ `dMin + max(500, 0,5·dMin)` (mặc định `passedClosestOpenMinM`/`passedClosestOpenFrac` của T10 §5) |
+| `milestones.distance[]` | `{thresholdM, routeT, straightT}` | tick đầu tiên còn ≤ X m (dọc tuyến; chim bay tới đích hiệu dụng). `straightT = null` nếu ngay từ đầu đã ≤ X **hoặc không bao giờ** ≤ X (chỉ xảy ra khi đích ngoài tuyến). X ∈ 200, 500, 1000, 2000, 3000, 5000, 10000, 25000, 50000, chỉ ghi X < quãng đường ban đầu |
 | `milestones.time[]` | `{beforeArrivalMin, t}` | `t = arrivalT − 60·N`, N ∈ 5, 10, 15, 20, 30, 60, chỉ ghi khi `t >= 0` |
-| `cases[]` | object | kỳ vọng sự kiện cho một cấu hình chuyến (dưới đây) |
+| `cases[]` | object | kỳ vọng sự kiện cho một cấu hình chuyến (§3.1) |
+
+Thứ tự key: `destination`: `id`, `name`?, `lat`, `lng`, `offsetM`?; `truth`: `routeLengthM`, `destinationRouteM`, `arrivalT`,
+`stops`, `gpsGaps`, `outliers`, `overshoot`?, `closest`?.
 
 Mọi thời điểm là **số nguyên giây kể từ `startTime`**, mọi khoảng cách là **mét nguyên** (trừ lat/lng). Trường tuỳ chọn thì
-**bỏ hẳn key** (không ghi `null`), trừ `straightT`. Mảng luôn có mặt (có thể rỗng).
+**bỏ hẳn key** (không ghi `null`), trừ `straightT`. Mảng của v1 (`stops`, `gpsGaps`, `outliers`, `distance`, `time`, `cases`,
+`expect`, `forbid`) luôn có mặt (có thể rỗng); mảng mới của T11 (`testIds`, `battery`, `actions`, `expectAfter`, `forbidMatch`,
+`forbidAfter`) chỉ ghi khi khác rỗng.
 
-### 3.1 `cases[]` (bản nháp T02; T10/T11 sở hữu ngữ nghĩa)
+### 3.1 `cases[]`
 
-| Trường | Ý nghĩa |
+Mỗi case là một lần chạy engine trên trace với một cấu hình. Thứ tự key (`?` = tuỳ chọn):
+
+```
+id, status, testIds?, config, samplingModes?, expect, expectAfter?, expectFallback?, expectOutcome?, expectSummary?,
+forbid, forbidMatch?, forbidAfter?
+config: mode, thresholdM? | thresholdMin?, preAlert, vehicleHint?, params?, battery?, actions?, kill?, relaunch?, osDismiss?,
+        osSim?, osRingMaxS?
+```
+
+Quy ước: tên sự kiện lowerCamel; giá trị enum **sinh ra từ engine** (`reason`, `cause`, `expectOutcome`, `vehicleGuess`) viết
+`UPPER_SNAKE` như JSON enum của T10 §2; giá trị **cấu hình đầu vào** (`mode`, `vehicleHint`, `action`) viết thường/lowerCamel,
+`fallbackStatus` là `auto` hoặc `UPPER_SNAKE`. Trong các khoá mới (T11), mọi `t` và `offsetS` là **bội số của `sampleIntervalS`**.
+
+| Trường | Kiểu | Ý nghĩa / ràng buộc |
+|---|---|---|
+| `id` | string | duy nhất trong file |
+| `status` | `draft` / `final` | `final` = đã duyệt (T11 §7). Mọi case hiện có đều `final`; đổi case `final` phải qua designer |
+| `testIds` | `string[]` | ID test T10 (`^TR\d{2}$`, không trùng) mà case phục vụ; bắt buộc khác rỗng khi `final`. Chỉ để truy vết, harness không dùng |
+| `config.mode` | `distance` / `time` / `smart` | `distance` kèm `thresholdM` ∈ [200, 10000]; `time` kèm `thresholdMin` ∈ [5, 60]; `smart` không có ngưỡng |
+| `config.preAlert` | bool | luôn có |
+| `config.vehicleHint` | `train`/`coach`/`bus`/`unknown` | vắng = `trace.vehicle` |
+| `config.params` | `{tên: số}` | override `EngineParams` (tên thuộc T10 §5, khoá theo thứ tự ASCII). Kiểu I là số nguyên JSON; kiểu D in 4 chữ số thập phân. Khoảng và ràng buộc chéo do harness kiểm: bị từ chối là **fail** |
+| `config.battery` | `[{t, levelPct, charging}]` | `t` tăng nghiêm ngặt trong `[0, durationS]`, `levelPct` 0..100. Harness chỉ gửi `BatterySample` ở các `t` này |
+| `config.actions` | `[{at, action}]` | `action` ∈ `dismiss`, `snooze`, `stop`, `batteryMaxSaving`, `batteryAlarmAt5`, `batteryAlarmEarlier`, `locationOff`, `permissionRevoked`, `locationOn` (ánh xạ: §6 điểm 7) |
+| `config.kill` | `At` tĩnh | process chết ở tick này: không xử lý tick `kill` trở đi; snapshot = state sau tick `kill − I` |
+| `config.relaunch` | `{at, fallbackStatus}` | cần `kill`; `at` tĩnh (phải > `kill.t`) hoặc chạy. `fallbackStatus` ∈ `auto`, `PENDING`, `RANG`, `DISMISSED`, `MISSING`, `UNKNOWN` (§6) |
+| `config.osDismiss` | `{offsetS}` | cần `relaunch.fallbackStatus == auto`; người dùng tắt báo của OS `offsetS` (> 0) giây sau `osFallbackFired` |
+| `config.osSim` | bool | vắng = `true`; `relaunch: auto` đòi `osSim` bật |
+| `config.osRingMaxS` | int > 0 | báo của nền tảng tự ngừng sau N giây (T10 §8.1-4); vắng = kêu tới khi bấm |
+| `samplingModes` | `["all"]` / `["policy"]` | vắng = chạy cả hai chế độ lấy mẫu (§6) (T11: chỉ `train_hn_dh_stopgap/distance_1000` dùng `["all"]`, xem T11 §6.3.1) |
+| `expect[]` | `{event, reason?, ringNow?, cause?, notBefore, notAfter, window, ref}` | **lần xuất hiện đầu tiên** của sự kiện khớp bộ lọc phải có `t ∈ [notBefore, notAfter]` (gồm 2 đầu); không có là fail. `window` lưu anchor gốc (`clamp(anchor + offsetS, 0, durationS)`, quy tắc v1); `ref` trích quy tắc |
+| `expectAfter[]` | `{event, reason?, ringNow?, cause?, after, withinS: [lo, hi], ref}` | `B` = mốc của `after`. Lần đầu tiên sự kiện khớp có `t ≥ B` phải có `t − B ∈ [lo, hi]` (gồm 2 đầu, `0 ≤ lo ≤ hi`); không có là fail |
+| `expectFallback` | `{asOfT, notBefore, notAfter, window, ref}` | cần `kill`. Xét `FallbackAlarmChanged` **cuối cùng** có `t ≤ asOfT`: phải có `fallbackAtMs ≠ null` và `floor((fallbackAtMs − startMs)/1000) ∈ [notBefore, notAfter]`. `window = {modeAt, modeAtT, killT, estimateT, toleranceS}` ghi cách tính (dưới đây) |
+| `expectOutcome` | `ON_TIME`/`SNOOZED`/`MISSED`/`CANCELLED` | `outcome` của `tripEnded` đầu tiên; không có `tripEnded` là fail |
+| `expectSummary` | `{vehicleGuess}` | `tripEnded.summary.vehicleGuess` ∈ `TRAIN`/`COACH`/`BUS`/`UNKNOWN`; không có `tripEnded` là fail |
+| `forbid[]` | `string[]` | tên sự kiện **không được** xuất hiện ở bất kỳ thời điểm nào |
+| `forbidMatch[]` | `{event, reason?, ringNow?, cause?}` | không được có sự kiện khớp ở bất kỳ thời điểm nào |
+| `forbidAfter[]` | `{event, reason?, ringNow?, cause?, after}` | không được có sự kiện khớp với `t > B` (chính tick `B` được phép) |
+
+**Tên sự kiện:** `preAlert`, `alarm`, `snoozed`, `gpsLost`, `gpsRecovered`, `lowBatteryRisk`, `overshoot`, `arrived`,
+`fallbackAlarmChanged`, `samplingPolicyChanged`, `tripEnded` (T10 §2.3).
+
+**Bộ lọc sự kiện.** Một sự kiện **khớp** mục `m` khi cùng tên và mọi khoá lọc có trong `m` bằng trường tương ứng của sự kiện.
+
+| Khoá | Chỉ dùng với | Giá trị |
+|---|---|---|
+| `reason` | `alarm` | `DISTANCE`, `TIME`, `SMART_TIME`, `SMART_DISTANCE`, `SMART_SLOW_DISTANCE`, `GPS_LOST`, `LOW_BATTERY`, `PASSED_CLOSEST`, `OVERSHOOT`, `SNOOZE_END`, `TIMEOUT`, `FALLBACK`, `FALLBACK_MISSED` |
+| `ringNow` | `alarm` | bool |
+| `cause` | `gpsLost` | `NO_FIX_TIMEOUT`, `NEVER_ACQUIRED`, `PERMISSION_REVOKED`, `SERVICES_OFF` |
+| `cause` | `fallbackAlarmChanged` | `ETA`, `SNOOZE`, `SUPERSEDED`, `TRIP_ENDED`, `RESYNC` |
+
+Ví dụ: case có cả `{alarm}` và `{alarm, reason: DISTANCE}` cùng cửa sổ nghĩa là **lần báo đầu tiên** (mọi lý do) nằm ở mốc khoảng
+cách và có đúng lý do `DISTANCE`.
+
+**Mốc thời gian `At` và anchor.**
+
+```
+staticAnchor := "start" | "end" | "arrival" | "overshoot" | "gpsGap[" i "]." ("start"|"end") | ("route"|"straight") "<=" M
+              | "closest" | "closest.departT" | "kill"
+runAnchor    := "event:" <tên sự kiện> | "relaunch" | "osFallbackFired"
+```
+
+- `start` = 0, `end` = tick cuối, `arrival` = `truth.arrivalT`, `overshoot` = `truth.overshoot.t`, `gpsGap[i].start|end` =
+  `fromT|toT`, `route<=M` / `straight<=M` = tick đầu tiên còn ≤ M m (dọc tuyến / chim bay), `closest` / `closest.departT` =
+  `truth.closest.t|departT`, `kill` = `config.kill.t`.
+- `event:X` = `t` của sự kiện tên `X` đầu tiên (không lọc; kể cả sự kiện phát trong Step của `restore`); `relaunch` = tick
+  relaunch; `osFallbackFired` = tick đầu tiên osSim cho báo dự phòng kêu **khi engine đang chết** (từ `kill` tới trước relaunch).
+- Dạng ghi: `{"t": 600}` (profile cho `t`); `{"t": <anchor + offsetS>, "anchor": "...", "offsetS": n}` (anchor tĩnh, `t` **đã
+  gồm** `offsetS`, không kẹp, luôn trong `[0, durationS]`); `{"anchor": "...", "offsetS": n}` (anchor chạy, không có `t`).
+  Consumer dùng `t` nếu có, nếu không thì tự giải anchor chạy. Mốc `B = anchor + offsetS`; hành động/relaunch chạy ở tick `B`
+  (bội số của `sampleIntervalS`), tại đúng bước của nó trong thứ tự tick (§6 điểm 1). Trong `config.actions[].at` và
+  `config.relaunch.at`, anchor chạy bắt buộc có `offsetS ≥ sampleIntervalS`. Lý do: sự kiện có thể phát ở bất kỳ bước nào của
+  tick, còn `osFallbackFired` phát ở bước osSim (sau bước relaunch), nên `offsetS ≤ 0` không có một cách hiểu duy nhất. Với
+  `offsetS ≥ sampleIntervalS`, `B` luôn muộn hơn tick anchor ít nhất một tick. `expectAfter`/`forbidAfter` chỉ là phép kiểm nên được dùng
+  `offsetS ≤ 0`. Lỗi cấu hình, **fail case**: anchor chạy không bao giờ xảy ra; hành động/relaunch có `B > durationS`; relaunch
+  theo `event:*` có `B ≤ kill.t`.
+
+| Nơi dùng | Anchor được phép |
 |---|---|
-| `id` | duy nhất trong file |
-| `status` | `draft` (T02 đề xuất) · `final` (T10/T11 đã duyệt). Harness chạy **mọi** case; case `draft` có thể bị T10 sửa cửa sổ |
-| `config.mode` | `distance` (kèm `thresholdM`) hoặc `time` (kèm `thresholdMin`). `smart` chưa dùng |
-| `config.preAlert` | bool |
-| `expect[]` | `{event, notBefore, notAfter, window, ref}`: **lần xuất hiện đầu tiên** của `event` phải có `t ∈ [notBefore, notAfter]` (gồm 2 đầu); không xuất hiện là fail. `window` lưu anchor gốc để truy vết; `ref` trích quy tắc PRD |
-| `forbid[]` | tên sự kiện **không được** xuất hiện ở bất kỳ thời điểm nào |
+| `expect[].window`, `expectFallback.window.modeAt` | tĩnh |
+| `config.kill` | tĩnh, trừ `kill` |
+| `config.actions[].at` | tĩnh, `event:*`, `relaunch` |
+| `config.relaunch.at` | tĩnh, `event:*`, `osFallbackFired` |
+| `expectAfter[].after`, `forbidAfter[].after` | tĩnh, `event:*`, `relaunch`, `osFallbackFired` |
 
-- Tên sự kiện v1: `preAlert`, `alarm`, `gpsLost`, `gpsRecovered`, `overshoot`, `arrived`.
-- Giả định của harness: người dùng **không** tắt và **không** báo lại báo thức.
-- Dung sai trong case nháp lấy từ PRD §1: ±300 m (khoảng cách, đo **dọc tuyến** trên sự thật) và ±60 s (thời gian, so với
-  `arrivalT` thật).
-- Anchor: `start` (0), `end` (tick cuối), `arrival`, `overshoot`, `gpsGap[i].start|end`, `route<=M`, `straight<=M` (tick đầu
-  tiên thoả). Giá trị = `clamp(anchor + offsetS, 0, durationS)`.
+`kill`, `osFallbackFired` cần `config.kill`; `relaunch` cần `config.relaunch`; `closest*` cần `truth.closest`; `overshoot` cần
+`truth.overshoot`.
+
+**`expectFallback`** (T11 §5.3, tham số mặc định T10 §5, toàn số nguyên; `~/` là chia nguyên):
+
+```
+killT     = config.kill.t;  modeAtT = anchor(modeAt) + modeAt.offsetS      -- giờ báo dự kiến của chế độ
+early     = min(1800, max(0, modeAtT − killT − 600) ~/ 10)
+estimateT = modeAtT + 30 − early;  asOfT = killT − sampleIntervalS
+notBefore = clamp(estimateT + toleranceS[0], 0, durationS);  notAfter = clamp(estimateT + toleranceS[1], 0, durationS)
+```
+
+Dung sai lấy từ PRD §1: ±300 m (khoảng cách, đo **dọc tuyến** trên sự thật) và ±60 s (thời gian, so với `arrivalT` thật).
 
 ## 4. Kiểm hợp lệ (`tracegen validate`)
 
 GPX: XML well-formed, khai báo UTF-8; root `gpx` namespace GPX 1.1, `version="1.1"`, `creator` khác rỗng; đúng 1 `trk`, ≥ 1
 `trkseg`, mỗi `trkseg` ≥ 1 `trkpt`; `lat ∈ [−90, 90]`, `lon ∈ [−180, 180)`; `time` đúng mẫu, tăng nghiêm ngặt; `acc` có, hữu
 hạn, > 0; `spd` nếu có thì ≥ 0; không BOM, không `\r`.
-Cặp GPX + expect: `schemaVersion == 1`; đủ key bắt buộc; `sampleCount`, `startTime`, `durationS` khớp GPX; trong một `trkseg`
-khoảng cách thời gian đúng bằng `sampleIntervalS`; mỗi gap không có mẫu trong `[fromT, toT)` và đúng là chỗ ngắt `trkseg`; số
-`trkseg` = số gap + 1; `0 <= notBefore <= notAfter <= durationS`; tên sự kiện thuộc tập v1; một sự kiện không vừa ở `expect`
-vừa ở `forbid`; `cases[].id` duy nhất.
 
-## 5. Version
+Cặp GPX + expect: `schemaVersion == 1`; đủ key bắt buộc, đúng kiểu; `sampleCount`, `startTime`, `durationS` khớp GPX; trong một
+`trkseg` khoảng cách thời gian đúng bằng `sampleIntervalS`; mỗi gap không có mẫu trong `[fromT, toT)` và đúng là chỗ ngắt
+`trkseg`; số `trkseg` = số gap + 1; `cases[].id` duy nhất. Với mỗi case:
+
+- khoá lạ ở bất kỳ object nào trong `cases[i]` (kể cả `config`, mục `expect`, `At`…) là lỗi (must-understand, §5);
+- `mode`/ngưỡng, `vehicleHint`, tên và kiểu `params`, `battery`, `action`, `fallbackStatus`, `expectOutcome`, `vehicleGuess`,
+  `samplingModes` hợp lệ; `final` thì `testIds` khác rỗng, đúng mẫu, không trùng;
+- `0 <= notBefore <= notAfter <= durationS`; `withinS` có `0 ≤ lo ≤ hi`; anchor đúng cú pháp, đúng nơi dùng, đủ điều kiện tham
+  chiếu; `At` tĩnh có `t ∈ [0, durationS]`, anchor chạy không có `t`; `t`/`offsetS` của khoá mới là bội số của `sampleIntervalS`;
+  `relaunch` cần `kill`, `relaunch` tĩnh > `kill.t`; `osDismiss` cần `relaunch: auto`; `osSim: false` không đi với `auto`;
+- anchor chạy trong `config.actions[].at`/`config.relaunch.at` có `offsetS ≥ sampleIntervalS`;
+- tên sự kiện thuộc tập ở §3.1; bộ lọc đúng sự kiện và đúng giá trị; không có hai mục `expect` cùng bộ `(event, reason, ringNow,
+  cause)`;
+- `forbid[]` không trùng và không chứa sự kiện có trong `expect`/`expectAfter`; `forbidMatch` mâu thuẫn với một `expect`/
+  `expectAfter` khi cùng `event` và mọi khoá lọc của `forbidMatch` có trong mục kia với cùng giá trị; `forbidAfter` (mốc
+  `anchor + offF`) mâu thuẫn với `expectAfter` (mốc `anchor + offE`, `[lo, hi]`) khi cùng chuỗi `anchor`, thoả điều kiện bao trên
+  và `offE + lo > offF`;
+- `expectFallback` cần `kill`, không đi với `params` override `fallbackLagS`, `fallbackEarlyFrac`, `fallbackEarlyMaxS`,
+  `fallbackNearS`; `killT`, `asOfT`, `estimateT`, `notBefore`, `notAfter` khớp công thức §3.1;
+- `closest.departT` không đi với `params` override `passedClosestOpenMinM`/`passedClosestOpenFrac`.
+
+Ngoài `cases[]`: `destination.offsetM` (nếu có) là int ≠ 0; `truth.closest` (nếu có) đủ `t`, `straightM`, `departT`.
+
+## 5. Version và quy tắc must-understand
 
 - `schemaVersion` tăng khi có thay đổi **phá vỡ** (đổi tên, bỏ trường, đổi ngữ nghĩa). Thêm trường tuỳ chọn, tên sự kiện mới,
-  anchor mới là thay đổi **bổ sung**, giữ nguyên version; consumer **phải bỏ qua** key lạ.
+  anchor mới là thay đổi **bổ sung**, giữ nguyên version. T11 bổ sung vào v1 (vẫn `schemaVersion: 1`).
+- **Must-understand:** ở **mọi object JSON nằm trong `cases[i]`, ở mọi độ sâu**, harness gặp khoá **không biết** thì **fail case
+  đó**, không được bỏ qua. Các object đó gồm: chính `cases[i]`, `config`, `config.params` (khoá là tên tham số),
+  `config.battery[i]`, `config.actions[i]` và `.at`, `config.kill`, `config.relaunch` và `.at`, `config.osDismiss`, mục
+  `expect[i]` và `.window` (cả `.notBefore`/`.notAfter` bên trong), `expectAfter[i]` và `.after`, `expectFallback` và `.window`
+  (cả `.modeAt`), `expectSummary`, `forbidMatch[i]`, `forbidAfter[i]` và `.after`. Áp cả cho khoá chỉ mang thông tin (`ref`,
+  `testIds`, `window`): harness phải biết tên chúng dù không dùng. Lý do: harness bỏ qua `config.kill` sẽ chạy sai case, còn
+  harness bỏ qua bộ lọc lồng (ví dụ `expect[].reason`) sẽ so như kỳ vọng không lọc; cả hai đều có thể PASS giả. Ngoài `cases[]`
+  (`trace`, `destination`, `truth`, `milestones`…) consumer **bỏ qua** khoá lạ như v1. `tracegen validate` kiểm đúng quy tắc này.
+  Hệ quả: thêm khoá case mới là thay đổi bổ sung với generator, nhưng phải đi kèm task cập nhật harness.
 - Namespace extension GPX có `/1`; thêm phần tử extension mới là thay đổi bổ sung.
-- `generator.version`: tăng khi code generator làm đổi output với cùng input (patch), thêm tính năng (minor), đổi schema
-  (major). Đổi dữ liệu profile/route thì không cần tăng.
+- `generator.version` (hiện `1.1.0`): tăng khi code generator làm đổi output với cùng input (patch), thêm tính năng (minor), đổi
+  schema (major). Đổi dữ liệu profile/route thì không cần tăng.
+
+## 6. Quy tắc harness (T12 Kotlin, T13 Swift; chuẩn hoá T10 §8.1)
+
+Nhắc lại T10 §8.1 (không đổi nghĩa):
+
+- `startMs` = `trace.startTime`; `TripEngine.start(config, params, startMs)` với config lấy từ `case.config` (`vehicleHint` mặc
+  định `trace.vehicle`, `destLat/Lng` = `destination.lat/lng`, `params` = `EngineParamsFactory.fromOverrides(config.params)`; khoá
+  bị từ chối là fail).
+- Đồng hồ ảo tiến từng tick `t = 0, I, 2I, …, durationS` (§2). Sự kiện phát khi xử lý tick `t` có `t_event = t`.
+- **Hai chế độ lấy mẫu**, mọi case phải đạt ở cả hai (trừ khi có `samplingModes`): `all` giao mọi mẫu; `policy` chỉ giao mẫu ở
+  `t` nếu `t − tFixGiaoCuối ≥ policy.intervalS` hiện tại của engine.
+- **osSim** (mặc định bật): trạng thái `fbOs`, `ringing ∈ {NONE, ENGINE, FALLBACK}`, `ringStartMs`; xử lý `FallbackAlarmChanged`,
+  báo dự phòng kêu, nghĩa vụ 3 ở Step có `Alarm(ringNow=true)`, `osRingMaxS`, `kill`, `AlarmSilenced` sau relaunch — đúng như
+  T10 §8.1-4. P02: case không có `kill` thì `alarm` đầu tiên có `ringNow=true`. P07: (i) không có `Alarm(ringNow=true)` khi
+  `ringing == ENGINE`; (ii) sau mỗi Step có `Alarm(ringNow=true)`, `ringing ≠ NONE`.
+
+Bổ sung (ràng buộc với T12/T13):
+
+1. **Thứ tự trong một tick:** relaunch (`restore`) → input osSim tới hạn → `actions` (theo thứ tự khai báo) → `BatterySample` →
+   `LocationFix` hoặc `Tick`.
+2. **R3-4 (a):** `fallbackStatus: auto` chỉ xét các lần osSim cho báo dự phòng kêu (và `osDismiss`) ở **tick < tick relaunch**:
+   đã kêu và có `osDismiss` → `DISMISSED(firedAtMs, dismissedAtMs)`; đã kêu → `RANG(firedAtMs)`; chưa → `PENDING`. Nếu `fbOs` tới
+   hạn đúng tick relaunch thì nó được giao cho engine **đã sống lại** dưới dạng `FallbackFired`, sau `restore` (bước 1 trước bước 2).
+3. **R3-4 (b):** P07(ii) kiểm **ngay sau** Step có `Alarm(ringNow=true)`, sau phản ứng osSim của chính Step đó (kể cả
+   `FallbackFired` gửi ngay trong tick theo nghĩa vụ 3), và **trước** input kế tiếp của cùng tick. P07(i) kiểm `ringing` ngay trước
+   khi osSim xử lý Alarm đó.
+4. **`fallbackStatus` tường minh** (khác `auto`): harness truyền status đó cho `restore`. `firedAtMs` = giờ bắt đầu kêu của osSim
+   nếu báo dự phòng đã kêu trước tick relaunch, nếu không thì vắng; `dismissedAtMs` chỉ có với `DISMISSED` và chỉ khi có
+   `osDismiss`. Riêng **`MISSING`** mô phỏng hệ điều hành làm mất báo (ví dụ reboot): ngay trước `restore`, osSim đặt `fbOs = null`
+   và `ringing = FALLBACK → NONE`. Các status tường minh khác không đổi trạng thái osSim.
+5. **`osDismiss`:** ở tick `osFallbackFired + offsetS`, osSim đặt `ringing = NONE` và ghi `dismissedAtMs = startMs + 1000·tick`. Mốc
+   này phải **< tick relaunch**, nếu không thì fail case (lỗi cấu hình).
+6. **Engine chết** (từ tick `kill` tới trước tick relaunch, hoặc tới hết trace nếu không có relaunch): không gọi engine, không giao
+   fix. Hành động (`actions`) tới hạn trong khoảng này thì fail case. osSim vẫn chạy (báo dự phòng kêu, `osRingMaxS`).
+7. **Hành động:** `permissionRevoked` → `LocationAvailability(PERMISSION_REVOKED)`; `locationOff` → `SERVICES_OFF`; `locationOn` →
+   `AVAILABLE`. Sau `permissionRevoked`/`locationOff`, harness **không giao `LocationFix`** (gửi `Tick` thay vào) tới khi có
+   `locationOn`; ở chế độ `policy`, `tFixGiaoCuối` không đổi trong khoảng đó. Các hành động khác ánh xạ sang `UserAction`:
+   `dismiss` → `DISMISS`, `snooze` → `SNOOZE`, `stop` → `STOP_TRIP`, `batteryMaxSaving` → `BATTERY_MAX_SAVING`,
+   `batteryAlarmAt5` → `BATTERY_ALARM_AT_5`, `batteryAlarmEarlier` → `BATTERY_ALARM_EARLIER`.
+8. **I8 / P04:** điểm kiểm (25 %, 50 %, 90 % `durationS`, tick ngay sau `alarm` đầu tiên) rơi vào khoảng engine chết thì bỏ qua.
+   Lần chạy khôi phục phải sao chép cả trạng thái osSim và trạng thái giao fix (`tFixGiaoCuối`, cờ hành động vị trí).
+9. **Kiểm:** `expect`, `expectAfter`, `expectFallback`, `expectOutcome`, `expectSummary`, `forbid`, `forbidMatch`, `forbidAfter`,
+   bất biến I1–I7, I9–I12, P02 (case không có `kill`), P07, I8. Case lỗi cấu hình (khoá lạ theo must-understand, `params` bị từ
+   chối, anchor chạy không xảy ra, hành động lúc engine chết, `osDismiss` không trước relaunch, `B > durationS` của hành động/relaunch,
+   relaunch theo `event:*` có `B ≤ kill.t`) là **fail**, không phải skip.
+
+Case `final` fail là lỗi engine **hoặc** lỗi case: báo designer, không tự sửa fixture cho xanh.

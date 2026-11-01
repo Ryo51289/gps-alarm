@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "trace": {
     "id": "coach_gb_phuly_overshoot",
@@ -116,7 +116,10 @@
   "cases": [
     {
       "id": "distance_1000_overshoot",
-      "status": "draft",
+      "status": "final",
+      "testIds": [
+        "TR06"
+      ],
       "config": {
         "mode": "distance",
         "thresholdM": 1000,
@@ -141,6 +144,7 @@
         },
         {
           "event": "alarm",
+          "reason": "DISTANCE",
           "notBefore": 2335,
           "notAfter": 2360,
           "window": {
@@ -158,7 +162,7 @@
         {
           "event": "overshoot",
           "notBefore": 2605,
-          "notAfter": 2740,
+          "notAfter": 2680,
           "window": {
             "notBefore": {
               "anchor": "overshoot",
@@ -166,7 +170,7 @@
             },
             "notAfter": {
               "anchor": "overshoot",
-              "offsetS": 120
+              "offsetS": 60
             }
           },
           "ref": "PRD §4 Quá trạm: đã vào gần đích rồi khoảng cách tăng liên tục > 1 km, tốc độ > 10 km/h"
@@ -174,7 +178,284 @@
       ],
       "forbid": [
         "gpsLost"
+      ],
+      "forbidMatch": [
+        {
+          "event": "alarm",
+          "reason": "OVERSHOOT"
+        }
       ]
+    },
+    {
+      "id": "distance_1000_dismiss",
+      "status": "final",
+      "testIds": [
+        "TR19"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "actions": [
+          {
+            "at": {
+              "anchor": "event:alarm",
+              "offsetS": 30
+            },
+            "action": "dismiss"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "DISTANCE",
+          "notBefore": 2335,
+          "notAfter": 2360,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR19: PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "expectAfter": [
+        {
+          "event": "tripEnded",
+          "after": {
+            "anchor": "event:alarm",
+            "offsetS": 0
+          },
+          "withinS": [
+            30,
+            30
+          ],
+          "ref": "T10 TR19: PRD §4 Tắt báo kết thúc chuyến, không báo quá trạm sau đó"
+        }
+      ],
+      "expectOutcome": "ON_TIME",
+      "forbid": [
+        "overshoot",
+        "gpsLost"
+      ]
+    },
+    {
+      "id": "distance_1000_overshoot_silenced",
+      "status": "final",
+      "testIds": [
+        "TR33"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "osRingMaxS": 60
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "DISTANCE",
+          "ringNow": true,
+          "notBefore": 2335,
+          "notAfter": 2360,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR33: PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        },
+        {
+          "event": "alarm",
+          "reason": "OVERSHOOT",
+          "ringNow": true,
+          "notBefore": 2605,
+          "notAfter": 2680,
+          "window": {
+            "notBefore": {
+              "anchor": "overshoot",
+              "offsetS": -15
+            },
+            "notAfter": {
+              "anchor": "overshoot",
+              "offsetS": 60
+            }
+          },
+          "ref": "T10 TR33: quá trạm khi báo đã tự ngừng thì kêu lại (PO #18)"
+        },
+        {
+          "event": "overshoot",
+          "notBefore": 2605,
+          "notAfter": 2680,
+          "window": {
+            "notBefore": {
+              "anchor": "overshoot",
+              "offsetS": -15
+            },
+            "notAfter": {
+              "anchor": "overshoot",
+              "offsetS": 60
+            }
+          },
+          "ref": "T10 TR33: PRD §4 Quá trạm"
+        }
+      ],
+      "forbid": [
+        "gpsLost"
+      ]
+    },
+    {
+      "id": "distance_1000_fallback_silenced",
+      "status": "final",
+      "testIds": [
+        "TR35"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true,
+        "kill": {
+          "t": 1825,
+          "anchor": "arrival",
+          "offsetS": -600
+        },
+        "relaunch": {
+          "at": {
+            "anchor": "osFallbackFired",
+            "offsetS": 30
+          },
+          "fallbackStatus": "auto"
+        },
+        "osRingMaxS": 60
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "OVERSHOOT",
+          "ringNow": true,
+          "notBefore": 2605,
+          "notAfter": 2680,
+          "window": {
+            "notBefore": {
+              "anchor": "overshoot",
+              "offsetS": -15
+            },
+            "notAfter": {
+              "anchor": "overshoot",
+              "offsetS": 60
+            }
+          },
+          "ref": "T10 TR35: quá trạm khi báo dự phòng đã tự ngừng thì kêu lại (PO #18)"
+        },
+        {
+          "event": "overshoot",
+          "notBefore": 2605,
+          "notAfter": 2680,
+          "window": {
+            "notBefore": {
+              "anchor": "overshoot",
+              "offsetS": -15
+            },
+            "notAfter": {
+              "anchor": "overshoot",
+              "offsetS": 60
+            }
+          },
+          "ref": "T10 TR35: PRD §4 Quá trạm"
+        }
+      ],
+      "expectAfter": [
+        {
+          "event": "alarm",
+          "reason": "FALLBACK",
+          "ringNow": false,
+          "after": {
+            "anchor": "relaunch",
+            "offsetS": 0
+          },
+          "withinS": [
+            0,
+            0
+          ],
+          "ref": "T10 TR35: §7.2 RANG"
+        }
+      ],
+      "expectFallback": {
+        "asOfT": 1820,
+        "notBefore": 2070,
+        "notAfter": 2490,
+        "window": {
+          "modeAt": {
+            "anchor": "straight<=1000",
+            "offsetS": 0
+          },
+          "modeAtT": 2340,
+          "killT": 1825,
+          "estimateT": 2370,
+          "toleranceS": [
+            -300,
+            120
+          ]
+        },
+        "ref": "T10 TR35: S3 K4 #5 giờ báo dự phòng theo ETA"
+      },
+      "forbid": []
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 3240,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 3240,
+          "notAfter": 3240,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
     }
   ]
 }

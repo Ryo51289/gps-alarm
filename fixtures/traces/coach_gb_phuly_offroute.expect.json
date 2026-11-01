@@ -1,0 +1,210 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.1.0"
+  },
+  "trace": {
+    "id": "coach_gb_phuly_offroute",
+    "title": "Xe khách Giáp Bát → Phủ Lý, đích cách đường 1,5 km",
+    "vehicle": "coach",
+    "gpx": "coach_gb_phuly_offroute.gpx",
+    "seed": 5001,
+    "noiseSeed": 5001,
+    "startTime": "2026-03-14T03:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 3240,
+    "sampleCount": 649
+  },
+  "destination": {
+    "id": "bx_phu_ly",
+    "name": "Bến xe Trung tâm Phủ Lý",
+    "lat": 20.5252946,
+    "lng": 105.9481067,
+    "offsetM": 1500
+  },
+  "truth": {
+    "routeLengthM": 59030,
+    "destinationRouteM": 50720,
+    "arrivalT": 2425,
+    "stops": [
+      {
+        "routeM": 50720,
+        "arriveT": 2425,
+        "departT": 2510,
+        "name": "Bến xe Trung tâm Phủ Lý"
+      }
+    ],
+    "gpsGaps": [],
+    "outliers": [],
+    "overshoot": {
+      "closestT": 2425,
+      "closestM": 1500,
+      "t": 2680
+    },
+    "closest": {
+      "t": 2425,
+      "straightM": 1500,
+      "departT": 2645
+    }
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 2395,
+        "straightT": null
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 2370,
+        "straightT": null
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 2350,
+        "straightT": null
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 2310,
+        "straightT": 2355
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 2270,
+        "straightT": 2315
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 2190,
+        "straightT": 2235
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 1980,
+        "straightT": 2030
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 1340,
+        "straightT": 1390
+      },
+      {
+        "thresholdM": 50000,
+        "routeT": 160,
+        "straightT": 295
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 2125
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 1825
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 1525
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 1225
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 625
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000",
+      "status": "final",
+      "testIds": [
+        "TR32"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "PASSED_CLOSEST",
+          "notBefore": 2645,
+          "notAfter": 2675,
+          "window": {
+            "notBefore": {
+              "anchor": "closest.departT",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "closest.departT",
+              "offsetS": 30
+            }
+          },
+          "ref": "T10 TR32: PRD §4 đích ngoài tuyến: đã qua điểm gần nhất thì báo (T10 §4.11)"
+        }
+      ],
+      "forbid": [
+        "overshoot",
+        "gpsLost"
+      ],
+      "forbidMatch": [
+        {
+          "event": "alarm",
+          "reason": "DISTANCE"
+        }
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 3240,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 3240,
+          "notAfter": 3240,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    }
+  ]
+}

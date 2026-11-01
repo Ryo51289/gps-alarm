@@ -1,0 +1,299 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.1.0"
+  },
+  "trace": {
+    "id": "bus_hn_slow",
+    "title": "Buýt Kim Mã → Yên Nghĩa, kẹt xe 30 phút cuối",
+    "vehicle": "bus",
+    "gpx": "bus_hn_slow.gpx",
+    "seed": 3101,
+    "noiseSeed": 3101,
+    "startTime": "2026-03-14T10:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 3625,
+    "sampleCount": 726
+  },
+  "destination": {
+    "id": "brt_yen_nghia",
+    "name": "Nhà chờ BRT Yên Nghĩa",
+    "lat": 20.9495996,
+    "lng": 105.7476229
+  },
+  "truth": {
+    "routeLengthM": 12890,
+    "destinationRouteM": 12890,
+    "arrivalT": 3570,
+    "stops": [
+      {
+        "routeM": 700,
+        "arriveT": 160,
+        "departT": 180
+      },
+      {
+        "routeM": 1400,
+        "arriveT": 285,
+        "departT": 305
+      },
+      {
+        "routeM": 2100,
+        "arriveT": 410,
+        "departT": 430
+      },
+      {
+        "routeM": 2800,
+        "arriveT": 535,
+        "departT": 555
+      },
+      {
+        "routeM": 3500,
+        "arriveT": 655,
+        "departT": 675
+      },
+      {
+        "routeM": 4200,
+        "arriveT": 780,
+        "departT": 800
+      },
+      {
+        "routeM": 4900,
+        "arriveT": 905,
+        "departT": 925
+      },
+      {
+        "routeM": 5600,
+        "arriveT": 1030,
+        "departT": 1050
+      },
+      {
+        "routeM": 6300,
+        "arriveT": 1150,
+        "departT": 1170
+      },
+      {
+        "routeM": 7000,
+        "arriveT": 1275,
+        "departT": 1295
+      },
+      {
+        "routeM": 7700,
+        "arriveT": 1400,
+        "departT": 1420
+      },
+      {
+        "routeM": 8400,
+        "arriveT": 1685,
+        "departT": 1705
+      },
+      {
+        "routeM": 9100,
+        "arriveT": 1955,
+        "departT": 1975
+      },
+      {
+        "routeM": 9800,
+        "arriveT": 2300,
+        "departT": 2320
+      },
+      {
+        "routeM": 10500,
+        "arriveT": 2600,
+        "departT": 2620
+      },
+      {
+        "routeM": 11200,
+        "arriveT": 2890,
+        "departT": 2910
+      },
+      {
+        "routeM": 11900,
+        "arriveT": 3165,
+        "departT": 3185
+      }
+    ],
+    "gpsGaps": [],
+    "outliers": []
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 3500,
+        "straightT": 3500
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 3390,
+        "straightT": 3390
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 3160,
+        "straightT": 3160
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 2765,
+        "straightT": 2765
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 2370,
+        "straightT": 2370
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 1510,
+        "straightT": 1385
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 575,
+        "straightT": 490
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 3270
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 2970
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 2670
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 2370
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 1770
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "smart",
+      "status": "final",
+      "testIds": [
+        "TR10"
+      ],
+      "config": {
+        "mode": "smart",
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "SMART_SLOW_DISTANCE",
+          "notBefore": 2450,
+          "notAfter": 2695,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=2800",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=2200",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR10: PRD §4 Thông minh, xe chậm (< 15 km/h) báo ở 2,5 km (T10 §4.5); dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "smart_floor",
+      "status": "final",
+      "testIds": [
+        "TR11"
+      ],
+      "config": {
+        "mode": "smart",
+        "preAlert": true,
+        "params": {
+          "smartSlowSpeedKmh": 5,
+          "smartTargetS": 300
+        }
+      },
+      "expect": [
+        {
+          "event": "alarm",
+          "reason": "SMART_DISTANCE",
+          "notBefore": 3065,
+          "notAfter": 3305,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR11: PRD §4 Thông minh, không muộn hơn mốc 1 km"
+        }
+      ],
+      "forbid": [
+        "gpsLost",
+        "overshoot"
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 3625,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 3625,
+          "notAfter": 3625,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "BUS"
+      },
+      "forbid": []
+    }
+  ]
+}

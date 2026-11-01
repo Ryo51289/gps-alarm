@@ -1,0 +1,57 @@
+{
+  "id": "train_hn_dh_stopgap",
+  "title": "Tàu SE Hà Nội → Đồng Hới, mất GPS từ lúc đỗ Đồng Lê tới sau khi tới",
+  "vehicle": "train",
+  "route": "rail_hn_dh",
+  "destination": "ga_dong_hoi",
+  "seed": 1001,
+  "startTime": "2026-03-14T12:30:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 120,
+  "endDwellS": 120,
+  "motion": {"accelMps2": 0.2, "decelMps2": 0.3, "cruiseJitter": 0.08, "jitterChunkM": 2000},
+  "speedLimits": [
+    {"from": "ga_ha_noi", "kmh": 50},
+    {"from": "ga_phu_ly", "kmh": 55},
+    {"from": "ga_thanh_hoa", "kmh": 60},
+    {"from": "ga_vinh", "kmh": 55},
+    {"from": "ga_huong_pho", "kmh": 45},
+    {"from": "ga_dong_le", "kmh": 45}
+  ],
+  "stops": [
+    {"at": "ga_phu_ly", "dwellS": 120},
+    {"at": "ga_nam_dinh", "dwellS": 300},
+    {"at": "ga_ninh_binh", "dwellS": 180},
+    {"at": "ga_thanh_hoa", "dwellS": 300},
+    {"at": "ga_vinh", "dwellS": 600},
+    {"at": "ga_huong_pho", "dwellS": 180},
+    {"at": "ga_dong_le", "dwellS": 180}
+  ],
+  "gpsGaps": [{"atStop": "ga_dong_le", "offsetS": 5, "until": {"anchor": "arrival", "offsetS": 60}}],
+  "noise": {"sigmaM": 6, "rho": 0.9, "accMinM": 3, "speedSigmaMps": 0.3, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "distance_1000",
+      "status": "final",
+      "testIds": ["TR30"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "samplingModes": ["all"],
+      "expect": [
+        {"event": "alarm", "reason": "GPS_LOST", "ringNow": true, "notBefore": {"anchor": "gpsGap[0].start"}, "notAfter": {"anchor": "arrival", "offsetS": -300}, "ref": "T10 TR30: PRD §4 Mất GPS bắt đầu lúc đỗ ga, tới đích vẫn chưa có GPS (T10 §4.8)"}
+      ],
+      "forbid": ["overshoot"]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "UNKNOWN"},
+      "forbid": []
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "trace": {
     "id": "bus_hn_brt01_noisy",
@@ -251,7 +251,10 @@
   "cases": [
     {
       "id": "distance_1000_noisy",
-      "status": "draft",
+      "status": "final",
+      "testIds": [
+        "TR07"
+      ],
       "config": {
         "mode": "distance",
         "thresholdM": 1000,
@@ -276,6 +279,7 @@
         },
         {
           "event": "alarm",
+          "reason": "DISTANCE",
           "notBefore": 2110,
           "notAfter": 2225,
           "window": {
@@ -292,8 +296,54 @@
         }
       ],
       "forbid": [
-        "overshoot"
+        "overshoot",
+        "gpsLost"
       ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 2370,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 2370,
+          "notAfter": 2370,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "BUS"
+      },
+      "forbid": []
     }
   ]
 }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "trace": {
     "id": "bus_hn_brt01",
@@ -180,7 +180,10 @@
   "cases": [
     {
       "id": "distance_500",
-      "status": "draft",
+      "status": "final",
+      "testIds": [
+        "TR04"
+      ],
       "config": {
         "mode": "distance",
         "thresholdM": 500,
@@ -205,6 +208,7 @@
         },
         {
           "event": "alarm",
+          "reason": "DISTANCE",
           "notBefore": 2210,
           "notAfter": 2285,
           "window": {
@@ -227,7 +231,10 @@
     },
     {
       "id": "distance_1000",
-      "status": "draft",
+      "status": "final",
+      "testIds": [
+        "TR04"
+      ],
       "config": {
         "mode": "distance",
         "thresholdM": 1000,
@@ -252,6 +259,7 @@
         },
         {
           "event": "alarm",
+          "reason": "DISTANCE",
           "notBefore": 2110,
           "notAfter": 2225,
           "window": {
@@ -271,6 +279,51 @@
         "gpsLost",
         "overshoot"
       ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 2370,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 2370,
+          "notAfter": 2370,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "BUS"
+      },
+      "forbid": []
     }
   ]
 }

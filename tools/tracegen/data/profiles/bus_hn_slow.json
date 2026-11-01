@@ -1,0 +1,55 @@
+{
+  "id": "bus_hn_slow",
+  "title": "Buýt Kim Mã → Yên Nghĩa, kẹt xe 30 phút cuối",
+  "vehicle": "bus",
+  "route": "bus_hn_brt01",
+  "destination": "brt_yen_nghia",
+  "seed": 3101,
+  "startTime": "2026-03-14T10:00:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 60,
+  "endDwellS": 60,
+  "motion": {"accelMps2": 0.8, "decelMps2": 1.0, "cruiseJitter": 0.25, "jitterChunkM": 500},
+  "speedLimits": [
+    {"from": "brt_kim_ma", "kmh": 28, "jitter": false},
+    {"from": "brt_van_phuc_2", "kmh": 9.5}
+  ],
+  "stops": [],
+  "regularStops": {"everyM": 700, "dwellS": 25, "marginM": 300},
+  "gpsGaps": [],
+  "noise": {"sigmaM": 8, "rho": 0.9, "accMinM": 4, "speedSigmaMps": 0.4, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "smart",
+      "status": "final",
+      "testIds": ["TR10"],
+      "config": {"mode": "smart", "preAlert": true},
+      "expect": [
+        {"event": "alarm", "reason": "SMART_SLOW_DISTANCE", "notBefore": {"anchor": "route<=2800"}, "notAfter": {"anchor": "route<=2200"}, "ref": "T10 TR10: PRD §4 Thông minh, xe chậm (< 15 km/h) báo ở 2,5 km (T10 §4.5); dung sai ±300 m (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "smart_floor",
+      "status": "final",
+      "testIds": ["TR11"],
+      "config": {"mode": "smart", "preAlert": true, "params": {"smartSlowSpeedKmh": 5, "smartTargetS": 300}},
+      "expect": [
+        {"event": "alarm", "reason": "SMART_DISTANCE", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "T10 TR11: PRD §4 Thông minh, không muộn hơn mốc 1 km"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "BUS"},
+      "forbid": []
+    }
+  ]
+}

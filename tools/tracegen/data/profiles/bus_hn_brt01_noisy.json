@@ -25,12 +25,25 @@
   "cases": [
     {
       "id": "distance_1000_noisy",
+      "status": "final",
+      "testIds": ["TR07"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
       "expect": [
         {"event": "preAlert", "notBefore": {"anchor": "route<=5300"}, "notAfter": {"anchor": "route<=4700"}, "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"},
-        {"event": "alarm", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
+        {"event": "alarm", "reason": "DISTANCE", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
       ],
-      "forbid": ["overshoot"]
+      "forbid": ["overshoot", "gpsLost"]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "BUS"},
+      "forbid": []
     }
   ]
 }

@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.1.0"
+  },
+  "trace": {
+    "id": "train_hn_dh_midgap",
+    "title": "Tàu SE Hà Nội → Đồng Hới, mất GPS 15 phút giữa tuyến",
+    "vehicle": "train",
+    "gpx": "train_hn_dh_midgap.gpx",
+    "seed": 1001,
+    "noiseSeed": 1001,
+    "startTime": "2026-03-14T12:30:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 33905,
+    "sampleCount": 6602
+  },
+  "destination": {
+    "id": "ga_dong_hoi",
+    "name": "Ga Đồng Hới",
+    "lat": 17.4689199,
+    "lng": 106.5997285
+  },
+  "truth": {
+    "routeLengthM": 476560,
+    "destinationRouteM": 476560,
+    "arrivalT": 33790,
+    "stops": [
+      {
+        "routeM": 54290,
+        "arriveT": 4110,
+        "departT": 4225,
+        "name": "Ga Phủ Lý"
+      },
+      {
+        "routeM": 83640,
+        "arriveT": 6210,
+        "departT": 6505,
+        "name": "Ga Nam Định"
+      },
+      {
+        "routeM": 111750,
+        "arriveT": 8395,
+        "departT": 8570,
+        "name": "Ga Ninh Bình"
+      },
+      {
+        "routeM": 164780,
+        "arriveT": 12115,
+        "departT": 12410,
+        "name": "Ga Thanh Hóa"
+      },
+      {
+        "routeM": 291490,
+        "arriveT": 20180,
+        "departT": 20775,
+        "name": "Ga Vinh"
+      },
+      {
+        "routeM": 352720,
+        "arriveT": 24890,
+        "departT": 25065,
+        "name": "Ga Hương Phố"
+      },
+      {
+        "routeM": 398450,
+        "arriveT": 28810,
+        "departT": 28985,
+        "name": "Ga Đồng Lê"
+      }
+    ],
+    "gpsGaps": [
+      {
+        "fromT": 16960,
+        "toT": 17860
+      }
+    ],
+    "outliers": []
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 33750,
+        "straightT": 33750
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 33730,
+        "straightT": 33730
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 33700,
+        "straightT": 33700
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 33635,
+        "straightT": 33635
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 33575,
+        "straightT": 33575
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 33455,
+        "straightT": 33455
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 33150,
+        "straightT": 33150
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 32245,
+        "straightT": 32245
+      },
+      {
+        "thresholdM": 50000,
+        "routeT": 30755,
+        "straightT": 30715
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 33490
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 33190
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 32890
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 32590
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 31990
+      },
+      {
+        "beforeArrivalMin": 60,
+        "t": 30190
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000_midgap",
+      "status": "final",
+      "testIds": [
+        "TR15"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [
+        {
+          "event": "gpsLost",
+          "cause": "NO_FIX_TIMEOUT",
+          "notBefore": 17320,
+          "notAfter": 17680,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 360
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].start",
+              "offsetS": 720
+            }
+          },
+          "ref": "T10 TR15: PRD §4 Mất GPS ở pha thưa (lostAfterS 540, T10 §4.8)"
+        },
+        {
+          "event": "gpsRecovered",
+          "notBefore": 17860,
+          "notAfter": 17890,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 30
+            }
+          },
+          "ref": "T10 TR15: PRD §4 Mất GPS"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 33680,
+          "notAfter": 33715,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR15: PRD §4 Mất GPS: ETA ≥ 20 phút thì không báo trong lúc mất tín hiệu"
+        },
+        {
+          "event": "alarm",
+          "reason": "DISTANCE",
+          "notBefore": 33680,
+          "notAfter": 33715,
+          "window": {
+            "notBefore": {
+              "anchor": "route<=1300",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "route<=700",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR15: PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"
+        }
+      ],
+      "forbid": [
+        "overshoot"
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 33905,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 33905,
+          "notAfter": 33905,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    }
+  ]
+}

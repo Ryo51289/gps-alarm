@@ -27,21 +27,99 @@
   "cases": [
     {
       "id": "distance_1000",
+      "status": "final",
+      "testIds": ["TR03"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
       "expect": [
         {"event": "preAlert", "notBefore": {"anchor": "route<=5300"}, "notAfter": {"anchor": "route<=4700"}, "ref": "PRD §4 Nhắc nhẹ: 5× ngưỡng, tối thiểu 3 km; dung sai ±300 m (PRD §1)"},
-        {"event": "alarm", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
+        {"event": "alarm", "reason": "DISTANCE", "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"}
       ],
       "forbid": ["gpsLost", "overshoot"]
     },
     {
       "id": "time_15",
+      "status": "final",
+      "testIds": ["TR03"],
       "config": {"mode": "time", "thresholdMin": 15, "preAlert": true},
       "expect": [
         {"event": "preAlert", "notBefore": {"anchor": "arrival", "offsetS": -1860}, "notAfter": {"anchor": "arrival", "offsetS": -1740}, "ref": "PRD §4 Nhắc nhẹ: còn 30 phút; dung sai ±1 phút (PRD §1)"},
-        {"event": "alarm", "notBefore": {"anchor": "arrival", "offsetS": -960}, "notAfter": {"anchor": "arrival", "offsetS": -840}, "ref": "PRD §4 Chế độ thời gian; dung sai ±1 phút (PRD §1)"}
+        {"event": "alarm", "reason": "TIME", "notBefore": {"anchor": "arrival", "offsetS": -960}, "notAfter": {"anchor": "arrival", "offsetS": -840}, "ref": "PRD §4 Chế độ thời gian; dung sai ±1 phút (PRD §1)"}
       ],
       "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "smart",
+      "status": "final",
+      "testIds": ["TR09"],
+      "config": {"mode": "smart", "preAlert": true},
+      "expect": [
+        {"event": "alarm", "reason": "SMART_TIME", "notBefore": {"anchor": "arrival", "offsetS": -660}, "notAfter": {"anchor": "arrival", "offsetS": -540}, "ref": "T10 TR09: PRD §4 Thông minh, nhánh thời gian còn 10 phút (T10 §4.5); dung sai ±1 phút (PRD §1)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "distance_1000_battery",
+      "status": "final",
+      "testIds": ["TR20"],
+      "config": {
+        "mode": "distance", "thresholdM": 1000, "preAlert": true,
+        "battery": [
+          {"t": 0, "levelPct": 25, "charging": false},
+          {"t": 600, "levelPct": 22, "charging": false},
+          {"t": 1200, "levelPct": 19, "charging": false},
+          {"t": 1800, "levelPct": 16, "charging": false},
+          {"t": 2400, "levelPct": 13, "charging": false},
+          {"t": 3000, "levelPct": 10, "charging": false},
+          {"t": 3600, "levelPct": 7, "charging": false},
+          {"t": 4200, "levelPct": 5, "charging": false}
+        ]
+      },
+      "expect": [
+        {"event": "lowBatteryRisk", "notBefore": {"anchor": "start", "offsetS": 1200}, "notAfter": {"anchor": "start", "offsetS": 1205}, "ref": "T10 TR20: PRD §4 Pin: dự báo hết pin trước giờ báo khi đo được tốc độ xả (T10 §4.9)"},
+        {"event": "alarm", "reason": "LOW_BATTERY", "notBefore": {"anchor": "start", "offsetS": 4200}, "notAfter": {"anchor": "start", "offsetS": 4205}, "ref": "T10 TR20: PRD §4 Pin: còn 5 % thì báo (T10 §4.9)"}
+      ],
+      "forbid": ["gpsLost", "overshoot"]
+    },
+    {
+      "id": "time_15_charging",
+      "status": "final",
+      "testIds": ["TR21"],
+      "config": {"mode": "time", "thresholdMin": 15, "preAlert": true, "battery": [{"t": 0, "levelPct": 6, "charging": true}]},
+      "expect": [
+        {"event": "alarm", "reason": "TIME", "notBefore": {"anchor": "arrival", "offsetS": -960}, "notAfter": {"anchor": "arrival", "offsetS": -840}, "ref": "T10 TR21: PRD §4 Pin: đang sạc thì không cảnh báo pin; chế độ thời gian, dung sai ±1 phút (PRD §1)"}
+      ],
+      "forbid": ["lowBatteryRisk", "gpsLost", "overshoot"]
+    },
+    {
+      "id": "distance_1000_permission",
+      "status": "final",
+      "testIds": ["TR26"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true, "actions": [{"at": {"anchor": "arrival", "offsetS": -900}, "action": "permissionRevoked"}]},
+      "expect": [
+        {"event": "gpsLost", "cause": "PERMISSION_REVOKED", "notBefore": {"anchor": "arrival", "offsetS": -900}, "notAfter": {"anchor": "arrival", "offsetS": -900}, "ref": "T10 TR26: PRD §4 Mất GPS do mất quyền vị trí (T10 §4.8)"},
+        {"event": "alarm", "reason": "GPS_LOST", "notBefore": {"anchor": "arrival", "offsetS": -900}, "notAfter": {"anchor": "arrival", "offsetS": -900}, "ref": "T10 TR26: PRD §4 Mất GPS: ETA < 20 phút thì báo luôn"}
+      ],
+      "forbid": ["overshoot"]
+    },
+    {
+      "id": "smart_kill",
+      "status": "final",
+      "testIds": ["TR29"],
+      "config": {"mode": "smart", "preAlert": true, "kill": {"anchor": "arrival", "offsetS": -1800}},
+      "expect": [],
+      "expectFallback": {"modeAt": {"anchor": "arrival", "offsetS": -600}, "toleranceS": [-300, 120], "ref": "T10 TR29: S3 K4 #5 (giờ dự phòng theo ETA); T10 review vòng 1 #10"},
+      "forbid": []
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "UNKNOWN"},
+      "forbid": []
     }
   ]
 }
