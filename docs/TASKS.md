@@ -28,7 +28,7 @@ Môi trường: `[linux]` container/máy Linux · `[mac]` cần macOS + Xcode ·
 
 | ID | Task | Env | Phụ thuộc | Trạng thái | Tiêu chí hoàn thành |
 |---|---|---|---|---|---|
-| T10 | **Spec Trip Engine**: máy trạng thái, EMA tốc độ, 3 chế độ, nhắc nhẹ, mất GPS, pin, quá trạm, SamplingPolicy, giờ báo dự phòng theo ETA (dùng chung T15/T17), bảng test case | linux | T02, Gate 1 | todo | Spec duyệt; mỗi quy tắc PRD §4 có ≥ 1 test case |
+| T10 | **Spec Trip Engine**: máy trạng thái, EMA tốc độ, 3 chế độ, nhắc nhẹ, mất GPS, pin, quá trạm, SamplingPolicy, giờ báo dự phòng theo ETA (dùng chung T15/T17), bảng test case | linux | T02, Gate 1 | spec | Spec duyệt; mỗi quy tắc PRD §4 có ≥ 1 test case |
 | T11 | Bổ sung trace + expectations theo test case của T10 (tester) | linux | T10 | todo | Mọi test case T10 có trace/expect tương ứng |
 | T12 | Trip Engine Kotlin + test JVM chạy toàn bộ fixture | linux | T10, T11 | todo | 100% fixture pass; logic không phụ thuộc Android API |
 | T13 | Trip Engine Swift + XCTest chạy cùng fixture | mac | T10, T11 | todo | 100% fixture pass, kết quả trùng bản Kotlin |
