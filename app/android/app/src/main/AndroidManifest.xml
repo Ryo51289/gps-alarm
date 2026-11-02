@@ -2,7 +2,13 @@
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules">
+        <!-- T22 D5: the database (destination coordinates) lives in
+             files/napstop_db/ and is excluded from cloud backup and
+             device-to-device transfer. Location never leaves the device. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -19,6 +25,12 @@
             <meta-data
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
+              />
+            <!-- T22 D12: Flutter's default deep link handling is off until
+                 T26/T27 design navigation from notifications; revisit there. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
               />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

@@ -3,5 +3,368 @@
   "commonBack": "Quay lại",
   "@commonBack": {
     "description": "Tooltip and screen reader label of the back button at the top of a screen."
+  },
+  "appNavHome": "Trang chủ",
+  "@appNavHome": {
+    "description": "Bottom navigation tab: screen 1."
+  },
+  "appNavTrips": "Chuyến đi",
+  "@appNavTrips": {
+    "description": "Bottom navigation tab: trip history (screen 11)."
+  },
+  "appNavSettings": "Cài đặt",
+  "@appNavSettings": {
+    "description": "Bottom navigation tab: settings (screen 12)."
+  },
+  "appPlaceholderBody": "Màn này sẽ có ở bản sau.",
+  "@appPlaceholderBody": {
+    "description": "Body of a screen that is not built yet (development builds)."
+  },
+  "appScreenOnboardingTitle": "Cấp quyền",
+  "@appScreenOnboardingTitle": {
+    "description": "Title of screen 0 (permissions)."
+  },
+  "appScreenDestinationTitle": "Chọn điểm đến",
+  "@appScreenDestinationTitle": {
+    "description": "Title of screen 2 (destination search)."
+  },
+  "appScreenAlarmSettingsTitle": "Cài đặt báo thức",
+  "@appScreenAlarmSettingsTitle": {
+    "description": "Title of screen 3 (alarm settings for a trip)."
+  },
+  "appScreenTrackingTitle": "Đang theo dõi",
+  "@appScreenTrackingTitle": {
+    "description": "Title of screen 4 (trip tracking)."
+  },
+  "appScreenAlarmTitle": "Báo thức",
+  "@appScreenAlarmTitle": {
+    "description": "Title of screen 5 (alarm ringing)."
+  },
+  "appScreenOvershootTitle": "Đã đi quá trạm",
+  "@appScreenOvershootTitle": {
+    "description": "Title of screen 8 (overshoot)."
+  },
+  "appScreenBatteryGuideTitle": "Tắt tối ưu pin",
+  "@appScreenBatteryGuideTitle": {
+    "description": "Title of screen 9 (battery optimization guide)."
+  },
+  "appScreenHistoryTitle": "Lịch sử chuyến đi",
+  "@appScreenHistoryTitle": {
+    "description": "Title of screen 11 (trip history)."
+  },
+  "appScreenSettingsTitle": "Cài đặt chung",
+  "@appScreenSettingsTitle": {
+    "description": "Title of screen 12 (settings)."
+  },
+  "commonUndo": "Hoàn tác",
+  "@commonUndo": {
+    "description": "Snack bar action that reverts the last change."
+  },
+  "commonRetry": "Thử lại",
+  "@commonRetry": {
+    "description": "Button that retries a failed load."
+  },
+  "commonDistanceMeters": "{meters} m",
+  "@commonDistanceMeters": {
+    "description": "Distance in meters, short form.",
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "commonDistanceKm": "{km} km",
+  "@commonDistanceKm": {
+    "description": "Distance in kilometers, short form. km is already formatted (e.g. 1,5).",
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "homeGreetingMorning": "Chào buổi sáng",
+  "@homeGreetingMorning": {
+    "description": "Screen 1 greeting, 05:00-10:59."
+  },
+  "homeGreetingNoon": "Chào buổi trưa",
+  "@homeGreetingNoon": {
+    "description": "Screen 1 greeting, 11:00-12:59."
+  },
+  "homeGreetingAfternoon": "Chào buổi chiều",
+  "@homeGreetingAfternoon": {
+    "description": "Screen 1 greeting, 13:00-17:59."
+  },
+  "homeGreetingEvening": "Chào buổi tối",
+  "@homeGreetingEvening": {
+    "description": "Screen 1 greeting, 18:00-04:59."
+  },
+  "homeTitle": "Hôm nay bạn xuống ở đâu?",
+  "@homeTitle": {
+    "description": "Screen 1 title."
+  },
+  "homeSearchHint": "Tìm ga, bến xe, địa chỉ…",
+  "@homeSearchHint": {
+    "description": "Screen 1 search field hint; tapping it opens screen 2."
+  },
+  "homeSavedSection": "Đã lưu",
+  "@homeSavedSection": {
+    "description": "Screen 1 section header: saved places."
+  },
+  "homeSlotHome": "Nhà",
+  "@homeSlotHome": {
+    "description": "Saved place slot: home."
+  },
+  "homeSlotHometown": "Quê",
+  "@homeSlotHometown": {
+    "description": "Saved place slot: hometown."
+  },
+  "homeSlotWork": "Công ty",
+  "@homeSlotWork": {
+    "description": "Saved place slot: work."
+  },
+  "homeSlotAdd": "Thêm",
+  "@homeSlotAdd": {
+    "description": "Second line of an empty saved place tile."
+  },
+  "homeSlotAddSemantics": "Thêm {slot}",
+  "@homeSlotAddSemantics": {
+    "description": "Screen reader label of an empty saved place tile. slot is the slot name (Nhà, Quê, Công ty).",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSlotEditHint": "Sửa hoặc xoá",
+  "@homeSlotEditHint": {
+    "description": "Screen reader hint of the long-press action on a saved place tile."
+  },
+  "homeSlotSheetChange": "Đổi địa điểm",
+  "@homeSlotSheetChange": {
+    "description": "Saved place sheet: choose another place for this slot."
+  },
+  "homeSlotSheetRemove": "Xoá",
+  "@homeSlotSheetRemove": {
+    "description": "Saved place sheet: clear this slot."
+  },
+  "homeSlotRemoved": "Đã xoá {slot}",
+  "@homeSlotRemoved": {
+    "description": "Snack bar after clearing a saved place slot.",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "homeSaveFailed": "Không lưu được. Thử lại sau.",
+  "@homeSaveFailed": {
+    "description": "Snack bar when saving a place fails."
+  },
+  "homeRecentSection": "Chuyến gần đây",
+  "@homeRecentSection": {
+    "description": "Screen 1 section header: recent trips."
+  },
+  "homeRecentEmpty": "Chưa có chuyến nào. Tìm ga hoặc bến xe để bắt đầu.",
+  "@homeRecentEmpty": {
+    "description": "Screen 1 when there is no recent trip."
+  },
+  "homeRecentError": "Không đọc được chuyến gần đây.",
+  "@homeRecentError": {
+    "description": "Screen 1 when recent trips cannot be read."
+  },
+  "homeRecentSubtitle": "{vehicle} · {alarm}",
+  "@homeRecentSubtitle": {
+    "description": "Recent trip subtitle: vehicle, then alarm summary.",
+    "placeholders": {
+      "vehicle": {
+        "type": "String"
+      },
+      "alarm": {
+        "type": "String"
+      }
+    }
+  },
+  "homeRecentRestartHint": "Đặt lại chuyến này",
+  "@homeRecentRestartHint": {
+    "description": "Screen reader hint of a recent trip row (opens screen 3 prefilled)."
+  },
+  "homeVehicleTrain": "Tàu",
+  "@homeVehicleTrain": {
+    "description": "Vehicle: train."
+  },
+  "homeVehicleCoach": "Xe khách",
+  "@homeVehicleCoach": {
+    "description": "Vehicle: long-distance coach."
+  },
+  "homeVehicleBus": "Xe buýt",
+  "@homeVehicleBus": {
+    "description": "Vehicle: city bus."
+  },
+  "homeAlarmDistance": "Báo trước {distance}",
+  "@homeAlarmDistance": {
+    "description": "Alarm summary, distance mode. distance is formatted (e.g. 1 km).",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "homeAlarmTime": "Báo trước {minutes} phút",
+  "@homeAlarmTime": {
+    "description": "Alarm summary, time mode.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "homeAlarmSmart": "Báo thông minh",
+  "@homeAlarmSmart": {
+    "description": "Alarm summary, smart mode."
+  },
+  "homeActiveTripTitle": "Đang theo dõi chuyến đi",
+  "@homeActiveTripTitle": {
+    "description": "Screen 1 card title when a trip is running."
+  },
+  "homeActiveTripOpen": "Mở",
+  "@homeActiveTripOpen": {
+    "description": "Opens the tracking screen of the running trip."
+  },
+  "homeActiveTripBusy": "Đang có chuyến đi. Dừng chuyến đó trước khi đặt chuyến mới.",
+  "@homeActiveTripBusy": {
+    "description": "Snack bar when the user picks a trip while one is running."
+  },
+  "homeReadyTitle": "Sẵn sàng cho chuyến đi",
+  "@homeReadyTitle": {
+    "description": "Readiness card title: everything is fine."
+  },
+  "homeReadyCheckTitle": "Nên kiểm tra trước khi ngủ",
+  "@homeReadyCheckTitle": {
+    "description": "Readiness card title: some warnings."
+  },
+  "homeReadyBlockedTitle": "Chưa thể bắt đầu chuyến đi",
+  "@homeReadyBlockedTitle": {
+    "description": "Readiness card title: a required permission is missing."
+  },
+  "homeReadyLoading": "Đang kiểm tra…",
+  "@homeReadyLoading": {
+    "description": "Readiness card while loading."
+  },
+  "homeReadyError": "Chưa kiểm tra được",
+  "@homeReadyError": {
+    "description": "Readiness card when the check failed."
+  },
+  "homeReadyFixPermissions": "Kiểm tra quyền",
+  "@homeReadyFixPermissions": {
+    "description": "Readiness card button: opens the permission screen."
+  },
+  "homeReadyOpenBatteryGuide": "Xem hướng dẫn",
+  "@homeReadyOpenBatteryGuide": {
+    "description": "Readiness card button: opens the battery optimization guide."
+  },
+  "homeReadySleepModeHint": "Nếu máy tự bật Chế độ ngủ, hãy cho phép Báo thức.",
+  "@homeReadySleepModeHint": {
+    "description": "Readiness card reminder (Android): scheduled sleep / Do Not Disturb modes must allow alarms."
+  },
+  "homeChipLocationWhileInUse": "Vị trí: Khi dùng ứng dụng",
+  "@homeChipLocationWhileInUse": {
+    "description": "Readiness chip: location allowed while using the app."
+  },
+  "homeChipLocationAlways": "Vị trí: Luôn cho phép",
+  "@homeChipLocationAlways": {
+    "description": "Readiness chip: location always allowed."
+  },
+  "homeChipLocationDenied": "Vị trí: Chưa cho phép",
+  "@homeChipLocationDenied": {
+    "description": "Readiness chip: location not allowed (blocking)."
+  },
+  "homeChipLocationApproximate": "Vị trí: Gần đúng",
+  "@homeChipLocationApproximate": {
+    "description": "Readiness chip: only approximate location (blocking)."
+  },
+  "homeChipLocationServicesOff": "Định vị đang tắt",
+  "@homeChipLocationServicesOff": {
+    "description": "Readiness chip: device location services off (blocking)."
+  },
+  "homeChipNoAlarmChannel": "Chưa cho phép báo thức",
+  "@homeChipNoAlarmChannel": {
+    "description": "Readiness chip (iOS): neither AlarmKit nor notifications allowed (blocking)."
+  },
+  "homeChipNotificationsOff": "Thông báo đang tắt",
+  "@homeChipNotificationsOff": {
+    "description": "Readiness chip: notifications not allowed."
+  },
+  "homeChipExactAlarmOff": "Chưa cho báo thức chính xác",
+  "@homeChipExactAlarmOff": {
+    "description": "Readiness chip (Android): exact alarms not allowed."
+  },
+  "homeChipFullScreenOff": "Chưa cho báo thức toàn màn hình",
+  "@homeChipFullScreenOff": {
+    "description": "Readiness chip (Android): full-screen alarm not allowed."
+  },
+  "homeChipAlarmKitOff": "Báo thức không kêu khi Im lặng",
+  "@homeChipAlarmKitOff": {
+    "description": "Readiness chip (iOS 26+): AlarmKit not allowed."
+  },
+  "homeChipNotificationsNoStatus": "Thông báo đang tắt",
+  "@homeChipNotificationsNoStatus": {
+    "description": "Readiness chip (iOS): notifications off while AlarmKit is allowed."
+  },
+  "homeChipBattery": "Pin {percent}%",
+  "@homeChipBattery": {
+    "description": "Readiness chip: battery level.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "homeChipBatteryCharging": "Pin {percent}% · đang sạc",
+  "@homeChipBatteryCharging": {
+    "description": "Readiness chip: battery level while charging.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "homeChipBatteryLow": "Pin {percent}% · nên sạc",
+  "@homeChipBatteryLow": {
+    "description": "Readiness chip: low battery, not charging.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "homeChipAlarmVolume": "Âm lượng báo {percent}%",
+  "@homeChipAlarmVolume": {
+    "description": "Readiness chip (Android): alarm stream volume.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "homeChipAlarmVolumeLow": "Âm lượng báo thấp: {percent}%",
+  "@homeChipAlarmVolumeLow": {
+    "description": "Readiness chip (Android): low alarm stream volume.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "homeChipAlarmMuted": "Âm báo đang tắt",
+  "@homeChipAlarmMuted": {
+    "description": "Readiness chip (Android): alarm stream muted or at zero."
+  },
+  "homeChipDndBlocksAlarms": "Không làm phiền chặn báo thức",
+  "@homeChipDndBlocksAlarms": {
+    "description": "Readiness chip (Android): Do Not Disturb blocks alarms."
+  },
+  "homeChipBatteryOptimization": "Tối ưu pin đang bật",
+  "@homeChipBatteryOptimization": {
+    "description": "Readiness chip (Android): battery optimization still applies."
   }
 }

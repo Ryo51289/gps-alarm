@@ -32,7 +32,7 @@ Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (GitHub Actio
 cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_dispatch`). Bỏ qua commit chỉ đổi `docs/**`, `*.md`,
 `.claude/**`. Bốn job chạy song song:
 
-- Job `dart`: `flutter pub get --enforce-lockfile` · kiểm code Pigeon sinh ra khớp input (T14) ·
+- Job `dart`: `flutter pub get --enforce-lockfile` · kiểm code Pigeon sinh ra khớp input (T14) · kiểm code drift sinh ra (T22) ·
   `dart format --output=none --set-exit-if-changed lib test integration_test` ·
   `flutter analyze` · `flutter test` (dev) · `flutter test --flavor prod`.
 - Job `android`: `flutter build apk --config-only` · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
@@ -134,6 +134,52 @@ dart format lib/core/bridge/core_api.g.dart
   [`.github/workflows/ios-compile.yml`](../.github/workflows/ios-compile.yml) (`flutter build ios --simulator --debug
   --no-codesign` trên macOS). Chạy khi đổi code Swift.
 
+## Khung app (T22)
+
+- Router `lib/app/router/` (go_router 17, **không** 18: bản 18 chuyển sang `material_ui`). Path là hợp đồng, task sau
+  không đổi path; chi tiết `docs/specs/T22.md` §3.1.
+
+  | Màn | Path | Navigator |
+  |---|---|---|
+  | 1 Trang chủ / 11 Lịch sử / 12 Cài đặt | `/home`, `/trips`, `/settings` | shell 3 tab (`StatefulShellRoute`) |
+  | 0, 9 | `/onboarding`, `/battery-guide` | root |
+  | 2 | `/destination` (`?mode=pick`: trả `TripDestination` khi pop) | root |
+  | 3 | `/alarm-settings` (`extra: TripDraft` bắt buộc, thiếu thì về `/home`) | root |
+  | 4, 5, 8 | `/tracking`, `/alarm`, `/overshoot` | root |
+
+  Điều hướng qua extension `AppNavigation` (`context.openAlarmSettings(draft)`, `pickDestination()`…). Màn chưa làm dùng
+  `PlaceholderScreen`; task làm màn đó thay builder của route.
+- Riverpod 3, provider viết tay; `ProviderScope(retry: (_, _) => null)` trong `main.dart` (tắt tự thử lại).
+  Provider lõi: `coreBridgeProvider`, `appDatabaseProvider`, `tripsRepositoryProvider`, `savedPlacesRepositoryProvider`,
+  `activeTripProvider`, `deviceInfoProvider`, `clockProvider`, `appRouterProvider`, `destinationPickerProvider`.
+- Kiểu dùng chung `lib/core/trip/domain/` (`TripDestination`, `TripDraft`, `TripAlarmChoice`, `TripRecord`, `SavedPlace`);
+  `checkStart` ở `lib/features/onboarding/domain/start_check.dart` (T19 §1.3).
+- Test: `test/helpers/fake_core_bridge.dart` (`FakeCoreBridge` + builder `androidPermissions()`, `deviceStatusMsg()`,
+  `activeTrip()`…), `test/helpers/app_harness.dart` (`pumpAppHarness(tester, {overrides, initialLocation, theme,
+  textScale, locale, size, fontFamily, seed})`: cả app với fake bridge, DB bộ nhớ, giờ cố định 19:30),
+  `test/helpers/trip_fixtures.dart` (đích, bản ghi mẫu, `seedData`).
+
+## drift (cơ sở dữ liệu, T22)
+
+```bash
+dart run build_runner build      # sinh lib/core/db/app_database.g.dart (COMMIT)
+dart run drift_dev make-migrations   # sau khi đổi schema: ảnh chụp drift_schemas/ + steps + test migration
+```
+
+- Sau khi sửa `lib/core/db/`, chạy `build_runner` và commit file sinh ra; kiểm `git diff -- lib/core/db drift_schemas`
+  sạch. Job `dart` của CI chạy lại `build_runner` và báo lỗi nếu code sinh bị lệch (bước "Check drift output is up to date").
+- Schema v1: bảng `trips`, `saved_places` (`lib/core/db/tables.dart`). Thời gian là epoch ms UTC (`INTEGER`). Enum lưu
+  bằng chuỗi wire cố định (`converters.dart`): chỉ thêm, không bao giờ đổi.
+- Đổi schema: sửa bảng, tăng `schemaVersion`, chạy `make-migrations`, viết `onUpgrade: stepByStep(...)`, commit ảnh chụp
+  + steps + test. Không viết migration tay.
+- File DB: `<getApplicationSupportDirectory()>/napstop_db/napstop.sqlite` (Android: `files/napstop_db/`). Thư mục này bị
+  loại khỏi Auto Backup và chuyển máy (`res/xml/data_extraction_rules.xml`, `res/xml/backup_rules.xml`): lịch sử chứa
+  toạ độ, vị trí không rời máy. iOS: T17 đặt `isExcludedFromBackup`.
+- Chỉ `lib/core/db` và `lib/core/trip/data` dùng lớp hàng sinh ra (`TripRow`, `SavedPlaceRow`): `toString()` của chúng in
+  toạ độ. Không log.
+- SQLite do `package:sqlite3` đóng gói qua build hook: lần build/test đầu tải binary từ GitHub release (cần mạng, có kiểm
+  sha256), sau đó dùng cache trong `.dart_tool/`.
+
 ## Chuỗi hiển thị (ARB, gen-l10n)
 
 - Bản gốc tiếng Việt `lib/l10n/app_vi.arb`, bản dịch `lib/l10n/app_en.arb`. Mỗi khoá cần `@khoá.description` (tiếng
@@ -148,8 +194,11 @@ dart format lib/core/bridge/core_api.g.dart
 lib/
 ├── main.dart          entrypoint của app
 ├── main_catalog.dart  entrypoint catalog design system (chỉ dev)
-├── app/               NapStopApp, AppFlavor, kAppSupportedLocales
+├── app/               NapStopApp, AppFlavor, kAppSupportedLocales, clockProvider
+│   └── router/        go_router: route, shell 3 tab, màn giữ chỗ (T22)
 ├── core/              dùng chung: platform bridge (Pigeon), logging, utils
+│   ├── db/            drift: bảng, converter, AppDatabase (T22)
+│   ├── trip/          kiểu chuyến dùng chung, repository, activeTripProvider (T22)
 │   └── design/        design system: tokens, theme, component Nap*, catalog/
 ├── l10n/              app_vi.arb (gốc), app_en.arb; gen/ do gen-l10n sinh
 └── features/<feature>/{data,domain,presentation}

@@ -1,12 +1,42 @@
 // TC13: locale resolution (unsupported -> Vietnamese). TC14: commonBack.
 // TC15: NapStopApp follows the platform brightness.
+// T22: NapStopApp now needs a ProviderScope and starts on screen 1 instead of
+// the brand placeholder; the assertions are unchanged.
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:napstop/app/app.dart';
 import 'package:napstop/app/flavor.dart';
 import 'package:napstop/app/locales.dart';
+import 'package:napstop/core/bridge/core_bridge_provider.dart';
+import 'package:napstop/core/db/db_providers.dart';
 import 'package:napstop/core/design/design.dart';
+import 'package:napstop/features/home/presentation/home_screen.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
+
+import '../helpers/app_harness.dart';
+import '../helpers/fake_core_bridge.dart';
+
+/// The real app with a fake bridge and an in-memory database. The container
+/// is disposed at tear-down, after the widget tree (drift closes its query
+/// streams with a timer).
+Widget _app() {
+  final db = memoryDatabase();
+  final container = ProviderContainer.test(
+    retry: (_, _) => null,
+    overrides: [
+      coreBridgeProvider.overrideWithValue(FakeCoreBridge()),
+      appDatabaseProvider.overrideWith((ref) {
+        ref.onDispose(db.close);
+        return db;
+      }),
+    ],
+  );
+  return UncontrolledProviderScope(
+    container: container,
+    child: const NapStopApp(flavor: AppFlavor.dev),
+  );
+}
 
 void main() {
   test('TC13 supported locales: vi first, same set as gen-l10n', () {
@@ -29,9 +59,9 @@ void main() {
     ) async {
       tester.platformDispatcher.localesTestValue = [device];
       addTearDown(tester.platformDispatcher.clearLocalesTestValue);
-      await tester.pumpWidget(const NapStopApp(flavor: AppFlavor.dev));
+      await tester.pumpWidget(_app());
       await tester.pumpAndSettle();
-      final context = tester.element(find.text(kAppName));
+      final context = tester.element(find.byType(HomeScreen));
       expect(Localizations.localeOf(context).languageCode, expected);
       expect(
         AppLocalizations.of(context).commonBack,
@@ -83,17 +113,17 @@ void main() {
         .color!;
 
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
-    await tester.pumpWidget(const NapStopApp(flavor: AppFlavor.dev));
+    await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
     expect(scaffoldColor().toARGB32(), 0xFFFFFFFF);
-    final context = tester.element(find.text(kAppName));
+    final context = tester.element(find.byType(HomeScreen));
     expect(Theme.of(context).extension<NapColors>(), isNotNull);
 
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     await tester.pumpAndSettle();
     expect(scaffoldColor().toARGB32(), 0xFF0F1115);
     expect(
-      Theme.of(tester.element(find.text(kAppName))).extension<NapColors>(),
+      Theme.of(tester.element(find.byType(HomeScreen))).extension<NapColors>(),
       NapColors.dark,
     );
   });

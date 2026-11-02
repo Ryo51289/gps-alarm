@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and lower (API <= 30) Auto Backup rules (T22 D5): the app
+     database (destination coordinates) is never backed up. -->
+<full-backup-content>
+    <exclude domain="file" path="napstop_db/"/>
+</full-backup-content>

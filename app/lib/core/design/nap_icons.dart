@@ -33,4 +33,5 @@ abstract final class NapIcons {
   static const IconData snooze = Icons.snooze;
   static const IconData history = Icons.route_outlined;
   static const IconData smart = Icons.auto_awesome_outlined;
+  static const IconData add = Icons.add;
 }

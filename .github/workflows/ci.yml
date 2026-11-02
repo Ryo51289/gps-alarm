@@ -50,7 +50,7 @@ jobs:
   dart:
     name: dart
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -84,6 +84,16 @@ jobs:
           paths=(lib/core/bridge android/app/src/main/kotlin/app/napstop/core/bridge ios/Runner/Bridge)
           git diff --exit-code -- "${paths[@]}"
           test -z "$(git status --porcelain -- "${paths[@]}")"
+
+      # T22: generated drift code and schema snapshots are committed; they must match the tables.
+      # The first run downloads SQLite through the sqlite3 build hook (needs network), hence the timeout.
+      - name: Check drift output is up to date
+        timeout-minutes: 10
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          dart format lib/core/db
+          git diff --exit-code -- lib/core/db drift_schemas
+          test -z "$(git status --porcelain -- lib/core/db drift_schemas)"
 
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed lib test integration_test
