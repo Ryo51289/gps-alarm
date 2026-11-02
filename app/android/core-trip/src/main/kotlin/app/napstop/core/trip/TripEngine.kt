@@ -29,6 +29,9 @@ internal class StepWork(s: EngineState) {
     var cvGuard: List<Double> = s.cvGuard
     var policy: SamplingPolicy? = s.policy
     var policyIntervalAtLastFixS: Int = s.policyIntervalAtLastFixS
+
+    /** Policy at the start of the Step (T10.4 §4.8: step 9 folds its interval into policyIntervalAtLastFixS). */
+    val policyAtStart: SamplingPolicy? = s.policy
     var gpsLostAtMs: Long? = s.gpsLostAtMs
     var lostEmittedBeforeFirstFix: Boolean = s.lostEmittedBeforeFirstFix
     var preAlertArmed: Boolean = s.preAlertArmed
@@ -411,6 +414,11 @@ private fun runSteps3to9(w: StepWork) {
     }
     w.risk = evaluateBatteryRisk(w, w.predicted.noBattery)
     planSampling(w, e, w.predicted.withBattery)
+    // T10.4 (GAP-2, §4.8, §4.12): lostAfterS never shrinks between two fixes, so c2 stays > now and Tick(now) stays silent (I14).
+    w.policyIntervalAtLastFixS = TMath.max(
+        w.policyIntervalAtLastFixS,
+        TMath.max(w.policyAtStart?.intervalS ?: 0, w.policy?.intervalS ?: 0),
+    )
     planFallback(w, e, w.predicted.withBattery)
 }
 

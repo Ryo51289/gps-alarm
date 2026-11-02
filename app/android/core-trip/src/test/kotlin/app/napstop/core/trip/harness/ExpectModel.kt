@@ -83,6 +83,8 @@ internal class TraceModel(
     val destLng: Double,
     val arrivalT: Int,
     val cases: List<CaseEntry>,
+    /** Number of `truth.gpsGaps` (TR39 selects traces with at least one). */
+    val gpsGapCount: Int = 0,
 ) {
     val gpx: GpxTrace by lazy {
         val g = Gpx.read(gpxFile, intervalS)
@@ -132,6 +134,7 @@ internal object ExpectModel {
             destLng = (dest["lng"] as JNumber).asDouble(),
             arrivalT = int(truth, "arrivalT"),
             cases = cases,
+            gpsGapCount = (truth["gpsGaps"] as? JArray)?.items?.size ?: 0,
         )
     }
 

@@ -19,7 +19,7 @@ class NegativeSweepTest {
     fun `TR36 TR30 phase sweep without the lost-GPS speed guard fails at least one phase`() {
         val (trace, case) = case("train_hn_dh_stopgap", "distance_1000")
         val keys = Suite.keysOf(trace, case).filter { it.policy }
-        val opts = RunOpts(paramOverrides = mapOf("lostSpeedGuardUpdates" to JNumber("0")))
+        val opts = RunOpts(paramOverrides = mapOf("lostSpeedGuardUpdates" to JNumber("0")), probes = false)
         val results = keys.map { k ->
             Suite.pool.submit(
                 Callable {
@@ -51,6 +51,7 @@ class NegativeSweepTest {
                 "fallbackEarlyMaxS" to JNumber("1800"),
                 "fallbackHintSpeedFactor" to JNumber("0"),
             ),
+            probes = false,
         )
         val runs = keys.map { k -> Suite.pool.submit(Callable { KillSweep.analyse(trace, case, CaseRun.run(trace, case, k, opts)) }) }.map { it.get() }
         val n = runs.sumOf { it.points.size }

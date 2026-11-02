@@ -19,7 +19,10 @@ import app.napstop.core.trip.TripEvent
 /** Event with the tick it was emitted at and the index of its record. */
 internal class TimedEvent(val t: Int, val rec: Int, val e: TripEvent)
 
-/** Per-run checks of T12 §8.5 (expect*, forbid*, I1–I7, I10–I12, C16, P02 unless allowFallbackFirst). P07 / finite state come from the runner. */
+/**
+ * Per-run checks of T12 §8.5 (expect*, forbid*, I1–I7, I10–I13, C16, P02 unless allowFallbackFirst). P07, I14, P08 and finite
+ * state come from the runner (they need the engine state).
+ */
 internal object Checks {
     fun events(r: RunResult): List<TimedEvent> {
         val out = ArrayList<TimedEvent>()
@@ -107,7 +110,7 @@ internal object Checks {
         return fails
     }
 
-    /** I1–I7, I10–I12 (T10 §3). I4 against the previous Step's view and the current Step's predictedAlarmAtMs. */
+    /** I1–I7, I10–I13 (T10 §3). I4 against the previous Step's view and the current Step's predictedAlarmAtMs. */
     fun invariants(r: RunResult, tag: String): List<String> {
         val f = ArrayList<String>()
         val quietMs = r.params.fallbackQuietBeforeS * 1000L
@@ -170,6 +173,7 @@ internal object Checks {
             }
             if (alarms > 1) f += "I11: $alarms alarms in one Step at t=${rec.t} ($tag)"
             if (facs > 1) f += "I12: $facs FallbackAlarmChanged in one Step at t=${rec.t} ($tag)"
+            i13Violation(view)?.let { f += "$it at t=${rec.t} ($tag)" }
             if ((view.snoozeUntilMs != null) != (view.phase == app.napstop.core.trip.TripPhase.SNOOZED)) {
                 f += "C16: snoozeUntilMs ${if (view.snoozeUntilMs == null) "null" else "set"} in phase ${view.phase} at t=${rec.t} ($tag)"
             }
@@ -178,6 +182,20 @@ internal object Checks {
         if (preAlerts > 1) f += "I5: $preAlerts preAlerts ($tag)"
         if (overshoots > 1) f += "I6: $overshoots overshoots ($tag)"
         return f
+    }
+
+    /** I13 (T10.4): not ENDED ⇒ wakeAtMs ≠ null and > now (view.atMs); ENDED ⇒ wakeAtMs == null. */
+    fun i13Violation(v: app.napstop.core.trip.TripView): String? {
+        val w = v.wakeAtMs
+        return if (v.phase == app.napstop.core.trip.TripPhase.ENDED) {
+            if (w == null) null else "I13: wakeAtMs set while ENDED"
+        } else if (w == null) {
+            "I13: wakeAtMs null in phase ${v.phase}"
+        } else if (w <= v.atMs) {
+            "I13: wakeAtMs ${w - v.atMs} ms from now in phase ${v.phase}"
+        } else {
+            null
+        }
     }
 
     /** Every Double in the state must be finite (T12 §6). */

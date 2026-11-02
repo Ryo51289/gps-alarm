@@ -4,6 +4,7 @@ import app.napstop.core.trip.Alarm
 import app.napstop.core.trip.AlarmMode
 import app.napstop.core.trip.AlarmSilenced
 import app.napstop.core.trip.AvailabilityCause
+import app.napstop.core.trip.GpsStatus
 import app.napstop.core.trip.BatterySample
 import app.napstop.core.trip.EngineInput
 import app.napstop.core.trip.EngineParams
@@ -27,6 +28,7 @@ import app.napstop.core.trip.TripView
 import app.napstop.core.trip.UserAction
 import app.napstop.core.trip.UserActionKind
 import app.napstop.core.trip.VehicleKind
+import app.napstop.core.trip.WAKE_GUARD_MS
 
 /** One recorded Step (or the KILL marker). [inJson] is the P05 `in` array with relative times. */
 internal class StepRecord(
@@ -45,6 +47,13 @@ internal class RunOpts(
     val paramOverrides: Map<String, JsonValue> = emptyMap(),
     /** Ticks after which a resumable fork is captured (I8). */
     val captureAt: Set<Int> = emptySet(),
+    /** T10.4 per-Step probes on the engine state: I14 (runs with j = 0) and P08. Off for re-runs whose transcript must match. */
+    val probes: Boolean = true,
+    /**
+     * TR39 (T10.4 §7.3): no Tick on grid ticks without a GPX sample; inside GPS gaps the platform only delivers wakeAtMs and the
+     * OS fallback. Outside the gaps the run is the same as `all`.
+     */
+    val dozeModel: Boolean = false,
 )
 
 /** Identity of one run: `<traceId>/<caseId>/<mode>`, mode = all | policy | policy-jNN. */
@@ -245,6 +254,8 @@ internal class CaseRun private constructor(
                 if (b == t) relaunch(t, nowMs, rel)
             }
         }
+        // TR39: the CPU sleeps through (t − I, t] when t or t − I has no GPX sample (a GPS gap); elsewhere fixes wake it as in `all`.
+        if (opts.dozeModel && alive && (gpx.at(t) == null || (t > 0 && gpx.at(t - iS) == null))) dozeWakeUps(t, nowMs)
         for (x in os.tick(t, nowMs, alive)) feed(t, x)
         val actions = case.config.actions
         if (!alive) {
@@ -266,8 +277,28 @@ internal class CaseRun private constructor(
         if (sample != null && !locBlocked && allow(t)) {
             lastDelivered = t
             feed(t, LocationFix(nowMs, nowMs, sample.lat, sample.lng, sample.accuracyM, sample.speedMps), sample.index)
-        } else {
+        } else if (!(opts.dozeModel && sample == null)) {
             feed(t, Tick(nowMs))
+        }
+    }
+
+    /**
+     * TR39 (T10.4 §7.3), before grid tick [t] in or right after a GPS gap: while min(wakeAtMs, fbOs) <= now(t), deliver the earlier one (the fallback when
+     * F <= W, fired at F through osSim; otherwise Tick(W)). Events are recorded at tick [t].
+     */
+    private fun dozeWakeUps(t: Int, nowMs: Long) {
+        var guard = 0
+        while (state.phase != TripPhase.ENDED) {
+            val w = lastView.wakeAtMs
+            val f = os.fbOs
+            val next = listOfNotNull(w, f).minOrNull() ?: return
+            if (next > nowMs) return
+            if (f != null && (w == null || f <= w)) {
+                for (x in os.tick(t, f, true)) feed(t, x)
+            } else {
+                feed(t, Tick(w!!))
+            }
+            if (++guard > 10_000) throw ConfigError("doze model: no progress (${where(t)})")
         }
     }
 
@@ -368,9 +399,39 @@ internal class CaseRun private constructor(
         if (ringNowSeen && os.enabled && os.ringing == Ringing.NONE) violations += "P07(ii) no alarm sounding after Alarm(ringNow=true) at ${where(t)}"
     }
 
+    /** I14 (j = 0 runs) and P08 (T10.4) on the state of one recorded Step; pure engine calls, nothing enters the run. */
+    private fun probe(t: Int, step: Step) {
+        val s = step.state
+        if (s.phase == TripPhase.ENDED) return
+        if (key.j == 0) {
+            val again = TripEngine.reduce(s, Tick(s.nowMs))
+            if (again.events.isNotEmpty()) {
+                violations += "I14: Tick(now) emitted ${again.events.map { eventName(it) }} at ${where(t)}"
+            } else if (again.state != s) {
+                violations += "I14: Tick(now) changed the state at ${where(t)}"
+            }
+        }
+        val active = s.phase == TripPhase.ACQUIRING || s.phase == TripPhase.TRACKING
+        val noFix = s.gps == GpsStatus.LOST || s.gps == GpsStatus.NO_FIX_YET
+        val b = s.battery
+        val noBatteryForecast = b.levelPct == null || b.charging || !b.armed
+        if (active && s.alarm.atMs == null && noFix && noBatteryForecast) {
+            val p = step.view.predictedAlarmAtMs
+            if (p == null) {
+                violations += "P08: no predictedAlarmAtMs at ${where(t)}"
+            } else {
+                val r = TripEngine.reduce(s, Tick(p + WAKE_GUARD_MS))
+                if (r.events.none { it is Alarm && it.ringNow }) {
+                    violations += "P08: Tick(predicted + ${WAKE_GUARD_MS} ms) did not ring (gps ${s.gps}, ${s.phase}) at ${where(t)}"
+                }
+            }
+        }
+    }
+
     private fun record(t: Int, x: EngineInput?, inJson: String, step: Step, info: RestoreInfo? = null) {
         records += StepRecord(t, x, inJson, step.events, step.view, info, if (Transcript.diagEnabled) Transcript.diag(step) else null)
         Checks.finiteStateViolation(step.state)?.let { violations += "$it at ${where(t)}" }
+        if (opts.probes) probe(t, step)
         for (e in step.events) {
             val n = eventName(e)
             if (!firstEventT.containsKey(n)) firstEventT[n] = t

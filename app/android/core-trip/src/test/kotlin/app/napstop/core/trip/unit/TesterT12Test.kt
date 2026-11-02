@@ -14,13 +14,9 @@ import app.napstop.core.trip.FallbackFired
 import app.napstop.core.trip.FallbackRestoreStatus
 import app.napstop.core.trip.FallbackScheduled
 import app.napstop.core.trip.FallbackStatus
-import app.napstop.core.trip.GpsLost
-import app.napstop.core.trip.GpsLostCause
-import app.napstop.core.trip.GpsStatus
 import app.napstop.core.trip.LocationAvailability
 import app.napstop.core.trip.LocationFix
 import app.napstop.core.trip.RestoreInfo
-import app.napstop.core.trip.SamplingTier
 import app.napstop.core.trip.Step
 import app.napstop.core.trip.Tick
 import app.napstop.core.trip.TripConfig
@@ -31,7 +27,6 @@ import app.napstop.core.trip.UserActionKind
 import app.napstop.core.trip.VehicleKind
 import app.napstop.core.trip.harness.Checks
 import app.napstop.core.trip.support.DEST
-import app.napstop.core.trip.support.EngineDriver
 import app.napstop.core.trip.support.S
 import app.napstop.core.trip.support.TestGeo
 import app.napstop.core.trip.support.cfg
@@ -180,78 +175,8 @@ class TesterT12Test {
     }
 
 
-    // ---------------------------------------------------------------- spec gaps found by the tester (pinned, see report)
-
-    /** Repro base for GAP-1/GAP-2: TRACKING, established, closing 12.5 m/s (k 1.2), one DENSE fix at S, tier SPARSE, then no fix. */
-    private fun lostTrip(t0S: Int): EngineDriver =
-        driverFrom(trackingState(d = 1000.0 + 12.5 * t0S, tier = SamplingTier.SPARSE, policyAtFix = 5))
-
-    /**
-     * GAP-1 (T10 §4.5 lostAt vs §4.5 alarmReason, §4.15): lostAt = atTime(gpsLostAlarmEtaS) is the instant etaS == 1200, but the
-     * alarm needs etaS < 1200. A Tick exactly at predictedAlarmAtMs therefore does not alarm, predicted becomes == now and every
-     * wakeAt candidate is <= now: TRACKING with wakeAtMs == null. A platform that only ticks at wakeAtMs (Doze, T10 §2.6) never
-     * gets another engine Step; only the fallback OS alarm (P + 30 s) wakes the user. Pinned as current (spec-literal) behaviour:
-     * flip this test when the designer closes the gap.
-     */
-    @Test
-    fun `T12T GAP-1 GPS lost, Tick exactly at predicted does not alarm and leaves TRACKING without wakeAtMs`() {
-        val e = lostTrip(3610)
-        e.tick(10) // T = 3600 → MEDIUM, lostAfterS = 90
-        assertEquals(GpsLostCause.NO_FIX_TIMEOUT, e.tick(90).events.filterIsInstance<GpsLost>().single().cause)
-        assertEquals(S + 2_510_000, e.view.predictedAlarmAtMs)
-        // The platform ticks only at wakeAtMs (Doze, T10 §2.6): c4 (P − 900 s), c3 (P − 600 s), c8 (fb − 90 s), then c3 = P.
-        val wakes = ArrayList<Long>()
-        while (e.view.wakeAtMs != null && e.events().none { it is Alarm }) {
-            wakes += e.view.wakeAtMs!! - S
-            e.tickMs(e.view.wakeAtMs!!)
-        }
-        assertEquals(listOf(1_610_000L, 1_910_000L, 2_450_000L, 2_510_000L), wakes) // + c8 = fb − 90 s
-        val s = e.last
-        assertEquals(TripPhase.TRACKING, s.view.phase)
-        assertEquals(GpsStatus.LOST, s.view.gps)
-        assertTrue(s.events.isEmpty())
-        assertEquals(S + 2_510_000, s.view.predictedAlarmAtMs) // == now
-        assertNull(s.view.wakeAtMs) // GAP: no further Step requested while TRACKING
-        assertEquals(S + 2_540_000, s.view.fallbackAtMs) // only the OS fallback remains (P + 30 s)
-        // One more Tick (CPU awake, <= 60 s) alarms: etaS < 1200.
-        assertEquals(AlarmReason.GPS_LOST, e.tickMs(S + 2_515_000).events.filterIsInstance<Alarm>().single().reason)
-    }
-
-    /**
-     * GAP-2 (T10 §4.8 vs §4.12 step order and the §4.12 property "reduce(s, Tick(s.nowMs)) emits nothing"): GpsMonitor (step 4)
-     * uses the policy before SamplingPlanner (step 9). When step 9 shortens the interval (SPARSE → MEDIUM here; also any → DENSE on
-     * an alarm), a fix that is already older than the new lostAfterS is not reported lost in this Step, and wakeAt c2 (computed
-     * with the new policy) is already in the past, so it is dropped. A Tick at the same now then emits GpsLost (property broken),
-     * and with wakeAt-only ticking the GPS_LOST alarm comes 195 s later than with 5 s ticks.
-     */
-    @Test
-    fun `T12T GAP-2 policy shortened in the same Step defers GpsLost and the GPS_LOST alarm`() {
-        val e = lostTrip(3700)
-        val s = e.tick(100) // age 100 s: lostAfterS was 540 (SPARSE) at step 4, is 90 (MEDIUM) after step 9
-        assertEquals(SamplingTier.MEDIUM, s.view.samplingPolicy!!.tier)
-        assertTrue(s.events.none { it is GpsLost })
-        assertEquals(GpsStatus.OK, s.view.gps)
-        val again = TripEngine.reduce(s.state, Tick(s.state.nowMs))
-        assertEquals(GpsLost(S + 100_000, GpsLostCause.NO_FIX_TIMEOUT, 100), again.events.first()) // §4.12 property broken
-        assertEquals(S + 2_800_000, s.view.wakeAtMs) // c4 predicted − 900 s; c2 (S + 90 000) dropped
-        // wakeAt-only platform: GpsLost and Alarm(GPS_LOST) together at 2 800 s.
-        val w = e.tickMs(s.view.wakeAtMs!!)
-        assertTrue(w.events.any { it is GpsLost })
-        assertEquals(AlarmReason.GPS_LOST, w.events.filterIsInstance<Alarm>().single().reason)
-        // 5 s ticks: GpsLost at 105 s, Alarm(GPS_LOST) at 2 605 s.
-        val f = lostTrip(3700)
-        var t = 0
-        var lostT = -1
-        var alarmT = -1
-        while (alarmT < 0 && t < 4000) {
-            t += 5
-            val st = f.tick(t)
-            if (lostT < 0 && st.events.any { it is GpsLost }) lostT = t
-            if (st.events.any { it is Alarm }) alarmT = t
-        }
-        assertEquals(105, lostT)
-        assertEquals(2605, alarmT)
-    }
+    // ---------------------------------------------------------------- spec gaps found by the tester
+    // GAP-1 / GAP-2 (docs/test-reports/T12.md) were closed by T10.4; the pinned repros became U99 / U100 in WakeGuardT104Test.
 
     // ---------------------------------------------------------------- seeded property fuzz
 
@@ -273,7 +198,7 @@ class TesterT12Test {
         fun chance(p: Double): Boolean = dbl() < p
     }
 
-    /** Violations found by the fuzz: "GAP-1"/"GAP-2" are the pinned spec gaps above, anything else is a defect. */
+    /** Violations found by the fuzz; since T10.4 every kind is a defect (no GAP-1 / GAP-2 exemption, U105). */
     private class Findings {
         val counts = sortedMapOf<String, Int>()
         val firstOf = sortedMapOf<String, String>()
@@ -283,7 +208,7 @@ class TesterT12Test {
             if (kind !in firstOf) firstOf[kind] = where
         }
 
-        fun defects(): Map<String, String> = firstOf.filterKeys { !it.startsWith("GAP-") }
+        fun defects(): Map<String, String> = firstOf
     }
 
     private fun checkStep(prev: EngineState, s: Step, where: String, f: Findings) {
@@ -300,14 +225,13 @@ class TesterT12Test {
             fail("active without fallback target", s.state.fallback.targetAtMs != null)
             fail("active without predicted", s.view.predictedAlarmAtMs != null)
         }
+        // I13 (T10.4): not ENDED ⇒ wakeAtMs ≠ null and > now; ENDED ⇒ null.
         val w = s.view.wakeAtMs
         if (ph == TripPhase.ENDED) {
-            fail("ENDED with wakeAt", w == null)
-        } else if (w == null) {
-            val gap1 = active && s.view.predictedAlarmAtMs == s.state.nowMs && s.events.none { it is Alarm }
-            f.add(if (gap1) "GAP-1" else "wakeAt null while ${ph.name}", where)
+            fail("I13 ENDED with wakeAt", w == null)
         } else {
-            fail("wakeAt not after now", w > s.state.nowMs)
+            fail("I13 wakeAt null while ${ph.name}", w != null)
+            fail("I13 wakeAt not after now", w == null || w > s.state.nowMs)
         }
         if (s.events.any { it is Alarm && it.ringNow }) {
             fail("ringNow alarm outside ALARMING/OVERSHOT", ph == TripPhase.ALARMING || ph == TripPhase.OVERSHOT)
@@ -315,18 +239,15 @@ class TesterT12Test {
         }
         if (prev.alarm.atMs != null) fail("first alarm time changed", prev.alarm.atMs == s.state.alarm.atMs)
         if (ph != TripPhase.ENDED) {
-            // §4.12 property: reduce(s, Tick(s.nowMs)) emits nothing (basis of I8).
+            // I14 (T10.4): reduce(s, Tick(s.nowMs)) emits nothing and returns an equal state.
             val again = TripEngine.reduce(s.state, Tick(s.state.nowMs))
-            if (again.events.isNotEmpty()) {
-                val shrunk = (s.state.policy?.intervalS ?: 0) < (prev.policy?.intervalS ?: Int.MAX_VALUE)
-                val gap2 = shrunk && again.events.any { it is GpsLost && it.cause == GpsLostCause.NO_FIX_TIMEOUT }
-                f.add(if (gap2) "GAP-2" else "Tick(now) emitted ${again.events.map { it.javaClass.simpleName }}", where)
-            }
+            if (again.events.isNotEmpty()) f.add("I14 Tick(now) emitted ${again.events.map { it.javaClass.simpleName }}", where)
+            fail("I14 Tick(now) changed the state", again.state == s.state)
         }
     }
 
     /** One random trip; returns the final state. Fully deterministic for a seed. */
-    private fun fuzzTrip(seed: Long, f: Findings, inputs: MutableList<String>? = null): EngineState {
+    private fun fuzzTrip(seed: Long, f: Findings, inputs: MutableList<String>? = null, limit: Int = Int.MAX_VALUE): EngineState {
         val r = Fuzz(seed)
         val mode = AlarmMode.entries[r.int(3)]
         val config = TripConfig(
@@ -341,7 +262,7 @@ class TesterT12Test {
         var d = 2_000.0 + r.dbl() * 120_000.0
         val v = 3.0 + r.dbl() * 25.0
         var lastFb: Long? = step.state.fallback.targetAtMs
-        val n = 300 + r.int(500)
+        val n = minOf(300 + r.int(500), limit)
         for (i in 0 until n) {
             val prev = step.state
             if (prev.phase == TripPhase.ENDED) break
@@ -398,7 +319,7 @@ class TesterT12Test {
     }
 
     @Test
-    fun `T12T fuzz 1000 seeded trips keep the safety invariants at every Step (only the pinned gaps occur)`() {
+    fun `U105 a fuzz 1000 seeded trips keep the safety invariants, I13 and I14 at every Step`() {
         val f = Findings()
         var steps = 0
         for (seed in 1L..1000L) {
@@ -422,39 +343,59 @@ class TesterT12Test {
     }
 
     /**
-     * Liveness (Doze model, T10 §2.6): after any fuzz prefix the platform delivers only Ticks at view.wakeAtMs and the OS fallback
-     * alarm (FallbackFired at fallbackAtMs when the status is not FAILED); no fix, nobody answers. Something must ring no later
-     * than deadline + fallbackLagS, and the trip must then end (MISSED) after alarmMaxActiveS.
+     * U105 b (T10.4; tester's liveness test): after a fuzz prefix the platform delivers only Ticks at view.wakeAtMs and the OS
+     * fallback alarm (FallbackFired at fallbackAtMs when the status is not FAILED); no fix, nobody answers. Something must ring no
+     * later than deadline + fallbackLagS, and the trip must then end (MISSED) after alarmMaxActiveS. Since T10.4 the first alarm of
+     * a prefix that has not rung yet comes from a wake-up Tick, not from FallbackFired, unless the fallback was already overdue
+     * when the prefix ended (the fuzz never delivered it; a real OS would have fired it already). A second loop with Ticks only
+     * (no FallbackFired at all) must ring from the engine as well.
      */
     @Test
-    fun `T12T liveness with wakeAt ticks and the OS fallback something rings before the deadline and the trip ends`() {
-        var viaFallback = 0
-        for (seed in 1L..200L) {
-            val s0 = fuzzTrip(seed, Findings())
+    fun `U105 b Doze loop from 200 fuzz prefixes rings before the deadline from a wake-up Tick, and the trip ends`() {
+        var viaFallbackFirst = 0
+        var overdueAtStart = 0
+        var engineFirst = 0
+        // Full fuzz trips (tester's prefixes; nearly all have rung already) and short prefixes of 5–44 inputs (mostly silent).
+        for (seed in 1L..200L) for (limit in listOf(Int.MAX_VALUE, 5 + (seed % 40).toInt())) {
+            val s0 = fuzzTrip(seed, Findings(), limit = limit)
             if (s0.phase == TripPhase.ENDED) continue
-            var step = TripEngine.reduce(s0, Tick(s0.nowMs))
-            var rang = s0.alarm.atMs != null || step.events.any { it is Alarm }
             val deadline = s0.startedAtMs + s0.maxTripDurationS * 1000L + s0.params.fallbackLagS * 1000L
-            var guard = 0
-            while (step.state.phase != TripPhase.ENDED) {
-                val now = step.state.nowMs
-                val fb = step.state.fallback.targetAtMs?.takeIf { step.state.fallback.status != FallbackStatus.FAILED }
-                val w = step.view.wakeAtMs
-                val next = listOfNotNull(w, fb?.coerceAtLeast(now)).minOrNull()
-                assertNotNull(next, "seed=$seed: nothing will ever run again in ${step.state.phase}")
-                if (!rang) assertTrue(now <= deadline, "seed=$seed still silent after the deadline")
-                step = if (fb != null && next == fb.coerceAtLeast(now) && (w == null || fb <= w)) {
-                    viaFallback++
-                    rang = true
-                    TripEngine.reduce(step.state, FallbackFired(next!!, fb))
-                } else {
-                    TripEngine.reduce(step.state, Tick(next!!))
+            val overdue = s0.fallback.status != FallbackStatus.FAILED && s0.fallback.targetAtMs?.let { it <= s0.nowMs } == true
+            for (withFallback in listOf(true, false)) {
+                var step = TripEngine.reduce(s0, Tick(s0.nowMs))
+                var rang = s0.alarm.atMs != null || step.events.any { it is Alarm }
+                var guard = 0
+                while (step.state.phase != TripPhase.ENDED) {
+                    val now = step.state.nowMs
+                    val fb = step.state.fallback.targetAtMs
+                        ?.takeIf { withFallback && step.state.fallback.status != FallbackStatus.FAILED }
+                    val w = step.view.wakeAtMs
+                    val next = listOfNotNull(w, fb?.coerceAtLeast(now)).minOrNull()
+                    assertNotNull(next, "seed=$seed: nothing will ever run again in ${step.state.phase}")
+                    if (!rang) assertTrue(next!! <= deadline, "seed=$seed still silent after the deadline (fallback=$withFallback)")
+                    val viaFallback = fb != null && next == fb.coerceAtLeast(now) && (w == null || fb <= w)
+                    step = if (viaFallback) {
+                        TripEngine.reduce(step.state, FallbackFired(next!!, fb!!))
+                    } else {
+                        TripEngine.reduce(step.state, Tick(next!!))
+                    }
+                    if (!rang && step.events.any { it is Alarm }) {
+                        rang = true
+                        if (viaFallback) {
+                            if (overdue) overdueAtStart++ else viaFallbackFirst++
+                        } else if (withFallback) {
+                            engineFirst++
+                            assertTrue(step.events.filterIsInstance<Alarm>().single().ringNow, "seed=$seed: engine alarm without ringNow")
+                        }
+                    }
+                    if (++guard > 20_000) error("seed=$seed: no end after 20 000 wake-ups")
                 }
-                if (step.events.any { it is Alarm }) rang = true
-                if (++guard > 20_000) error("seed=$seed: no end after 20 000 wake-ups")
+                assertTrue(rang, "seed=$seed ended without any alarm (fallback=$withFallback)")
             }
-            assertTrue(rang, "seed=$seed ended without any alarm")
         }
-        assertTrue(viaFallback >= 0)
+        File(System.getProperty("napstop.outDir") ?: "build/napstop", "tester-liveness.txt").also { it.parentFile.mkdirs() }
+            .writeText("engineFirst=$engineFirst viaFallbackFirst=$viaFallbackFirst overdueAtStart=$overdueAtStart\n")
+        assertEquals(0, viaFallbackFirst) { "first alarm via FallbackFired: $viaFallbackFirst (overdue at start $overdueAtStart)" }
+        assertTrue(engineFirst > 0)
     }
 }

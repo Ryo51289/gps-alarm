@@ -123,11 +123,11 @@ internal object Suite {
             var p06: String? = null
             if (key.j == 0) {
                 val cps = RestoreEquivalence.checkpoints(trace, main).toSet()
-                val rerun = CaseRun.run(trace, case, key, RunOpts(captureAt = cps))
+                val rerun = CaseRun.run(trace, case, key, RunOpts(captureAt = cps, probes = false))
                 val reText = Transcript.build(key.run, rerun.startMs, rerun.records)
                 i9 = if (Transcript.sha256(reText) == Transcript.sha256(text)) null else "I9: re-run transcript differs (${key.run})"
                 i8 = RestoreEquivalence.check(main, rerun, trace.intervalS)
-                val shifted = CaseRun.run(trace, case, key, RunOpts(timeShiftMs = SHIFT_P06_MS))
+                val shifted = CaseRun.run(trace, case, key, RunOpts(timeShiftMs = SHIFT_P06_MS, probes = false))
                 val shText = Transcript.build(key.run, shifted.startMs, shifted.records)
                 p06 = if (shText == text) null else "P06: +1 day transcript differs (${key.run})"
             }
