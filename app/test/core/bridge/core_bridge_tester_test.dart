@@ -2,6 +2,7 @@
 // code, update-stream subscription sequences (review M5, R2-2), and the
 // pendingFinishedTrips/ackFinishedTrips round trip.
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,6 +37,8 @@ final _calls = <String, Future<Object?> Function(CoreBridge)>{
   'PermissionHostApi.openSettings': (b) =>
       b.openSettings(SettingsTargetMsg.appDetails),
   'PermissionHostApi.deviceInfo': (b) => b.deviceInfo(),
+  // T14.1 tester.
+  'PermissionHostApi.deviceStatus': (b) => b.deviceStatus(),
   'AlarmHostApi.previewSound': (b) => b.previewSound('chime', 0.5),
   'AlarmHostApi.stopPreview': (b) => b.stopPreview(),
 };
@@ -87,6 +90,29 @@ void main() {
   });
 
   group('error mapping', () {
+    test('the call table covers every host method of the Pigeon input', () {
+      // T14.1 tester: a method added later (like deviceStatus) cannot be left
+      // out of the error-mapping loops below.
+      final code = File('pigeons/core_api.dart').readAsStringSync();
+      final methods = <String>{};
+      for (final api in RegExp(
+        r'@HostApi\(\)\s*abstract class (\w+) \{([\s\S]*?)\n\}',
+      ).allMatches(code)) {
+        final body = api[2]!
+            .split('\n')
+            .map((l) => l.replaceFirst(RegExp('//.*'), ''))
+            .join(' ');
+        // Signatures may span lines (startTrip): match on the joined body.
+        final signature = RegExp(r'[\w<>?]+\s+(\w+)\(([^()]*)\);');
+        for (final m in signature.allMatches(body)) {
+          methods.add('${api[1]}.${m[1]}');
+        }
+      }
+      expect(methods, hasLength(greaterThanOrEqualTo(15)));
+      expect(methods, contains('PermissionHostApi.deviceStatus'));
+      expect(_calls.keys.toSet(), methods);
+    });
+
     test('every wire code, message and details survive the bridge', () async {
       for (final code in BridgeErrorCode.values) {
         if (code == BridgeErrorCode.unknown) {

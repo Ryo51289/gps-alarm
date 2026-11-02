@@ -127,6 +127,11 @@ class CoreBridge {
 
   Future<DeviceInfoMsg> deviceInfo() => _guard(_permission.deviceInfo);
 
+  /// Battery, alarm stream volume and Do Not Disturb, read live (T14.1). Used
+  /// by the home "Sẵn sàng" card (T22) and screen 3 / `trip_start` (T25).
+  /// Unreadable items are null (iOS: battery only).
+  Future<DeviceStatusMsg> deviceStatus() => _guard(_permission.deviceStatus);
+
   Future<void> previewSound(String soundId, double volume) =>
       _guard(() => _alarm.previewSound(soundId, volume));
 

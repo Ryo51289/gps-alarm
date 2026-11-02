@@ -7,7 +7,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
-/** K01-K03 (spec T14 §6). */
+/** K01-K03 (spec T14 §6) + V11 (T14.1). */
 class TripConfigValidatorTest {
     private val lat = 16.8
     private val lng = 107.1
@@ -89,6 +89,35 @@ class TripConfigValidatorTest {
         // V1 before V3, V3 before V5.
         assertInvalid("tripId: format") { validate(config(tripId = ""), destLat = 99.0) }
         assertInvalid("destLat: out of range") { validate(config(mode = AlarmModeMsg.DISTANCE), destLat = 99.0) }
+    }
+
+    @Test
+    fun v11_engineParamsJsonLength() {
+        val max = TripConfigValidator.MAX_ENGINE_PARAMS_JSON_LENGTH
+        assertEquals(16_384, max)
+        validate(config(engineParamsJson = null))
+        validate(config(engineParamsJson = ""))
+        validate(config(engineParamsJson = "{\"smartTargetS\":300.0}"))
+        validate(config(engineParamsJson = "x".repeat(max)))
+        // UTF-16 code units, like Dart String.length: 8 192 surrogate pairs = 16 384.
+        val sleepy = String(Character.toChars(0x1F634))
+        assertEquals(2, sleepy.length)
+        validate(config(engineParamsJson = sleepy.repeat(max / 2)))
+        assertInvalid("engineParamsJson: too long", "{", "xxx") {
+            validate(config(engineParamsJson = "{" + "x".repeat(max)))
+        }
+        assertInvalid("engineParamsJson: too long") {
+            validate(config(engineParamsJson = sleepy.repeat(max / 2) + "a"))
+        }
+    }
+
+    @Test
+    fun v11_isCheckedAfterV1ToV10() {
+        val tooLong = "x".repeat(20_000)
+        assertInvalid("simulation.speedFactor: out of range") {
+            validate(config(engineParamsJson = tooLong), simulation = SimulationMsg("stub/normal", 0.5))
+        }
+        assertInvalid("tripId: format") { validate(config(tripId = "", engineParamsJson = tooLong)) }
     }
 
     @Test

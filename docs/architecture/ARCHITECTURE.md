@@ -74,11 +74,17 @@ Mọi kiểu có hậu tố `Msg`. Dart dùng qua lớp mỏng `CoreBridge` (`li
   @async PermissionStatusMsg request(PermissionKindMsg kind);   // location | notifications | alarmKit
   bool openSettings(SettingsTargetMsg target);
   DeviceInfoMsg deviceInfo();                      // hãng máy → màn hướng dẫn pin
+  DeviceStatusMsg deviceStatus();                  // T14.1: pin, âm lượng luồng báo thức, Không làm phiền (đọc tức thời)
 }
 // PermissionStatusMsg: location (notDetermined | denied | whileInUse | always — `always` chỉ có trên iOS), precise,
 //   locationServicesEnabled, notifications, fullScreenIntent (Android), exactAlarm (Android),
 //   batteryOptimizationIgnored (Android), alarmKit (iOS 26+). Mục không áp dụng = notApplicable.
 // SettingsTargetMsg: appDetails, locationServices, notifications, fullScreenIntent, exactAlarm, batteryOptimization.
+// DeviceStatusMsg (T14.1, dùng ở thẻ "Sẵn sàng" T22 và màn 3 T25): batteryPct?, charging?, alarmVolumePct?, alarmMuted?,
+//   interruptionFilter (InterruptionFilterMsg: unknown | all | priority | alarms | none), priorityAllowsAlarms?.
+//   iOS chỉ có pin; mục không đọc được = null / unknown.
+// TripConfigMsg.engineParamsJson? (T14.1, cuối lớp): JSON ghi đè tham số engine từ Remote Config (T29), nguyên văn,
+//   ≤ 16 384 ký tự (V11, lỗi invalid-config "engineParamsJson: too long").
 @HostApi() abstract class AlarmHostApi { void previewSound(String soundId, double volume); void stopPreview(); }
 @EventChannelApi() abstract class TripEventChannelApi { TripUpdateMsg tripUpdates(); }
 // TripUpdateMsg là sealed: TripStateUpdateMsg(TripStateMsg = TripView T10 §2.4), PreAlertMsg, AlarmMsg, SnoozedMsg,

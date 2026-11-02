@@ -23,6 +23,7 @@ void main() {
         sampleFinished(nulls: nulls),
         samplePermissions(),
         sampleDevice(nulls: nulls),
+        sampleDeviceStatus(nulls: nulls),
         ...sampleUpdates(nulls: nulls),
       ];
       for (final m in messages) {
@@ -41,6 +42,41 @@ void main() {
       for (final u in all) {
         expect(_roundTrip(u), isA<TripUpdateMsg>());
       }
+    });
+
+    group('T14.1 engineParamsJson', () {
+      TripConfigMsg withParams(String? json) =>
+          sampleConfig()..engineParamsJson = json;
+
+      for (final (label, json) in <(String, String?)>[
+        ('null', null),
+        ('empty', ''),
+        ('verbatim, 60.0 kept', '{"a": 60.0, "b":[1,2]}\n'),
+        ('16 384 chars', 'x' * 16384),
+        ('16 385 chars (native rejects, codec does not)', 'x' * 16385),
+        ('Vietnamese and emoji', '{"note": "Đông Hà \u{1F634}"}'),
+      ]) {
+        test(label, () {
+          final back = _roundTrip(withParams(json))! as TripConfigMsg;
+          expect(back.engineParamsJson, json);
+          expect(back, withParams(json));
+        });
+      }
+
+      test('optional, last constructor parameter (T14 calls compile)', () {
+        final config = TripConfigMsg(
+          tripId: 't1',
+          destinationName: 'Ga Huế',
+          mode: AlarmModeMsg.smart,
+          preAlertEnabled: false,
+          vehicleHint: VehicleKindMsg.unknown,
+          alarm: sampleAlarm(),
+        );
+        expect(config.engineParamsJson, isNull);
+        final wire = config.encode() as List<Object?>;
+        expect(wire, hasLength(9));
+        expect(wire.last, isNull);
+      });
     });
 
     test('lists of messages (pendingFinishedTrips)', () {
@@ -73,6 +109,7 @@ void main() {
       'PermissionKindMsg': PermissionKindMsg.values,
       'SettingsTargetMsg': SettingsTargetMsg.values,
       'PlatformMsg': PlatformMsg.values,
+      'InterruptionFilterMsg': InterruptionFilterMsg.values,
     };
     for (final MapEntry(key: name, value: values) in enums.entries) {
       test(name, () {
@@ -93,6 +130,14 @@ void main() {
         'ended',
       ]);
       expect(AlarmReasonMsg.values.length, 13);
+      // T14.1: wire value = index, not Android INTERRUPTION_FILTER_*.
+      expect(InterruptionFilterMsg.values.map((e) => e.name), [
+        'unknown',
+        'all',
+        'priority',
+        'alarms',
+        'none',
+      ]);
       expect(FallbackStatusMsg.values.first, FallbackStatusMsg.notSet);
       expect(BatteryChoiceMsg.values.map((e) => e.name), [
         'maxSaving',

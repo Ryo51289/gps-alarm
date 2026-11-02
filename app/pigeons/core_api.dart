@@ -88,6 +88,9 @@ enum SettingsTargetMsg {
 
 enum PlatformMsg { android, ios }
 
+/// T14.1: NotificationManager.getCurrentInterruptionFilter(). iOS: unknown.
+enum InterruptionFilterMsg { unknown, all, priority, alarms, none }
+
 // ------------------------------------------------- trip config (Dart -> native)
 
 /// Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
@@ -124,6 +127,7 @@ class TripConfigMsg {
     required this.preAlertEnabled,
     required this.vehicleHint,
     required this.alarm,
+    this.engineParamsJson,
   });
 
   String tripId; // UUID from Flutter, [A-Za-z0-9_-]{1,64}
@@ -134,6 +138,9 @@ class TripConfigMsg {
   bool preAlertEnabled;
   VehicleKindMsg vehicleHint;
   AlarmSettingsMsg alarm;
+  // T14.1 (T29 §6): Remote Config engine overrides, verbatim JSON object or
+  // null (= defaults). <= 16384 UTF-16 code units (V11). Never log it.
+  String? engineParamsJson;
 }
 
 /// Simulation mode (T18). T14 stub accepts only `stub/<scenario>` (§5).
@@ -399,6 +406,26 @@ class DeviceInfoMsg {
   int? iosMajor; // operatingSystemVersion.majorVersion (iOS only)
 }
 
+/// T14.1: live readiness inputs for the home card (T22) and screen 3 /
+/// trip_start (T25). Read on demand, no permission. null = unknown.
+class DeviceStatusMsg {
+  DeviceStatusMsg({
+    this.batteryPct,
+    this.charging,
+    this.alarmVolumePct,
+    this.alarmMuted,
+    required this.interruptionFilter,
+    this.priorityAllowsAlarms,
+  });
+
+  int? batteryPct; // 0..100
+  bool? charging; // charging or full
+  int? alarmVolumePct; // Android STREAM_ALARM 0..100; iOS null
+  bool? alarmMuted; // Android isStreamMute(STREAM_ALARM); iOS null
+  InterruptionFilterMsg interruptionFilter;
+  bool? priorityAllowsAlarms; // Android 30+, only when filter == priority
+}
+
 // --------------------------------------------------------------------- APIs
 
 @HostApi()
@@ -456,6 +483,10 @@ abstract class PermissionHostApi {
   bool openSettings(SettingsTargetMsg target);
 
   DeviceInfoMsg deviceInfo();
+
+  /// T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
+  /// for an unreadable item (that item is null / unknown).
+  DeviceStatusMsg deviceStatus();
 }
 
 @HostApi()

@@ -323,6 +323,15 @@ enum PlatformMsg: Int, CaseIterable {
   case ios = 1
 }
 
+/// T14.1: NotificationManager.getCurrentInterruptionFilter(). iOS: unknown.
+enum InterruptionFilterMsg: Int, CaseIterable {
+  case unknown = 0
+  case all = 1
+  case priority = 2
+  case alarms = 3
+  case none = 4
+}
+
 /// Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
 /// (T10 §2.1); used by AlarmController (T16/T17).
 ///
@@ -404,6 +413,7 @@ struct TripConfigMsg: Hashable, CustomStringConvertible {
   var preAlertEnabled: Bool
   var vehicleHint: VehicleKindMsg
   var alarm: AlarmSettingsMsg
+  var engineParamsJson: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -416,6 +426,7 @@ struct TripConfigMsg: Hashable, CustomStringConvertible {
     let preAlertEnabled = pigeonVar_list[5] as! Bool
     let vehicleHint = pigeonVar_list[6] as! VehicleKindMsg
     let alarm = pigeonVar_list[7] as! AlarmSettingsMsg
+    let engineParamsJson: String? = nilOrValue(pigeonVar_list[8])
 
     return TripConfigMsg(
       tripId: tripId,
@@ -425,7 +436,8 @@ struct TripConfigMsg: Hashable, CustomStringConvertible {
       timeThresholdMin: timeThresholdMin,
       preAlertEnabled: preAlertEnabled,
       vehicleHint: vehicleHint,
-      alarm: alarm
+      alarm: alarm,
+      engineParamsJson: engineParamsJson
     )
   }
   func toList() -> [Any?] {
@@ -438,13 +450,14 @@ struct TripConfigMsg: Hashable, CustomStringConvertible {
       preAlertEnabled,
       vehicleHint,
       alarm,
+      engineParamsJson,
     ]
   }
   static func == (lhs: TripConfigMsg, rhs: TripConfigMsg) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return CoreApiPigeonInternal.deepEquals(lhs.tripId, rhs.tripId) && CoreApiPigeonInternal.deepEquals(lhs.destinationName, rhs.destinationName) && CoreApiPigeonInternal.deepEquals(lhs.mode, rhs.mode) && CoreApiPigeonInternal.deepEquals(lhs.distanceThresholdM, rhs.distanceThresholdM) && CoreApiPigeonInternal.deepEquals(lhs.timeThresholdMin, rhs.timeThresholdMin) && CoreApiPigeonInternal.deepEquals(lhs.preAlertEnabled, rhs.preAlertEnabled) && CoreApiPigeonInternal.deepEquals(lhs.vehicleHint, rhs.vehicleHint) && CoreApiPigeonInternal.deepEquals(lhs.alarm, rhs.alarm)
+    return CoreApiPigeonInternal.deepEquals(lhs.tripId, rhs.tripId) && CoreApiPigeonInternal.deepEquals(lhs.destinationName, rhs.destinationName) && CoreApiPigeonInternal.deepEquals(lhs.mode, rhs.mode) && CoreApiPigeonInternal.deepEquals(lhs.distanceThresholdM, rhs.distanceThresholdM) && CoreApiPigeonInternal.deepEquals(lhs.timeThresholdMin, rhs.timeThresholdMin) && CoreApiPigeonInternal.deepEquals(lhs.preAlertEnabled, rhs.preAlertEnabled) && CoreApiPigeonInternal.deepEquals(lhs.vehicleHint, rhs.vehicleHint) && CoreApiPigeonInternal.deepEquals(lhs.alarm, rhs.alarm) && CoreApiPigeonInternal.deepEquals(lhs.engineParamsJson, rhs.engineParamsJson)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -457,10 +470,11 @@ struct TripConfigMsg: Hashable, CustomStringConvertible {
     CoreApiPigeonInternal.deepHash(value: preAlertEnabled, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: vehicleHint, hasher: &hasher)
     CoreApiPigeonInternal.deepHash(value: alarm, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: engineParamsJson, hasher: &hasher)
   }
 
   public var description: String {
-    return "TripConfigMsg(tripId: \(String(describing: tripId)), destinationName: \(String(describing: destinationName)), mode: \(String(describing: mode)), distanceThresholdM: \(String(describing: distanceThresholdM)), timeThresholdMin: \(String(describing: timeThresholdMin)), preAlertEnabled: \(String(describing: preAlertEnabled)), vehicleHint: \(String(describing: vehicleHint)), alarm: \(String(describing: alarm)))"
+    return "TripConfigMsg(tripId: \(String(describing: tripId)), destinationName: \(String(describing: destinationName)), mode: \(String(describing: mode)), distanceThresholdM: \(String(describing: distanceThresholdM)), timeThresholdMin: \(String(describing: timeThresholdMin)), preAlertEnabled: \(String(describing: preAlertEnabled)), vehicleHint: \(String(describing: vehicleHint)), alarm: \(String(describing: alarm)), engineParamsJson: \(String(describing: engineParamsJson)))"
   }
 }
 
@@ -1457,6 +1471,69 @@ struct DeviceInfoMsg: Hashable, CustomStringConvertible {
   }
 }
 
+/// T14.1: live readiness inputs for the home card (T22) and screen 3 /
+/// trip_start (T25). Read on demand, no permission. null = unknown.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DeviceStatusMsg: Hashable, CustomStringConvertible {
+  var batteryPct: Int64? = nil
+  var charging: Bool? = nil
+  var alarmVolumePct: Int64? = nil
+  var alarmMuted: Bool? = nil
+  var interruptionFilter: InterruptionFilterMsg
+  var priorityAllowsAlarms: Bool? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DeviceStatusMsg? {
+    let batteryPct: Int64? = nilOrValue(pigeonVar_list[0])
+    let charging: Bool? = nilOrValue(pigeonVar_list[1])
+    let alarmVolumePct: Int64? = nilOrValue(pigeonVar_list[2])
+    let alarmMuted: Bool? = nilOrValue(pigeonVar_list[3])
+    let interruptionFilter = pigeonVar_list[4] as! InterruptionFilterMsg
+    let priorityAllowsAlarms: Bool? = nilOrValue(pigeonVar_list[5])
+
+    return DeviceStatusMsg(
+      batteryPct: batteryPct,
+      charging: charging,
+      alarmVolumePct: alarmVolumePct,
+      alarmMuted: alarmMuted,
+      interruptionFilter: interruptionFilter,
+      priorityAllowsAlarms: priorityAllowsAlarms
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      batteryPct,
+      charging,
+      alarmVolumePct,
+      alarmMuted,
+      interruptionFilter,
+      priorityAllowsAlarms,
+    ]
+  }
+  static func == (lhs: DeviceStatusMsg, rhs: DeviceStatusMsg) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return CoreApiPigeonInternal.deepEquals(lhs.batteryPct, rhs.batteryPct) && CoreApiPigeonInternal.deepEquals(lhs.charging, rhs.charging) && CoreApiPigeonInternal.deepEquals(lhs.alarmVolumePct, rhs.alarmVolumePct) && CoreApiPigeonInternal.deepEquals(lhs.alarmMuted, rhs.alarmMuted) && CoreApiPigeonInternal.deepEquals(lhs.interruptionFilter, rhs.interruptionFilter) && CoreApiPigeonInternal.deepEquals(lhs.priorityAllowsAlarms, rhs.priorityAllowsAlarms)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DeviceStatusMsg")
+    CoreApiPigeonInternal.deepHash(value: batteryPct, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: charging, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: alarmVolumePct, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: alarmMuted, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: interruptionFilter, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: priorityAllowsAlarms, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "DeviceStatusMsg(batteryPct: \(String(describing: batteryPct)), charging: \(String(describing: charging)), alarmVolumePct: \(String(describing: alarmVolumePct)), alarmMuted: \(String(describing: alarmMuted)), interruptionFilter: \(String(describing: interruptionFilter)), priorityAllowsAlarms: \(String(describing: priorityAllowsAlarms)))"
+  }
+}
+
 private class CoreApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1575,41 +1652,49 @@ private class CoreApiPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 148:
-      return AlarmSettingsMsg.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return InterruptionFilterMsg(rawValue: enumResultAsInt)
+      }
+      return nil
     case 149:
-      return TripConfigMsg.fromList(self.readValue() as! [Any?])
+      return AlarmSettingsMsg.fromList(self.readValue() as! [Any?])
     case 150:
-      return SimulationMsg.fromList(self.readValue() as! [Any?])
+      return TripConfigMsg.fromList(self.readValue() as! [Any?])
     case 151:
-      return TripStateMsg.fromList(self.readValue() as! [Any?])
+      return SimulationMsg.fromList(self.readValue() as! [Any?])
     case 152:
-      return ActiveTripMsg.fromList(self.readValue() as! [Any?])
+      return TripStateMsg.fromList(self.readValue() as! [Any?])
     case 153:
-      return FinishedTripMsg.fromList(self.readValue() as! [Any?])
+      return ActiveTripMsg.fromList(self.readValue() as! [Any?])
     case 154:
-      return TripStateUpdateMsg.fromList(self.readValue() as! [Any?])
+      return FinishedTripMsg.fromList(self.readValue() as! [Any?])
     case 155:
-      return PreAlertMsg.fromList(self.readValue() as! [Any?])
+      return TripStateUpdateMsg.fromList(self.readValue() as! [Any?])
     case 156:
-      return AlarmMsg.fromList(self.readValue() as! [Any?])
+      return PreAlertMsg.fromList(self.readValue() as! [Any?])
     case 157:
-      return SnoozedMsg.fromList(self.readValue() as! [Any?])
+      return AlarmMsg.fromList(self.readValue() as! [Any?])
     case 158:
-      return GpsLostMsg.fromList(self.readValue() as! [Any?])
+      return SnoozedMsg.fromList(self.readValue() as! [Any?])
     case 159:
-      return GpsRecoveredMsg.fromList(self.readValue() as! [Any?])
+      return GpsLostMsg.fromList(self.readValue() as! [Any?])
     case 160:
-      return LowBatteryRiskMsg.fromList(self.readValue() as! [Any?])
+      return GpsRecoveredMsg.fromList(self.readValue() as! [Any?])
     case 161:
-      return OvershootMsg.fromList(self.readValue() as! [Any?])
+      return LowBatteryRiskMsg.fromList(self.readValue() as! [Any?])
     case 162:
-      return ArrivedMsg.fromList(self.readValue() as! [Any?])
+      return OvershootMsg.fromList(self.readValue() as! [Any?])
     case 163:
-      return TripEndedMsg.fromList(self.readValue() as! [Any?])
+      return ArrivedMsg.fromList(self.readValue() as! [Any?])
     case 164:
-      return PermissionStatusMsg.fromList(self.readValue() as! [Any?])
+      return TripEndedMsg.fromList(self.readValue() as! [Any?])
     case 165:
+      return PermissionStatusMsg.fromList(self.readValue() as! [Any?])
+    case 166:
       return DeviceInfoMsg.fromList(self.readValue() as! [Any?])
+    case 167:
+      return DeviceStatusMsg.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1675,59 +1760,65 @@ private class CoreApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PlatformMsg {
       super.writeByte(147)
       super.writeValue(value.rawValue)
-    } else if let value = value as? AlarmSettingsMsg {
+    } else if let value = value as? InterruptionFilterMsg {
       super.writeByte(148)
-      super.writeValue(value.toList())
-    } else if let value = value as? TripConfigMsg {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? AlarmSettingsMsg {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? SimulationMsg {
+    } else if let value = value as? TripConfigMsg {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? TripStateMsg {
+    } else if let value = value as? SimulationMsg {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? ActiveTripMsg {
+    } else if let value = value as? TripStateMsg {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? FinishedTripMsg {
+    } else if let value = value as? ActiveTripMsg {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? TripStateUpdateMsg {
+    } else if let value = value as? FinishedTripMsg {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? PreAlertMsg {
+    } else if let value = value as? TripStateUpdateMsg {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? AlarmMsg {
+    } else if let value = value as? PreAlertMsg {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? SnoozedMsg {
+    } else if let value = value as? AlarmMsg {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? GpsLostMsg {
+    } else if let value = value as? SnoozedMsg {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? GpsRecoveredMsg {
+    } else if let value = value as? GpsLostMsg {
       super.writeByte(159)
       super.writeValue(value.toList())
-    } else if let value = value as? LowBatteryRiskMsg {
+    } else if let value = value as? GpsRecoveredMsg {
       super.writeByte(160)
       super.writeValue(value.toList())
-    } else if let value = value as? OvershootMsg {
+    } else if let value = value as? LowBatteryRiskMsg {
       super.writeByte(161)
       super.writeValue(value.toList())
-    } else if let value = value as? ArrivedMsg {
+    } else if let value = value as? OvershootMsg {
       super.writeByte(162)
       super.writeValue(value.toList())
-    } else if let value = value as? TripEndedMsg {
+    } else if let value = value as? ArrivedMsg {
       super.writeByte(163)
       super.writeValue(value.toList())
-    } else if let value = value as? PermissionStatusMsg {
+    } else if let value = value as? TripEndedMsg {
       super.writeByte(164)
       super.writeValue(value.toList())
-    } else if let value = value as? DeviceInfoMsg {
+    } else if let value = value as? PermissionStatusMsg {
       super.writeByte(165)
+      super.writeValue(value.toList())
+    } else if let value = value as? DeviceInfoMsg {
+      super.writeByte(166)
+      super.writeValue(value.toList())
+    } else if let value = value as? DeviceStatusMsg {
+      super.writeByte(167)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1937,6 +2028,9 @@ protocol PermissionHostApi {
   /// Opens the settings page. false = nothing could be opened / not applicable.
   func openSettings(target: SettingsTargetMsg) throws -> Bool
   func deviceInfo() throws -> DeviceInfoMsg
+  /// T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
+  /// for an unreadable item (that item is null / unknown).
+  func deviceStatus() throws -> DeviceStatusMsg
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -2005,6 +2099,21 @@ class PermissionHostApiSetup {
       }
     } else {
       deviceInfoChannel.setMessageHandler(nil)
+    }
+    /// T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
+    /// for an unreadable item (that item is null / unknown).
+    let deviceStatusChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.napstop.PermissionHostApi.deviceStatus\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      deviceStatusChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.deviceStatus()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      deviceStatusChannel.setMessageHandler(nil)
     }
   }
 }

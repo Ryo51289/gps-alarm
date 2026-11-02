@@ -79,7 +79,9 @@ class StubTripBackendTest {
     @Test
     fun k14_currentTripIsReadFromTheSnapshotAfterProcessDeath() =
         runTest {
-            val cfg = config(destinationName = "Ga Đông Hà — Quảng Trị")
+            // T14.1: engineParamsJson survives byte for byte (Properties escapes = : # \ and newlines).
+            val params = "{\"smartTargetS\": 300.0, \"k\": \"a=b:c #d\\\\e\\n\"}\n"
+            val cfg = config(destinationName = "Ga Đông Hà — Quảng Trị", engineParamsJson = params)
             backend().startTrip(cfg, 16.8163, 107.1003, sim60)
             assertTrue(activeFile.exists())
             val text = activeFile.readText()
@@ -92,6 +94,7 @@ class StubTripBackendTest {
             assertNotNull(trip)
             trip!!
             assertEquals(cfg, trip.config)
+            assertEquals(params, trip.config.engineParamsJson)
             assertEquals(sim60, trip.simulation)
             assertEquals("t1", trip.state.tripId)
             assertEquals(TripPhaseMsg.ALARMING, trip.state.phase)

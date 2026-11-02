@@ -7,6 +7,9 @@ package app.napstop.core.bridge
 object TripConfigValidator {
     const val MAX_DESTINATION_NAME_LENGTH = 200
 
+    /** V11 (T14.1): limit of TripConfigMsg.engineParamsJson, UTF-16 code units (T29 kEngineParamsMaxChars). */
+    const val MAX_ENGINE_PARAMS_JSON_LENGTH = 16_384
+
     private val TRIP_ID = Regex("^[A-Za-z0-9_-]{1,64}$")
 
     /** Throws FlutterError(BridgeErrors.INVALID_CONFIG, "<field>: <rule>") on the first violated rule. */
@@ -44,6 +47,10 @@ object TripConfigValidator {
             require(speed.isFinite() && speed >= 1.0 && speed <= 600.0) {
                 "simulation.speedFactor: out of range"
             }
+        }
+        // V11 (T14.1): length only; the engine validates the content (T10 §5).
+        config.engineParamsJson?.let {
+            require(it.length <= MAX_ENGINE_PARAMS_JSON_LENGTH) { "engineParamsJson: too long" }
         }
     }
 

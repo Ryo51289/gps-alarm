@@ -41,7 +41,20 @@ void main() {
     ]) {
       expect(_coordinate.hasMatch('double $name;'), isTrue, reason: name);
     }
-    for (final name in ['location', 'destinationName', 'distanceM', 'etaS']) {
+    for (final name in [
+      'location',
+      'destinationName',
+      'distanceM',
+      'etaS',
+      // T14.1 additions.
+      'engineParamsJson',
+      'batteryPct',
+      'charging',
+      'alarmVolumePct',
+      'alarmMuted',
+      'interruptionFilter',
+      'priorityAllowsAlarms',
+    ]) {
       expect(_coordinate.hasMatch('double $name;'), isFalse, reason: name);
     }
   });

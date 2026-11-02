@@ -171,6 +171,8 @@ class StubStore(
         p["config.alarm.flash"] = c.alarm.flash.toString()
         p["config.alarm.preferHeadphones"] = c.alarm.preferHeadphones.toString()
         p["config.alarm.dismissMethod"] = c.alarm.dismissMethod.name
+        // T14.1: optional key, so snapshots written before it still load (version stays 1).
+        p.putOpt("config.engineParamsJson", c.engineParamsJson)
     }
 
     private fun decodeConfig(p: Properties): TripConfigMsg =
@@ -192,6 +194,7 @@ class StubStore(
                     preferHeadphones = p.bool("config.alarm.preferHeadphones"),
                     dismissMethod = DismissMethodMsg.valueOf(p.req("config.alarm.dismissMethod")),
                 ),
+            engineParamsJson = p.getProperty("config.engineParamsJson"),
         )
 
     private fun encodeFinished(f: FinishedTripMsg): Properties {

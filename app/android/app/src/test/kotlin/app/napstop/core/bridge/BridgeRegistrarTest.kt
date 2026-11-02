@@ -111,6 +111,43 @@ class BridgeRegistrarTest {
         assertEquals(0, backend.listenerCount)
     }
 
+    /** Calls PermissionHostApi.deviceStatus through the registered Pigeon handler (T14.1). */
+    private fun FakeEngine.deviceStatus(): Any? {
+        var reply: ByteBuffer? = null
+        handlers.getValue("dev.flutter.pigeon.napstop.PermissionHostApi.deviceStatus").onMessage(null) { reply = it }
+        return PermissionHostApi.codec.decodeMessage(reply!!.duplicate().apply { rewind() })
+    }
+
+    @Test
+    fun deviceStatusGoesThroughTheInjectedSource() {
+        val status =
+            DeviceStatusMsg(
+                batteryPct = 4,
+                charging = false,
+                alarmVolumePct = 43,
+                alarmMuted = false,
+                interruptionFilter = InterruptionFilterMsg.PRIORITY,
+                priorityAllowsAlarms = true,
+            )
+        var reads = 0
+        val engine = FakeEngine()
+        val registration =
+            BridgeRegistrar.register(engine, FakeBackend()) {
+                reads++
+                status
+            }
+        assertEquals(listOf(status), engine.deviceStatus())
+        assertEquals(listOf(status), engine.deviceStatus())
+        assertEquals("read live on every call", 2, reads)
+        registration.unregister()
+        assertNull(engine.handlers["dev.flutter.pigeon.napstop.PermissionHostApi.deviceStatus"])
+
+        // JVM default: nothing known.
+        val other = FakeEngine()
+        BridgeRegistrar.register(other, FakeBackend())
+        assertEquals(listOf(DeviceStatusMsg(interruptionFilter = InterruptionFilterMsg.UNKNOWN)), other.deviceStatus())
+    }
+
     @Test
     fun cancelAndRelistenTouchOnlyTheirOwnEngine() {
         val backend = FakeBackend()

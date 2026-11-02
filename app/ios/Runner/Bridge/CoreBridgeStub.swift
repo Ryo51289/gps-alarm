@@ -57,6 +57,55 @@ final class CoreBridgeStub {
     )
   }
 
+  /// V11 (T14.1): limit of `TripConfigMsg.engineParamsJson` in UTF-16 code units, same as
+  /// Dart `String.length` and the Android `TripConfigValidator`.
+  static let maxEngineParamsJsonLength = 16_384
+
+  /// Safety net until T17 ports the whole `TripConfigValidator`: only V11 here (T14.1).
+  /// The message names the rule, never the value (T14 §4).
+  static func checkEngineParams(_ config: TripConfigMsg) throws {
+    if let json = config.engineParamsJson, json.utf16.count > maxEngineParamsJsonLength {
+      throw PigeonError(code: "invalid-config", message: "engineParamsJson: too long", details: nil)
+    }
+  }
+
+  /// Live battery (T14.1, T22 §8.1). Turns battery monitoring on first: without it
+  /// `batteryLevel` is -1.0 and `batteryState` is `.unknown` [I-BAT].
+  @MainActor
+  static func readDeviceStatus() -> DeviceStatusMsg {
+    let device = UIDevice.current
+    if !device.isBatteryMonitoringEnabled {
+      device.isBatteryMonitoringEnabled = true
+    }
+    return deviceStatus(batteryLevel: device.batteryLevel, batteryState: device.batteryState)
+  }
+
+  /// iOS has no public API for the alarm volume, the Silent switch or Focus state, so only
+  /// the battery is filled in; AlarmKit manages its own volume.
+  static func deviceStatus(batteryLevel: Float, batteryState: UIDevice.BatteryState) -> DeviceStatusMsg {
+    let pct: Int64? =
+      (0...1).contains(batteryLevel) ? Int64((batteryLevel * 100).rounded()) : nil
+    let charging: Bool?
+    switch batteryState {
+    case .charging, .full:
+      charging = true
+    case .unplugged:
+      charging = false
+    case .unknown:
+      charging = nil
+    @unknown default:
+      charging = nil
+    }
+    return DeviceStatusMsg(
+      batteryPct: pct,
+      charging: charging,
+      alarmVolumePct: nil,
+      alarmMuted: nil,
+      interruptionFilter: .unknown,
+      priorityAllowsAlarms: nil
+    )
+  }
+
   static func nowMs() -> Int64 {
     Int64((Date().timeIntervalSince1970 * 1000).rounded())
   }
@@ -86,6 +135,7 @@ final class TripHostApiStub: TripHostApi {
   ) async throws {
     let state = self.state
     try await CoreBridgeStub.guarded {
+      try CoreBridgeStub.checkEngineParams(config)
       try await MainActor.run {
         if state.active != nil {
           throw PigeonError(code: "trip-active", message: nil, details: nil)
@@ -180,6 +230,7 @@ final class TripHostApiStub: TripHostApi {
 }
 
 /// Fixed answers until T17 (ARCHITECTURE §7). Android-only items are notApplicable.
+/// `deviceStatus()` is real (battery only).
 final class PermissionHostApiStub: PermissionHostApi {
   private let device: DeviceInfoMsg
 
@@ -210,6 +261,12 @@ final class PermissionHostApiStub: PermissionHostApi {
 
   func deviceInfo() throws -> DeviceInfoMsg {
     device
+  }
+
+  /// Battery only (T14.1). Synchronous Pigeon calls arrive on the main thread, where
+  /// UIDevice may be used.
+  func deviceStatus() throws -> DeviceStatusMsg {
+    MainActor.assumeIsolated { CoreBridgeStub.readDeviceStatus() }
   }
 }
 

@@ -164,6 +164,9 @@ enum SettingsTargetMsg {
 
 enum PlatformMsg { android, ios }
 
+/// T14.1: NotificationManager.getCurrentInterruptionFilter(). iOS: unknown.
+enum InterruptionFilterMsg { unknown, all, priority, alarms, none }
+
 /// Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
 /// (T10 §2.1); used by AlarmController (T16/T17).
 class AlarmSettingsMsg {
@@ -260,6 +263,7 @@ class TripConfigMsg {
     required this.preAlertEnabled,
     required this.vehicleHint,
     required this.alarm,
+    this.engineParamsJson,
   });
 
   String tripId;
@@ -278,6 +282,8 @@ class TripConfigMsg {
 
   AlarmSettingsMsg alarm;
 
+  String? engineParamsJson;
+
   List<Object?> _toList() {
     return <Object?>[
       tripId,
@@ -288,6 +294,7 @@ class TripConfigMsg {
       preAlertEnabled,
       vehicleHint,
       alarm,
+      engineParamsJson,
     ];
   }
 
@@ -306,6 +313,7 @@ class TripConfigMsg {
       preAlertEnabled: result[5]! as bool,
       vehicleHint: result[6]! as VehicleKindMsg,
       alarm: result[7]! as AlarmSettingsMsg,
+      engineParamsJson: result[8] as String?,
     );
   }
 
@@ -325,7 +333,8 @@ class TripConfigMsg {
         _deepEquals(timeThresholdMin, other.timeThresholdMin) &&
         _deepEquals(preAlertEnabled, other.preAlertEnabled) &&
         _deepEquals(vehicleHint, other.vehicleHint) &&
-        _deepEquals(alarm, other.alarm);
+        _deepEquals(alarm, other.alarm) &&
+        _deepEquals(engineParamsJson, other.engineParamsJson);
   }
 
   @override
@@ -334,7 +343,7 @@ class TripConfigMsg {
 
   @override
   String toString() {
-    return 'TripConfigMsg(tripId: $tripId, destinationName: $destinationName, mode: $mode, distanceThresholdM: $distanceThresholdM, timeThresholdMin: $timeThresholdMin, preAlertEnabled: $preAlertEnabled, vehicleHint: $vehicleHint, alarm: $alarm)';
+    return 'TripConfigMsg(tripId: $tripId, destinationName: $destinationName, mode: $mode, distanceThresholdM: $distanceThresholdM, timeThresholdMin: $timeThresholdMin, preAlertEnabled: $preAlertEnabled, vehicleHint: $vehicleHint, alarm: $alarm, engineParamsJson: $engineParamsJson)';
   }
 }
 
@@ -1517,6 +1526,84 @@ class DeviceInfoMsg {
   }
 }
 
+/// T14.1: live readiness inputs for the home card (T22) and screen 3 /
+/// trip_start (T25). Read on demand, no permission. null = unknown.
+class DeviceStatusMsg {
+  DeviceStatusMsg({
+    this.batteryPct,
+    this.charging,
+    this.alarmVolumePct,
+    this.alarmMuted,
+    required this.interruptionFilter,
+    this.priorityAllowsAlarms,
+  });
+
+  int? batteryPct;
+
+  bool? charging;
+
+  int? alarmVolumePct;
+
+  bool? alarmMuted;
+
+  InterruptionFilterMsg interruptionFilter;
+
+  bool? priorityAllowsAlarms;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      batteryPct,
+      charging,
+      alarmVolumePct,
+      alarmMuted,
+      interruptionFilter,
+      priorityAllowsAlarms,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static DeviceStatusMsg decode(Object result) {
+    result as List<Object?>;
+    return DeviceStatusMsg(
+      batteryPct: result[0] as int?,
+      charging: result[1] as bool?,
+      alarmVolumePct: result[2] as int?,
+      alarmMuted: result[3] as bool?,
+      interruptionFilter: result[4]! as InterruptionFilterMsg,
+      priorityAllowsAlarms: result[5] as bool?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DeviceStatusMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(batteryPct, other.batteryPct) &&
+        _deepEquals(charging, other.charging) &&
+        _deepEquals(alarmVolumePct, other.alarmVolumePct) &&
+        _deepEquals(alarmMuted, other.alarmMuted) &&
+        _deepEquals(interruptionFilter, other.interruptionFilter) &&
+        _deepEquals(priorityAllowsAlarms, other.priorityAllowsAlarms);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DeviceStatusMsg(batteryPct: $batteryPct, charging: $charging, alarmVolumePct: $alarmVolumePct, alarmMuted: $alarmMuted, interruptionFilter: $interruptionFilter, priorityAllowsAlarms: $priorityAllowsAlarms)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -1581,59 +1668,65 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is PlatformMsg) {
       buffer.putUint8(147);
       writeValue(buffer, value.index);
-    } else if (value is AlarmSettingsMsg) {
+    } else if (value is InterruptionFilterMsg) {
       buffer.putUint8(148);
-      writeValue(buffer, value.encode());
-    } else if (value is TripConfigMsg) {
+      writeValue(buffer, value.index);
+    } else if (value is AlarmSettingsMsg) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    } else if (value is SimulationMsg) {
+    } else if (value is TripConfigMsg) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is TripStateMsg) {
+    } else if (value is SimulationMsg) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is ActiveTripMsg) {
+    } else if (value is TripStateMsg) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is FinishedTripMsg) {
+    } else if (value is ActiveTripMsg) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is TripStateUpdateMsg) {
+    } else if (value is FinishedTripMsg) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is PreAlertMsg) {
+    } else if (value is TripStateUpdateMsg) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is AlarmMsg) {
+    } else if (value is PreAlertMsg) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is SnoozedMsg) {
+    } else if (value is AlarmMsg) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is GpsLostMsg) {
+    } else if (value is SnoozedMsg) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is GpsRecoveredMsg) {
+    } else if (value is GpsLostMsg) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is LowBatteryRiskMsg) {
+    } else if (value is GpsRecoveredMsg) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is OvershootMsg) {
+    } else if (value is LowBatteryRiskMsg) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is ArrivedMsg) {
+    } else if (value is OvershootMsg) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is TripEndedMsg) {
+    } else if (value is ArrivedMsg) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    } else if (value is PermissionStatusMsg) {
+    } else if (value is TripEndedMsg) {
       buffer.putUint8(164);
       writeValue(buffer, value.encode());
-    } else if (value is DeviceInfoMsg) {
+    } else if (value is PermissionStatusMsg) {
       buffer.putUint8(165);
+      writeValue(buffer, value.encode());
+    } else if (value is DeviceInfoMsg) {
+      buffer.putUint8(166);
+      writeValue(buffer, value.encode());
+    } else if (value is DeviceStatusMsg) {
+      buffer.putUint8(167);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1701,41 +1794,46 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : PlatformMsg.values[value];
       case 148:
-        return AlarmSettingsMsg.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : InterruptionFilterMsg.values[value];
       case 149:
-        return TripConfigMsg.decode(readValue(buffer)!);
+        return AlarmSettingsMsg.decode(readValue(buffer)!);
       case 150:
-        return SimulationMsg.decode(readValue(buffer)!);
+        return TripConfigMsg.decode(readValue(buffer)!);
       case 151:
-        return TripStateMsg.decode(readValue(buffer)!);
+        return SimulationMsg.decode(readValue(buffer)!);
       case 152:
-        return ActiveTripMsg.decode(readValue(buffer)!);
+        return TripStateMsg.decode(readValue(buffer)!);
       case 153:
-        return FinishedTripMsg.decode(readValue(buffer)!);
+        return ActiveTripMsg.decode(readValue(buffer)!);
       case 154:
-        return TripStateUpdateMsg.decode(readValue(buffer)!);
+        return FinishedTripMsg.decode(readValue(buffer)!);
       case 155:
-        return PreAlertMsg.decode(readValue(buffer)!);
+        return TripStateUpdateMsg.decode(readValue(buffer)!);
       case 156:
-        return AlarmMsg.decode(readValue(buffer)!);
+        return PreAlertMsg.decode(readValue(buffer)!);
       case 157:
-        return SnoozedMsg.decode(readValue(buffer)!);
+        return AlarmMsg.decode(readValue(buffer)!);
       case 158:
-        return GpsLostMsg.decode(readValue(buffer)!);
+        return SnoozedMsg.decode(readValue(buffer)!);
       case 159:
-        return GpsRecoveredMsg.decode(readValue(buffer)!);
+        return GpsLostMsg.decode(readValue(buffer)!);
       case 160:
-        return LowBatteryRiskMsg.decode(readValue(buffer)!);
+        return GpsRecoveredMsg.decode(readValue(buffer)!);
       case 161:
-        return OvershootMsg.decode(readValue(buffer)!);
+        return LowBatteryRiskMsg.decode(readValue(buffer)!);
       case 162:
-        return ArrivedMsg.decode(readValue(buffer)!);
+        return OvershootMsg.decode(readValue(buffer)!);
       case 163:
-        return TripEndedMsg.decode(readValue(buffer)!);
+        return ArrivedMsg.decode(readValue(buffer)!);
       case 164:
-        return PermissionStatusMsg.decode(readValue(buffer)!);
+        return TripEndedMsg.decode(readValue(buffer)!);
       case 165:
+        return PermissionStatusMsg.decode(readValue(buffer)!);
+      case 166:
         return DeviceInfoMsg.decode(readValue(buffer)!);
+      case 167:
+        return DeviceStatusMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2035,6 +2133,27 @@ class PermissionHostApi {
       isNullValid: false,
     );
     return pigeonVar_replyValue! as DeviceInfoMsg;
+  }
+
+  /// T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
+  /// for an unreadable item (that item is null / unknown).
+  Future<DeviceStatusMsg> deviceStatus() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.PermissionHostApi.deviceStatus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as DeviceStatusMsg;
   }
 }
 

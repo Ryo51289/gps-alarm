@@ -451,6 +451,21 @@ enum class PlatformMsg(val raw: Int) {
   }
 }
 
+/** T14.1: NotificationManager.getCurrentInterruptionFilter(). iOS: unknown. */
+enum class InterruptionFilterMsg(val raw: Int) {
+  UNKNOWN(0),
+  ALL(1),
+  PRIORITY(2),
+  ALARMS(3),
+  NONE(4);
+
+  companion object {
+    fun ofRaw(raw: Int): InterruptionFilterMsg? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /**
  * Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
  * (T10 §2.1); used by AlarmController (T16/T17).
@@ -531,7 +546,8 @@ data class TripConfigMsg (
   val timeThresholdMin: Long? = null,
   val preAlertEnabled: Boolean,
   val vehicleHint: VehicleKindMsg,
-  val alarm: AlarmSettingsMsg
+  val alarm: AlarmSettingsMsg,
+  val engineParamsJson: String? = null
 )
  {
   companion object {
@@ -544,7 +560,8 @@ data class TripConfigMsg (
       val preAlertEnabled = pigeonVar_list[5] as Boolean
       val vehicleHint = pigeonVar_list[6] as VehicleKindMsg
       val alarm = pigeonVar_list[7] as AlarmSettingsMsg
-      return TripConfigMsg(tripId, destinationName, mode, distanceThresholdM, timeThresholdMin, preAlertEnabled, vehicleHint, alarm)
+      val engineParamsJson = pigeonVar_list[8] as String?
+      return TripConfigMsg(tripId, destinationName, mode, distanceThresholdM, timeThresholdMin, preAlertEnabled, vehicleHint, alarm, engineParamsJson)
     }
   }
   fun toList(): List<Any?> {
@@ -557,6 +574,7 @@ data class TripConfigMsg (
       preAlertEnabled,
       vehicleHint,
       alarm,
+      engineParamsJson,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -567,7 +585,7 @@ data class TripConfigMsg (
       return true
     }
     val other = other as TripConfigMsg
-    return CoreApiPigeonUtils.deepEquals(this.tripId, other.tripId) && CoreApiPigeonUtils.deepEquals(this.destinationName, other.destinationName) && CoreApiPigeonUtils.deepEquals(this.mode, other.mode) && CoreApiPigeonUtils.deepEquals(this.distanceThresholdM, other.distanceThresholdM) && CoreApiPigeonUtils.deepEquals(this.timeThresholdMin, other.timeThresholdMin) && CoreApiPigeonUtils.deepEquals(this.preAlertEnabled, other.preAlertEnabled) && CoreApiPigeonUtils.deepEquals(this.vehicleHint, other.vehicleHint) && CoreApiPigeonUtils.deepEquals(this.alarm, other.alarm)
+    return CoreApiPigeonUtils.deepEquals(this.tripId, other.tripId) && CoreApiPigeonUtils.deepEquals(this.destinationName, other.destinationName) && CoreApiPigeonUtils.deepEquals(this.mode, other.mode) && CoreApiPigeonUtils.deepEquals(this.distanceThresholdM, other.distanceThresholdM) && CoreApiPigeonUtils.deepEquals(this.timeThresholdMin, other.timeThresholdMin) && CoreApiPigeonUtils.deepEquals(this.preAlertEnabled, other.preAlertEnabled) && CoreApiPigeonUtils.deepEquals(this.vehicleHint, other.vehicleHint) && CoreApiPigeonUtils.deepEquals(this.alarm, other.alarm) && CoreApiPigeonUtils.deepEquals(this.engineParamsJson, other.engineParamsJson)
   }
 
   override fun hashCode(): Int {
@@ -580,10 +598,11 @@ data class TripConfigMsg (
     result = 31 * result + CoreApiPigeonUtils.deepHash(this.preAlertEnabled)
     result = 31 * result + CoreApiPigeonUtils.deepHash(this.vehicleHint)
     result = 31 * result + CoreApiPigeonUtils.deepHash(this.alarm)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.engineParamsJson)
     return result
   }
   override fun toString(): String {
-    return "TripConfigMsg(tripId=$tripId, destinationName=$destinationName, mode=$mode, distanceThresholdM=$distanceThresholdM, timeThresholdMin=$timeThresholdMin, preAlertEnabled=$preAlertEnabled, vehicleHint=$vehicleHint, alarm=$alarm)"
+    return "TripConfigMsg(tripId=$tripId, destinationName=$destinationName, mode=$mode, distanceThresholdM=$distanceThresholdM, timeThresholdMin=$timeThresholdMin, preAlertEnabled=$preAlertEnabled, vehicleHint=$vehicleHint, alarm=$alarm, engineParamsJson=$engineParamsJson)"
   }
 }
 
@@ -1537,6 +1556,68 @@ data class DeviceInfoMsg (
     return "DeviceInfoMsg(platform=$platform, manufacturer=$manufacturer, brand=$brand, model=$model, osVersion=$osVersion, androidSdkInt=$androidSdkInt, iosMajor=$iosMajor)"
   }
 }
+
+/**
+ * T14.1: live readiness inputs for the home card (T22) and screen 3 /
+ * trip_start (T25). Read on demand, no permission. null = unknown.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DeviceStatusMsg (
+  val batteryPct: Long? = null,
+  val charging: Boolean? = null,
+  val alarmVolumePct: Long? = null,
+  val alarmMuted: Boolean? = null,
+  val interruptionFilter: InterruptionFilterMsg,
+  val priorityAllowsAlarms: Boolean? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DeviceStatusMsg {
+      val batteryPct = pigeonVar_list[0] as Long?
+      val charging = pigeonVar_list[1] as Boolean?
+      val alarmVolumePct = pigeonVar_list[2] as Long?
+      val alarmMuted = pigeonVar_list[3] as Boolean?
+      val interruptionFilter = pigeonVar_list[4] as InterruptionFilterMsg
+      val priorityAllowsAlarms = pigeonVar_list[5] as Boolean?
+      return DeviceStatusMsg(batteryPct, charging, alarmVolumePct, alarmMuted, interruptionFilter, priorityAllowsAlarms)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      batteryPct,
+      charging,
+      alarmVolumePct,
+      alarmMuted,
+      interruptionFilter,
+      priorityAllowsAlarms,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DeviceStatusMsg
+    return CoreApiPigeonUtils.deepEquals(this.batteryPct, other.batteryPct) && CoreApiPigeonUtils.deepEquals(this.charging, other.charging) && CoreApiPigeonUtils.deepEquals(this.alarmVolumePct, other.alarmVolumePct) && CoreApiPigeonUtils.deepEquals(this.alarmMuted, other.alarmMuted) && CoreApiPigeonUtils.deepEquals(this.interruptionFilter, other.interruptionFilter) && CoreApiPigeonUtils.deepEquals(this.priorityAllowsAlarms, other.priorityAllowsAlarms)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.batteryPct)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.charging)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.alarmVolumePct)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.alarmMuted)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.interruptionFilter)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.priorityAllowsAlarms)
+    return result
+  }
+  override fun toString(): String {
+    return "DeviceStatusMsg(batteryPct=$batteryPct, charging=$charging, alarmVolumePct=$alarmVolumePct, alarmMuted=$alarmMuted, interruptionFilter=$interruptionFilter, priorityAllowsAlarms=$priorityAllowsAlarms)"
+  }
+}
 private open class CoreApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1636,93 +1717,103 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
         }
       }
       148.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
-          AlarmSettingsMsg.fromList(it)
+        (readValue(buffer) as Long?)?.let {
+          InterruptionFilterMsg.ofRaw(it.toInt())
         }
       }
       149.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripConfigMsg.fromList(it)
+          AlarmSettingsMsg.fromList(it)
         }
       }
       150.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          SimulationMsg.fromList(it)
+          TripConfigMsg.fromList(it)
         }
       }
       151.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripStateMsg.fromList(it)
+          SimulationMsg.fromList(it)
         }
       }
       152.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ActiveTripMsg.fromList(it)
+          TripStateMsg.fromList(it)
         }
       }
       153.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          FinishedTripMsg.fromList(it)
+          ActiveTripMsg.fromList(it)
         }
       }
       154.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripStateUpdateMsg.fromList(it)
+          FinishedTripMsg.fromList(it)
         }
       }
       155.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PreAlertMsg.fromList(it)
+          TripStateUpdateMsg.fromList(it)
         }
       }
       156.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          AlarmMsg.fromList(it)
+          PreAlertMsg.fromList(it)
         }
       }
       157.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          SnoozedMsg.fromList(it)
+          AlarmMsg.fromList(it)
         }
       }
       158.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          GpsLostMsg.fromList(it)
+          SnoozedMsg.fromList(it)
         }
       }
       159.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          GpsRecoveredMsg.fromList(it)
+          GpsLostMsg.fromList(it)
         }
       }
       160.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          LowBatteryRiskMsg.fromList(it)
+          GpsRecoveredMsg.fromList(it)
         }
       }
       161.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          OvershootMsg.fromList(it)
+          LowBatteryRiskMsg.fromList(it)
         }
       }
       162.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ArrivedMsg.fromList(it)
+          OvershootMsg.fromList(it)
         }
       }
       163.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripEndedMsg.fromList(it)
+          ArrivedMsg.fromList(it)
         }
       }
       164.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PermissionStatusMsg.fromList(it)
+          TripEndedMsg.fromList(it)
         }
       }
       165.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
+          PermissionStatusMsg.fromList(it)
+        }
+      }
+      166.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
           DeviceInfoMsg.fromList(it)
+        }
+      }
+      167.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          DeviceStatusMsg.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -1806,76 +1897,84 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
         stream.write(147)
         writeValue(stream, value.raw.toLong())
       }
-      is AlarmSettingsMsg -> {
+      is InterruptionFilterMsg -> {
         stream.write(148)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is TripConfigMsg -> {
+      is AlarmSettingsMsg -> {
         stream.write(149)
         writeValue(stream, value.toList())
       }
-      is SimulationMsg -> {
+      is TripConfigMsg -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is TripStateMsg -> {
+      is SimulationMsg -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is ActiveTripMsg -> {
+      is TripStateMsg -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is FinishedTripMsg -> {
+      is ActiveTripMsg -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is TripStateUpdateMsg -> {
+      is FinishedTripMsg -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is PreAlertMsg -> {
+      is TripStateUpdateMsg -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is AlarmMsg -> {
+      is PreAlertMsg -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is SnoozedMsg -> {
+      is AlarmMsg -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is GpsLostMsg -> {
+      is SnoozedMsg -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is GpsRecoveredMsg -> {
+      is GpsLostMsg -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is LowBatteryRiskMsg -> {
+      is GpsRecoveredMsg -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is OvershootMsg -> {
+      is LowBatteryRiskMsg -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is ArrivedMsg -> {
+      is OvershootMsg -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is TripEndedMsg -> {
+      is ArrivedMsg -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is PermissionStatusMsg -> {
+      is TripEndedMsg -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is DeviceInfoMsg -> {
+      is PermissionStatusMsg -> {
         stream.write(165)
+        writeValue(stream, value.toList())
+      }
+      is DeviceInfoMsg -> {
+        stream.write(166)
+        writeValue(stream, value.toList())
+      }
+      is DeviceStatusMsg -> {
+        stream.write(167)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2090,6 +2189,11 @@ interface PermissionHostApi {
   /** Opens the settings page. false = nothing could be opened / not applicable. */
   fun openSettings(target: SettingsTargetMsg): Boolean
   fun deviceInfo(): DeviceInfoMsg
+  /**
+   * T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
+   * for an unreadable item (that item is null / unknown).
+   */
+  fun deviceStatus(): DeviceStatusMsg
 
   companion object {
     /** The codec used by PermissionHostApi. */
@@ -2157,6 +2261,21 @@ interface PermissionHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.deviceInfo())
+            } catch (exception: Throwable) {
+              CoreApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.PermissionHostApi.deviceStatus$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.deviceStatus())
             } catch (exception: Throwable) {
               CoreApiPigeonUtils.wrapError(exception)
             }

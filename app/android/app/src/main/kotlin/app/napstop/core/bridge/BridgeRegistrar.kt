@@ -29,12 +29,17 @@ object BridgeRegistrar {
             tripBackend ?: createBackend(context.applicationContext).also { tripBackend = it }
         }
 
-    fun register(messenger: BinaryMessenger, context: Context): Registration = register(messenger, backend(context))
+    fun register(messenger: BinaryMessenger, context: Context): Registration =
+        register(messenger, backend(context), DeviceStatusReader(context.applicationContext)::read)
 
-    /** [register] with an explicit backend (JVM tests). */
-    internal fun register(messenger: BinaryMessenger, backend: TripBackend): Registration {
+    /** [register] with an explicit backend and device status source (JVM tests). */
+    internal fun register(
+        messenger: BinaryMessenger,
+        backend: TripBackend,
+        deviceStatus: () -> DeviceStatusMsg = { PermissionHostApiStub.UNKNOWN_DEVICE_STATUS },
+    ): Registration {
         TripHostApi.setUp(messenger, TripHostApiImpl(backend))
-        PermissionHostApi.setUp(messenger, PermissionHostApiStub())
+        PermissionHostApi.setUp(messenger, PermissionHostApiStub(deviceStatus))
         AlarmHostApi.setUp(messenger, AlarmHostApiStub())
         val updates = TripUpdatesHandler(backend)
         val eventChannel = TripUpdatesStreamHandler.register(messenger, updates)

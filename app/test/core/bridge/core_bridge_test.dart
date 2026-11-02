@@ -55,6 +55,7 @@ void main() {
       'PermissionHostApi.request',
       'PermissionHostApi.openSettings',
       'PermissionHostApi.deviceInfo',
+      'PermissionHostApi.deviceStatus',
       'AlarmHostApi.previewSound',
       'AlarmHostApi.stopPreview',
     ]) {
@@ -349,6 +350,79 @@ void main() {
       expect(open, [
         [SettingsTargetMsg.batteryOptimization],
       ]);
+    });
+
+    test('PermissionHostApi.deviceStatus (T14.1)', () async {
+      final calls = <List<Object?>>[];
+      var reply = sampleDeviceStatus();
+      _handle('PermissionHostApi', 'deviceStatus', (_) => [reply], calls);
+
+      expect(await bridge.deviceStatus(), sampleDeviceStatus());
+      reply = sampleDeviceStatus(nulls: true);
+      final unknown = await bridge.deviceStatus();
+      expect(unknown, sampleDeviceStatus(nulls: true));
+      expect(unknown.batteryPct, isNull);
+      expect(unknown.charging, isNull);
+      expect(unknown.interruptionFilter, InterruptionFilterMsg.unknown);
+      expect(calls, [<Object?>[], <Object?>[]]);
+    });
+
+    test('deviceStatus errors become BridgeException (T14.1)', () async {
+      _handle(
+        'PermissionHostApi',
+        'deviceStatus',
+        (_) => ['internal', 'SecurityException', null],
+      );
+      await expectLater(
+        bridge.deviceStatus(),
+        throwsA(
+          isA<BridgeException>()
+              .having((e) => e.code, 'code', BridgeErrorCode.internal)
+              .having((e) => e.message, 'message', 'SecurityException'),
+        ),
+      );
+      _messenger.setMockMessageHandler(
+        '$_prefix.PermissionHostApi.deviceStatus',
+        null,
+      );
+      await expectLater(
+        bridge.deviceStatus(),
+        throwsA(
+          isA<BridgeException>().having(
+            (e) => e.code,
+            'code',
+            BridgeErrorCode.channelError,
+          ),
+        ),
+      );
+    });
+
+    test('startTrip sends engineParamsJson verbatim (T14.1)', () async {
+      final calls = _handle('TripHostApi', 'startTrip', (_) => [null]);
+      const json = '{"smartTargetS": 300, "smartSlowSpeedKmh": 5}';
+      final config = sampleConfig()..engineParamsJson = json;
+      await bridge.startTrip(config, destLat: 16.8, destLng: 107.1);
+      final sent = calls.single.first! as TripConfigMsg;
+      expect(sent.engineParamsJson, json);
+      expect(sent, config);
+    });
+
+    test('native V11 rejection maps to invalidConfig (T14.1)', () async {
+      _handle(
+        'TripHostApi',
+        'startTrip',
+        (_) => ['invalid-config', 'engineParamsJson: too long', null],
+      );
+      final config = sampleConfig()..engineParamsJson = 'x' * 16385;
+      await expectLater(
+        bridge.startTrip(config, destLat: 16.8, destLng: 107.1),
+        throwsA(
+          isA<BridgeException>()
+              .having((e) => e.code, 'code', BridgeErrorCode.invalidConfig)
+              .having((e) => e.message, 'message', 'engineParamsJson: too long')
+              .having((e) => e.toString(), 'toString', isNot(contains('xx'))),
+        ),
+      );
     });
 
     test('AlarmHostApi', () async {

@@ -21,6 +21,7 @@ TripConfigMsg sampleConfig({bool nulls = false, String tripId = 't1'}) =>
       preAlertEnabled: true,
       vehicleHint: VehicleKindMsg.train,
       alarm: sampleAlarm(),
+      engineParamsJson: nulls ? null : '{"smartTargetS": 300.0}',
     );
 
 SimulationMsg sampleSimulation() =>
@@ -101,6 +102,17 @@ DeviceInfoMsg sampleDevice({bool nulls = false}) => DeviceInfoMsg(
   osVersion: '14',
   androidSdkInt: nulls ? null : 34,
   iosMajor: nulls ? null : 26,
+);
+
+DeviceStatusMsg sampleDeviceStatus({bool nulls = false}) => DeviceStatusMsg(
+  batteryPct: nulls ? null : 4,
+  charging: nulls ? null : false,
+  alarmVolumePct: nulls ? null : 43,
+  alarmMuted: nulls ? null : true,
+  interruptionFilter: nulls
+      ? InterruptionFilterMsg.unknown
+      : InterruptionFilterMsg.priority,
+  priorityAllowsAlarms: nulls ? null : true,
 );
 
 /// One instance of every TripUpdateMsg subclass, all fields set or all

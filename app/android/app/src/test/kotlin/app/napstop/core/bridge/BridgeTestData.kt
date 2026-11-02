@@ -23,6 +23,7 @@ object BridgeTestData {
         preAlertEnabled: Boolean = true,
         destinationName: String = "Ga Đông Hà",
         alarm: AlarmSettingsMsg = alarm(),
+        engineParamsJson: String? = null,
     ): TripConfigMsg =
         TripConfigMsg(
             tripId = tripId,
@@ -33,6 +34,7 @@ object BridgeTestData {
             preAlertEnabled = preAlertEnabled,
             vehicleHint = VehicleKindMsg.TRAIN,
             alarm = alarm,
+            engineParamsJson = engineParamsJson,
         )
 
     inline fun expectFlutterError(block: () -> Unit): FlutterError {
