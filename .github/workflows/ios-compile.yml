@@ -9,6 +9,8 @@
 #   WSL with `xtool install NapStop-unsigned.ipa`, which signs it with the developer's
 #   own Apple ID (same path as the S3 probe). Release, not debug: an iOS debug build
 #   cannot start without a debugger attached.
+# - swift-macos (target `swift`, T13): `swift test` of the NapStopCore package (app/ios/Core) on arm64 macOS,
+#   including P05 against fixtures/p05/manifest.json (S18). Spec: docs/specs/T13.md.
 # About 10-15 min of macOS runner time per job; run it when Swift code changes
 # (T14, T17) or when a device build is wanted.
 #
@@ -26,6 +28,7 @@ on:
           - both
           - simulator
           - device
+          - swift
         default: both
 
 permissions:
@@ -46,7 +49,7 @@ defaults:
 jobs:
   ios-simulator:
     name: ios-simulator
-    if: inputs.target != 'device'
+    if: inputs.target != 'device' && inputs.target != 'swift'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -103,7 +106,7 @@ jobs:
 
   ios-device:
     name: ios-device
-    if: inputs.target != 'simulator'
+    if: inputs.target != 'simulator' && inputs.target != 'swift'
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -174,4 +177,64 @@ jobs:
             else
               echo "- ipa: not built"
             fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  swift-macos:
+    name: swift-macos
+    if: inputs.target == 'swift'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/ios/Core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Exit tests (#expect(processExitsWith:), U01) need Swift >= 6.2, i.e. Xcode 26. Select the newest Xcode 26
+      # installed on the runner image and fail early with a clear message if there is none.
+      - name: Select Xcode 26 and check Swift >= 6.2
+        run: |
+          # Release builds only: skip beta/RC bundles (Xcode_26.1_beta_3.app sorts after Xcode_26.1.app; T13 test #11).
+          xcode="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -viE 'beta|_rc|release_candidate' | sort -V | tail -n 1 || true)"
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode/Contents/Developer"; fi
+          echo "- Xcode selected: ${xcode:-runner default}" >> "$GITHUB_STEP_SUMMARY"
+          xcodebuild -version
+          swift --version
+          ver="$(swift --version 2>&1 | sed -nE 's/.*Swift version ([0-9]+)\.([0-9]+).*/\1 \2/p' | head -n 1)"
+          read -r major minor <<<"$ver"
+          if [ -z "$major" ] || [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 2 ]; }; then
+            echo "::error::NapStopCore tests need Swift >= 6.2 (Xcode 26); runner has '${ver:-unknown}'."
+            exit 1
+          fi
+
+      - name: NapStopCore tests (release, T13)
+        env:
+          NAPSTOP_REPORT_DIR: ${{ runner.temp }}/swift-report
+        run: |
+          set -o pipefail
+          swift test -c release --enable-testable-imports 2>&1 | tee "$RUNNER_TEMP/swift-test.log"
+
+      - name: Upload swift-macos-report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: swift-macos-report
+          path: |
+            ${{ runner.temp }}/swift-report/
+            ${{ runner.temp }}/swift-test.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## swift-macos (NapStopCore, T13)"
+            xcodebuild -version | head -n 1
+            grep -E 'Test run with' "$RUNNER_TEMP/swift-test.log" || echo "no test summary"
+            cat "$RUNNER_TEMP/swift-report/killsweep/summary.md" 2>/dev/null || true
           } >> "$GITHUB_STEP_SUMMARY"

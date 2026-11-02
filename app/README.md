@@ -38,7 +38,7 @@ cd android && ./gradlew :app:testDevDebugUnitTest
 
 Workflow [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (GitHub Actions, `ubuntu-24.04`). Chạy khi mở hoặc
 cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_dispatch`). Bỏ qua commit chỉ đổi `docs/**`, `*.md`,
-`.claude/**`. Bốn job chạy song song:
+`.claude/**`. Năm job chạy song song:
 
 - Job `dart`: `flutter pub get --enforce-lockfile` · kiểm code Pigeon sinh ra khớp input (T14) · kiểm code drift sinh ra (T22) ·
   `dart format --output=none --set-exit-if-changed lib test integration_test` ·
@@ -47,6 +47,8 @@ cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_disp
   và killSweep vào Summary, artifact `trip-engine-reports`) · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
   `flutter build apk --debug` · `flutter build apk --debug --flavor prod` · kiểm package id của 2 APK
   (`app.napstop.dev`, `app.napstop`) bằng `aapt2`.
+- Job `swift` (container `swift:6.4.1-noble`, thư mục `ios/Core`): `swift build` + `swift test` bản release của Trip Engine
+  Swift (T13), P05 phải khớp `fixtures/p05/manifest.json`; artifact `swift-report`.
 - Job `tracegen` (thư mục `tools/tracegen`): `dart pub get --enforce-lockfile` ·
   `dart format --output=none --set-exit-if-changed .` · `dart analyze --fatal-infos` · `dart test` (gồm test golden:
   fixture commit từ Windows phải khớp từng byte khi sinh lại trên Linux) · `validate` 6 cặp fixture.

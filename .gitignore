@@ -22,6 +22,9 @@ key.properties
 Pods/
 *.xcuserstate
 xcuserdata/
+# NapStopCore Swift package (T13): build output and SwiftPM state
+app/ios/Core/.build/
+app/ios/Core/.swiftpm/
 
 # Secrets (Firebase / Maps keys stay out of git)
 google-services.json

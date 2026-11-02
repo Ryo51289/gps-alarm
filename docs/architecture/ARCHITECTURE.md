@@ -11,7 +11,7 @@
 ┌────────── Android (Kotlin) ──────────┐ ┌──────────── iOS (Swift) ────────────┐
 │ LocationService (Foreground, FLP)    │ │ LocationController (CLMonitor +     │
 │ TripEngine (thuần Kotlin, test JVM)  │ │   continuous updates)               │
-│ AlarmController (full-screen intent, │ │ TripEngine (thuần Swift, XCTest)    │
+│ AlarmController (full-screen intent, │ │ TripEngine (Swift, Swift Testing)   │
 │   MediaPlayer USAGE_ALARM, vibrate)  │ │ AlarmController (AlarmKit/fallback) │
 │ SimulatedLocationSource (GPX replay) │ │ SimulatedLocationSource             │
 └──────────────────────────────────────┘ └─────────────────────────────────────┘

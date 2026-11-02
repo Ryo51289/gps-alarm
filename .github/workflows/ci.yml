@@ -1,4 +1,4 @@
-# NapStop CI (T01, T02, T12, T14, T20, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T12.md, docs/specs/T14.md, docs/specs/T20.md, docs/specs/T24.md
+# NapStop CI (T01, T02, T12, T13, T14, T20, T22, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T12.md, docs/specs/T13.md, docs/specs/T14.md, docs/specs/T20.md, docs/specs/T24.md
 #
 # Every action is pinned to a full commit SHA; the release tag is in the trailing
 # comment. To update a pin, resolve the tag with
@@ -404,3 +404,58 @@ jobs:
 
       - name: Check committed dataset (A1-A5)
         run: dart run bin/stationgen.dart check
+
+  # T13: Swift Trip Engine (app/ios/Core, stdlib-only module Trip) on Linux; P05 must match fixtures/p05/manifest.json.
+  swift:
+    name: swift
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      # Official image, multi-arch index digest of tag 6.4.1-noble (Docker Hub, 2026-10-27). Refresh with
+      #   docker buildx imagetools inspect swift:6.4.1-noble   (first "Digest:" line)
+      # The non-slim image ships git, so actions/checkout does a real clone.
+      image: swift:6.4.1-noble@sha256:6304481cf2717966b7ba175162e397ea2f2cc3161909f2b2a5cf40036079a0f7
+    defaults:
+      run:
+        shell: bash
+        working-directory: app/ios/Core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Swift version
+        run: swift --version 2>&1 | tee /dev/stderr | grep -F 'Swift version 6.4.1'
+
+      - name: Build (release, warnings as errors)
+        # Round 2: `swift build` has no --enable-testable-imports (a `swift test` flag); -enable-testing makes the
+        # release build testable, and the test step passes the same flags so it reuses this build.
+        run: swift build -c release --build-tests -Xswiftc -enable-testing -Xswiftc -warnings-as-errors
+
+      - name: Trip Engine tests (Swift, T13)
+        env:
+          NAPSTOP_REPORT_DIR: swift-report   # relative to app/ios/Core (cwd of the test process)
+        run: |
+          set -o pipefail
+          swift test -c release -Xswiftc -enable-testing -Xswiftc -warnings-as-errors 2>&1 | tee swift-test.log
+
+      - name: Upload swift-report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: swift-report
+          path: |
+            app/ios/Core/swift-report/
+            app/ios/Core/swift-test.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## swift (NapStopCore, T13)"
+            grep -E 'Test run with' swift-test.log || echo "no test summary"
+            cat swift-report/killsweep/summary.md 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
