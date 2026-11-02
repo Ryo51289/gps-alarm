@@ -26,6 +26,7 @@ enum RestoreEquivalence {
         let tag = "[\(original.run) I8 c=\(c)]"
         guard captured.alive else { return [] }   // engine dead at c: skipped
         var copy = captured
+        copy.probes = false   // the uninterrupted run already probed every Step (T10.4)
         let decoded: EngineState
         do { decoded = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(copy.state)) } catch {
             return ["\(tag) snapshot decode failed: \(error)"]

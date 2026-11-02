@@ -67,10 +67,10 @@ func runModeWithChecks(_ trace: LoadedTrace, _ spec: CaseSpec, _ mode: String) -
         if main.configErrors.isEmpty {
             for (c, copy) in caps { failures += RestoreEquivalence.check(original: main, checkpoint: c, captured: copy) }
             let transcript = main.transcript()
-            var again = Runner(trace: trace, spec: spec, mode: mode)
+            var again = Runner(trace: trace, spec: spec, mode: mode, options: RunOptions(probes: false))
             again.runAll()
             if Sha256.hex(again.transcript()) != Sha256.hex(transcript) { failures.append("[\(main.run)] I9: transcript differs on rerun") }
-            var shifted = Runner(trace: trace, spec: spec, mode: mode, options: RunOptions(timeShiftMs: 86_400_000))
+            var shifted = Runner(trace: trace, spec: spec, mode: mode, options: RunOptions(timeShiftMs: 86_400_000, probes: false))
             shifted.runAll()
             if shifted.transcript() != transcript { failures.append("[\(main.run)] P06: transcript differs with +1 day") }
         }

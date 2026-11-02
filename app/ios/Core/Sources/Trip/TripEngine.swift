@@ -77,10 +77,13 @@ struct StepWork {
     var eComputed = false
     var predicted = Predicted(noBattery: nil, withBattery: nil)
     var predictedComputed = false
+    /// Policy at the start of the Step (T10.4 §4.8: step 9 folds its interval into policyIntervalAtLastFixS).
+    let policyAtStart: SamplingPolicy?
 
     init(s: EngineState, now: Int64) {
         self.s = s
         self.now = now
+        self.policyAtStart = s.policy
     }
 
     var p: EngineParams { s.params }
@@ -370,6 +373,9 @@ struct StepWork {
             s.policy = policy
             events.append(.samplingPolicyChanged(.init(atMs: now, policy: policy)))
         }
+        // T10.4 (GAP-2, §4.8, §4.12): lostAfterS never shrinks between two fixes, so c2 stays > now and Tick(now) stays silent (I14).
+        s.policyIntervalAtLastFixS = TMath.max(s.policyIntervalAtLastFixS,
+                                               TMath.max(policyAtStart?.intervalS ?? 0, s.policy?.intervalS ?? 0))
         if (s.phase == .acquiring || s.phase == .tracking) && s.alarm.atMs == nil {
             FallbackPlanner.planFallback(&s, e, predicted: predicted.withBattery, now: now, events: &events)
         }

@@ -23,7 +23,7 @@ enum P05 {
     }
 
     static func transcript(_ t: LoadedTrace, _ spec: CaseSpec, _ mode: String, diag: Bool) -> (String, String, String?) {
-        var r = Runner(trace: t, spec: spec, mode: mode, options: RunOptions(keepStates: diag))
+        var r = Runner(trace: t, spec: spec, mode: mode, options: RunOptions(keepStates: diag, probes: false))
         r.runAll()
         return (r.run, r.transcript(), diag ? Transcript.renderDiag(records: r.records, states: r.states) : nil)
     }

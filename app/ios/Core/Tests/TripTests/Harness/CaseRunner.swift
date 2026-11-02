@@ -6,6 +6,11 @@ struct RunOptions: Sendable {
     var timeShiftMs: Int64 = 0
     var paramOverrides: [(String, JsonValue)] = []
     var keepStates = false
+    /// T10.4 per-Step probes on the engine state: I14 (runs with j = 0) and P08. Off for re-runs whose transcript must match.
+    var probes = true
+    /// TR39 (T10.4 §7.3): no Tick on grid ticks without a GPX sample; inside GPS gaps the platform only delivers wakeAtMs and
+    /// the OS fallback. Outside the gaps the run is the same as `all`.
+    var dozeModel = false
 }
 
 struct Runner: Sendable {
@@ -20,6 +25,8 @@ struct Runner: Sendable {
     let params: EngineParams
     let config: TripConfig
     let keepStates: Bool
+    var probes: Bool
+    let dozeModel: Bool
 
     var state: EngineState
     var lastView: TripView
@@ -55,6 +62,8 @@ struct Runner: Sendable {
         self.interval = trace.file.intervalS
         self.duration = trace.file.durationS
         self.keepStates = options.keepStates
+        self.probes = options.probes
+        self.dozeModel = options.dozeModel
         var errors: [String] = []
         // params = parseOverrides(write(config.params ⊕ overrides))
         var merged = spec.config.params
@@ -128,13 +137,43 @@ struct Runner: Sendable {
             if case .alarm = e, firstAlarmT == nil { firstAlarmT = t }
         }
         if !Runner.finite(step.state) { violations.append("state not finite at t=\(t)") }
+        if probes { probe(t, step) }
+    }
+
+    /// I14 (j = 0 runs) and P08 (T10.4) on the state of one recorded Step; pure engine calls, nothing enters the run.
+    mutating func probe(_ t: Int, _ step: Step) {
+        let s = step.state
+        if s.phase == .ended { return }
+        if j == 0 {
+            let again = TripEngine.reduce(s, .tick(atMs: s.nowMs))
+            if !again.events.isEmpty {
+                violations.append("I14 t=\(t): Tick(now) emitted \(again.events.map(\.fixtureName))")
+            } else if again.state != s {
+                violations.append("I14 t=\(t): Tick(now) changed the state")
+            }
+        }
+        let active = s.phase == .acquiring || s.phase == .tracking
+        let noFix = s.gps == .lost || s.gps == .noFixYet
+        let b = s.battery
+        let noBatteryForecast = b.levelPct == nil || b.charging || !b.armed
+        if active && s.alarm.atMs == nil && noFix && noBatteryForecast {
+            guard let p = step.view.predictedAlarmAtMs else {
+                violations.append("P08 t=\(t): no predictedAlarmAtMs")
+                return
+            }
+            let r = TripEngine.reduce(s, .tick(atMs: p + WakePlanner.wakeGuardMs))
+            if !Runner.hasRingNow(r.events) {
+                violations.append("P08 t=\(t): Tick(predicted + \(WakePlanner.wakeGuardMs) ms) did not ring "
+                                  + "(gps \(s.gps.jsonName), \(s.phase.jsonName))")
+            }
+        }
     }
 
     mutating func apply(_ step: Step, t: Int, input: InRecord) {
         state = step.state
         lastView = step.view
         record(t, input, step)
-        os.react(step.events, nowMs: nowMs(t), t: t)
+        os.react(step.events, nowMs: step.view.atMs, t: t)   // the Step's own clock (= nowMs(t) except TR39 wake-ups)
         var rang = Runner.hasRingNow(step.events)
         while !os.queue.isEmpty {
             let x = os.queue.removeFirst()
@@ -143,7 +182,7 @@ struct Runner: Sendable {
             state = sub.state
             lastView = sub.view
             record(t, .input(x, fixIndex: nil), sub)
-            os.react(sub.events, nowMs: nowMs(t), t: t)
+            os.react(sub.events, nowMs: sub.view.atMs, t: t)
             rang = rang || Runner.hasRingNow(sub.events)
         }
         if rang && os.enabled && os.ringing == .none {
@@ -216,6 +255,10 @@ struct Runner: Sendable {
         if let r = c.relaunch, relaunchT == nil, let b = resolve(r.at), b == t {
             doRelaunch(t, status: r.status)
         }
+        // TR39: the CPU sleeps through (t − I, t] when t or t − I has no GPX sample (a GPS gap); elsewhere fixes wake it as in `all`.
+        if dozeModel && alive && (trace.byTick[t / interval] == nil || (t > 0 && trace.byTick[(t - interval) / interval] == nil)) {
+            dozeWakeUps(t, now)
+        }
         for x in os.tick(t: t, nowMs: now, alive: alive) { feed(x, t: t) }
         if !alive && os.osFallbackFiredT != nil && runAnchors["osFallbackFired"] == nil {
             runAnchors["osFallbackFired"] = os.osFallbackFiredT
@@ -253,8 +296,29 @@ struct Runner: Sendable {
             feed(.locationFix(LocationFix(atMs: now, fixAtMs: now, lat: s.lat, lng: s.lng, accuracyM: s.accuracyM,
                                           speedMps: s.speedMps)), t: t, fixIndex: s.index)
             lastDelivered = t
-        } else {
+        } else if !(dozeModel && trace.byTick[t / interval] == nil) {
             feed(.tick(atMs: now), t: t)
+        }
+    }
+
+    /// TR39 (T10.4 §7.3), before grid tick `t` in or right after a GPS gap: while min(wakeAtMs, fbOs) <= now(t), deliver the
+    /// earlier one (the fallback when F <= W, fired at F through osSim; otherwise Tick(W)). Events are recorded at tick `t`.
+    mutating func dozeWakeUps(_ t: Int, _ nowMs: Int64) {
+        var guardCount = 0
+        while state.phase != .ended {
+            let w = lastView.wakeAtMs
+            let f = os.fbOs
+            guard let next = TMath.minOrNull(array: [w, f]), next <= nowMs else { return }
+            if let f, w == nil || f <= w! {
+                for x in os.tick(t: t, nowMs: f, alive: true) { feed(x, t: t) }
+            } else {
+                feed(.tick(atMs: w!), t: t)
+            }
+            guardCount += 1
+            if guardCount > 10_000 {
+                configErrors.append("config error: doze model: no progress at t=\(t)")
+                return
+            }
         }
     }
 

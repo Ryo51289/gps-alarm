@@ -22,7 +22,7 @@ struct NegativeSweepTests {
             for m in modes {
                 g.addTask {
                     var r = Runner(trace: trace, spec: spec, mode: m,
-                                   options: RunOptions(paramOverrides: [("lostSpeedGuardUpdates", .number("0"))]))
+                                   options: RunOptions(paramOverrides: [("lostSpeedGuardUpdates", .number("0"))], probes: false))
                     r.runAll()
                     return (m, Checks.flat(r).first { Checks.matches($0.e, filter) }?.t)
                 }
@@ -45,7 +45,7 @@ struct NegativeSweepTests {
                                                 ("fallbackHintSpeedFactor", .number("0"))]
         var late = 0, total = 0
         for m in ["all", "policy"] {
-            var r = Runner(trace: trace, spec: spec, mode: m, options: RunOptions(paramOverrides: overrides))
+            var r = Runner(trace: trace, spec: spec, mode: m, options: RunOptions(paramOverrides: overrides, probes: false))
             r.runAll()
             #expect(r.configErrors.isEmpty)
             let (_, stats) = KillSweep.evaluate(r, spec.killSweep!)

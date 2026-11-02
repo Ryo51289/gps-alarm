@@ -1,6 +1,7 @@
 @testable import Trip
 
-/// Per-run checks (T12 §8.5): expectations, forbids, invariants I1–I7, I10–I12, P02, P07, finite state.
+/// Per-run checks (T12 §8.5): expectations, forbids, invariants I1–I7, I10–I13, P02, P07, finite state.
+/// I14 and P08 (T10.4) come from the runner (they need the engine state).
 enum Checks {
     static func matches(_ e: TripEvent, _ f: EventFilter) -> Bool {
         guard e.fixtureName == f.event else { return false }
@@ -122,7 +123,7 @@ enum Checks {
         return f
     }
 
-    /// I1–I7, I10–I12 (T10 §3; I4 as T12 §8.5).
+    /// I1–I7, I10–I13 (T10 §3; I4 as T12 §8.5).
     static func invariants(_ r: Runner) -> [String] {
         var f: [String] = []
         var seenAlarm = false
@@ -155,7 +156,7 @@ enum Checks {
                     }
                     if x.cause == .eta, let pv = prevView, let prevT = pv.fallbackAtMs, pv.fallbackStatus != .failed,
                        let pred = rec.view.predictedAlarmAtMs {
-                        let now = r.nowMs(rec.t)
+                        let now = rec.view.atMs   // the Step's own clock, like Kotlin (= nowMs(t) except TR39 wake-ups)
                         if now >= TMath.min(prevT, pred) - quietMs { f.append("I4: ETA emission in quiet window at t=\(rec.t)") }
                     }
                 case .preAlert:
@@ -181,10 +182,18 @@ enum Checks {
                 f.append("C16: snoozeUntilMs \(rec.view.snoozeUntilMs == nil ? "null" : "set") in phase \(rec.view.phase.jsonName) at t=\(rec.t)")
             }
             if facs > 1 { f.append("I12: \(facs) fallbackAlarmChanged in one Step at t=\(rec.t)") }
+            if let v = i13Violation(rec.view) { f.append("\(v) at t=\(rec.t)") }
             prevView = rec.view
         }
         if preAlerts > 1 { f.append("I5: \(preAlerts) preAlerts") }
         if overshoots > 1 { f.append("I6: \(overshoots) overshoots") }
         return f
+    }
+
+    /// I13 (T10.4): not ENDED ⇒ wakeAtMs ≠ nil and > now (view.atMs); ENDED ⇒ wakeAtMs == nil.
+    static func i13Violation(_ v: TripView) -> String? {
+        guard let w = v.wakeAtMs else { return v.phase == .ended ? nil : "I13: wakeAtMs null in phase \(v.phase.jsonName)" }
+        if v.phase == .ended { return "I13: wakeAtMs set while ENDED" }
+        return w > v.atMs ? nil : "I13: wakeAtMs \(w - v.atMs) ms from now in phase \(v.phase.jsonName)"
     }
 }
