@@ -99,16 +99,24 @@ void main() {
         for (final c in _cases(j)) '$id/${c['id']}': c,
     };
 
-    test('generator.version is 1.2.0 everywhere', () {
-      expect(ids, hasLength(15));
+    // T11.2 RK4: counts and version follow the current state (16 traces,
+    // 60 cases after T11.2; version = pubspec).
+    test('generator.version equals the pubspec version everywhere', () {
+      final pubspec = File('${packageDir.path}/pubspec.yaml')
+          .readAsStringSync();
+      final version = RegExp(
+        r'^version:\s*(\S+)\s*$',
+        multiLine: true,
+      ).firstMatch(pubspec)!.group(1);
+      expect(ids, hasLength(16));
       for (final MapEntry(key: id, value: j) in fixtures.entries) {
-        expect((j['generator']! as _J)['version'], '1.2.0', reason: id);
+        expect((j['generator']! as _J)['version'], version, reason: id);
       }
-      expect(kGeneratorVersion, '1.2.0');
+      expect(kGeneratorVersion, version);
     });
 
-    test('58 final cases, none with samplingModes', () {
-      expect(all, hasLength(58));
+    test('60 final cases, none with samplingModes', () {
+      expect(all, hasLength(60));
       for (final MapEntry(:key, :value) in all.entries) {
         expect(value['status'], 'final', reason: key);
         expect(value.containsKey('samplingModes'), isFalse, reason: key);

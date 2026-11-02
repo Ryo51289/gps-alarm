@@ -510,6 +510,42 @@ void main() {
       );
     }
     expect(t.profile.destinationOffsetM, 1500);
+    // T11.2 TG55 (TR38): the fallback alarm window [closest, closest + 80]
+    // lies inside the stop at the bus station.
+    expect(closest.t, stop.arriveT);
+    expect(closest.t + 80, lessThan(stop.departT));
+  });
+
+  test('coach_gb_phuly_offroute_2k (T11.2 TG55)', () {
+    final t = build('coach_gb_phuly_offroute_2k');
+    final truth = t.truth;
+    final closest = truth.closest!;
+    final stop = truth.stops.single;
+    expect(t.profile.destinationOffsetM, 2000);
+    expect(closest.straightM, inInclusiveRange(1950, 2050));
+    expect(closest.t, inInclusiveRange(stop.arriveT - 60, stop.departT + 60));
+    expect(closest.departT, greaterThanOrEqualTo(stop.departT));
+    expect(closest.departT + 30, lessThanOrEqualTo(truth.endT));
+    for (var j = 0; j < truth.states.length; j++) {
+      expect(
+        truth.straightM[j],
+        greaterThan(1000),
+        reason: 't = ${truth.states[j].t}',
+      );
+    }
+
+    // Same seed, route, motion and noise as the 1.5 km trace: every GPX
+    // sample is identical, only the metadata differs.
+    final a = build('coach_gb_phuly_offroute').sensor.observations;
+    final b = t.sensor.observations;
+    expect(b, hasLength(a.length));
+    for (var j = 0; j < a.length; j++) {
+      expect(
+        [b[j].t, b[j].pos.lat, b[j].pos.lng, b[j].accM, b[j].speedMps],
+        [a[j].t, a[j].pos.lat, a[j].pos.lng, a[j].accM, a[j].speedMps],
+        reason: 'sample $j',
+      );
+    }
   });
 }
 

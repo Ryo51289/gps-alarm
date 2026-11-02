@@ -1,5 +1,5 @@
-// Generator options and resolution added by T11 (TG12–TG18) and T11.1
-// (TG42 replaces TG10; TG40).
+// Generator options and resolution added by T11 (TG12–TG18), T11.1
+// (TG42 replaces TG10; TG40) and T11.2 (TG53).
 import 'dart:convert';
 
 import 'package:test/test.dart';
@@ -372,6 +372,108 @@ void main() {
       'notAfter',
       'earlyFrom',
     ]);
+  });
+
+  test('TG53 golden key order with allowFallbackFirst (T11.2 §1)', () {
+    Map<String, Object?> at(String anchor) => {'anchor': anchor};
+    final fallback = {
+      'event': 'alarm',
+      'reason': 'FALLBACK',
+      'ringNow': false,
+      'notBefore': at('route<=1300'),
+      'notAfter': at('route<=700'),
+      'ref': 'test',
+    };
+    final cases = [
+      // (i) policyPhaseSweep + allowFallbackFirst + every optional key that
+      // may go with it.
+      {
+        'id': 'i',
+        'status': 'final',
+        'testIds': ['TR38'],
+        'config': {'mode': 'distance', 'thresholdM': 1000, 'preAlert': true},
+        'samplingModes': ['policy'],
+        'policyPhaseSweep': true,
+        'allowFallbackFirst': true,
+        'expect': [fallback],
+        'expectAfter': [
+          {
+            'event': 'tripEnded',
+            'after': {'anchor': 'event:alarm', 'offsetS': 30},
+            'withinS': [0, 0],
+            'ref': 'test',
+          },
+        ],
+        'expectOutcome': 'ON_TIME',
+        'expectSummary': {'vehicleGuess': 'COACH'},
+        'forbid': ['overshoot'],
+        'forbidMatch': [
+          {'event': 'alarm', 'reason': 'DISTANCE'},
+          {'event': 'alarm', 'ringNow': true},
+        ],
+        'forbidAfter': [
+          {'event': 'gpsLost', 'after': at('arrival')},
+        ],
+      },
+      // (ii) explicit false is not written (and needs no expectation).
+      {
+        'id': 'ii',
+        'config': {'mode': 'distance', 'thresholdM': 1000, 'preAlert': true},
+        'allowFallbackFirst': false,
+        'expect': <Object?>[],
+        'forbid': <Object?>[],
+      },
+    ];
+    final (p, r) = synth(
+      profile: synthProfileJson(overrides: {'endDwellS': 30, 'cases': cases}),
+    );
+    final t = buildTrace(p, r);
+
+    final i = caseOf(t, 'i');
+    expect(i.keys, [
+      'id',
+      'status',
+      'testIds',
+      'config',
+      'samplingModes',
+      'policyPhaseSweep',
+      'allowFallbackFirst',
+      'expect',
+      'expectAfter',
+      'expectOutcome',
+      'expectSummary',
+      'forbid',
+      'forbidMatch',
+      'forbidAfter',
+    ]);
+    expect(i['allowFallbackFirst'], isTrue);
+    final e = (i['expect']! as List).single as Map<String, Object?>;
+    expect(e.keys, [
+      'event',
+      'reason',
+      'ringNow',
+      'notBefore',
+      'notAfter',
+      'window',
+      'ref',
+    ]);
+    expect(e['ringNow'], isFalse);
+    expect(i['forbidMatch'], [
+      {'event': 'alarm', 'reason': 'DISTANCE'},
+      {'event': 'alarm', 'ringNow': true},
+    ]);
+
+    final ii = caseOf(t, 'ii');
+    expect(ii.keys, ['id', 'status', 'config', 'expect', 'forbid']);
+
+    // The written fixture validates (the key round-trips through validate).
+    final errors = validatePair(
+      gpxLabel: 'synth.gpx',
+      gpxBytes: utf8.encode(t.gpxText),
+      expectLabel: 'synth.expect.json',
+      expectBytes: utf8.encode(t.expectText),
+    );
+    expect(errors, isEmpty);
   });
 
   test('TG12 effective destination is left (+) or right (-) of travel', () {

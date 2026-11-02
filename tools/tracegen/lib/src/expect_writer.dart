@@ -11,7 +11,7 @@ import 'package:tracegen/src/sensor.dart';
 const int kSchemaVersion = 1;
 
 /// Generator version; must equal `version` in `pubspec.yaml`.
-const String kGeneratorVersion = '1.2.0';
+const String kGeneratorVersion = '1.3.0';
 
 /// An expectation whose window has been resolved to ticks.
 final class ResolvedExpect {
@@ -286,6 +286,7 @@ Map<String, Object?> _caseJson(ResolvedCase rc) {
     },
     if (spec.samplingModes != null) 'samplingModes': [...?spec.samplingModes],
     if (spec.policyPhaseSweep) 'policyPhaseSweep': true,
+    if (spec.allowFallbackFirst) 'allowFallbackFirst': true,
     'expect': [
       for (final e in rc.expect)
         {

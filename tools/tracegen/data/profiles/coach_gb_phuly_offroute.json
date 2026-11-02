@@ -28,14 +28,17 @@
     {
       "id": "distance_1000",
       "status": "final",
-      "testIds": ["TR32"],
+      "testIds": ["TR38"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "allowFallbackFirst": true,
       "expect": [
-        {"event": "alarm", "reason": "PASSED_CLOSEST", "notBefore": {"anchor": "closest.departT"}, "notAfter": {"anchor": "closest.departT", "offsetS": 30}, "ref": "T10 TR32: PRD §4 đích ngoài tuyến: đã qua điểm gần nhất thì báo (T10 §4.11)"}
+        {"event": "alarm", "reason": "FALLBACK", "ringNow": false, "notBefore": {"anchor": "closest"}, "notAfter": {"anchor": "closest", "offsetS": 80}, "ref": "T10.3 TR38: RK2 được chấp nhận — báo dự phòng kêu lúc xe đỗ ở điểm gần đích nhất"}
       ],
       "forbid": ["overshoot", "gpsLost"],
       "forbidMatch": [
-        {"event": "alarm", "reason": "DISTANCE"}
+        {"event": "alarm", "reason": "DISTANCE"},
+        {"event": "alarm", "reason": "PASSED_CLOSEST"},
+        {"event": "alarm", "ringNow": true}
       ]
     },
     {
@@ -43,7 +46,9 @@
       "status": "final",
       "testIds": ["TR27"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "allowFallbackFirst": true,
       "expect": [
+        {"event": "alarm", "reason": "FALLBACK", "ringNow": false, "notBefore": {"anchor": "closest"}, "notAfter": {"anchor": "closest", "offsetS": 80}, "ref": "T10.3 TR38: RK2 được chấp nhận — báo dự phòng kêu lúc xe đỗ ở điểm gần đích nhất"},
         {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
       ],
       "expectSummary": {"vehicleGuess": "UNKNOWN"},

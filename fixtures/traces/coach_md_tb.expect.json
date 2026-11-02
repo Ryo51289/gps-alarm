@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "trace": {
     "id": "coach_md_tb",
@@ -178,19 +178,19 @@
       "expect": [
         {
           "event": "preAlert",
-          "notBefore": 5450,
+          "notBefore": 4610,
           "notAfter": 5570,
           "window": {
             "notBefore": {
               "anchor": "arrival",
-              "offsetS": -1860
+              "offsetS": -2700
             },
             "notAfter": {
               "anchor": "arrival",
               "offsetS": -1740
             }
           },
-          "ref": "PRD §4 Nhắc nhẹ: còn 30 phút; dung sai ±1 phút (PRD §1)"
+          "ref": "T10.3 Q10 = A: nhắc nhẹ còn 30 phút; ETA không biết trước đoạn chậm (RK3) nên cho sớm tới 1,5 × mốc, không muộn hơn mốc + 1 phút"
         },
         {
           "event": "alarm",
@@ -229,19 +229,19 @@
         {
           "event": "alarm",
           "reason": "SMART_TIME",
-          "notBefore": 6650,
+          "notBefore": 6410,
           "notAfter": 6770,
           "window": {
             "notBefore": {
               "anchor": "arrival",
-              "offsetS": -660
+              "offsetS": -900
             },
             "notAfter": {
               "anchor": "arrival",
               "offsetS": -540
             }
           },
-          "ref": "T10 TR09: PRD §4 Thông minh, nhánh thời gian còn 10 phút (T10 §4.5); dung sai ±1 phút (PRD §1)"
+          "ref": "T10.3 Q10 = A: PRD §4 Thông minh ~10 phút; RK3 nên cho sớm tới 1,5 × mốc, không muộn hơn mốc + 1 phút"
         }
       ],
       "forbid": [

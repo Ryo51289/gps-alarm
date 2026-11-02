@@ -1,6 +1,8 @@
 // T11 TG31 (tester): every T10 trace test TR01–TR35 maps to fixture cases
 // exactly as T11 §5.4/§5.5 prescribes; T11.1 adds the seven TR37 cases
-// (T11.1 §5.8) and `policyPhaseSweep` (TR30, stopgap TR27).
+// (T11.1 §5.8) and `policyPhaseSweep` (TR30, stopgap TR27). T11.2 adds
+// `allowFallbackFirst` (TR38 and TR27 on coach_gb_phuly_offroute), moves TR32
+// to coach_gb_phuly_offroute_2k and widens TR03/TR09 (T10.3 Q10 = A).
 //
 // The golden table below was written by hand from the spec tables (not
 // copied from the generator output). Each case is reduced to a signature at
@@ -73,6 +75,9 @@ List<String> signature(Map<String, Object?> c) {
   if (c.containsKey('policyPhaseSweep')) {
     out.add('sweep=${c['policyPhaseSweep']}');
   }
+  if (c.containsKey('allowFallbackFirst')) {
+    out.add('fallbackFirst=${c['allowFallbackFirst']}');
+  }
   for (final e in (c['expect']! as List).cast<Map<String, Object?>>()) {
     final w = e['window']! as Map<String, Object?>;
     out.add(
@@ -129,10 +134,19 @@ List<String> signature(Map<String, Object?> c) {
 }
 
 /// T11 §5.5: `summary_unknown`, present in every profile; [sweep] = T11.1
-/// `policyPhaseSweep: true` (stopgap only).
-List<String> summary(String guess, {bool sweep = false}) => [
+/// `policyPhaseSweep: true` (stopgap only); [fallbackFirst] = T11.2
+/// `allowFallbackFirst: true` with its FALLBACK expectation (offroute only).
+List<String> summary(
+  String guess, {
+  bool sweep = false,
+  bool fallbackFirst = false,
+}) => [
   'D1000 nopa hint=unknown actions[stop@end]',
   if (sweep) 'sweep=true',
+  if (fallbackFirst) ...[
+    'fallbackFirst=true',
+    'E alarm/FALLBACK/ringNow=false [closest,closest+80]',
+  ],
   'E tripEnded [end,end]',
   'Σ $guess',
 ];
@@ -264,7 +278,7 @@ final Map<String, (List<String>, List<String>)> golden = {
     ['TR03'],
     [
       'T15 pa',
-      'E preAlert [arrival-1860,arrival-1740]',
+      'E preAlert [arrival-2700,arrival-1740]',
       'E alarm/TIME [arrival-960,arrival-840]',
       '! gpsLost,overshoot',
     ],
@@ -273,7 +287,7 @@ final Map<String, (List<String>, List<String>)> golden = {
     ['TR09'],
     [
       'S pa',
-      'E alarm/SMART_TIME [arrival-660,arrival-540]',
+      'E alarm/SMART_TIME [arrival-900,arrival-540]',
       '! gpsLost,overshoot',
     ],
   ),
@@ -499,6 +513,22 @@ final Map<String, (List<String>, List<String>)> golden = {
   ),
   'train_longstop_nospd/summary_unknown': (['TR27'], summary('UNKNOWN')),
   'coach_gb_phuly_offroute/distance_1000': (
+    ['TR38'],
+    [
+      'D1000 pa',
+      'fallbackFirst=true',
+      'E alarm/FALLBACK/ringNow=false [closest,closest+80]',
+      '! gpsLost,overshoot',
+      '!m alarm/DISTANCE',
+      '!m alarm/PASSED_CLOSEST',
+      '!m alarm/ringNow=true',
+    ],
+  ),
+  'coach_gb_phuly_offroute/summary_unknown': (
+    ['TR27'],
+    summary('UNKNOWN', fallbackFirst: true),
+  ),
+  'coach_gb_phuly_offroute_2k/distance_1000': (
     ['TR32'],
     [
       'D1000 pa',
@@ -507,7 +537,7 @@ final Map<String, (List<String>, List<String>)> golden = {
       '!m alarm/DISTANCE',
     ],
   ),
-  'coach_gb_phuly_offroute/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  'coach_gb_phuly_offroute_2k/summary_unknown': (['TR27'], summary('UNKNOWN')),
 };
 
 void main() {
@@ -525,9 +555,9 @@ void main() {
   };
 
   group('TG31 trace coverage (T10 TR ↔ T11 cases)', () {
-    test('15 profiles, 58 cases, exactly the §5.4/§5.5 case list', () {
-      expect(ids, hasLength(15));
-      expect(golden, hasLength(58));
+    test('16 profiles, 60 cases, exactly the §5.4/§5.5 case list', () {
+      expect(ids, hasLength(16));
+      expect(golden, hasLength(60));
       expect(cases.keys.toSet(), golden.keys.toSet());
     });
 
@@ -545,7 +575,7 @@ void main() {
       }
     });
 
-    test('every TR01–TR35 and TR37 is covered, TR36 has no case', () {
+    test('every TR01–TR35, TR37 and TR38 is covered, TR36 has no case', () {
       final covered = <String, List<String>>{};
       for (final MapEntry(:key, :value) in cases.entries) {
         for (final tr in (value['testIds']! as List).cast<String>()) {
@@ -555,6 +585,7 @@ void main() {
       final all = [
         for (var i = 1; i <= 35; i++) 'TR${i.toString().padLeft(2, '0')}',
         'TR37',
+        'TR38',
       ];
       expect(covered.keys.toSet(), all.toSet());
       expect(covered.containsKey('TR36'), isFalse);
@@ -564,7 +595,7 @@ void main() {
       for (final tr in all) {
         final n = switch (tr) {
           'TR03' || 'TR04' || 'TR12' => 2,
-          'TR27' => 15,
+          'TR27' => 16,
           'TR37' => 7,
           _ => 1,
         };
@@ -572,7 +603,7 @@ void main() {
       }
     });
 
-    test('TR27 summary_unknown exists in all 15 profiles', () {
+    test('TR27 summary_unknown exists in all 16 profiles', () {
       for (final id in ids) {
         final c = cases['$id/summary_unknown'];
         expect(c, isNotNull, reason: id);
@@ -607,6 +638,31 @@ void main() {
       });
     });
 
+    test('TR32 is on coach_gb_phuly_offroute_2k, TR38 on the 1.5 km trace', () {
+      final byTr = <String, List<String>>{};
+      for (final MapEntry(:key, :value) in cases.entries) {
+        for (final tr in (value['testIds']! as List).cast<String>()) {
+          (byTr[tr] ??= []).add(key);
+        }
+      }
+      expect(byTr['TR32'], ['coach_gb_phuly_offroute_2k/distance_1000']);
+      expect(byTr['TR38'], ['coach_gb_phuly_offroute/distance_1000']);
+    });
+
+    test('allowFallbackFirst is true in exactly the two offroute cases', () {
+      final allowed = [
+        for (final MapEntry(:key, :value) in cases.entries)
+          if (value.containsKey('allowFallbackFirst')) key,
+      ];
+      expect(allowed.toSet(), {
+        'coach_gb_phuly_offroute/distance_1000',
+        'coach_gb_phuly_offroute/summary_unknown',
+      });
+      for (final key in allowed) {
+        expect(cases[key]!['allowFallbackFirst'], isTrue, reason: key);
+      }
+    });
+
     for (final key in golden.keys) {
       test('$key matches its §5.4/§5.5 row', () {
         final c = cases[key];
@@ -628,6 +684,10 @@ void main() {
       final f = deepCopy(cases[tr37f])! as Map<String, Object?>;
       (f['killSweep']! as Map<String, Object?>).remove('statsOnly');
       expect(signature(f), isNot(golden[tr37f]!.$2));
+      const tr38 = 'coach_gb_phuly_offroute/distance_1000';
+      final g = deepCopy(cases[tr38])! as Map<String, Object?>
+        ..remove('allowFallbackFirst');
+      expect(signature(g), isNot(golden[tr38]!.$2));
     });
 
     test('profile JSON and fixture list the same cases in the same order', () {

@@ -83,6 +83,8 @@ tuyến; quá trạm khi báo đã tự ngừng kêu thì kêu lại._
   dần trong chuyến.
 - Thông minh (mặc định cho người dùng mới): mục tiêu ~10 phút tỉnh ngủ; không bao giờ muộn hơn mốc 1 km;
   xe chậm (< 15 km/h) thì dùng khoảng cách.
+- ETA không biết trước đoạn đường chậm hoặc lần dừng phía trước, nên nhắc nhẹ và báo thông minh có thể đến sớm hơn mốc
+  (ví dụ còn 13 phút thay vì 10 phút). _(PO duyệt 02/11/2026, Q10 = A — T10.3.)_
 - Cảnh báo ở màn 3 khi chế độ khoảng cách cho < 4 phút ở tốc độ dự kiến của phương tiện.
 - Bắt đầu chuyến khi đã ở trong vùng báo → báo ngay.
 

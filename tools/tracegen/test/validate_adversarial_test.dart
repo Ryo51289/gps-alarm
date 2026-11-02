@@ -83,6 +83,8 @@ void main() {
   final dh = _Target('train_hn_dh');
   final md = _Target('coach_md_tb');
   final off = _Target('coach_gb_phuly_offroute');
+  // T11.2: TR32 (anchor closest.departT) moved to the 2 km trace.
+  final off2k = _Target('coach_gb_phuly_offroute_2k');
 
   /// Asserts an error `<label>:<path>: …<message>…` among [errors].
   void rejects(
@@ -802,7 +804,7 @@ void main() {
           ),
           (
             'closest.departT with params.passedClosestOpenMinM',
-            off,
+            off2k,
             'distance_1000',
             (c) =>
                 (c['config']! as _J)['params'] = {'passedClosestOpenMinM': 300},
@@ -1076,7 +1078,7 @@ void main() {
       // Unchanged data: ok.
       final (okCode, okOut, _) = await _cli(['check']);
       expect(okCode, 0);
-      expect(okOut, contains('ok: 30 fixture file(s) up to date'));
+      expect(okOut, contains('ok: 32 fixture file(s) up to date'));
     });
   });
 
@@ -1884,7 +1886,7 @@ void _tg48() {
     }
 
     test(
-      'one run over all 15 pairs reports every error of every file',
+      'one run over all 16 pairs reports every error of every file',
       () async {
         final dir = Directory('${root.path}/all')..createSync();
         for (final e in fixturesDir.listSync().whereType<File>()) {
@@ -1892,7 +1894,7 @@ void _tg48() {
         }
         final (okCode, okOut, _) = await _cli(['validate', '--dir', dir.path]);
         expect(okCode, 0);
-        expect(okOut.trim(), 'ok: 15 fixture pair(s) valid');
+        expect(okOut.trim(), 'ok: 16 fixture pair(s) valid');
 
         File('${dir.path}/coach_md_tb.expect.json').writeAsStringSync(
           _mutate(md.text, (j) {

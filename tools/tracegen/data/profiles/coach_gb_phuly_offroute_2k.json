@@ -1,0 +1,53 @@
+{
+  "id": "coach_gb_phuly_offroute_2k",
+  "title": "Xe khách Giáp Bát → Phủ Lý, đích cách đường 2 km",
+  "vehicle": "coach",
+  "route": "road_gb_phuly_kienkhe",
+  "destination": "bx_phu_ly",
+  "destinationOffsetM": 2000,
+  "seed": 5001,
+  "startTime": "2026-03-14T03:00:00Z",
+  "sampleIntervalS": 5,
+  "startDwellS": 60,
+  "endDwellS": 60,
+  "motion": {"accelMps2": 0.6, "decelMps2": 0.8, "cruiseJitter": 0.10, "jitterChunkM": 1000},
+  "speedLimits": [
+    {"from": "bx_giap_bat", "kmh": 30},
+    {"from": "nut_giao_phap_van", "kmh": 85},
+    {"from": "nut_giao_liem_tuyen", "kmh": 30},
+    {"from": "bx_phu_ly", "kmh": 35},
+    {"from": "ga_phu_ly", "kmh": 55}
+  ],
+  "stops": [
+    {"at": "bx_phu_ly", "dwellS": 90}
+  ],
+  "gpsGaps": [],
+  "noise": {"sigmaM": 5, "rho": 0.9, "accMinM": 3, "speedSigmaMps": 0.3, "speedMissingRate": 0, "outlierRate": 0, "outlierMinM": 0, "outlierMaxM": 0},
+  "scriptedOutliers": [],
+  "cases": [
+    {
+      "id": "distance_1000",
+      "status": "final",
+      "testIds": ["TR32"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "expect": [
+        {"event": "alarm", "reason": "PASSED_CLOSEST", "notBefore": {"anchor": "closest.departT"}, "notAfter": {"anchor": "closest.departT", "offsetS": 30}, "ref": "T10 TR32: PRD §4 đích ngoài tuyến: đã qua điểm gần nhất thì báo (T10 §4.11)"}
+      ],
+      "forbid": ["overshoot", "gpsLost"],
+      "forbidMatch": [
+        {"event": "alarm", "reason": "DISTANCE"}
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": ["TR27"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "expect": [
+        {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
+      ],
+      "expectSummary": {"vehicleGuess": "UNKNOWN"},
+      "forbid": []
+    }
+  ]
+}

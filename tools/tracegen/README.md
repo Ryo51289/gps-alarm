@@ -83,8 +83,9 @@ dart format --output=none --set-exit-if-changed . && dart analyze --fatal-infos 
 **Case** (định dạng ghi ra và ngữ nghĩa: [`fixtures/traces/README.md`](../../fixtures/traces/README.md) §3.1):
 
 ```
-{id, status?: draft, testIds?: ["TRxx"], config, samplingModes?, policyPhaseSweep?: false, expect: [...], expectAfter?,
- expectFallback?, killSweep?, expectOutcome?, expectSummary?: {vehicleGuess}, forbid: [event], forbidMatch?, forbidAfter?}
+{id, status?: draft, testIds?: ["TRxx"], config, samplingModes?, policyPhaseSweep?: false, allowFallbackFirst?: false,
+ expect: [...], expectAfter?, expectFallback?, killSweep?, expectOutcome?, expectSummary?: {vehicleGuess}, forbid: [event],
+ forbidMatch?, forbidAfter?}
 config: {mode: distance|time|smart, thresholdM (200..10000) | thresholdMin (5..60) | (smart: không có), preAlert?: true,
          vehicleHint?, params?: {tên: số}, battery?: [{t, levelPct, charging}], actions?: [{at, action}], kill?: At,
          relaunch?: {at, fallbackStatus}, osDismiss?: {offsetS}, osSim?, osRingMaxS?}
@@ -113,6 +114,12 @@ Khoá T11.1 (spec [`docs/specs/T11.1.md`](../../docs/specs/T11.1.md) §2–§3; 
 | `expectFallback` | thêm V11: không đi với `params` override 12 tên của công thức (`fallbackLagS`, `fallbackEarlyFrac`, `fallbackEarlyMaxS`, `fallbackNearS`, `fallbackHintSpeedFactor`, `routeFactorPrior`, `expectedSpeedKmh{Train,Coach,Bus,Unknown}`, `etaStopPenaltyS`, `smartTargetS`). Fixture ghi thêm `window.asOfStraightM` (chim bay từ vị trí thật ở `killT − I` tới đích, `floor`) và `window.hintEstimateT` |
 
 Anchor `overshoot` cần `truth.overshoot`: `generate` báo khi giải anchor, `validate` báo trên fixture (V13).
+
+Khoá T11.2 (spec [`docs/specs/T11.2.md`](../../docs/specs/T11.2.md) §2–§3, T10 mục "T10.3"; cùng quy tắc và thông báo ở `validate`):
+
+| Khoá | Cú pháp, ràng buộc |
+|---|---|
+| `allowFallbackFirst` | bool (V14), chỉ ghi ra fixture khi `true` (`false` = vắng). `true` → harness không kiểm P02 cho case (alarm đầu tiên được phép là `ringNow=false` khi không có `kill`). Không đi cùng `config.kill` hoặc `killSweep` (V15: `allowFallbackFirst cannot be used with config.kill or killSweep`). Cần ít nhất một `expect[]` với `event: "alarm"` và `ringNow: false` (V16: `allowFallbackFirst needs an expect entry for alarm with ringNow false`). Chỉ đọc rồi ghi lại, không dùng để giải anchor |
 
 ## Thuật toán (tóm tắt spec T02 §5–§6)
 

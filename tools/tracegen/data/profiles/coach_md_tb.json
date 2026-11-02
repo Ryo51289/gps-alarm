@@ -42,7 +42,7 @@
       "testIds": ["TR03"],
       "config": {"mode": "time", "thresholdMin": 15, "preAlert": true},
       "expect": [
-        {"event": "preAlert", "notBefore": {"anchor": "arrival", "offsetS": -1860}, "notAfter": {"anchor": "arrival", "offsetS": -1740}, "ref": "PRD §4 Nhắc nhẹ: còn 30 phút; dung sai ±1 phút (PRD §1)"},
+        {"event": "preAlert", "notBefore": {"anchor": "arrival", "offsetS": -2700}, "notAfter": {"anchor": "arrival", "offsetS": -1740}, "ref": "T10.3 Q10 = A: nhắc nhẹ còn 30 phút; ETA không biết trước đoạn chậm (RK3) nên cho sớm tới 1,5 × mốc, không muộn hơn mốc + 1 phút"},
         {"event": "alarm", "reason": "TIME", "notBefore": {"anchor": "arrival", "offsetS": -960}, "notAfter": {"anchor": "arrival", "offsetS": -840}, "ref": "PRD §4 Chế độ thời gian; dung sai ±1 phút (PRD §1)"}
       ],
       "forbid": ["gpsLost", "overshoot"]
@@ -53,7 +53,7 @@
       "testIds": ["TR09"],
       "config": {"mode": "smart", "preAlert": true},
       "expect": [
-        {"event": "alarm", "reason": "SMART_TIME", "notBefore": {"anchor": "arrival", "offsetS": -660}, "notAfter": {"anchor": "arrival", "offsetS": -540}, "ref": "T10 TR09: PRD §4 Thông minh, nhánh thời gian còn 10 phút (T10 §4.5); dung sai ±1 phút (PRD §1)"}
+        {"event": "alarm", "reason": "SMART_TIME", "notBefore": {"anchor": "arrival", "offsetS": -900}, "notAfter": {"anchor": "arrival", "offsetS": -540}, "ref": "T10.3 Q10 = A: PRD §4 Thông minh ~10 phút; RK3 nên cho sớm tới 1,5 × mốc, không muộn hơn mốc + 1 phút"}
       ],
       "forbid": ["gpsLost", "overshoot"]
     },

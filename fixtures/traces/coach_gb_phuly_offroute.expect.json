@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "trace": {
     "id": "coach_gb_phuly_offroute",
@@ -124,30 +124,32 @@
       "id": "distance_1000",
       "status": "final",
       "testIds": [
-        "TR32"
+        "TR38"
       ],
       "config": {
         "mode": "distance",
         "thresholdM": 1000,
         "preAlert": true
       },
+      "allowFallbackFirst": true,
       "expect": [
         {
           "event": "alarm",
-          "reason": "PASSED_CLOSEST",
-          "notBefore": 2645,
-          "notAfter": 2675,
+          "reason": "FALLBACK",
+          "ringNow": false,
+          "notBefore": 2425,
+          "notAfter": 2505,
           "window": {
             "notBefore": {
-              "anchor": "closest.departT",
+              "anchor": "closest",
               "offsetS": 0
             },
             "notAfter": {
-              "anchor": "closest.departT",
-              "offsetS": 30
+              "anchor": "closest",
+              "offsetS": 80
             }
           },
-          "ref": "T10 TR32: PRD §4 đích ngoài tuyến: đã qua điểm gần nhất thì báo (T10 §4.11)"
+          "ref": "T10.3 TR38: RK2 được chấp nhận — báo dự phòng kêu lúc xe đỗ ở điểm gần đích nhất"
         }
       ],
       "forbid": [
@@ -158,6 +160,14 @@
         {
           "event": "alarm",
           "reason": "DISTANCE"
+        },
+        {
+          "event": "alarm",
+          "reason": "PASSED_CLOSEST"
+        },
+        {
+          "event": "alarm",
+          "ringNow": true
         }
       ]
     },
@@ -183,7 +193,26 @@
           }
         ]
       },
+      "allowFallbackFirst": true,
       "expect": [
+        {
+          "event": "alarm",
+          "reason": "FALLBACK",
+          "ringNow": false,
+          "notBefore": 2425,
+          "notAfter": 2505,
+          "window": {
+            "notBefore": {
+              "anchor": "closest",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "closest",
+              "offsetS": 80
+            }
+          },
+          "ref": "T10.3 TR38: RK2 được chấp nhận — báo dự phòng kêu lúc xe đỗ ở điểm gần đích nhất"
+        },
         {
           "event": "tripEnded",
           "notBefore": 3240,

@@ -1,9 +1,10 @@
-# Fixture trace GPS (schema v1, bổ sung T11, T11.1)
+# Fixture trace GPS (schema v1, bổ sung T11, T11.1, T11.2)
 
 Văn bản chuẩn của định dạng fixture dùng chung cho Trip Engine Dart / Kotlin (T12) / Swift (T13) và chế độ giả lập (T18).
 Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [`docs/specs/T11.md`](../../docs/specs/T11.md) §2–§5
 (khoá case mới, quy tắc harness), [`docs/specs/T11.1.md`](../../docs/specs/T11.1.md) (`policyPhaseSweep`, `killSweep`, công thức
-`expectFallback` theo T10.2), [`docs/specs/T10.md`](../../docs/specs/T10.md) §8 (hợp đồng harness). Bộ sinh:
+`expectFallback` theo T10.2), [`docs/specs/T11.2.md`](../../docs/specs/T11.2.md) (`allowFallbackFirst`, T10.3),
+[`docs/specs/T10.md`](../../docs/specs/T10.md) §8 (hợp đồng harness). Bộ sinh:
 [`tools/tracegen`](../../tools/tracegen/README.md).
 
 - Mọi file ở đây do `tracegen` sinh, **không sửa tay**. Muốn đổi: sửa `tools/tracegen/data/profiles/<id>.json` (hoặc route),
@@ -12,7 +13,7 @@ Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [
 - Dữ liệu **tổng hợp**, không phải hành trình thật. Toạ độ ga/bến lấy từ © OpenStreetMap contributors, giấy phép
   [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
 
-## Mười lăm trace (58 case, tất cả `final`)
+## Mười sáu trace (60 case, tất cả `final`)
 
 | id | Mô tả | Kịch bản chính | Test T10 |
 |---|---|---|---|
@@ -30,7 +31,8 @@ Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [
 | `coach_dn_langco_shortgap` | Như trên, không mất GPS trong hầm | Mất GPS 120 s ở Hoà Khánh, khi còn > 20 km chim bay | TR13, TR27 |
 | `coach_dn_langco_neardest` | Đà Nẵng → Lăng Cô (nam) | Mất GPS 360 s trong hầm, đích ≈ 1,15 km chim bay sau cửa Bắc | TR14, TR27 |
 | `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | TR06, TR19, TR27, TR33, TR35, TR37 |
-| `coach_gb_phuly_offroute` | Như trên, đích dời 1,5 km khỏi đường | `destinationOffsetM: 1500` (phía nam), không bao giờ vào ngưỡng 1 km | TR32, TR27 |
+| `coach_gb_phuly_offroute` | Như trên, đích dời 1,5 km khỏi đường | `destinationOffsetM: 1500` (phía nam), không bao giờ vào ngưỡng 1 km; xe đỗ ở bến đúng điểm gần đích nhất, báo dự phòng kêu lúc đỗ (`allowFallbackFirst`, T10.3) | TR38, TR27 |
+| `coach_gb_phuly_offroute_2k` | Như `coach_gb_phuly_offroute` (trùng từng mẫu GPX), đích dời 2 km | `destinationOffsetM: 2000`; báo `PASSED_CLOSEST` sau khi rời điểm gần nhất | TR32, TR27 |
 
 Nhóm điểm nhảy "còn 400 m" của `bus_hn_brt01_noisy` nằm **phía sau** xe, trên đoạn tuyến đã đi (không nằm bên kia đích). Nó đánh
 lừa bộ phát hiện quá trạm dựa trên khoảng cách chim bay; với bộ phát hiện chiếu vị trí lên tuyến, nó chỉ trông như xe nhảy lùi.
@@ -100,7 +102,7 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
 ```json
 {
   "schemaVersion": 1,
-  "generator": {"name": "tracegen", "version": "1.2.0"},
+  "generator": {"name": "tracegen", "version": "1.3.0"},
   "trace": {
     "id": "coach_dn_langco_tunnel",
     "title": "Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân (mất GPS 6 phút)",
@@ -156,7 +158,7 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
 | Đường dẫn | Kiểu | Ý nghĩa |
 |---|---|---|
 | `schemaVersion` | int | `1`. Consumer gặp số lớn hơn bản mình hỗ trợ thì **phải fail** |
-| `generator.name`, `.version` | string | `tracegen`, semver của generator (hiện `1.2.0`) |
+| `generator.name`, `.version` | string | `tracegen`, semver của generator (hiện `1.3.0`) |
 | `trace.id`, `.title`, `.vehicle`, `.gpx` | string | `vehicle` ∈ `train`, `coach`, `bus`; `gpx` = tên file cùng thư mục |
 | `trace.seed`, `.noiseSeed` | int | để tái tạo |
 | `trace.startTime` | string | = `time` của trkpt đầu |
@@ -186,8 +188,8 @@ Mọi thời điểm là **số nguyên giây kể từ `startTime`**, mọi kho
 Mỗi case là một lần chạy engine trên trace với một cấu hình. Thứ tự key (`?` = tuỳ chọn):
 
 ```
-id, status, testIds?, config, samplingModes?, policyPhaseSweep?, expect, expectAfter?, expectFallback?, killSweep?,
-expectOutcome?, expectSummary?, forbid, forbidMatch?, forbidAfter?
+id, status, testIds?, config, samplingModes?, policyPhaseSweep?, allowFallbackFirst?, expect, expectAfter?, expectFallback?,
+killSweep?, expectOutcome?, expectSummary?, forbid, forbidMatch?, forbidAfter?
 config: mode, thresholdM? | thresholdMin?, preAlert, vehicleHint?, params?, battery?, actions?, kill?, relaunch?, osDismiss?,
         osSim?, osRingMaxS?
 killSweep: from, everyS, notAfter, earlyFrom, statsOnly?
@@ -216,6 +218,7 @@ Quy ước: tên sự kiện lowerCamel; giá trị enum **sinh ra từ engine**
 | `config.osRingMaxS` | int > 0 | báo của nền tảng tự ngừng sau N giây (T10 §8.1-4); vắng = kêu tới khi bấm |
 | `samplingModes` | `["all"]` / `["policy"]` | vắng = chạy cả hai chế độ lấy mẫu (§6) (sau T11.1 không case nào dùng) |
 | `policyPhaseSweep` | bool, vắng = `false` | T10 §8.1-3, §6 dưới. `true` → harness thay lượt `policy` bằng quét `K = samplingSparseIntervalS / I` pha. Chỉ ghi khi `true`. Không đi cùng `samplingModes: ["all"]` hoặc action `batteryMaxSaving`; `samplingSparseIntervalS` hiệu lực (override hoặc 180) phải chia hết cho `sampleIntervalS` |
+| `allowFallbackFirst` | bool, vắng = `false` | T10 §8.1-4, §8.2, T10.3. `true` → harness **không** kiểm P02 cho case: `alarm` đầu tiên được phép là `ringNow=false` khi không có `kill` (báo dự phòng kêu lúc engine còn sống, RK2). Chỉ ghi khi `true`. Không đi cùng `config.kill` hoặc `killSweep` (V15); case phải tự kỳ vọng alarm đó: cần ít nhất một `expect[]` có `event: "alarm"` và `ringNow: false` (V16) |
 | `expect[]` | `{event, reason?, ringNow?, cause?, notBefore, notAfter, window, ref}` | **lần xuất hiện đầu tiên** của sự kiện khớp bộ lọc phải có `t ∈ [notBefore, notAfter]` (gồm 2 đầu); không có là fail. `window` lưu anchor gốc (`clamp(anchor + offsetS, 0, durationS)`, quy tắc v1); `ref` trích quy tắc |
 | `expectAfter[]` | `{event, reason?, ringNow?, cause?, after, withinS: [lo, hi], ref}` | `B` = mốc của `after`. Lần đầu tiên sự kiện khớp có `t ≥ B` phải có `t − B ∈ [lo, hi]` (gồm 2 đầu, `0 ≤ lo ≤ hi`); không có là fail |
 | `expectFallback` | `{asOfT, notBefore, notAfter, window, ref}` | cần `kill`. Xét `FallbackAlarmChanged` **cuối cùng** có `t ≤ asOfT`: phải có `fallbackAtMs ≠ null` và `floor((fallbackAtMs − startMs)/1000) ∈ [notBefore, notAfter]`. `window = {modeAt, modeAtT, killT, estimateT, asOfStraightM, hintEstimateT, toleranceS}` ghi cách tính (dưới đây); harness không dùng `window` nhưng phải biết tên khoá (§5) |
@@ -314,6 +317,8 @@ Cặp GPX + expect: `schemaVersion == 1`; đủ key bắt buộc, đúng kiểu;
   `samplingModes` hợp lệ; `final` thì `testIds` khác rỗng, đúng mẫu, không trùng;
 - `policyPhaseSweep` là bool; `true` không đi cùng `samplingModes: ["all"]` hoặc action `batteryMaxSaving`, và cần
   `samplingSparseIntervalS` hiệu lực chia hết cho `sampleIntervalS`;
+- `allowFallbackFirst` là bool (V14); `true` không đi cùng `config.kill` hoặc `killSweep` (V15) và cần một `expect[]` với
+  `event: "alarm"`, `ringNow: false` (V16);
 - `killSweep` đủ `from`, `everyS`, `notAfter`, `earlyFrom` (`statsOnly` tuỳ chọn, bool); ba `At` tĩnh, không `kill`;
   `from.t ≥ sampleIntervalS`; `everyS > 0`, bội số của `sampleIntervalS`; không đi cùng `config.kill`, `config.relaunch`,
   `config.osDismiss`, `config.osSim: false`;
@@ -346,13 +351,13 @@ Ngoài `cases[]`: `destination.offsetM` (nếu có) là int ≠ 0; `truth.closes
   `expect[i]` và `.window` (cả `.notBefore`/`.notAfter` bên trong), `expectAfter[i]` và `.after`, `expectFallback` và `.window`
   (cả `.modeAt`; khoá của `.window` gồm cả `asOfStraightM`, `hintEstimateT` từ T11.1), `killSweep` và `.from`, `.notAfter`,
   `.earlyFrom`, `expectSummary`, `forbidMatch[i]`, `forbidAfter[i]` và `.after`. Khoá trực tiếp của `cases[i]` gồm cả
-  `policyPhaseSweep`, `killSweep` (T11.1). Áp cả cho khoá chỉ mang thông tin (`ref`,
+  `policyPhaseSweep`, `killSweep` (T11.1) và `allowFallbackFirst` (T11.2). Áp cả cho khoá chỉ mang thông tin (`ref`,
   `testIds`, `window`): harness phải biết tên chúng dù không dùng. Lý do: harness bỏ qua `config.kill` sẽ chạy sai case, còn
   harness bỏ qua bộ lọc lồng (ví dụ `expect[].reason`) sẽ so như kỳ vọng không lọc; cả hai đều có thể PASS giả. Ngoài `cases[]`
   (`trace`, `destination`, `truth`, `milestones`…) consumer **bỏ qua** khoá lạ như v1. `tracegen validate` kiểm đúng quy tắc này.
   Hệ quả: thêm khoá case mới là thay đổi bổ sung với generator, nhưng phải đi kèm task cập nhật harness.
 - Namespace extension GPX có `/1`; thêm phần tử extension mới là thay đổi bổ sung.
-- `generator.version` (hiện `1.2.0`): tăng khi code generator làm đổi output với cùng input (patch), thêm tính năng (minor), đổi
+- `generator.version` (hiện `1.3.0`): tăng khi code generator làm đổi output với cùng input (patch), thêm tính năng (minor), đổi
   schema (major). Đổi dữ liệu profile/route thì không cần tăng.
 
 ## 6. Quy tắc harness (T12 Kotlin, T13 Swift; chuẩn hoá T10 §8.1)
@@ -374,10 +379,11 @@ Nhắc lại T10 §8.1 (không đổi nghĩa):
   `policyPhaseSweep`). Với mọi `k` = tick đầu ≥ `from`, rồi cách `everyS`, tới tick `alarm` đầu tiên (gồm): giờ dự phòng osSim đang giữ
   sau tick `k − I` phải khác null và, trừ khi `statsOnly: true`, `floor((fbOs − startMs)/1000) ≤ notAfter`. Lượt không có `alarm` là
   fail. Không chạy lại engine cho từng `k`. In thống kê: % và độ muộn của các `k` vượt `notAfter`, độ sớm `earlyFrom − fbOs` theo nhóm
-  thời gian còn lại, số lần đặt lại mỗi giờ. Case `killSweep` vẫn qua mọi kiểm tra của điểm 9 (P02 áp vì không có `kill`).
+  thời gian còn lại, số lần đặt lại mỗi giờ. Case `killSweep` vẫn qua mọi kiểm tra của điểm 9 (P02 áp vì không có `kill`; `killSweep` không đi cùng
+  `allowFallbackFirst`).
 - **osSim** (mặc định bật): trạng thái `fbOs`, `ringing ∈ {NONE, ENGINE, FALLBACK}`, `ringStartMs`; xử lý `FallbackAlarmChanged`,
   báo dự phòng kêu, nghĩa vụ 3 ở Step có `Alarm(ringNow=true)`, `osRingMaxS`, `kill`, `AlarmSilenced` sau relaunch — đúng như
-  T10 §8.1-4. P02: case không có `kill` thì `alarm` đầu tiên có `ringNow=true`. P07: (i) không có `Alarm(ringNow=true)` khi
+  T10 §8.1-4. P02: case không có `kill` và không có `allowFallbackFirst: true` thì `alarm` đầu tiên có `ringNow=true`. P07: (i) không có `Alarm(ringNow=true)` khi
   `ringing == ENGINE`; (ii) sau mỗi Step có `Alarm(ringNow=true)`, `ringing ≠ NONE`.
 
 Bổ sung (ràng buộc với T12/T13):
@@ -406,7 +412,7 @@ Bổ sung (ràng buộc với T12/T13):
 8. **I8 / P04:** điểm kiểm (25 %, 50 %, 90 % `durationS`, tick ngay sau `alarm` đầu tiên) rơi vào khoảng engine chết thì bỏ qua.
    Lần chạy khôi phục phải sao chép cả trạng thái osSim và trạng thái giao fix (`tFixGiaoCuối`, cờ hành động vị trí).
 9. **Kiểm:** `expect`, `expectAfter`, `expectFallback`, `killSweep`, `expectOutcome`, `expectSummary`, `forbid`, `forbidMatch`,
-   `forbidAfter`, bất biến I1–I7, I9–I12, P02 (case không có `kill`), P07, I8. Case lỗi cấu hình (khoá lạ theo must-understand,
+   `forbidAfter`, bất biến I1–I7, I9–I12, P02 (case không có `kill` và không có `allowFallbackFirst: true`), P07, I8. Case lỗi cấu hình (khoá lạ theo must-understand,
    `params` bị từ chối, anchor chạy không xảy ra, hành động lúc engine chết, `osDismiss` không trước relaunch, `B > durationS` của
    hành động/relaunch, relaunch theo `event:*` có `B ≤ kill.t`, `policyPhaseSweep` với `samplingSparseIntervalS` không chia hết cho
    `sampleIntervalS`, lượt `killSweep` không có `alarm`) là **fail**, không phải skip.

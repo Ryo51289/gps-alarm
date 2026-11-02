@@ -536,6 +536,7 @@ final class CaseSpec {
     this.osRingMaxS,
     this.samplingModes,
     this.policyPhaseSweep = false,
+    this.allowFallbackFirst = false,
     this.expectAfter = const [],
     this.expectFallback,
     this.killSweep,
@@ -574,6 +575,10 @@ final class CaseSpec {
   /// Sweep the phase of the sparse sampling cycle in the `policy` run
   /// (T11.1 §2, T10 §8.1-3).
   final bool policyPhaseSweep;
+
+  /// The harness skips P02 for this case: the first alarm may be
+  /// `ringNow=false` without a `kill` (T11.2 §2, T10 §8.1-4).
+  final bool allowFallbackFirst;
   final List<ExpectSpec> expect;
   final List<ExpectAfterSpec> expectAfter;
   final ExpectFallbackSpec? expectFallback;
@@ -1261,6 +1266,23 @@ String? policyPhaseSweepError({
   return null;
 }
 
+/// Error of `allowFallbackFirst: true` with the other keys of its case, or
+/// null (T11.2 §3 V15-V16).
+String? allowFallbackFirstError({
+  required bool hasKill,
+  required bool hasKillSweep,
+  required Iterable<EventFilter> expect,
+}) {
+  if (hasKill || hasKillSweep) {
+    return 'allowFallbackFirst cannot be used with config.kill or killSweep';
+  }
+  if (!expect.any((f) => f.event == 'alarm' && f.ringNow == false)) {
+    return 'allowFallbackFirst needs an expect entry for alarm with ringNow '
+        'false';
+  }
+  return null;
+}
+
 /// Error of `killSweep` together with a config key it cannot be used with,
 /// or null (T11.1 §3 V10).
 String? killSweepConflict({
@@ -1360,6 +1382,7 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
     'config',
     'samplingModes',
     'policyPhaseSweep',
+    'allowFallbackFirst',
     'expect',
     'expectAfter',
     'expectFallback',
@@ -1646,6 +1669,10 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
     }
   }
 
+  // T11.2 §3 V14; V15-V16 once `expect` is read.
+  final allowFallbackFirst =
+      c.has('allowFallbackFirst') && c.boolean('allowFallbackFirst');
+
   // T11.1 §3 V5-V10.
   KillSweepSpec? killSweep;
   if (c.has('killSweep')) {
@@ -1726,6 +1753,17 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
         ref: e.str('ref'),
       ),
     );
+  }
+
+  if (allowFallbackFirst) {
+    final error = allowFallbackFirstError(
+      hasKill: kill != null,
+      hasKillSweep: killSweep != null,
+      expect: [for (final e in expect) e.filter],
+    );
+    if (error != null) {
+      throw c.error('allowFallbackFirst', error);
+    }
   }
 
   (int, int) pair(_Obj obj, String key) {
@@ -1887,6 +1925,7 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
     osRingMaxS: osRingMaxS,
     samplingModes: samplingModes,
     policyPhaseSweep: policyPhaseSweep,
+    allowFallbackFirst: allowFallbackFirst,
     expect: List.unmodifiable(expect),
     expectAfter: List.unmodifiable(expectAfter),
     expectFallback: expectFallback,

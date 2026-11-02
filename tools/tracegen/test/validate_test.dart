@@ -924,5 +924,94 @@ void main() {
         );
       });
     });
+
+    group('TG54 allowFallbackFirst (T11.2 §3 V14-V16)', () {
+      const off = 'coach_gb_phuly_offroute';
+      const tr38 = 'distance_1000';
+
+      /// Asserts an error `<off>.expect.json:cases[i].<key>: …<message>…`.
+      void rejects(List<String> errors, String key, Pattern message) {
+        final where = 'cases[${indexOf(off, tr38)}].$key';
+        expect(
+          errors.any(
+            (e) =>
+                e.startsWith('$off.expect.json:$where: ') &&
+                e.contains(message),
+          ),
+          isTrue,
+          reason:
+              'expected "$where: …$message…", got:\n'
+              '${errors.isEmpty ? '(none)' : errors.join('\n')}',
+        );
+      }
+
+      test('positive controls', () {
+        expect(run(off, (_) {}), isEmpty);
+        expect(run('coach_gb_phuly_offroute_2k', (_) {}), isEmpty);
+        // false means absent.
+        expect(
+          run(
+            dh,
+            (j) => caseOf(j, dh, 'distance_1000')['allowFallbackFirst'] = false,
+          ),
+          isEmpty,
+        );
+      });
+
+      test('V14 allowFallbackFirst "yes"', () {
+        final errors = run(
+          off,
+          (j) => caseOf(j, off, tr38)['allowFallbackFirst'] = 'yes',
+        );
+        rejects(errors, 'allowFallbackFirst', 'must be true or false');
+        expect(errors, hasLength(1), reason: errors.join('\n'));
+      });
+
+      test('V16 FALLBACK expectation removed', () {
+        final errors = run(off, (j) {
+          (caseOf(j, off, tr38)['expect']! as List<Object?>).removeAt(0);
+        });
+        rejects(
+          errors,
+          'allowFallbackFirst',
+          'allowFallbackFirst needs an expect entry for alarm with ringNow '
+              'false',
+        );
+      });
+
+      test('V15 config.kill added', () {
+        final errors = run(off, (j) {
+          objAt(caseOf(j, off, tr38), ['config'])['kill'] = {'t': 1200};
+        });
+        rejects(
+          errors,
+          'allowFallbackFirst',
+          'allowFallbackFirst cannot be used with config.kill or killSweep',
+        );
+      });
+
+      test('V15 killSweep added', () {
+        final errors = run(off, (j) {
+          caseOf(j, off, tr38)['killSweep'] = {
+            'from': {'t': 60},
+            'everyS': 60,
+            'notAfter': {'t': 1200},
+            'earlyFrom': {'t': 600},
+          };
+        });
+        rejects(
+          errors,
+          'allowFallbackFirst',
+          'allowFallbackFirst cannot be used with config.kill or killSweep',
+        );
+      });
+
+      test('must-understand: unknown key allowFallbackFirsts', () {
+        final errors = run(off, (j) {
+          caseOf(j, off, tr38)['allowFallbackFirsts'] = true;
+        });
+        rejects(errors, 'allowFallbackFirsts', 'unknown key');
+      });
+    });
   });
 }

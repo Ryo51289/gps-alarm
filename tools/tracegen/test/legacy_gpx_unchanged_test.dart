@@ -68,18 +68,25 @@ void main() {
     check('TG49', 'T11', id, size, hash);
   }
 
+  // Traces added after T11.1 (no pinned hash: fixtures_up_to_date_test
+  // covers them; T11.2 TG55 checks that the 2 km trackpoints equal
+  // coach_gb_phuly_offroute).
+  const added = {'coach_gb_phuly_offroute_2k'};
+
   test('TG49 the table covers every profile and every committed GPX', () {
     final golden = {
       for (final (id, _, _) in [...t02, ...t11]) id,
     };
     expect(golden, hasLength(15));
-    expect(ProfileRepository(dataDir).profileIds().toSet(), golden);
+    expect(golden.intersection(added), isEmpty);
+    final all = {...golden, ...added};
+    expect(ProfileRepository(dataDir).profileIds().toSet(), all);
     final gpx = {
       for (final f in fixturesDir.listSync().whereType<File>())
         if (f.path.endsWith('.gpx'))
           f.uri.pathSegments.last.replaceAll('.gpx', ''),
     };
-    expect(gpx, golden);
+    expect(gpx, all);
   });
 
   test('TG49 FNV-1a 32 reference vectors', () {

@@ -508,6 +508,7 @@ void _validateCase(_J c, _CaseEnv env) {
     'config',
     'samplingModes',
     'policyPhaseSweep',
+    'allowFallbackFirst',
     'expect',
     'expectAfter',
     'expectFallback',
@@ -629,6 +630,18 @@ void _validateCase(_J c, _CaseEnv env) {
     final k = c.obj('killSweep');
     if (k != null) {
       checker.killSweep(k, cfg);
+    }
+  }
+  // T11.2 §3 V14-V16.
+  if (c.has('allowFallbackFirst') &&
+      (c.boolean('allowFallbackFirst') ?? false)) {
+    final message = allowFallbackFirstError(
+      hasKill: hasKill,
+      hasKillSweep: c.has('killSweep'),
+      expect: expectFilters,
+    );
+    if (message != null) {
+      err(c.at('allowFallbackFirst'), message);
     }
   }
   if (c.has('expectOutcome')) {

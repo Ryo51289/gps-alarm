@@ -408,13 +408,29 @@ void main() {
       }
     });
 
-    test('TR32 PASSED_CLOSEST [cl.dep, cl.dep + 30] = [2645, 2675]', () {
+    test('TR38 FALLBACK [cl.t, cl.t + 80] = [2425, 2505] (T11.2)', () {
       final o = oracle('coach_gb_phuly_offroute');
       // dMin 1500 m at 2425; need = max(500, 750) = 750 → first tick with
-      // straight >= 2250 m after 2425 is 2645.
+      // straight >= 2250 m after 2425 is 2645 (truth only: TR32 moved to
+      // coach_gb_phuly_offroute_2k by T11.2).
       expect(o.closest, (t: 2425, straightM: 1500, departT: 2645));
       final c = caseOf('coach_gb_phuly_offroute', 'distance_1000');
-      expect(window(expectEntry(c, 'alarm', 'PASSED_CLOSEST')), [2645, 2675]);
+      expect(window(expectEntry(c, 'alarm', 'FALLBACK')), [2425, 2505]);
+      expect(o.truth.straightM.every((d) => d > 1000), isTrue);
+    });
+
+    test('TR32 PASSED_CLOSEST [cl.dep, cl.dep + 30] on the 2 km trace', () {
+      final o = oracle('coach_gb_phuly_offroute_2k');
+      // Hand-checked by the T11.2 reviewer and tester (TG59): dMin 2000 m
+      // at 2425; need = max(500, 1000) = 1000 → first tick with straight
+      // >= 3000 m after 2425 is 2690 (2685: 2969.6 m, 2690: 3006.3 m).
+      expect(o.closest, (t: 2425, straightM: 2000, departT: 2690));
+      final departT = o.closest!.departT;
+      final c = caseOf('coach_gb_phuly_offroute_2k', 'distance_1000');
+      expect(window(expectEntry(c, 'alarm', 'PASSED_CLOSEST')), [
+        departT,
+        departT + 30,
+      ]);
       // Off-route destination never comes within 1 km (no DISTANCE alarm
       // possible, so a missing PASSED_CLOSEST would mean no alarm at all).
       expect(o.truth.straightM.every((d) => d > 1000), isTrue);

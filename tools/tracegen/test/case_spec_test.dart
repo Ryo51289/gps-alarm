@@ -1,5 +1,6 @@
 // Case keys of T11 §2 and the cross checks of §5.2 (TG01–TG11), plus the
-// T11.1 keys `policyPhaseSweep` and `killSweep` (TG39, TG41).
+// T11.1 keys `policyPhaseSweep` and `killSweep` (TG39, TG41) and the T11.2
+// key `allowFallbackFirst` (TG52).
 import 'dart:convert';
 
 import 'package:test/test.dart';
@@ -917,6 +918,93 @@ void main() {
     expect(sweep.notAfter.anchor?.text, 'arrival');
     expect(sweep.earlyFrom.anchor?.text, 'straight<=1000');
     expect(sweep.statsOnly, isFalse);
+  });
+
+  test('TG52 allowFallbackFirst (T11.2 §3 V14-V16)', () {
+    final fallback = expectItem(
+      'alarm',
+      filters: {'reason': 'FALLBACK', 'ringNow': false},
+    );
+    Map<String, Object?> allow(
+      Object? value, {
+      Map<String, Object?>? config,
+      List<Object?>? expect,
+      Map<String, Object?> more = const {},
+    }) => caseJson(
+      config: config,
+      expect: expect ?? [fallback],
+      extra: {'allowFallbackFirst': value, ...more},
+    );
+
+    expectOk(allow(true));
+    expectOk(allow(false));
+    // false means absent: no expectation needed.
+    expectOk(allow(false, expect: const []));
+    for (final bad in ['yes', 1]) {
+      expectError(
+        allow(bad),
+        'allowFallbackFirst',
+        message: 'must be true or false',
+      );
+    }
+
+    const v16 =
+        'allowFallbackFirst needs an expect entry for alarm with ringNow false';
+    expectError(
+      allow(true, expect: const []),
+      'allowFallbackFirst',
+      message: v16,
+    );
+    expectError(
+      allow(
+        true,
+        expect: [
+          expectItem('alarm', filters: {'reason': 'DISTANCE'}),
+        ],
+      ),
+      'allowFallbackFirst',
+      message: v16,
+    );
+    expectError(
+      allow(
+        true,
+        expect: [
+          expectItem('alarm', filters: {'reason': 'FALLBACK', 'ringNow': true}),
+        ],
+      ),
+      'allowFallbackFirst',
+      message: v16,
+    );
+
+    const v15 =
+        'allowFallbackFirst cannot be used with config.kill or killSweep';
+    expectError(
+      allow(true, config: d1000({'kill': edge('start', 60)})),
+      'allowFallbackFirst',
+      message: v15,
+    );
+    expectError(
+      allow(
+        true,
+        more: {
+          'killSweep': {
+            'from': {'t': 60},
+            'everyS': 60,
+            'notAfter': {'anchor': 'arrival'},
+            'earlyFrom': {'anchor': 'straight<=1000'},
+          },
+        },
+      ),
+      'allowFallbackFirst',
+      message: v15,
+    );
+
+    final (p, _) = synth(profile: profileWith(allow(true)));
+    expect(p.cases.single.allowFallbackFirst, isTrue);
+    final (q, _) = synth(profile: profileWith(allow(false)));
+    expect(q.cases.single.allowFallbackFirst, isFalse);
+    final (r, _) = synth(profile: profileWith(caseJson()));
+    expect(r.cases.single.allowFallbackFirst, isFalse);
   });
 
   test('V13 overshoot anchors are checked when the truth is known', () {
