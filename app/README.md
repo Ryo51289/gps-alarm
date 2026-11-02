@@ -24,6 +24,14 @@ flutter build apk --debug --flavor prod  # -> build/app/outputs/flutter-apk/app-
 # Test Kotlin JVM. Sau khi clone mới, chạy --config-only trước để sinh gradlew và local.properties.
 flutter build apk --config-only
 cd android && ./gradlew :app:testDevDebugUnitTest
+
+# Trip Engine (T12, module :core-trip, Kotlin JVM thuần) + harness fixture fixtures/traces (295 lượt, P05).
+./gradlew :core-trip:test                                     # báo cáo: build/core-trip/napstop/summary.md
+./gradlew :core-trip:test --tests '*FallbackPlannerTest*'     # một lớp
+# Ghi lại fixtures/p05/manifest.json + samples: CHỈ khi cố ý đổi hành vi engine (designer duyệt), ghi lý do vào commit.
+./gradlew :core-trip:test --tests '*P05ManifestTest*' -Pnapstop.updateP05=true --rerun
+# Xuất mọi transcript P05 (+ .diag.jsonl) ra build/core-trip/napstop/transcripts/ để T13 (Swift) so.
+./gradlew :core-trip:test --tests '*TraceSuiteTest*' -Pnapstop.dumpTranscripts=true --rerun
 ```
 
 ## CI
@@ -35,7 +43,8 @@ cập nhật PR, khi push `main`, và chạy tay ở tab Actions (`workflow_disp
 - Job `dart`: `flutter pub get --enforce-lockfile` · kiểm code Pigeon sinh ra khớp input (T14) · kiểm code drift sinh ra (T22) ·
   `dart format --output=none --set-exit-if-changed lib test integration_test` ·
   `flutter analyze` · `flutter test` (dev) · `flutter test --flavor prod`.
-- Job `android`: `flutter build apk --config-only` · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
+- Job `android`: `flutter build apk --config-only` · `./gradlew :core-trip:test` (Trip Engine T12; tóm tắt TR30/TR36/TR37
+  và killSweep vào Summary, artifact `trip-engine-reports`) · `./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest` ·
   `flutter build apk --debug` · `flutter build apk --debug --flavor prod` · kiểm package id của 2 APK
   (`app.napstop.dev`, `app.napstop`) bằng `aapt2`.
 - Job `tracegen` (thư mục `tools/tracegen`): `dart pub get --enforce-lockfile` ·

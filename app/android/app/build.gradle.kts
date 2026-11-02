@@ -59,6 +59,8 @@ kotlin {
 }
 
 dependencies {
+    // Trip Engine (T12). Not used by :app yet (T15 wires it); proves the JVM library dexes into the APK.
+    implementation(project(":core-trip"))
     // Pigeon @async host methods are suspend functions (T14 §5.1).
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     testImplementation("junit:junit:4.13.2")

@@ -1,4 +1,4 @@
-# NapStop CI (T01, T02, T14, T20, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T14.md, docs/specs/T20.md, docs/specs/T24.md
+# NapStop CI (T01, T02, T12, T14, T20, T24). Specs: docs/specs/T01.md, docs/specs/T02.md, docs/specs/T12.md, docs/specs/T14.md, docs/specs/T20.md, docs/specs/T24.md
 #
 # Every action is pinned to a full commit SHA; the release tag is in the trailing
 # comment. To update a pin, resolve the tag with
@@ -213,6 +213,11 @@ jobs:
           flutter build apk --config-only
           test -x android/gradlew
 
+      # T12: pure-JVM Trip Engine module + fixture harness (295 runs, P05 manifest). Budget <= 5 min.
+      - name: Trip Engine tests (JVM, T12)
+        working-directory: app/android
+        run: ./gradlew :core-trip:test
+
       - name: Kotlin unit tests (JVM)
         working-directory: app/android
         run: ./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest
@@ -264,8 +269,11 @@ jobs:
 
           print("| Kotlin task | Tests | Failures | Errors | Skipped |")
           print("|---|---|---|---|---|")
-          for task in ("testDevDebugUnitTest", "testProdDebugUnitTest"):
-              files = sorted(glob.glob(f"build/app/test-results/{task}/TEST-*.xml"))
+          tasks = [("testDevDebugUnitTest", "build/app/test-results/testDevDebugUnitTest"),
+                   ("testProdDebugUnitTest", "build/app/test-results/testProdDebugUnitTest"),
+                   ("core-trip:test", "build/core-trip/test-results/test")]
+          for task, folder in tasks:
+              files = sorted(glob.glob(f"{folder}/TEST-*.xml"))
               if not files:
                   print(f"| {task} | not run | | | |")
                   continue
@@ -280,6 +288,20 @@ jobs:
             echo >> "$summary"
             cat "$RUNNER_TEMP/apk.md" >> "$summary"
           fi
+          # T12: TR30 phase table, TR36 / TR37 negative runs, killSweep statistics (no coordinates).
+          if [[ -s build/core-trip/napstop/summary.md ]]; then
+            echo >> "$summary"
+            cat build/core-trip/napstop/summary.md >> "$summary"
+          fi
+
+      - name: Upload Trip Engine reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: trip-engine-reports
+          path: app/build/core-trip/napstop/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Upload Android test reports
         if: failure()
@@ -289,6 +311,8 @@ jobs:
           path: |
             app/build/app/reports/tests/
             app/build/app/test-results/
+            app/build/core-trip/reports/tests/
+            app/build/core-trip/test-results/
           if-no-files-found: ignore
           retention-days: 7
 
