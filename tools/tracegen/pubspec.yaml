@@ -3,7 +3,7 @@ description: >-
   Deterministic generator of synthetic GPS traces (GPX + expect.json) for the
   NapStop Trip Engine tests.
 publish_to: none
-version: 1.1.0
+version: 1.2.0
 
 environment:
   sdk: ^3.13.7

@@ -162,6 +162,10 @@ enum AnchorUse {
 
   /// `expectAfter[].after`, `forbidAfter[].after`.
   after,
+
+  /// `killSweep.from`, `killSweep.notAfter`, `killSweep.earlyFrom`
+  /// (T11.1 §2): static anchors except `kill`.
+  killSweep,
 }
 
 /// Error message when [anchor] may not be used in [use], or null.
@@ -196,6 +200,11 @@ String? anchorUseError(Anchor anchor, AnchorUse use) {
           ? 'anchor $name is not allowed in config.relaunch'
           : null;
     case AnchorUse.after:
+      return null;
+    case AnchorUse.killSweep:
+      if (anchor.isRun || k == AnchorKind.kill) {
+        return 'anchor $name is not allowed in killSweep';
+      }
       return null;
   }
 }

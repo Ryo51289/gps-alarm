@@ -36,7 +36,7 @@
       "status": "final",
       "testIds": ["TR30"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
-      "samplingModes": ["all"],
+      "policyPhaseSweep": true,
       "expect": [
         {"event": "alarm", "reason": "GPS_LOST", "ringNow": true, "notBefore": {"anchor": "gpsGap[0].start"}, "notAfter": {"anchor": "arrival", "offsetS": -300}, "ref": "T10 TR30: PRD §4 Mất GPS bắt đầu lúc đỗ ga, tới đích vẫn chưa có GPS (T10 §4.8)"}
       ],
@@ -47,10 +47,21 @@
       "status": "final",
       "testIds": ["TR27"],
       "config": {"mode": "distance", "thresholdM": 1000, "preAlert": false, "vehicleHint": "unknown", "actions": [{"at": {"anchor": "end"}, "action": "stop"}]},
+      "policyPhaseSweep": true,
       "expect": [
         {"event": "tripEnded", "notBefore": {"anchor": "end"}, "notAfter": {"anchor": "end"}, "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"}
       ],
       "expectSummary": {"vehicleGuess": "UNKNOWN"},
+      "forbid": []
+    },
+    {
+      "id": "distance_1000_killsweep",
+      "status": "final",
+      "testIds": ["TR37"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "policyPhaseSweep": true,
+      "expect": [],
+      "killSweep": {"from": {"t": 60}, "everyS": 60, "notAfter": {"anchor": "arrival"}, "earlyFrom": {"anchor": "straight<=1000"}},
       "forbid": []
     }
   ]

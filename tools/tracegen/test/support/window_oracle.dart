@@ -4,7 +4,8 @@
 // The oracle re-derives each number from the per-tick motion truth
 // (`TruthState.s`, straight-line distance to the effective destination) and
 // from the GPX itself (gap edges), using its own anchor parser, its own
-// first-tick search and its own copy of the T11 §5.3 formula. It only shares
+// first-tick search and its own copy of the T11.1 §4 formula (T11 §5.3 as
+// revised by T10.2). It only shares
 // the motion simulation with the generator, never the anchor resolution, the
 // writer or the validator, so a bug in `resolveCase`/`writeExpect` shows up
 // as a mismatch.
@@ -50,6 +51,32 @@ List<(int, int)> gapsFromGpx(String gpx, int startEpochS, int intervalS) {
     for (var i = 0; i + 1 < segments.length; i++)
       (segments[i].last + intervalS, segments[i + 1].first),
   ];
+}
+
+/// Every GPX fix `t -> (lat, lon)` (t in seconds since [startEpochS]),
+/// read with a regular expression, not with the generator's GPX code
+/// (T11.1 TG50).
+Map<int, (double, double)> fixesFromGpx(String gpx, int startEpochS) => {
+  for (final m in RegExp(
+    '<trkpt lat="([-0-9.]+)" lon="([-0-9.]+)"><time>([^<]+)</time>',
+  ).allMatches(gpx))
+    DateTime.parse(m.group(3)!).millisecondsSinceEpoch ~/ 1000 - startEpochS: (
+      double.parse(m.group(1)!),
+      double.parse(m.group(2)!),
+    ),
+};
+
+/// Great-circle distance in metres (haversine, mean Earth radius 6 371 km);
+/// written here so that it does not share `geo.dart` with the generator.
+double haversineM((double, double) a, (double, double) b) {
+  const r = 6371000.0;
+  double rad(double d) => d * pi / 180;
+  final dLat = rad(b.$1 - a.$1);
+  final dLon = rad(b.$2 - a.$2);
+  final h =
+      pow(sin(dLat / 2), 2) +
+      cos(rad(a.$1)) * cos(rad(b.$1)) * pow(sin(dLon / 2), 2);
+  return 2 * r * asin(sqrt(h));
 }
 
 final class Oracle {
@@ -455,10 +482,14 @@ final class Oracle {
       final off = modeAt['offsetS']! as int;
       final modeAtT = resolve(anchor, killT: killT) + off;
       final k = killT!;
-      // T11 §5.3, written out again (integers only).
-      final lead = modeAtT - k - 600;
-      final early = min(1800, (lead < 0 ? 0 : lead) ~/ 10);
-      final e = modeAtT + 30 - early;
+      final fb = fallbackOf(
+        mode: config['mode']! as String,
+        threshold: (config['thresholdM'] ?? config['thresholdMin']) as int?,
+        hint: (config['vehicleHint'] ?? _trace['vehicle'])! as String,
+        modeAtT: modeAtT,
+        killT: k,
+        tolerance: (tol[0], tol[1]),
+      );
       final p = '$where expectFallback';
       out.addAll([
         Row(
@@ -470,27 +501,102 @@ final class Oracle {
         Row('$p.window.killT', 'config.kill.t', k, w['killT'] as int?),
         Row(
           '$p.window.estimateT',
-          'modeAtT + 30 − min(1800, max(0, modeAtT − killT − 600) ~/ 10) '
-              '(early = $early)',
-          e,
+          'modeAtT + 30 − min(3600, max(0, modeAtT − killT − 600) ~/ 4) '
+              '(early = ${fb.early})',
+          fb.estimateT,
           w['estimateT'] as int?,
+        ),
+        Row(
+          '$p.window.asOfStraightM',
+          'floor(straight at killT − I)',
+          fb.sM,
+          w['asOfStraightM'] as int?,
+        ),
+        Row(
+          '$p.window.hintEstimateT',
+          'asOfT + max(600, hT + 30 − min(3600, max(0, hT − 600) ~/ 4)) '
+              '(hT = ${fb.hT})',
+          fb.hintEstimateT,
+          w['hintEstimateT'] as int?,
         ),
         Row('$p.asOfT', 'killT − I', k - intervalS, f['asOfT'] as int?),
         Row(
           '$p.notBefore',
-          'clamp(E + ${tol[0]}, 0, D)',
-          (e + tol[0]).clamp(0, durationS),
+          'clamp(min(E, H) + ${tol[0]}, 0, D)',
+          fb.notBefore,
           f['notBefore'] as int?,
         ),
         Row(
           '$p.notAfter',
           'clamp(E + ${tol[1]}, 0, D)',
-          (e + tol[1]).clamp(0, durationS),
+          fb.notAfter,
           f['notAfter'] as int?,
         ),
       ]);
     }
+
+    final ks = c['killSweep'] as Map<String, Object?>?;
+    if (ks != null) {
+      for (final key in ['from', 'notAfter', 'earlyFrom']) {
+        at('killSweep.$key', ks[key]! as Map<String, Object?>);
+      }
+    }
     return out;
+  }
+
+  /// T11.1 §4 written out again from the truth (integers only).
+  ({
+    int early,
+    int estimateT,
+    int sM,
+    int hT,
+    int hintEstimateT,
+    int notBefore,
+    int notAfter,
+  })
+  fallbackOf({
+    required String mode,
+    required int? threshold,
+    required String hint,
+    required int modeAtT,
+    required int killT,
+    required (int, int) tolerance,
+
+    /// Replaces the truth distance at `asOfT` (TG50: distance measured on
+    /// the noisy GPX fix instead).
+    int? straightM,
+  }) {
+    final asOfT = killT - intervalS;
+    final early = min(3600, max(0, modeAtT - killT - 600) ~/ 4);
+    final estimateT = modeAtT + 30 - early;
+    final j = _states.indexWhere((st) => st.t == asOfT);
+    final sM = straightM ?? _straight[j].floor();
+    final kmh = const {
+      'train': 55,
+      'coach': 60,
+      'bus': 20,
+      'unknown': 60,
+    }[hint]!;
+    final eta = sM * 432 ~/ (100 * kmh);
+    final hT = switch (mode) {
+      'distance' => max(0, sM - threshold!) * 432 ~/ (100 * kmh),
+      'time' => max(0, eta + 20 - 60 * threshold!),
+      _ => max(0, eta + 20 - 600),
+    };
+    final hintEstimateT =
+        asOfT + max<int>(600, hT + 30 - min(3600, max(0, hT - 600) ~/ 4));
+    return (
+      early: early,
+      estimateT: estimateT,
+      sM: sM,
+      hT: hT,
+      hintEstimateT: hintEstimateT,
+      notBefore: (min(estimateT, hintEstimateT) + tolerance.$1).clamp(
+        0,
+        durationS,
+      ),
+      notAfter: (estimateT + tolerance.$2).clamp(0, durationS),
+    );
   }
 
   static String _filterText(Map<String, Object?> e) => [

@@ -83,14 +83,15 @@ dart format --output=none --set-exit-if-changed . && dart analyze --fatal-infos 
 **Case** (định dạng ghi ra và ngữ nghĩa: [`fixtures/traces/README.md`](../../fixtures/traces/README.md) §3.1):
 
 ```
-{id, status?: draft, testIds?: ["TRxx"], config, samplingModes?, expect: [...], expectAfter?, expectFallback?,
- expectOutcome?, expectSummary?: {vehicleGuess}, forbid: [event], forbidMatch?, forbidAfter?}
+{id, status?: draft, testIds?: ["TRxx"], config, samplingModes?, policyPhaseSweep?: false, expect: [...], expectAfter?,
+ expectFallback?, killSweep?, expectOutcome?, expectSummary?: {vehicleGuess}, forbid: [event], forbidMatch?, forbidAfter?}
 config: {mode: distance|time|smart, thresholdM (200..10000) | thresholdMin (5..60) | (smart: không có), preAlert?: true,
          vehicleHint?, params?: {tên: số}, battery?: [{t, levelPct, charging}], actions?: [{at, action}], kill?: At,
          relaunch?: {at, fallbackStatus}, osDismiss?: {offsetS}, osSim?, osRingMaxS?}
 expect[]:       {event, reason?, ringNow?, cause?, notBefore: {anchor, offsetS?}, notAfter: {…}, ref}
 expectAfter[]:  {event, reason?, ringNow?, cause?, after: At, withinS: [lo, hi], ref}
-expectFallback: {modeAt: {anchor, offsetS?}, toleranceS: [lo, hi], ref}       -- cửa sổ tính theo T11 §5.3
+expectFallback: {modeAt: {anchor, offsetS?}, toleranceS: [lo, hi], ref}       -- cửa sổ tính theo T11.1 §4 (T10.2)
+killSweep:      {from: At, everyS, notAfter: At, earlyFrom: At, statsOnly?: false}   -- T11.1, T10 §8.1-6
 forbidMatch[]:  {event, reason?, ringNow?, cause?};  forbidAfter[]: {event, reason?, ringNow?, cause?, after: At}
 At:             {t} hoặc {anchor, offsetS?}
 ```
@@ -103,6 +104,16 @@ Anchor tĩnh: `start`, `end`, `arrival`, `overshoot`, `gpsGap[i].start|end`, `ro
 nhất quán (trùng `expect`, `forbid`/`forbidMatch`/`forbidAfter` mâu thuẫn, bộ lọc sai sự kiện, anchor sai chỗ…) theo T11 §5.2.
 Key lạ là lỗi (bắt lỗi chính tả); lỗi báo kèm đường dẫn trường, ví dụ `profiles/x.json: speedLimits[2].from`.
 
+Khoá T11.1 (spec [`docs/specs/T11.1.md`](../../docs/specs/T11.1.md) §2–§3; cùng quy tắc ở `validate`):
+
+| Khoá | Cú pháp, ràng buộc |
+|---|---|
+| `policyPhaseSweep` | bool (V1), chỉ ghi ra fixture khi `true`. `true` không đi cùng `samplingModes: ["all"]` (V2) hoặc action `batteryMaxSaving` (V3); `samplingSparseIntervalS` hiệu lực (`config.params` hoặc 180) phải chia hết cho `sampleIntervalS` (V4) |
+| `killSweep` | đủ `from`, `everyS`, `notAfter`, `earlyFrom`; `statsOnly` tuỳ chọn; khoá lạ là lỗi (V5). `from.t ≥ sampleIntervalS`, kiểm sau khi giải anchor (V6). `everyS` int > 0, bội số của chu kỳ (V7). `statsOnly` bool, chỉ ghi khi `true` (V8). Ba `At` là anchor tĩnh trừ `kill` (V9), `t` đã giải trong `[0, durationS]`. Không đi cùng `config.kill`, `config.relaunch`, `config.osDismiss`, `config.osSim: false` (V10) |
+| `expectFallback` | thêm V11: không đi với `params` override 12 tên của công thức (`fallbackLagS`, `fallbackEarlyFrac`, `fallbackEarlyMaxS`, `fallbackNearS`, `fallbackHintSpeedFactor`, `routeFactorPrior`, `expectedSpeedKmh{Train,Coach,Bus,Unknown}`, `etaStopPenaltyS`, `smartTargetS`). Fixture ghi thêm `window.asOfStraightM` (chim bay từ vị trí thật ở `killT − I` tới đích, `floor`) và `window.hintEstimateT` |
+
+Anchor `overshoot` cần `truth.overshoot`: `generate` báo khi giải anchor, `validate` báo trên fixture (V13).
+
 ## Thuật toán (tóm tắt spec T02 §5–§6)
 
 1. **PRNG SplitMix64** tự viết (3 stream: chuyển động, nhiễu, outlier). Gauss = Irwin–Hall 12.
@@ -113,5 +124,6 @@ Key lạ là lỗi (bắt lỗi chính tả); lỗi báo kèm đường dẫn tr
 4. **Cảm biến:** nhiễu AR(1) mỗi trục, `acc = max(accMinM, 1.5σ·(0.8…1.2))`, tốc độ có thể vắng, outlier ngẫu nhiên và
    có kịch bản, mất GPS = không phát mẫu. Mỗi tick luôn rút đủ số RNG nên thêm gap/outlier không đổi nhiễu tick khác.
 5. **Sự thật + mốc:** giờ tới, các lần dừng, gap, outlier, quá trạm, điểm gần nhất (đích ngoài tuyến), mốc khoảng cách
-   (dọc tuyến, chim bay), mốc thời gian; giải anchor tĩnh của case thành giây, tính cửa sổ `expectFallback` (T11 §5.3).
+   (dọc tuyến, chim bay), mốc thời gian; giải anchor tĩnh của case thành giây (cả `killSweep`), tính cửa sổ `expectFallback`
+   (T11.1 §4: ước lượng theo ETA đúng và theo sàn tốc độ của loại xe).
 6. **Ghi file:** GPX + JSON chuẩn tắc, UTF-8 không BOM, LF, số in bằng `toStringAsFixed` với số chữ số cố định.

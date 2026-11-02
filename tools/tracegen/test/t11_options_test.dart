@@ -1,4 +1,5 @@
-// Generator options and resolution added by T11 (TG10, TG12–TG18).
+// Generator options and resolution added by T11 (TG12–TG18) and T11.1
+// (TG42 replaces TG10; TG40).
 import 'dart:convert';
 
 import 'package:test/test.dart';
@@ -6,20 +7,31 @@ import 'package:tracegen/tracegen.dart';
 
 import 'helpers.dart';
 
-const ExpectFallbackSpec _tol = ExpectFallbackSpec(
-  modeAt: WindowEdge(Anchor('arrival', AnchorKind.arrival), 0),
-  toleranceLo: -300,
-  toleranceHi: 120,
-  ref: 'test',
-);
-
-ResolvedFallback window(int modeAtT, int killT) => fallbackWindow(
-  spec: _tol,
-  modeAtT: modeAtT,
-  killT: killT,
-  sampleIntervalS: 5,
-  durationS: 100000,
-);
+/// [fallbackEstimates] with I = 5 and tolerance [-300, 120] as a list
+/// `[estimateT, hintEstimateT, notBefore, notAfter]`.
+List<int> estimates(
+  CaseMode mode,
+  int? threshold,
+  String hint,
+  int modeAtT,
+  int killT,
+  int asOfStraightM, {
+  int durationS = 100000,
+}) {
+  final e = fallbackEstimates(
+    mode: mode,
+    threshold: threshold,
+    hint: hint,
+    modeAtT: modeAtT,
+    killT: killT,
+    asOfStraightM: asOfStraightM,
+    sampleIntervalS: 5,
+    durationS: durationS,
+    toleranceLo: -300,
+    toleranceHi: 120,
+  );
+  return [e.estimateT, e.hintEstimateT, e.notBefore, e.notAfter];
+}
 
 /// West-bound route at lat 20: `p` [eastM] east of `w`, then `q` 3 km west
 /// of `w`; destination `w`.
@@ -68,20 +80,298 @@ GeneratedTrace load(String id) {
 }
 
 void main() {
-  test('TG10 expectFallback formula (T11 §5.3)', () {
-    final a = window(33700, 31390);
-    expect(
-      [a.asOfT, a.estimateT, a.notBefore, a.notAfter],
-      [31385, 33559, 33259, 33679],
+  group('TG42 expectFallback formula (T11.1 §4)', () {
+    const d = CaseMode.distance;
+    test('(a) distance 1000, train', () {
+      expect(estimates(d, 1000, 'train', 33700, 31390, 39206), [
+        33303,
+        33815,
+        33003,
+        33423,
+      ]);
+    });
+    test('(b) time 15, train', () {
+      expect(estimates(CaseMode.time, 15, 'train', 32890, 31390, 39206), [
+        32695,
+        33215,
+        32395,
+        32815,
+      ]);
+    });
+    test('(c) smart, coach: the speed floor sets the lower edge', () {
+      expect(estimates(CaseMode.smart, null, 'coach', 6710, 5510, 17355), [
+        6590,
+        6187,
+        5887,
+        6710,
+      ]);
+    });
+    test('(d) near zone: hintEstimateT is at least asOfT + 600', () {
+      for (final sM in [6000, 0]) {
+        expect(estimates(d, 1000, 'coach', 2340, 1825, sM), [
+          2370,
+          2420,
+          2070,
+          2490,
+        ], reason: 'sM $sM');
+      }
+    });
+    test('(e) early is capped at 3600', () {
+      // modeAtT − killT − 600 = 20000 → 20000 ~/ 4 = 5000 → 3600.
+      expect(estimates(d, 1000, 'train', 21600, 1000, 0)[0], 21600 + 30 - 3600);
+      // 14396 ~/ 4 = 3599, just under the cap.
+      expect(estimates(d, 1000, 'train', 15996, 1000, 0)[0], 15996 + 30 - 3599);
+    });
+    test('(f) bus 20 km/h', () {
+      // hT = 4000·432 ~/ 2000 = 864; 3595 + max(600, 864 + 30 − 66) = 4423.
+      expect(estimates(d, 1000, 'bus', 4200, 3600, 5000), [
+        4230,
+        4423,
+        3930,
+        4350,
+      ]);
+    });
+    test('(g) hint unknown uses 60 km/h like coach', () {
+      for (final (mode, threshold, modeAtT, killT, sM) in [
+        (CaseMode.smart, null, 6710, 5510, 17355),
+        (d, 1000, 33700, 31390, 39206),
+        (CaseMode.time, 15, 32890, 31390, 39206),
+      ]) {
+        final unknown = estimates(
+          mode,
+          threshold,
+          'unknown',
+          modeAtT,
+          killT,
+          sM,
+        );
+        expect(
+          unknown,
+          estimates(mode, threshold, 'coach', modeAtT, killT, sM),
+        );
+        expect(
+          unknown[1],
+          isNot(estimates(mode, threshold, 'train', modeAtT, killT, sM)[1]),
+        );
+      }
+      // Through resolveCase: vehicleHint unknown on a train trace.
+      Map<String, Object?> fallbackCase(String id, {String? hint}) => {
+        'id': id,
+        'config': {
+          'mode': 'distance',
+          'thresholdM': 1000,
+          'preAlert': true,
+          'vehicleHint': ?hint,
+          'kill': {'t': 100},
+        },
+        'expect': <Object?>[],
+        'expectFallback': {
+          'modeAt': {'anchor': 'straight<=1000'},
+          'toleranceS': [-300, 120],
+          'ref': 'test',
+        },
+        'forbid': <Object?>[],
+      };
+      final (p, r) = synth(
+        profile: synthProfileJson(
+          overrides: {
+            'vehicle': 'train',
+            'endDwellS': 30,
+            'cases': [
+              fallbackCase('plain'),
+              fallbackCase('unknown', hint: 'unknown'),
+            ],
+          },
+        ),
+      );
+      final t = buildTrace(p, r);
+      final plain = t.cases[0].fallback!;
+      final unknown = t.cases[1].fallback!;
+      expect(plain.asOfStraightM, unknown.asOfStraightM);
+      expect(
+        unknown.asOfStraightM,
+        t.truth.straightM[plain.asOfT ~/ 5].floor(),
+      );
+      List<int> fromSpec(String hint) => estimates(
+        d,
+        1000,
+        hint,
+        plain.modeAtT,
+        100,
+        plain.asOfStraightM,
+        durationS: t.truth.endT,
+      );
+      expect([
+        plain.estimateT,
+        plain.hintEstimateT,
+        plain.notBefore,
+        plain.notAfter,
+      ], fromSpec('train'));
+      expect([
+        unknown.estimateT,
+        unknown.hintEstimateT,
+        unknown.notBefore,
+        unknown.notAfter,
+      ], fromSpec('unknown'));
+    });
+    test('(h) both edges are clamped to durationS', () {
+      expect(estimates(d, 1000, 'coach', 2340, 1825, 0, durationS: 2400), [
+        2370,
+        2420,
+        2070,
+        2400,
+      ]);
+      expect(
+        estimates(d, 1000, 'coach', 2340, 1825, 0, durationS: 2000)[2],
+        2000,
+      );
+    });
+  });
+
+  test('TG40 golden key order of the T11.1 keys (T11.1 §1)', () {
+    Map<String, Object?> at(String anchor) => {'anchor': anchor};
+    final cases = [
+      // (i) samplingModes ["policy"] + policyPhaseSweep + expectFallback.
+      {
+        'id': 'i',
+        'config': {
+          'mode': 'distance',
+          'thresholdM': 1000,
+          'preAlert': true,
+          'kill': {'t': 100},
+        },
+        'samplingModes': ['policy'],
+        'policyPhaseSweep': true,
+        'expect': <Object?>[],
+        'expectFallback': {
+          'modeAt': at('straight<=1000'),
+          'toleranceS': [-300, 120],
+          'ref': 'test',
+        },
+        'forbid': <Object?>[],
+      },
+      // (ii) every optional key after config, killSweep with statsOnly.
+      {
+        'id': 'ii',
+        'status': 'final',
+        'testIds': ['TR37'],
+        'config': {'mode': 'distance', 'thresholdM': 1000, 'preAlert': true},
+        'policyPhaseSweep': true,
+        'expect': <Object?>[],
+        'expectAfter': [
+          {
+            'event': 'tripEnded',
+            'after': {'anchor': 'event:alarm', 'offsetS': 30},
+            'withinS': [0, 0],
+            'ref': 'test',
+          },
+        ],
+        'killSweep': {
+          'from': {'t': 60},
+          'everyS': 60,
+          'notAfter': at('arrival'),
+          'earlyFrom': at('straight<=1000'),
+          'statsOnly': true,
+        },
+        'expectOutcome': 'ON_TIME',
+        'expectSummary': {'vehicleGuess': 'COACH'},
+        'forbid': <Object?>[],
+        'forbidMatch': [
+          {'event': 'alarm', 'reason': 'OVERSHOOT'},
+        ],
+        'forbidAfter': [
+          {'event': 'gpsLost', 'after': at('arrival')},
+        ],
+      },
+      // (iii) explicit false is not written.
+      {
+        'id': 'iii',
+        'config': {'mode': 'distance', 'thresholdM': 1000, 'preAlert': true},
+        'policyPhaseSweep': false,
+        'expect': <Object?>[],
+        'killSweep': {
+          'from': {'t': 60},
+          'everyS': 60,
+          'notAfter': at('arrival'),
+          'earlyFrom': at('straight<=1000'),
+          'statsOnly': false,
+        },
+        'forbid': <Object?>[],
+      },
+    ];
+    final (p, r) = synth(
+      profile: synthProfileJson(overrides: {'endDwellS': 30, 'cases': cases}),
     );
-    const arrival = 20000;
-    expect(window(arrival - 900, arrival - 2400).estimateT, arrival - 960);
-    expect(window(arrival - 600, arrival - 1800).estimateT, arrival - 630);
-    final c = window(2340, 1825);
-    expect([c.estimateT, c.notBefore, c.notAfter], [2370, 2070, 2490]);
-    final d = window(30000 + 600 + 1000, 1000);
-    expect(d.estimateT, d.modeAtT + 30 - 1800);
-    expect(window(500, 0).notBefore, 230);
+    final t = buildTrace(p, r);
+
+    final i = caseOf(t, 'i');
+    expect(i.keys, [
+      'id',
+      'status',
+      'config',
+      'samplingModes',
+      'policyPhaseSweep',
+      'expect',
+      'expectFallback',
+      'forbid',
+    ]);
+    expect(i['policyPhaseSweep'], isTrue);
+    final f = i['expectFallback']! as Map<String, Object?>;
+    expect(f.keys, ['asOfT', 'notBefore', 'notAfter', 'window', 'ref']);
+    expect((f['window']! as Map).keys, [
+      'modeAt',
+      'modeAtT',
+      'killT',
+      'estimateT',
+      'asOfStraightM',
+      'hintEstimateT',
+      'toleranceS',
+    ]);
+
+    final ii = caseOf(t, 'ii');
+    expect(ii.keys, [
+      'id',
+      'status',
+      'testIds',
+      'config',
+      'policyPhaseSweep',
+      'expect',
+      'expectAfter',
+      'killSweep',
+      'expectOutcome',
+      'expectSummary',
+      'forbid',
+      'forbidMatch',
+      'forbidAfter',
+    ]);
+    final arrival = t.truth.arrivalT;
+    final early = t.truth.resolveAnchor(Anchor.parse('straight<=1000'));
+    expect(
+      jsonEncode(ii['killSweep']),
+      jsonEncode({
+        'from': {'t': 60},
+        'everyS': 60,
+        'notAfter': {'t': arrival, 'anchor': 'arrival', 'offsetS': 0},
+        'earlyFrom': {'t': early, 'anchor': 'straight<=1000', 'offsetS': 0},
+        'statsOnly': true,
+      }),
+    );
+
+    final iii = caseOf(t, 'iii');
+    expect(iii.keys, [
+      'id',
+      'status',
+      'config',
+      'expect',
+      'killSweep',
+      'forbid',
+    ]);
+    expect((iii['killSweep']! as Map).keys, [
+      'from',
+      'everyS',
+      'notAfter',
+      'earlyFrom',
+    ]);
   });
 
   test('TG12 effective destination is left (+) or right (-) of travel', () {
@@ -371,11 +661,9 @@ void main() {
       'notBefore': {'anchor': 'overshoot', 'offsetS': -15},
       'notAfter': {'anchor': 'overshoot', 'offsetS': 60},
     };
+    final overshootTrace = load('coach_gb_phuly_overshoot');
     final tr35 = withoutRefs(
-      caseOf(
-        load('coach_gb_phuly_overshoot'),
-        'distance_1000_fallback_silenced',
-      ),
+      caseOf(overshootTrace, 'distance_1000_fallback_silenced'),
     );
     expect(
       jsonEncode(tr35),
@@ -428,6 +716,14 @@ void main() {
             'modeAtT': 2340,
             'killT': 1825,
             'estimateT': 2370,
+            // T11.1: from the truth at asOfT (not asserted as numbers here).
+            'asOfStraightM': overshootTrace.truth.straightM[1820 ~/ 5].floor(),
+            'hintEstimateT': overshootTrace.cases
+                .singleWhere(
+                  (c) => c.spec.id == 'distance_1000_fallback_silenced',
+                )
+                .fallback!
+                .hintEstimateT,
             'toleranceS': [-300, 120],
           },
         },

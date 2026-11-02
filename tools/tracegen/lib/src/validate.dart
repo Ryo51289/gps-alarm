@@ -1,11 +1,13 @@
 /// Fixture validation: GPX structure and GPX + expect consistency
-/// (spec T02 §7.5, T11 §5.2).
+/// (spec T02 §7.5, T11 §5.2, T11.1 §3).
 library;
 
 import 'dart:convert';
 
 import 'package:tracegen/src/anchor.dart';
 import 'package:tracegen/src/fmt.dart';
+import 'package:tracegen/src/generator.dart'
+    show fallbackEstimates, kExpectedSpeedKmh;
 import 'package:tracegen/src/gpx_writer.dart';
 import 'package:tracegen/src/paths.dart';
 import 'package:tracegen/src/profile.dart';
@@ -250,7 +252,8 @@ List<String> validatePair({
       err('${o.path}.kind', 'must be random or scripted');
     }
   }
-  if (truth?.has('overshoot') ?? false) {
+  final hasOvershoot = truth?.has('overshoot') ?? false;
+  if (hasOvershoot) {
     truth?.obj('overshoot')
       ?..integer('closestT')
       ..integer('closestM')
@@ -287,6 +290,8 @@ List<String> validatePair({
     duration: duration,
     gapCount: gaps.length,
     hasClosest: hasClosest,
+    hasOvershoot: hasOvershoot,
+    vehicle: vehicle,
   );
   for (final c in root.objList('cases') ?? const <_J>[]) {
     final caseId = c.str('id');
@@ -474,17 +479,26 @@ final class _CaseEnv {
     required this.duration,
     required this.gapCount,
     required this.hasClosest,
+    required this.hasOvershoot,
+    required this.vehicle,
   });
 
   final int? interval;
   final int? duration;
   final int gapCount;
   final bool hasClosest;
+
+  /// Whether the fixture has `truth.overshoot` (T11.1 §3 V13).
+  final bool hasOvershoot;
+
+  /// `trace.vehicle` (default of the vehicle hint).
+  final String? vehicle;
 }
 
 const Set<String> _filterKeys = {'event', 'reason', 'ringNow', 'cause'};
 
-/// Checks one `cases[i]` of a fixture (T11 §2.2–§2.4, §5.2, §5.3).
+/// Checks one `cases[i]` of a fixture (T11 §2.2–§2.4, §5.2, §5.3,
+/// T11.1 §3).
 void _validateCase(_J c, _CaseEnv env) {
   final err = c.err;
   c.allowOnly(const {
@@ -493,9 +507,11 @@ void _validateCase(_J c, _CaseEnv env) {
     'testIds',
     'config',
     'samplingModes',
+    'policyPhaseSweep',
     'expect',
     'expectAfter',
     'expectFallback',
+    'killSweep',
     'expectOutcome',
     'expectSummary',
     'forbid',
@@ -528,6 +544,7 @@ void _validateCase(_J c, _CaseEnv env) {
   final paramNames = cfg?.paramNames ?? const <String>[];
   final hasKill = cfg?.hasKill ?? false;
   final hasRelaunch = cfg?.hasRelaunch ?? false;
+  List<Object?>? samplingModes;
   if (c.has('samplingModes')) {
     final l = c.list('samplingModes');
     if (l != null &&
@@ -535,6 +552,21 @@ void _validateCase(_J c, _CaseEnv env) {
             l.single is! String ||
             !kSamplingModes.contains(l.single))) {
       err(c.at('samplingModes'), 'must be ["all"] or ["policy"]');
+    }
+    samplingModes = l;
+  }
+  if (c.has('policyPhaseSweep') && (c.boolean('policyPhaseSweep') ?? false)) {
+    final interval = env.interval;
+    final message = interval == null || cfg == null
+        ? null
+        : policyPhaseSweepError(
+            samplingModes: samplingModes,
+            actions: cfg.actions,
+            sparseIntervalS: cfg.sparseIntervalS,
+            sampleIntervalS: interval,
+          );
+    if (message != null) {
+      err(c.at('policyPhaseSweep'), message);
     }
   }
 
@@ -590,12 +622,13 @@ void _validateCase(_J c, _CaseEnv env) {
   if (c.has('expectFallback')) {
     final f = c.obj('expectFallback');
     if (f != null) {
-      checker.fallback(
-        f,
-        killT: cfg?.killT,
-        hasKill: hasKill,
-        paramNames: paramNames,
-      );
+      checker.fallback(f, cfg: cfg, hasKill: hasKill, paramNames: paramNames);
+    }
+  }
+  if (c.has('killSweep')) {
+    final k = c.obj('killSweep');
+    if (k != null) {
+      checker.killSweep(k, cfg);
     }
   }
   if (c.has('expectOutcome')) {
@@ -654,6 +687,7 @@ void _validateCase(_J c, _CaseEnv env) {
       hasRelaunch: hasRelaunch,
       hasClosest: env.hasClosest,
       paramNames: paramNames,
+      hasOvershoot: env.hasOvershoot,
     );
     if (message != null) {
       err(where, message);
@@ -676,6 +710,24 @@ typedef _ConfigFacts = ({
   bool hasKill,
   int? killT,
   bool hasRelaunch,
+
+  /// Valid `mode`, or null.
+  CaseMode? mode,
+
+  /// Valid `thresholdM` / `thresholdMin` of [mode], or null.
+  int? threshold,
+
+  /// Valid `vehicleHint`, or null when absent or invalid.
+  String? vehicleHint,
+  bool vehicleHintInvalid,
+  bool hasOsDismiss,
+  bool osSimFalse,
+
+  /// `config.actions[].action` values (as written).
+  List<Object?> actions,
+
+  /// `params.samplingSparseIntervalS` when it is an integer.
+  int? sparseIntervalS,
 });
 
 /// Field checks shared by the parts of one case.
@@ -849,11 +901,13 @@ final class _CaseChecker {
       'osSim',
       'osRingMaxS',
     });
-    void range(String key, int lo, int hi) {
+    int? range(String key, int lo, int hi) {
       final v = config.integer(key);
       if (v != null && (v < lo || v > hi)) {
         err(config.at(key), 'must be in [$lo, $hi]');
+        return null;
       }
+      return v;
     }
 
     void absent(String key, String mode) {
@@ -862,30 +916,43 @@ final class _CaseChecker {
       }
     }
 
-    final mode = config.str('mode');
-    switch (mode) {
+    final modeName = config.str('mode');
+    CaseMode? mode;
+    int? threshold;
+    switch (modeName) {
       case null:
         break;
       case 'distance':
-        range('thresholdM', 200, 10000);
-        absent('thresholdMin', mode);
+        mode = CaseMode.distance;
+        threshold = range('thresholdM', 200, 10000);
+        absent('thresholdMin', modeName);
       case 'time':
-        range('thresholdMin', 5, 60);
-        absent('thresholdM', mode);
+        mode = CaseMode.time;
+        threshold = range('thresholdMin', 5, 60);
+        absent('thresholdM', modeName);
       case 'smart':
-        absent('thresholdM', mode);
-        absent('thresholdMin', mode);
+        mode = CaseMode.smart;
+        absent('thresholdM', modeName);
+        absent('thresholdMin', modeName);
       default:
         err(config.at('mode'), 'must be distance, time or smart');
     }
     config.boolean('preAlert');
+    String? vehicleHint;
+    var vehicleHintInvalid = false;
     if (config.has('vehicleHint')) {
       final hint = config.str('vehicleHint');
-      if (hint != null && !kVehicleHints.contains(hint)) {
-        err(config.at('vehicleHint'), 'unknown vehicle hint "$hint"');
+      if (hint != null && kVehicleHints.contains(hint)) {
+        vehicleHint = hint;
+      } else {
+        vehicleHintInvalid = true;
+        if (hint != null) {
+          err(config.at('vehicleHint'), 'unknown vehicle hint "$hint"');
+        }
       }
     }
     final paramNames = <String>[];
+    int? sparseIntervalS;
     if (config.has('params')) {
       final params = config.obj('params');
       for (final MapEntry(:key, :value)
@@ -895,6 +962,8 @@ final class _CaseChecker {
         if (kIntParams.contains(key)) {
           if (value is! int) {
             err(where, 'type I parameter must be a JSON integer');
+          } else if (key == 'samplingSparseIntervalS') {
+            sparseIntervalS = value;
           }
         } else if (kDoubleParams.contains(key)) {
           if (value is! num || !value.isFinite) {
@@ -927,9 +996,11 @@ final class _CaseChecker {
         b.boolean('charging');
       }
     }
+    final actions = <Object?>[];
     if (config.has('actions')) {
       for (final a in config.objList('actions') ?? const <_J>[]) {
         a.allowOnly(const {'at', 'action'});
+        actions.add(a.raw('action'));
         final action = a.str('action');
         if (action != null && !kActions.contains(action)) {
           err(a.at('action'), 'unknown action "$action"');
@@ -982,8 +1053,10 @@ final class _CaseChecker {
         multiple(d.at('offsetS'), offset);
       }
     }
+    var osSimFalse = false;
     if (config.has('osSim')) {
       final osSim = config.boolean('osSim');
+      osSimFalse = osSim == false;
       if (osSim == false && fallbackStatus == 'auto') {
         err(
           config.at('osSim'),
@@ -1002,16 +1075,61 @@ final class _CaseChecker {
       hasKill: hasKill,
       killT: killT,
       hasRelaunch: hasRelaunch,
+      mode: mode,
+      threshold: threshold,
+      vehicleHint: vehicleHint,
+      vehicleHintInvalid: vehicleHintInvalid,
+      hasOsDismiss: config.has('osDismiss'),
+      osSimFalse: osSimFalse,
+      actions: actions,
+      sparseIntervalS: sparseIntervalS,
     );
   }
 
-  /// `expectFallback` against the formula of T11 §5.3.
+  /// `killSweep` (T11.1 §2, §3 V5-V10).
+  void killSweep(_J k, _ConfigFacts? cfg) {
+    k.allowOnly(kKillSweepKeys);
+    if (cfg != null) {
+      final conflict = killSweepConflict(
+        hasKill: cfg.hasKill,
+        hasRelaunch: cfg.hasRelaunch,
+        hasOsDismiss: cfg.hasOsDismiss,
+        osSimFalse: cfg.osSimFalse,
+      );
+      if (conflict != null) {
+        err(k.path, conflict);
+      }
+    }
+    final from = k.obj('from');
+    timePoint(from, AnchorUse.killSweep);
+    final fromT = from?.raw('t');
+    final interval = env.interval;
+    if (fromT is int && interval != null && fromT < interval) {
+      err(from!.at('t'), 'must be >= sampleIntervalS ($interval)');
+    }
+    final everyS = k.integer('everyS');
+    if (everyS != null) {
+      if (everyS <= 0) {
+        err(k.at('everyS'), 'must be > 0');
+      } else {
+        multiple(k.at('everyS'), everyS);
+      }
+    }
+    timePoint(k.obj('notAfter'), AnchorUse.killSweep);
+    timePoint(k.obj('earlyFrom'), AnchorUse.killSweep);
+    if (k.has('statsOnly')) {
+      k.boolean('statsOnly');
+    }
+  }
+
+  /// `expectFallback` against the formula of T11.1 §4 (T11 §5.3).
   void fallback(
     _J f, {
-    required int? killT,
+    required _ConfigFacts? cfg,
     required bool hasKill,
     required List<String> paramNames,
   }) {
+    final killT = cfg?.killT;
     f.allowOnly(const {'asOfT', 'notBefore', 'notAfter', 'window', 'ref'});
     if (!hasKill) {
       err(f.path, 'needs config.kill');
@@ -1036,12 +1154,20 @@ final class _CaseChecker {
       'modeAtT',
       'killT',
       'estimateT',
+      'asOfStraightM',
+      'hintEstimateT',
       'toleranceS',
     });
     edge(w.obj('modeAt'), AnchorUse.modeAt, newKey: true);
     final modeAtT = w.integer('modeAtT');
     final wKill = w.integer('killT');
     final estimate = w.integer('estimateT');
+    var asOfStraightM = w.integer('asOfStraightM');
+    if (asOfStraightM != null && asOfStraightM < 0) {
+      err(w.at('asOfStraightM'), 'must be >= 0');
+      asOfStraightM = null;
+    }
+    final hintEstimate = w.integer('hintEstimateT');
     final tol = pair(w, 'toleranceS');
     if (killT != null && wKill != null && wKill != killT) {
       err(w.at('killT'), 'is $wKill but config.kill.t is $killT');
@@ -1056,27 +1182,65 @@ final class _CaseChecker {
         'must be killT - sampleIntervalS (${wKill - interval})',
       );
     }
-    if (modeAtT == null || wKill == null || estimate == null || tol == null) {
-      return;
-    }
-    final (lo, hi) = tol;
-    if (lo > hi) {
+    if (tol != null && tol.$1 > tol.$2) {
       err(w.at('toleranceS'), 'need lo <= hi');
     }
-    final lead = modeAtT - wKill - 600;
-    final early = (lead < 0 ? 0 : lead) ~/ 10;
-    final want = modeAtT + 30 - (early > 1800 ? 1800 : early);
-    if (estimate != want) {
-      err(w.at('estimateT'), 'is $estimate but T11 §5.3 gives $want');
+    // Recompute every number from the inputs only (T11.1 §4); a missing or
+    // invalid input skips the recomputation (its own error is reported).
+    final mode = cfg?.mode;
+    final threshold = cfg?.threshold;
+    final hint =
+        cfg?.vehicleHint ??
+        (cfg != null && cfg.vehicleHintInvalid ? null : env.vehicle);
+    final duration = env.duration;
+    if (modeAtT == null ||
+        wKill == null ||
+        asOfStraightM == null ||
+        tol == null ||
+        mode == null ||
+        (mode != CaseMode.smart && threshold == null) ||
+        hint == null ||
+        !kExpectedSpeedKmh.containsKey(hint) ||
+        interval == null ||
+        duration == null) {
+      return;
     }
-    final max = env.duration ?? estimate + hi;
-    final wantNb = (estimate + lo).clamp(0, max);
-    final wantNa = (estimate + hi).clamp(0, max);
-    if (nb != null && nb != wantNb) {
-      err(f.at('notBefore'), 'is $nb but estimateT + toleranceS[0] = $wantNb');
+    final want = fallbackEstimates(
+      mode: mode,
+      threshold: threshold,
+      hint: hint,
+      modeAtT: modeAtT,
+      killT: wKill,
+      asOfStraightM: asOfStraightM,
+      sampleIntervalS: interval,
+      durationS: duration,
+      toleranceLo: tol.$1,
+      toleranceHi: tol.$2,
+    );
+    if (estimate != null && estimate != want.estimateT) {
+      err(
+        w.at('estimateT'),
+        'is $estimate but T11 §5.3 gives ${want.estimateT}',
+      );
     }
-    if (na != null && na != wantNa) {
-      err(f.at('notAfter'), 'is $na but estimateT + toleranceS[1] = $wantNa');
+    if (hintEstimate != null && hintEstimate != want.hintEstimateT) {
+      err(
+        w.at('hintEstimateT'),
+        'is $hintEstimate but T11 §5.3 gives ${want.hintEstimateT}',
+      );
+    }
+    if (nb != null && nb != want.notBefore) {
+      err(
+        f.at('notBefore'),
+        'is $nb but min(estimateT, hintEstimateT) + toleranceS[0] = '
+        '${want.notBefore}',
+      );
+    }
+    if (na != null && na != want.notAfter) {
+      err(
+        f.at('notAfter'),
+        'is $na but estimateT + toleranceS[1] = ${want.notAfter}',
+      );
     }
   }
 }

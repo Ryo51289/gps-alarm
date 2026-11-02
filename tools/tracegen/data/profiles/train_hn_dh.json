@@ -188,6 +188,24 @@
       ],
       "expectSummary": {"vehicleGuess": "UNKNOWN"},
       "forbid": []
+    },
+    {
+      "id": "distance_1000_killsweep",
+      "status": "final",
+      "testIds": ["TR37"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true},
+      "expect": [],
+      "killSweep": {"from": {"t": 60}, "everyS": 60, "notAfter": {"anchor": "arrival"}, "earlyFrom": {"anchor": "straight<=1000"}},
+      "forbid": []
+    },
+    {
+      "id": "time_15_killsweep",
+      "status": "final",
+      "testIds": ["TR37"],
+      "config": {"mode": "time", "thresholdMin": 15, "preAlert": true},
+      "expect": [],
+      "killSweep": {"from": {"t": 60}, "everyS": 60, "notAfter": {"anchor": "arrival"}, "earlyFrom": {"anchor": "arrival", "offsetS": -900}},
+      "forbid": []
     }
   ]
 }

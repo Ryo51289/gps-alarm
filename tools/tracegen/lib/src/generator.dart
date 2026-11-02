@@ -1,9 +1,9 @@
 /// Pure pipeline profile + route -> GPX and expect bytes (spec T02 §1, §6,
-/// T11 §4, §5.3).
+/// T11 §4, §5.3, T11.1 §4).
 library;
 
 import 'dart:convert';
-import 'dart:math' show min, sqrt;
+import 'dart:math' show max, min, sqrt;
 import 'dart:typed_data';
 
 import 'package:tracegen/src/anchor.dart';
@@ -201,6 +201,7 @@ GeneratedTrace buildTrace(Profile profile, Route route) {
         truth,
         path: '$file: cases[$i]',
         sampleIntervalS: interval,
+        vehicle: profile.vehicle.name,
       ),
   ];
 
@@ -321,12 +322,14 @@ SensorResult dropSpeedWhileDwelling(
 }
 
 /// Resolves the static time points and windows of [spec] on [truth];
-/// throws [ProfileException] labelled with [path] (T11 §2.3, §5.3).
+/// throws [ProfileException] labelled with [path] (T11 §2.3, §5.3,
+/// T11.1 §4). [vehicle] is `trace.vehicle` (default of the vehicle hint).
 ResolvedCase resolveCase(
   CaseSpec spec,
   TraceTruth truth, {
   required String path,
   required int sampleIntervalS,
+  required String vehicle,
 }) {
   final endT = truth.endT;
 
@@ -430,19 +433,48 @@ ResolvedCase resolveCase(
     } on AnchorException catch (x) {
       throw ProfileException('$path.expectFallback.modeAt.anchor', x.message);
     }
-    fallback = fallbackWindow(
-      spec: f,
-      modeAtT: modeAtT,
-      killT: killT,
-      sampleIntervalS: sampleIntervalS,
-      durationS: endT,
-    );
-    if (fallback.asOfT < 0) {
+    final asOfT = killT - sampleIntervalS;
+    if (asOfT < 0) {
       throw ProfileException(
         '$path.config.kill',
         'expectFallback needs kill.t >= sampleIntervalS',
       );
     }
+    // truth.straightM[j] is the tick j * I (true position, effective
+    // destination).
+    final asOfIndex = asOfT ~/ sampleIntervalS;
+    assert(truth.states[asOfIndex].t == asOfT, 'tick grid');
+    fallback = fallbackWindow(
+      spec: f,
+      mode: spec.mode,
+      threshold: spec.threshold,
+      hint: spec.vehicleHint ?? vehicle,
+      modeAtT: modeAtT,
+      killT: killT,
+      asOfStraightM: truth.straightM[asOfIndex].floor(),
+      sampleIntervalS: sampleIntervalS,
+      durationS: endT,
+    );
+  }
+
+  ResolvedKillSweep? killSweep;
+  final ks = spec.killSweep;
+  if (ks != null) {
+    final from = point(ks.from, 'killSweep.from', null);
+    final fromT = from.t!;
+    if (fromT < sampleIntervalS) {
+      throw ProfileException(
+        '$path.killSweep.from',
+        'resolves to t = $fromT, must be >= sampleIntervalS '
+            '($sampleIntervalS)',
+      );
+    }
+    killSweep = ResolvedKillSweep(
+      spec: ks,
+      from: from,
+      notAfter: point(ks.notAfter, 'killSweep.notAfter', null),
+      earlyFrom: point(ks.earlyFrom, 'killSweep.earlyFrom', null),
+    );
   }
 
   return ResolvedCase(
@@ -454,6 +486,7 @@ ResolvedCase resolveCase(
     expectAfter: List.unmodifiable(expectAfter),
     forbidAfter: List.unmodifiable(forbidAfter),
     fallback: fallback,
+    killSweep: killSweep,
   );
 }
 
@@ -463,33 +496,122 @@ const int kFallbackLagS = 30;
 /// `fallbackNearS` default (T10 §5).
 const int kFallbackNearS = 600;
 
-/// `fallbackEarlyMaxS` default (T10 §5).
-const int kFallbackEarlyMaxS = 1800;
+/// `fallbackEarlyMaxS` default (T10 §5, T10.2).
+const int kFallbackEarlyMaxS = 3600;
 
-/// `1 / fallbackEarlyFrac` for the default `fallbackEarlyFrac` 0.1.
-const int kFallbackEarlyDivisor = 10;
+/// `1 / fallbackEarlyFrac` for the default `fallbackEarlyFrac` 0.25
+/// (T10.2).
+const int kFallbackEarlyDivisor = 4;
 
-/// `expectFallback` window (T11 §5.3), integers only.
-ResolvedFallback fallbackWindow({
-  required ExpectFallbackSpec spec,
+/// `100 · 3.6 · routeFactorPrior (1.2) / fallbackHintSpeedFactor (1.0)`:
+/// seconds per 100 m at 1 km/h along the route (T10 §8.3).
+const int kFallbackHintNumerator = 432;
+
+/// `etaStopPenaltyS` default (T10 §5).
+const int kEtaStopPenaltyS = 20;
+
+/// `smartTargetS` default (T10 §5).
+const int kSmartTargetS = 600;
+
+/// `expectedSpeedKmh*` defaults by vehicle hint (T10 §5).
+const Map<String, int> kExpectedSpeedKmh = {
+  'train': 55,
+  'coach': 60,
+  'bus': 20,
+  'unknown': 60,
+};
+
+/// Fallback alarm estimates of T11.1 §4 (T10 §8.3, D4), integers only.
+///
+/// [threshold] is `thresholdM` (distance), `thresholdMin` (time) or null
+/// (smart); [hint] is the effective vehicle hint (a key of
+/// [kExpectedSpeedKmh]); [asOfStraightM] is the straight-line distance from
+/// the true position at `killT − sampleIntervalS` to the destination.
+({int estimateT, int hintEstimateT, int notBefore, int notAfter})
+fallbackEstimates({
+  required CaseMode mode,
+  required int? threshold,
+  required String hint,
   required int modeAtT,
   required int killT,
+  required int asOfStraightM,
+  required int sampleIntervalS,
+  required int durationS,
+  required int toleranceLo,
+  required int toleranceHi,
+}) {
+  final asOfT = killT - sampleIntervalS;
+  final lead = max(0, modeAtT - killT - kFallbackNearS);
+  final early = min(kFallbackEarlyMaxS, lead ~/ kFallbackEarlyDivisor);
+  final estimateT = modeAtT + kFallbackLagS - early;
+
+  final kmh = kExpectedSpeedKmh[hint];
+  if (kmh == null) {
+    throw ArgumentError.value(hint, 'hint', 'unknown vehicle hint');
+  }
+  final divisor = 100 * kmh;
+  final travelS = (asOfStraightM * kFallbackHintNumerator) ~/ divisor;
+  final int hintS;
+  switch (mode) {
+    case CaseMode.distance:
+      hintS =
+          (max(0, asOfStraightM - threshold!) * kFallbackHintNumerator) ~/
+          divisor;
+    case CaseMode.time:
+      hintS = max(0, travelS + kEtaStopPenaltyS - 60 * threshold!);
+    case CaseMode.smart:
+      hintS = max(0, travelS + kEtaStopPenaltyS - kSmartTargetS);
+  }
+  final hintEarly = min(
+    kFallbackEarlyMaxS,
+    max(0, hintS - kFallbackNearS) ~/ kFallbackEarlyDivisor,
+  );
+  final hintEstimateT =
+      asOfT + max<int>(kFallbackNearS, hintS + kFallbackLagS - hintEarly);
+  return (
+    estimateT: estimateT,
+    hintEstimateT: hintEstimateT,
+    notBefore: (min(estimateT, hintEstimateT) + toleranceLo).clamp(
+      0,
+      durationS,
+    ),
+    notAfter: (estimateT + toleranceHi).clamp(0, durationS),
+  );
+}
+
+/// `expectFallback` window (T11.1 §4), integers only.
+ResolvedFallback fallbackWindow({
+  required ExpectFallbackSpec spec,
+  required CaseMode mode,
+  required int? threshold,
+  required String hint,
+  required int modeAtT,
+  required int killT,
+  required int asOfStraightM,
   required int sampleIntervalS,
   required int durationS,
 }) {
-  final lead = modeAtT - killT - kFallbackNearS;
-  final early = min(
-    kFallbackEarlyMaxS,
-    (lead < 0 ? 0 : lead) ~/ kFallbackEarlyDivisor,
+  final e = fallbackEstimates(
+    mode: mode,
+    threshold: threshold,
+    hint: hint,
+    modeAtT: modeAtT,
+    killT: killT,
+    asOfStraightM: asOfStraightM,
+    sampleIntervalS: sampleIntervalS,
+    durationS: durationS,
+    toleranceLo: spec.toleranceLo,
+    toleranceHi: spec.toleranceHi,
   );
-  final estimate = modeAtT + kFallbackLagS - early;
   return ResolvedFallback(
     spec: spec,
     asOfT: killT - sampleIntervalS,
-    notBefore: (estimate + spec.toleranceLo).clamp(0, durationS),
-    notAfter: (estimate + spec.toleranceHi).clamp(0, durationS),
+    notBefore: e.notBefore,
+    notAfter: e.notAfter,
     modeAtT: modeAtT,
     killT: killT,
-    estimateT: estimate,
+    estimateT: e.estimateT,
+    asOfStraightM: asOfStraightM,
+    hintEstimateT: e.hintEstimateT,
   );
 }

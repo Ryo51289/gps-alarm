@@ -1,8 +1,9 @@
-# Fixture trace GPS (schema v1, bổ sung T11)
+# Fixture trace GPS (schema v1, bổ sung T11, T11.1)
 
 Văn bản chuẩn của định dạng fixture dùng chung cho Trip Engine Dart / Kotlin (T12) / Swift (T13) và chế độ giả lập (T18).
 Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [`docs/specs/T11.md`](../../docs/specs/T11.md) §2–§5
-(khoá case mới, quy tắc harness), [`docs/specs/T10.md`](../../docs/specs/T10.md) §8 (hợp đồng harness). Bộ sinh:
+(khoá case mới, quy tắc harness), [`docs/specs/T11.1.md`](../../docs/specs/T11.1.md) (`policyPhaseSweep`, `killSweep`, công thức
+`expectFallback` theo T10.2), [`docs/specs/T10.md`](../../docs/specs/T10.md) §8 (hợp đồng harness). Bộ sinh:
 [`tools/tracegen`](../../tools/tracegen/README.md).
 
 - Mọi file ở đây do `tracegen` sinh, **không sửa tay**. Muốn đổi: sửa `tools/tracegen/data/profiles/<id>.json` (hoặc route),
@@ -11,24 +12,24 @@ Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [
 - Dữ liệu **tổng hợp**, không phải hành trình thật. Toạ độ ga/bến lấy từ © OpenStreetMap contributors, giấy phép
   [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
 
-## Mười lăm trace (51 case, tất cả `final`)
+## Mười lăm trace (58 case, tất cả `final`)
 
 | id | Mô tả | Kịch bản chính | Test T10 |
 |---|---|---|---|
-| `train_hn_dh` | Tàu SE Hà Nội → Đồng Hới (≈ 477 km, ≈ 9,4 h) | 7 lần dừng ga (2–10 phút), không dừng trong 60 phút cuối | TR01, TR02, TR08, TR18, TR22–TR25, TR27, TR28, TR34 |
+| `train_hn_dh` | Tàu SE Hà Nội → Đồng Hới (≈ 477 km, ≈ 9,4 h) | 7 lần dừng ga (2–10 phút), không dừng trong 60 phút cuối | TR01, TR02, TR08, TR18, TR22–TR25, TR27, TR28, TR34, TR37 |
 | `train_hn_dh_midgap` | Như `train_hn_dh`, mất GPS 15 phút giữa tuyến | Gap 900 s ở ga Cầu Giát (pha lấy mẫu thưa) | TR15, TR27 |
-| `train_hn_dh_stopgap` | Như `train_hn_dh` tới Đồng Lê (trùng từng mẫu), sau Đồng Lê chạy 45 km/h; mất GPS từ lúc đỗ Đồng Lê | Gap từ `arriveT + 5` của lần đỗ Đồng Lê tới `arrivalT + 60` | TR30, TR27 |
-| `train_longstop` | Tàu Đồng Lê → Đồng Hới (≈ 78 km, ≈ 79 phút) | Đỗ ga Minh Lệ ≈ 7 phút, kết thúc ≥ 300 s trước mốc báo 15 phút | TR12, TR27 |
+| `train_hn_dh_stopgap` | Như `train_hn_dh` tới Đồng Lê (trùng từng mẫu), sau Đồng Lê chạy 45 km/h; mất GPS từ lúc đỗ Đồng Lê | Gap từ `arriveT + 5` của lần đỗ Đồng Lê tới `arrivalT + 60` | TR30, TR27, TR37 |
+| `train_longstop` | Tàu Đồng Lê → Đồng Hới (≈ 78 km, ≈ 79 phút) | Đỗ ga Minh Lệ ≈ 7 phút, kết thúc ≥ 300 s trước mốc báo 15 phút | TR12, TR27, TR37 |
 | `train_longstop_nospd` | Như `train_longstop`, không có tốc độ khi đỗ | GPX giống hệt `train_longstop` trừ `spd` ở mọi tick đang dừng | TR31, TR27 |
-| `coach_md_tb` | Xe khách Mỹ Đình → Thái Bình (≈ 102 km, ≈ 2,1 h) | Cao tốc 85 km/h, dừng 3 phút ở Nam Định | TR03, TR09, TR20, TR21, TR26, TR27, TR29 |
+| `coach_md_tb` | Xe khách Mỹ Đình → Thái Bình (≈ 102 km, ≈ 2,1 h) | Cao tốc 85 km/h, dừng 3 phút ở Nam Định | TR03, TR09, TR20, TR21, TR26, TR27, TR29, TR37 |
 | `bus_hn_brt01` | Buýt BRT01 Kim Mã → Yên Nghĩa (≈ 12,9 km, ≈ 40 phút) | 17 trạm cách ≈ 700 m, tốc độ ≤ 28 km/h | TR04, TR27 |
-| `bus_hn_slow` | Buýt Kim Mã → Yên Nghĩa, kẹt xe 30 phút cuối | Từ Vạn Phúc 2: 7,1–11,9 km/h | TR10, TR11, TR27 |
+| `bus_hn_slow` | Buýt Kim Mã → Yên Nghĩa, kẹt xe 30 phút cuối | Từ Vạn Phúc 2: 7,1–11,9 km/h | TR10, TR11, TR27, TR37 |
 | `bus_hn_brt01_noisy` | Như `bus_hn_brt01`, GPS nhiễu (phố nhà cao tầng) | σ 25 m, 30 % mẫu thiếu tốc độ, outlier 300–1500 m, 2 nhóm điểm nhảy giả: "còn 600 m" khi thực tế còn 4 km; khi còn 400 m, khoảng cách tới đích tăng vọt lên 1800 m trong 2 mẫu (điểm giả ở phía xe đã đi qua) | TR07, TR27 |
 | `bus_hn_brt01_noisy_traps` | Như `bus_hn_brt01_noisy`, thêm 2 nhóm bẫy | Mồi "còn 2 km" khi thực tế còn 5,3–6 km; khi còn 250 m, 3 điểm giả cách đích 1800 m **bên kia đích** | TR16, TR17, TR27 |
 | `coach_dn_langco_tunnel` | Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân | Mất GPS 360 s trong hầm, đích ≈ 5 km sau cửa Bắc | TR05, TR27 |
 | `coach_dn_langco_shortgap` | Như trên, không mất GPS trong hầm | Mất GPS 120 s ở Hoà Khánh, khi còn > 20 km chim bay | TR13, TR27 |
 | `coach_dn_langco_neardest` | Đà Nẵng → Lăng Cô (nam) | Mất GPS 360 s trong hầm, đích ≈ 1,15 km chim bay sau cửa Bắc | TR14, TR27 |
-| `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | TR06, TR19, TR27, TR33, TR35 |
+| `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | TR06, TR19, TR27, TR33, TR35, TR37 |
 | `coach_gb_phuly_offroute` | Như trên, đích dời 1,5 km khỏi đường | `destinationOffsetM: 1500` (phía nam), không bao giờ vào ngưỡng 1 km | TR32, TR27 |
 
 Nhóm điểm nhảy "còn 400 m" của `bus_hn_brt01_noisy` nằm **phía sau** xe, trên đoạn tuyến đã đi (không nằm bên kia đích). Nó đánh
@@ -99,7 +100,7 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
 ```json
 {
   "schemaVersion": 1,
-  "generator": {"name": "tracegen", "version": "1.1.0"},
+  "generator": {"name": "tracegen", "version": "1.2.0"},
   "trace": {
     "id": "coach_dn_langco_tunnel",
     "title": "Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân (mất GPS 6 phút)",
@@ -155,7 +156,7 @@ Ví dụ rút gọn (`coach_dn_langco_tunnel`):
 | Đường dẫn | Kiểu | Ý nghĩa |
 |---|---|---|
 | `schemaVersion` | int | `1`. Consumer gặp số lớn hơn bản mình hỗ trợ thì **phải fail** |
-| `generator.name`, `.version` | string | `tracegen`, semver của generator (hiện `1.1.0`) |
+| `generator.name`, `.version` | string | `tracegen`, semver của generator (hiện `1.2.0`) |
 | `trace.id`, `.title`, `.vehicle`, `.gpx` | string | `vehicle` ∈ `train`, `coach`, `bus`; `gpx` = tên file cùng thư mục |
 | `trace.seed`, `.noiseSeed` | int | để tái tạo |
 | `trace.startTime` | string | = `time` của trkpt đầu |
@@ -185,10 +186,12 @@ Mọi thời điểm là **số nguyên giây kể từ `startTime`**, mọi kho
 Mỗi case là một lần chạy engine trên trace với một cấu hình. Thứ tự key (`?` = tuỳ chọn):
 
 ```
-id, status, testIds?, config, samplingModes?, expect, expectAfter?, expectFallback?, expectOutcome?, expectSummary?,
-forbid, forbidMatch?, forbidAfter?
+id, status, testIds?, config, samplingModes?, policyPhaseSweep?, expect, expectAfter?, expectFallback?, killSweep?,
+expectOutcome?, expectSummary?, forbid, forbidMatch?, forbidAfter?
 config: mode, thresholdM? | thresholdMin?, preAlert, vehicleHint?, params?, battery?, actions?, kill?, relaunch?, osDismiss?,
         osSim?, osRingMaxS?
+killSweep: from, everyS, notAfter, earlyFrom, statsOnly?
+expectFallback.window: modeAt, modeAtT, killT, estimateT, asOfStraightM, hintEstimateT, toleranceS
 ```
 
 Quy ước: tên sự kiện lowerCamel; giá trị enum **sinh ra từ engine** (`reason`, `cause`, `expectOutcome`, `vehicleGuess`) viết
@@ -211,10 +214,12 @@ Quy ước: tên sự kiện lowerCamel; giá trị enum **sinh ra từ engine**
 | `config.osDismiss` | `{offsetS}` | cần `relaunch.fallbackStatus == auto`; người dùng tắt báo của OS `offsetS` (> 0) giây sau `osFallbackFired` |
 | `config.osSim` | bool | vắng = `true`; `relaunch: auto` đòi `osSim` bật |
 | `config.osRingMaxS` | int > 0 | báo của nền tảng tự ngừng sau N giây (T10 §8.1-4); vắng = kêu tới khi bấm |
-| `samplingModes` | `["all"]` / `["policy"]` | vắng = chạy cả hai chế độ lấy mẫu (§6) (T11: chỉ `train_hn_dh_stopgap/distance_1000` dùng `["all"]`, xem T11 §6.3.1) |
+| `samplingModes` | `["all"]` / `["policy"]` | vắng = chạy cả hai chế độ lấy mẫu (§6) (sau T11.1 không case nào dùng) |
+| `policyPhaseSweep` | bool, vắng = `false` | T10 §8.1-3, §6 dưới. `true` → harness thay lượt `policy` bằng quét `K = samplingSparseIntervalS / I` pha. Chỉ ghi khi `true`. Không đi cùng `samplingModes: ["all"]` hoặc action `batteryMaxSaving`; `samplingSparseIntervalS` hiệu lực (override hoặc 180) phải chia hết cho `sampleIntervalS` |
 | `expect[]` | `{event, reason?, ringNow?, cause?, notBefore, notAfter, window, ref}` | **lần xuất hiện đầu tiên** của sự kiện khớp bộ lọc phải có `t ∈ [notBefore, notAfter]` (gồm 2 đầu); không có là fail. `window` lưu anchor gốc (`clamp(anchor + offsetS, 0, durationS)`, quy tắc v1); `ref` trích quy tắc |
 | `expectAfter[]` | `{event, reason?, ringNow?, cause?, after, withinS: [lo, hi], ref}` | `B` = mốc của `after`. Lần đầu tiên sự kiện khớp có `t ≥ B` phải có `t − B ∈ [lo, hi]` (gồm 2 đầu, `0 ≤ lo ≤ hi`); không có là fail |
-| `expectFallback` | `{asOfT, notBefore, notAfter, window, ref}` | cần `kill`. Xét `FallbackAlarmChanged` **cuối cùng** có `t ≤ asOfT`: phải có `fallbackAtMs ≠ null` và `floor((fallbackAtMs − startMs)/1000) ∈ [notBefore, notAfter]`. `window = {modeAt, modeAtT, killT, estimateT, toleranceS}` ghi cách tính (dưới đây) |
+| `expectFallback` | `{asOfT, notBefore, notAfter, window, ref}` | cần `kill`. Xét `FallbackAlarmChanged` **cuối cùng** có `t ≤ asOfT`: phải có `fallbackAtMs ≠ null` và `floor((fallbackAtMs − startMs)/1000) ∈ [notBefore, notAfter]`. `window = {modeAt, modeAtT, killT, estimateT, asOfStraightM, hintEstimateT, toleranceS}` ghi cách tính (dưới đây); harness không dùng `window` nhưng phải biết tên khoá (§5) |
+| `killSweep` | `{from, everyS, notAfter, earlyFrom, statsOnly?}` | T10 §8.1-6, §6 dưới. Quét thời điểm chết. `from`: `At` tĩnh, `t ≥ sampleIntervalS` (dạng `{"t": 60}` khi profile cho `t`); `everyS`: int > 0, bội số của `sampleIntervalS`; `notAfter`: `At` tĩnh, giờ dự phòng còn lại không được sau mốc này (trừ `statsOnly`); `earlyFrom`: `At` tĩnh, gốc tính độ sớm M (DISTANCE `straight<=thresholdM`, TIME `arrival − 60·thresholdMin`, SMART `straight<=1000`); `statsOnly`: bool, vắng = `false`, chỉ ghi khi `true` → không kiểm `notAfter`, chỉ in thống kê. Không có `ref`. Không đi cùng `config.kill`, `config.relaunch`, `config.osDismiss`, `config.osSim: false` |
 | `expectOutcome` | `ON_TIME`/`SNOOZED`/`MISSED`/`CANCELLED` | `outcome` của `tripEnded` đầu tiên; không có `tripEnded` là fail |
 | `expectSummary` | `{vehicleGuess}` | `tripEnded.summary.vehicleGuess` ∈ `TRAIN`/`COACH`/`BUS`/`UNKNOWN`; không có `tripEnded` là fail |
 | `forbid[]` | `string[]` | tên sự kiện **không được** xuất hiện ở bất kỳ thời điểm nào |
@@ -266,18 +271,31 @@ runAnchor    := "event:" <tên sự kiện> | "relaunch" | "osFallbackFired"
 | `config.actions[].at` | tĩnh, `event:*`, `relaunch` |
 | `config.relaunch.at` | tĩnh, `event:*`, `osFallbackFired` |
 | `expectAfter[].after`, `forbidAfter[].after` | tĩnh, `event:*`, `relaunch`, `osFallbackFired` |
+| `killSweep.from`, `.notAfter`, `.earlyFrom` | tĩnh, trừ `kill` |
 
 `kill`, `osFallbackFired` cần `config.kill`; `relaunch` cần `config.relaunch`; `closest*` cần `truth.closest`; `overshoot` cần
 `truth.overshoot`.
 
-**`expectFallback`** (T11 §5.3, tham số mặc định T10 §5, toàn số nguyên; `~/` là chia nguyên):
+**`expectFallback`** (T11 §5.3 theo T10.2 / T11.1 §4, tham số mặc định T10 §5, toàn số nguyên; `~/` là chia nguyên, đối số ≥ 0):
 
 ```
-killT     = config.kill.t;  modeAtT = anchor(modeAt) + modeAt.offsetS      -- giờ báo dự kiến của chế độ
-early     = min(1800, max(0, modeAtT − killT − 600) ~/ 10)
-estimateT = modeAtT + 30 − early;  asOfT = killT − sampleIntervalS
-notBefore = clamp(estimateT + toleranceS[0], 0, durationS);  notAfter = clamp(estimateT + toleranceS[1], 0, durationS)
+killT     = config.kill.t;   asOfT = killT − sampleIntervalS
+modeAtT   = anchor(modeAt) + modeAt.offsetS                       -- giờ báo dự kiến của chế độ
+early     = min(3600, max(0, modeAtT − killT − 600) ~/ 4)          -- fallbackEarlyMaxS, fallbackEarlyFrac 1/4, fallbackNearS
+estimateT = modeAtT + 30 − early                                   -- fallbackLagS
+hintKmh   = {train: 55, coach: 60, bus: 20, unknown: 60}[config.vehicleHint ?? trace.vehicle]
+asOfStraightM = floor(khoảng cách chim bay từ vị trí THẬT ở tick asOfT tới đích hiệu dụng, mét)
+hT        = distance: (max(0, asOfStraightM − thresholdM) · 432) ~/ (100 · hintKmh)
+            time:     max(0, (asOfStraightM · 432) ~/ (100 · hintKmh) + 20 − 60 · thresholdMin)
+            smart:    max(0, (asOfStraightM · 432) ~/ (100 · hintKmh) + 20 − 600)
+hintEstimateT = asOfT + max(600, hT + 30 − min(3600, max(0, hT − 600) ~/ 4))
+notBefore = clamp(min(estimateT, hintEstimateT) + toleranceS[0], 0, durationS)
+notAfter  = clamp(estimateT + toleranceS[1], 0, durationS)
 ```
+
+`432 = 100 · 3,6 · routeFactorPrior (1,2) / fallbackHintSpeedFactor (1,0)`; `20` = `etaStopPenaltyS`; `600` (smart) = `smartTargetS`.
+Cận dưới lấy min của hai ước lượng vì engine chọn tốc độ lớn hơn giữa EMA và sàn theo loại xe (T10 §4.10, T10.2); cận trên giữ như
+cũ. `asOfStraightM` tính trên vị trí thật, chỉ để truy vết và để `validate` tính lại.
 
 Dung sai lấy từ PRD §1: ±300 m (khoảng cách, đo **dọc tuyến** trên sự thật) và ±60 s (thời gian, so với `arrivalT` thật).
 
@@ -294,6 +312,11 @@ Cặp GPX + expect: `schemaVersion == 1`; đủ key bắt buộc, đúng kiểu;
 - khoá lạ ở bất kỳ object nào trong `cases[i]` (kể cả `config`, mục `expect`, `At`…) là lỗi (must-understand, §5);
 - `mode`/ngưỡng, `vehicleHint`, tên và kiểu `params`, `battery`, `action`, `fallbackStatus`, `expectOutcome`, `vehicleGuess`,
   `samplingModes` hợp lệ; `final` thì `testIds` khác rỗng, đúng mẫu, không trùng;
+- `policyPhaseSweep` là bool; `true` không đi cùng `samplingModes: ["all"]` hoặc action `batteryMaxSaving`, và cần
+  `samplingSparseIntervalS` hiệu lực chia hết cho `sampleIntervalS`;
+- `killSweep` đủ `from`, `everyS`, `notAfter`, `earlyFrom` (`statsOnly` tuỳ chọn, bool); ba `At` tĩnh, không `kill`;
+  `from.t ≥ sampleIntervalS`; `everyS > 0`, bội số của `sampleIntervalS`; không đi cùng `config.kill`, `config.relaunch`,
+  `config.osDismiss`, `config.osSim: false`;
 - `0 <= notBefore <= notAfter <= durationS`; `withinS` có `0 ≤ lo ≤ hi`; anchor đúng cú pháp, đúng nơi dùng, đủ điều kiện tham
   chiếu; `At` tĩnh có `t ∈ [0, durationS]`, anchor chạy không có `t`; `t`/`offsetS` của khoá mới là bội số của `sampleIntervalS`;
   `relaunch` cần `kill`, `relaunch` tĩnh > `kill.t`; `osDismiss` cần `relaunch: auto`; `osSim: false` không đi với `auto`;
@@ -304,8 +327,11 @@ Cặp GPX + expect: `schemaVersion == 1`; đủ key bắt buộc, đúng kiểu;
   `expectAfter` khi cùng `event` và mọi khoá lọc của `forbidMatch` có trong mục kia với cùng giá trị; `forbidAfter` (mốc
   `anchor + offF`) mâu thuẫn với `expectAfter` (mốc `anchor + offE`, `[lo, hi]`) khi cùng chuỗi `anchor`, thoả điều kiện bao trên
   và `offE + lo > offF`;
-- `expectFallback` cần `kill`, không đi với `params` override `fallbackLagS`, `fallbackEarlyFrac`, `fallbackEarlyMaxS`,
-  `fallbackNearS`; `killT`, `asOfT`, `estimateT`, `notBefore`, `notAfter` khớp công thức §3.1;
+- `expectFallback` cần `kill`, không đi với `params` override một trong 12 tên `fallbackLagS`, `fallbackEarlyFrac`,
+  `fallbackEarlyMaxS`, `fallbackNearS`, `fallbackHintSpeedFactor`, `routeFactorPrior`, `expectedSpeedKmhTrain`,
+  `expectedSpeedKmhCoach`, `expectedSpeedKmhBus`, `expectedSpeedKmhUnknown`, `etaStopPenaltyS`, `smartTargetS`; `killT`, `asOfT`
+  khớp `config.kill`; `window.asOfStraightM` là int ≥ 0; `estimateT`, `hintEstimateT`, `notBefore`, `notAfter` khớp công thức §3.1
+  (tính lại từ `window.asOfStraightM`);
 - `closest.departT` không đi với `params` override `passedClosestOpenMinM`/`passedClosestOpenFrac`.
 
 Ngoài `cases[]`: `destination.offsetM` (nếu có) là int ≠ 0; `truth.closest` (nếu có) đủ `t`, `straightM`, `departT`.
@@ -318,13 +344,15 @@ Ngoài `cases[]`: `destination.offsetM` (nếu có) là int ≠ 0; `truth.closes
   đó**, không được bỏ qua. Các object đó gồm: chính `cases[i]`, `config`, `config.params` (khoá là tên tham số),
   `config.battery[i]`, `config.actions[i]` và `.at`, `config.kill`, `config.relaunch` và `.at`, `config.osDismiss`, mục
   `expect[i]` và `.window` (cả `.notBefore`/`.notAfter` bên trong), `expectAfter[i]` và `.after`, `expectFallback` và `.window`
-  (cả `.modeAt`), `expectSummary`, `forbidMatch[i]`, `forbidAfter[i]` và `.after`. Áp cả cho khoá chỉ mang thông tin (`ref`,
+  (cả `.modeAt`; khoá của `.window` gồm cả `asOfStraightM`, `hintEstimateT` từ T11.1), `killSweep` và `.from`, `.notAfter`,
+  `.earlyFrom`, `expectSummary`, `forbidMatch[i]`, `forbidAfter[i]` và `.after`. Khoá trực tiếp của `cases[i]` gồm cả
+  `policyPhaseSweep`, `killSweep` (T11.1). Áp cả cho khoá chỉ mang thông tin (`ref`,
   `testIds`, `window`): harness phải biết tên chúng dù không dùng. Lý do: harness bỏ qua `config.kill` sẽ chạy sai case, còn
   harness bỏ qua bộ lọc lồng (ví dụ `expect[].reason`) sẽ so như kỳ vọng không lọc; cả hai đều có thể PASS giả. Ngoài `cases[]`
   (`trace`, `destination`, `truth`, `milestones`…) consumer **bỏ qua** khoá lạ như v1. `tracegen validate` kiểm đúng quy tắc này.
   Hệ quả: thêm khoá case mới là thay đổi bổ sung với generator, nhưng phải đi kèm task cập nhật harness.
 - Namespace extension GPX có `/1`; thêm phần tử extension mới là thay đổi bổ sung.
-- `generator.version` (hiện `1.1.0`): tăng khi code generator làm đổi output với cùng input (patch), thêm tính năng (minor), đổi
+- `generator.version` (hiện `1.2.0`): tăng khi code generator làm đổi output với cùng input (patch), thêm tính năng (minor), đổi
   schema (major). Đổi dữ liệu profile/route thì không cần tăng.
 
 ## 6. Quy tắc harness (T12 Kotlin, T13 Swift; chuẩn hoá T10 §8.1)
@@ -337,6 +365,16 @@ Nhắc lại T10 §8.1 (không đổi nghĩa):
 - Đồng hồ ảo tiến từng tick `t = 0, I, 2I, …, durationS` (§2). Sự kiện phát khi xử lý tick `t` có `t_event = t`.
 - **Hai chế độ lấy mẫu**, mọi case phải đạt ở cả hai (trừ khi có `samplingModes`): `all` giao mọi mẫu; `policy` chỉ giao mẫu ở
   `t` nếu `t − tFixGiaoCuối ≥ policy.intervalS` hiện tại của engine.
+- **Quét pha `policy`** (T10 §8.1-3, T10.1): case có `policyPhaseSweep: true` chạy `K = samplingSparseIntervalS / I` lượt `policy`
+  (mặc định 36; không chia hết là lỗi cấu hình) **thay cho** một lượt `policy`. Lượt `j = 0 … K − 1`: lần giao đầu tiên trong chuyến
+  xảy ra khi policy hiện tại là SPARSE cần `t − tFixGiaoCuối ≥ policy.intervalS + j·I`; mọi lần giao khác theo quy tắc `policy`
+  thường (`j = 0` là lượt thường). Mỗi lượt là một chuyến độc lập, phải đạt **mọi** kiểm tra của điểm 9 (I8 chỉ bắt buộc ở
+  `j = 0`); báo lỗi ghi rõ `j`. Chạy một lượt `policy` cho case này là **sai** (TR30 sẽ "đạt nhầm", T11 RK9).
+- **Quét thời điểm chết `killSweep`** (T10 §8.1-6, T10.2): chạy case như thường (sống suốt) ở mỗi chế độ (mỗi pha nếu có
+  `policyPhaseSweep`). Với mọi `k` = tick đầu ≥ `from`, rồi cách `everyS`, tới tick `alarm` đầu tiên (gồm): giờ dự phòng osSim đang giữ
+  sau tick `k − I` phải khác null và, trừ khi `statsOnly: true`, `floor((fbOs − startMs)/1000) ≤ notAfter`. Lượt không có `alarm` là
+  fail. Không chạy lại engine cho từng `k`. In thống kê: % và độ muộn của các `k` vượt `notAfter`, độ sớm `earlyFrom − fbOs` theo nhóm
+  thời gian còn lại, số lần đặt lại mỗi giờ. Case `killSweep` vẫn qua mọi kiểm tra của điểm 9 (P02 áp vì không có `kill`).
 - **osSim** (mặc định bật): trạng thái `fbOs`, `ringing ∈ {NONE, ENGINE, FALLBACK}`, `ringStartMs`; xử lý `FallbackAlarmChanged`,
   báo dự phòng kêu, nghĩa vụ 3 ở Step có `Alarm(ringNow=true)`, `osRingMaxS`, `kill`, `AlarmSilenced` sau relaunch — đúng như
   T10 §8.1-4. P02: case không có `kill` thì `alarm` đầu tiên có `ringNow=true`. P07: (i) không có `Alarm(ringNow=true)` khi
@@ -367,9 +405,10 @@ Bổ sung (ràng buộc với T12/T13):
    `batteryAlarmAt5` → `BATTERY_ALARM_AT_5`, `batteryAlarmEarlier` → `BATTERY_ALARM_EARLIER`.
 8. **I8 / P04:** điểm kiểm (25 %, 50 %, 90 % `durationS`, tick ngay sau `alarm` đầu tiên) rơi vào khoảng engine chết thì bỏ qua.
    Lần chạy khôi phục phải sao chép cả trạng thái osSim và trạng thái giao fix (`tFixGiaoCuối`, cờ hành động vị trí).
-9. **Kiểm:** `expect`, `expectAfter`, `expectFallback`, `expectOutcome`, `expectSummary`, `forbid`, `forbidMatch`, `forbidAfter`,
-   bất biến I1–I7, I9–I12, P02 (case không có `kill`), P07, I8. Case lỗi cấu hình (khoá lạ theo must-understand, `params` bị từ
-   chối, anchor chạy không xảy ra, hành động lúc engine chết, `osDismiss` không trước relaunch, `B > durationS` của hành động/relaunch,
-   relaunch theo `event:*` có `B ≤ kill.t`) là **fail**, không phải skip.
+9. **Kiểm:** `expect`, `expectAfter`, `expectFallback`, `killSweep`, `expectOutcome`, `expectSummary`, `forbid`, `forbidMatch`,
+   `forbidAfter`, bất biến I1–I7, I9–I12, P02 (case không có `kill`), P07, I8. Case lỗi cấu hình (khoá lạ theo must-understand,
+   `params` bị từ chối, anchor chạy không xảy ra, hành động lúc engine chết, `osDismiss` không trước relaunch, `B > durationS` của
+   hành động/relaunch, relaunch theo `event:*` có `B ≤ kill.t`, `policyPhaseSweep` với `samplingSparseIntervalS` không chia hết cho
+   `sampleIntervalS`, lượt `killSweep` không có `alarm`) là **fail**, không phải skip.
 
 Case `final` fail là lỗi engine **hoặc** lỗi case: báo designer, không tự sửa fixture cho xanh.

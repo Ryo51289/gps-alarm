@@ -4,6 +4,8 @@
 // `support/window_oracle.dart`), plus hand-computed numbers for the windows
 // that depend on milestones or on the §5.3 formula, and out-of-spec checks
 // that no expectation lets an alarm come after the passenger should be off.
+import 'dart:io';
+
 import 'package:test/test.dart';
 import 'package:tracegen/tracegen.dart';
 
@@ -74,7 +76,9 @@ void main() {
       final e = expectEntry(c, 'alarm', 'GPS_LOST');
       expect(window(e), [28815, 35345 - 300]);
       expect(e['ringNow'], isTrue);
-      expect(c['samplingModes'], ['all']);
+      // T11.1: both sampling modes, the policy run sweeps 36 phases.
+      expect(c.containsKey('samplingModes'), isFalse);
+      expect(c['policyPhaseSweep'], isTrue);
       // The alarm has to come while GPS is still lost (window ends before
       // GPS returns at toT) and before the train stands at Đồng Hới.
       expect(window(e)[1], lessThan(35405));
@@ -96,18 +100,18 @@ void main() {
       }
     });
 
-    test('TR22 / TR28 / TR29 / TR35 expectFallback (T11 §5.3)', () {
-      // (profile, case, killT, modeAtT, asOfT, E, notBefore, notAfter)
+    test('TR22 / TR28 / TR29 / TR35 expectFallback (T11.1 §4)', () {
+      // (profile, case, killT, modeAtT, asOfT, E)
       final rows = [
         // TR22: A 33790, kill A−2400 = 31390, m = s≤1000 = 33700,
-        // early = (33700−31390−600)~/10 = 171, E = 33700+30−171 = 33559.
-        ('train_hn_dh', 'distance_1000_kill', 31390, 33700, 31385, 33559),
-        // TR28: m = A−900 = 32890, early = (32890−31390−600)~/10 = 90,
-        // E = 32890+30−90 = 32830 = A−960.
-        ('train_hn_dh', 'time_15_kill', 31390, 32890, 31385, 32830),
+        // early = (33700−31390−600)~/4 = 427, E = 33700+30−427 = 33303.
+        ('train_hn_dh', 'distance_1000_kill', 31390, 33700, 31385, 33303),
+        // TR28: m = A−900 = 32890, early = (32890−31390−600)~/4 = 225,
+        // E = 32890+30−225 = 32695.
+        ('train_hn_dh', 'time_15_kill', 31390, 32890, 31385, 32695),
         // TR29: A 7310, kill A−1800 = 5510, m = A−600 = 6710,
-        // early = (6710−5510−600)~/10 = 60, E = 6680 = A−630.
-        ('coach_md_tb', 'smart_kill', 5510, 6710, 5505, 6680),
+        // early = (6710−5510−600)~/4 = 150, E = 6590.
+        ('coach_md_tb', 'smart_kill', 5510, 6710, 5505, 6590),
         // TR35: A 2425, kill A−600 = 1825, m = s≤1000 = 2340,
         // early = max(0, 2340−1825−600) = 0, E = 2370.
         (
@@ -120,18 +124,45 @@ void main() {
         ),
       ];
       for (final (id, caseId, kill, modeAt, asOf, e) in rows) {
-        final f = caseOf(id, caseId)['expectFallback']! as _Case;
+        final c = caseOf(id, caseId);
+        final config = c['config']! as _Case;
+        final f = c['expectFallback']! as _Case;
         final w = f['window']! as _Case;
         expect(
           [w['killT'], w['modeAtT'], f['asOfT'], w['estimateT']],
           [kill, modeAt, asOf, e],
           reason: '$id/$caseId',
         );
-        expect(
-          [f['notBefore'], f['notAfter']],
-          [e - 300, e + 120],
-          reason: '$id/$caseId',
+        // hintEstimateT from the truth (the "≈" numbers of T10 §8.3 are not
+        // asserted).
+        final fb = oracle(id).fallbackOf(
+          mode: config['mode']! as String,
+          threshold: (config['thresholdM'] ?? config['thresholdMin']) as int?,
+          hint:
+              (config['vehicleHint'] ??
+                      (oracle(id).fixture['trace']! as _Case)['vehicle'])!
+                  as String,
+          modeAtT: modeAt,
+          killT: kill,
+          tolerance: (-300, 120),
         );
+        expect(w['hintEstimateT'], fb.hintEstimateT, reason: '$id/$caseId');
+        if (caseId == 'smart_kill') {
+          // The coach speed floor wins: the lower edge follows the hint.
+          expect(fb.hintEstimateT, lessThan(e), reason: '$id/$caseId');
+          expect(
+            [f['notBefore'], f['notAfter']],
+            [fb.hintEstimateT - 300, 6710],
+            reason: '$id/$caseId',
+          );
+        } else {
+          expect(fb.hintEstimateT, greaterThan(e), reason: '$id/$caseId');
+          expect(
+            [f['notBefore'], f['notAfter']],
+            [e - 300, e + 120],
+            reason: '$id/$caseId',
+          );
+        }
       }
     });
 
@@ -574,6 +605,269 @@ void main() {
         }
       }
     });
+  });
+
+  // T11.1 TG50 (tester): independent review of the T11.1 numbers from the
+  // truth and from the GPX.
+  group('TG50 T11.1 windows from truth and GPX', () {
+    // (profile, case) of the four expectFallback cases.
+    const fallbackCases = [
+      ('train_hn_dh', 'distance_1000_kill'),
+      ('train_hn_dh', 'time_15_kill'),
+      ('coach_md_tb', 'smart_kill'),
+      ('coach_gb_phuly_overshoot', 'distance_1000_fallback_silenced'),
+    ];
+
+    test('the oracle does not use the generator formula or resolver', () {
+      // RK2: the oracle must stay independent of lib/ for every number it
+      // recomputes (it may share the motion truth only).
+      final src = File('${packageDir.path}/test/support/window_oracle.dart')
+          .readAsStringSync()
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      for (final name in [
+        'fallbackEstimates',
+        'fallbackWindow',
+        'kFallback',
+        'kExpectedSpeedKmh',
+        'kEtaStopPenaltyS',
+        'kSmartTargetS',
+        'resolveCase',
+        'resolveAnchor',
+        'writeExpect',
+        'validatePair',
+        'distanceM(',
+        'milestones(',
+      ]) {
+        expect(src.contains(name), isFalse, reason: 'oracle uses $name');
+      }
+    });
+
+    for (final (id, caseId) in fallbackCases) {
+      test('$id/$caseId asOfStraightM vs GPX fix and milestones', () {
+        final o = oracle(id);
+        final c = caseOf(id, caseId);
+        final f = c['expectFallback']! as _Case;
+        final w = f['window']! as _Case;
+        final asOfT = f['asOfT']! as int;
+        final sM = w['asOfStraightM']! as int;
+        final dest = o.fixture['destination']! as _Case;
+        final trace = o.fixture['trace']! as _Case;
+        final start =
+            DateTime.parse(trace['startTime']! as String)
+                .millisecondsSinceEpoch ~/
+            1000;
+        final fixes = fixesFromGpx(
+          File('${fixturesDir.path}/$id.gpx').readAsStringSync(),
+          start,
+        );
+        expect(fixes.length, trace['sampleCount'], reason: id);
+
+        // Truth (oracle) at asOfT: exact.
+        final j = o.truth.states.indexWhere((s) => s.t == asOfT);
+        expect(sM, o.truth.straightM[j].floor(), reason: '$id/$caseId');
+
+        // GPX fix at asOfT (noisy): within 100 m of the true distance.
+        final fix = fixes[asOfT];
+        expect(fix, isNotNull, reason: '$id/$caseId: no fix at asOfT');
+        final gpxM = haversineM(fix!, (
+          (dest['lat']! as num).toDouble(),
+          (dest['lng']! as num).toDouble(),
+        ));
+        expect(
+          (gpxM - sM).abs(),
+          lessThanOrEqualTo(100),
+          reason: '$id/$caseId GPX ${gpxM.toStringAsFixed(1)} m vs sM $sM',
+        );
+
+        // Milestones: for X > sM the first tick with straight <= X is at or
+        // before asOfT (guaranteed); for X < sM it is after asOfT (holds
+        // because the four trips approach their destination monotonically
+        // before the kill).
+        final distance =
+            ((o.fixture['milestones']! as _Case)['distance']! as List)
+                .cast<_Case>();
+        var below = 0;
+        var above = 0;
+        for (final m in distance) {
+          final x = m['thresholdM']! as int;
+          final t = m['straightT'] as int?;
+          if (t == null) {
+            continue;
+          }
+          if (x > sM) {
+            above++;
+            expect(t, lessThanOrEqualTo(asOfT), reason: '$id X=$x');
+          } else if (x < sM) {
+            below++;
+            expect(t, greaterThan(asOfT), reason: '$id X=$x');
+          }
+        }
+        expect(below, greaterThan(0), reason: id);
+        expect(above, greaterThan(0), reason: id);
+      });
+
+      test('$id/$caseId window from the GPX distance (§4 robustness)', () {
+        // The window must not hinge on metres: recomputed with the distance
+        // of the noisy GPX fix instead of the truth, estimateT and both
+        // edges stay the same where estimateT sets the lower edge, and
+        // hintEstimateT moves by at most a few seconds where the floor wins.
+        final o = oracle(id);
+        final c = caseOf(id, caseId);
+        final config = c['config']! as _Case;
+        final f = c['expectFallback']! as _Case;
+        final w = f['window']! as _Case;
+        final dest = o.fixture['destination']! as _Case;
+        final trace = o.fixture['trace']! as _Case;
+        final start =
+            DateTime.parse(trace['startTime']! as String)
+                .millisecondsSinceEpoch ~/
+            1000;
+        final fix = fixesFromGpx(
+          File('${fixturesDir.path}/$id.gpx').readAsStringSync(),
+          start,
+        )[f['asOfT']! as int]!;
+        final gpxM = haversineM(fix, (
+          (dest['lat']! as num).toDouble(),
+          (dest['lng']! as num).toDouble(),
+        )).floor();
+        final tol = (w['toleranceS']! as List).cast<int>();
+        final fb = o.fallbackOf(
+          mode: config['mode']! as String,
+          threshold: (config['thresholdM'] ?? config['thresholdMin']) as int?,
+          hint: (config['vehicleHint'] ?? trace['vehicle'])! as String,
+          modeAtT: w['modeAtT']! as int,
+          killT: w['killT']! as int,
+          tolerance: (tol[0], tol[1]),
+          straightM: gpxM,
+        );
+        expect(fb.estimateT, w['estimateT'], reason: '$id/$caseId');
+        expect(fb.notAfter, f['notAfter'], reason: '$id/$caseId');
+        final h = w['hintEstimateT']! as int;
+        expect((fb.hintEstimateT - h).abs(), lessThanOrEqualTo(10));
+        if (h > (w['estimateT']! as int)) {
+          expect(fb.notBefore, f['notBefore'], reason: '$id/$caseId');
+        } else {
+          expect(
+            ((f['notBefore']! as int) - fb.notBefore).abs(),
+            lessThanOrEqualTo(10),
+            reason: '$id/$caseId',
+          );
+        }
+      });
+    }
+
+    test(
+      'the four fallback windows: kill < notBefore <= notAfter <= '
+      'modeAtT + lag + 120 (no wake-up later than the live alarm allows)',
+      () {
+        for (final (id, caseId) in fallbackCases) {
+          final f = caseOf(id, caseId)['expectFallback']! as _Case;
+          final w = f['window']! as _Case;
+          final nb = f['notBefore']! as int;
+          final na = f['notAfter']! as int;
+          expect(nb, greaterThan(w['killT']! as int), reason: '$id/$caseId');
+          expect(nb, lessThanOrEqualTo(na), reason: '$id/$caseId');
+          expect(
+            na,
+            lessThanOrEqualTo((w['modeAtT']! as int) + 30 + 120),
+            reason: '$id/$caseId',
+          );
+        }
+      },
+    );
+
+    test('killSweep blocks of the seven TR37 cases', () {
+      var count = 0;
+      for (final id in ids) {
+        final o = oracle(id);
+        for (final c in (o.fixture['cases']! as List).cast<_Case>()) {
+          final ks = c['killSweep'] as _Case?;
+          if (ks == null) {
+            continue;
+          }
+          count++;
+          final where = '$id/${c['id']}';
+          final config = c['config']! as _Case;
+          final from = (ks['from']! as _Case)['t']! as int;
+          final everyS = ks['everyS']! as int;
+          final notAfter = ks['notAfter']! as _Case;
+          final earlyFrom = ks['earlyFrom']! as _Case;
+          final i = o.intervalS;
+          // V6 / V7 on the committed values.
+          expect(from, greaterThanOrEqualTo(i), reason: where);
+          expect(from % i, 0, reason: where);
+          expect(everyS > 0 && everyS % i == 0, isTrue, reason: where);
+          // notAfter = arrival, earlyFrom = D1000 straight milestone or
+          // A − 900 (T15), recomputed by the oracle (not read from the
+          // fixture's own milestones).
+          expect(notAfter['t'], o.arrivalT, reason: where);
+          final earlyWant = config['mode'] == 'time'
+              ? o.arrivalT - 60 * (config['thresholdMin']! as int)
+              : o.straightWithin(config['thresholdM']! as int);
+          expect(earlyFrom['t'], earlyWant, reason: where);
+          // Order: the sweep starts well before the alarm moment, and the
+          // early reference is not after the deadline.
+          final early = earlyFrom['t']! as int;
+          final late = notAfter['t']! as int;
+          expect(from, lessThan(early), reason: where);
+          expect(early, lessThanOrEqualTo(late), reason: where);
+          expect(late, lessThanOrEqualTo(o.durationS), reason: where);
+          // At least one kill time per minute of trip before the deadline.
+          expect((late - from) ~/ everyS, greaterThan(10), reason: where);
+          // No case input that the sweep replaces (V10).
+          for (final key in ['kill', 'relaunch', 'osDismiss']) {
+            expect(config.containsKey(key), isFalse, reason: where);
+          }
+          expect(config['osSim'], isNot(false), reason: where);
+        }
+      }
+      expect(count, 7);
+    });
+
+    test(
+      'self-check: the oracle flags hand edits that validate cannot see',
+      () {
+        // Review T11.1 "Giới hạn đã biết của validate": a killSweep t that is
+        // not anchor + offsetS, and an asOfStraightM edited together with the
+        // numbers that depend on it. The oracle catches both.
+        final o = oracle('train_hn_dh');
+        final mutated = deepCopy(o.fixture)! as Map<String, Object?>;
+        final cases = (mutated['cases']! as List).cast<_Case>();
+        final ks =
+            cases.firstWhere(
+                  (c) => c['id'] == 'distance_1000_killsweep',
+                )['killSweep']!
+                as _Case;
+        (ks['earlyFrom']! as _Case)['t'] = 33705;
+        final f =
+            cases.firstWhere(
+                  (c) => c['id'] == 'distance_1000_kill',
+                )['expectFallback']!
+                as _Case;
+        // sM 20000 with the hand-computed H 32684 and NB 32384 (T11.1 §4):
+        // self-consistent for validate, wrong for the truth (estimateT
+        // 33303 > H, so the floor now sets the lower edge).
+        (f['window']! as _Case)
+          ..['asOfStraightM'] = 20000
+          ..['hintEstimateT'] = 32684;
+        f['notBefore'] = 32384;
+        final m = Oracle(
+          id: o.id,
+          fixture: mutated,
+          truth: o.truth,
+          gpxGaps: o.gpxGaps,
+        );
+        final bad = m.rows().where((r) => !r.ok).map((r) => r.where).toList();
+        expect(bad.toSet(), {
+          'train_hn_dh/distance_1000_killsweep killSweep.earlyFrom.t',
+          'train_hn_dh/distance_1000_kill expectFallback.window.asOfStraightM',
+          'train_hn_dh/distance_1000_kill expectFallback.window.hintEstimateT',
+          'train_hn_dh/distance_1000_kill expectFallback.notBefore',
+        });
+      },
+    );
   });
 }
 

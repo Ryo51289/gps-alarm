@@ -1,5 +1,5 @@
-/// `<id>.expect.json` writer, schema v1 with the T11 additions (spec T02
-/// §7.3, T11 §2).
+/// `<id>.expect.json` writer, schema v1 with the T11 and T11.1 additions
+/// (spec T02 §7.3, T11 §2, T11.1 §1).
 library;
 
 import 'package:tracegen/src/canonical_json.dart';
@@ -11,7 +11,7 @@ import 'package:tracegen/src/sensor.dart';
 const int kSchemaVersion = 1;
 
 /// Generator version; must equal `version` in `pubspec.yaml`.
-const String kGeneratorVersion = '1.1.0';
+const String kGeneratorVersion = '1.2.0';
 
 /// An expectation whose window has been resolved to ticks.
 final class ResolvedExpect {
@@ -34,7 +34,7 @@ final class ResolvedTimePoint {
   final int? t;
 }
 
-/// `expectFallback` resolved by T11 §5.3.
+/// `expectFallback` resolved by T11.1 §4 (T11 §5.3).
 final class ResolvedFallback {
   const new({
     required this.spec,
@@ -44,6 +44,8 @@ final class ResolvedFallback {
     required this.modeAtT,
     required this.killT,
     required this.estimateT,
+    required this.asOfStraightM,
+    required this.hintEstimateT,
   });
 
   final ExpectFallbackSpec spec;
@@ -53,8 +55,34 @@ final class ResolvedFallback {
   final int modeAtT;
   final int killT;
 
-  /// `E` of T11 §5.3.
+  /// Fallback time from the true ETA (`estimateT` of T11.1 §4).
   final int estimateT;
+
+  /// `floor` of the straight-line distance from the true position at
+  /// [asOfT] to the effective destination, metres.
+  final int asOfStraightM;
+
+  /// Fallback time when the speed floor of the vehicle hint wins.
+  final int hintEstimateT;
+}
+
+/// `killSweep` with its three time points resolved (T11.1 §2).
+final class ResolvedKillSweep {
+  const new({
+    required this.spec,
+    required this.from,
+    required this.notAfter,
+    required this.earlyFrom,
+  });
+
+  final KillSweepSpec spec;
+  final ResolvedTimePoint from;
+  final ResolvedTimePoint notAfter;
+  final ResolvedTimePoint earlyFrom;
+
+  int get everyS => spec.everyS;
+
+  bool get statsOnly => spec.statsOnly;
 }
 
 /// A case whose static anchors have been resolved to ticks.
@@ -68,6 +96,7 @@ final class ResolvedCase {
     this.expectAfter = const [],
     this.forbidAfter = const [],
     this.fallback,
+    this.killSweep,
   });
 
   final CaseSpec spec;
@@ -84,6 +113,7 @@ final class ResolvedCase {
   /// `after` of each `spec.forbidAfter`, same order.
   final List<ResolvedTimePoint> forbidAfter;
   final ResolvedFallback? fallback;
+  final ResolvedKillSweep? killSweep;
 }
 
 /// Inputs of [writeExpect].
@@ -108,8 +138,8 @@ final class ExpectContent {
   final List<ResolvedCase> cases;
 }
 
-/// Ordered JSON tree of the expect file (key order as in T02 §7.3 and
-/// T11 §2.1, §2.2).
+/// Ordered JSON tree of the expect file (key order as in T02 §7.3,
+/// T11 §2.1, §2.2 and T11.1 §1).
 Map<String, Object?> expectJsonTree(ExpectContent c) {
   final p = c.profile;
   final truth = c.truth;
@@ -215,6 +245,7 @@ Map<String, Object?> _caseJson(ResolvedCase rc) {
   final kill = rc.kill;
   final relaunchAt = rc.relaunchAt;
   final fallback = rc.fallback;
+  final killSweep = rc.killSweep;
   return {
     'id': spec.id,
     'status': spec.status,
@@ -254,6 +285,7 @@ Map<String, Object?> _caseJson(ResolvedCase rc) {
       if (spec.osRingMaxS != null) 'osRingMaxS': spec.osRingMaxS,
     },
     if (spec.samplingModes != null) 'samplingModes': [...?spec.samplingModes],
+    if (spec.policyPhaseSweep) 'policyPhaseSweep': true,
     'expect': [
       for (final e in rc.expect)
         {
@@ -290,9 +322,19 @@ Map<String, Object?> _caseJson(ResolvedCase rc) {
           'modeAtT': fallback.modeAtT,
           'killT': fallback.killT,
           'estimateT': fallback.estimateT,
+          'asOfStraightM': fallback.asOfStraightM,
+          'hintEstimateT': fallback.hintEstimateT,
           'toleranceS': [fallback.spec.toleranceLo, fallback.spec.toleranceHi],
         },
         'ref': fallback.spec.ref,
+      },
+    if (killSweep != null)
+      'killSweep': {
+        'from': _timePointJson(killSweep.from),
+        'everyS': killSweep.everyS,
+        'notAfter': _timePointJson(killSweep.notAfter),
+        'earlyFrom': _timePointJson(killSweep.earlyFrom),
+        if (killSweep.statsOnly) 'statsOnly': true,
       },
     if (spec.expectOutcome != null) 'expectOutcome': spec.expectOutcome,
     if (spec.expectSummaryVehicle != null)

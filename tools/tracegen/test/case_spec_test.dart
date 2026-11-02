@@ -1,4 +1,5 @@
-// Case keys of T11 §2 and the cross checks of §5.2 (TG01–TG11).
+// Case keys of T11 §2 and the cross checks of §5.2 (TG01–TG11), plus the
+// T11.1 keys `policyPhaseSweep` and `killSweep` (TG39, TG41).
 import 'dart:convert';
 
 import 'package:test/test.dart';
@@ -501,6 +502,28 @@ void main() {
       'expectFallback',
       message: 'fallbackLagS',
     );
+    // T11.1 V11: the 12 parameters of the formula.
+    expect(kFallbackFormulaParams, hasLength(12));
+    for (final name in kFallbackFormulaParams) {
+      final value = kDoubleParams.contains(name) ? 1.5 : 40;
+      expectError(
+        caseJson(
+          config: d1000({
+            'kill': {'t': 100},
+            'params': {name: value},
+          }),
+          extra: {
+            'expectFallback': {
+              'modeAt': edge('straight<=1000'),
+              'toleranceS': [-300, 120],
+              'ref': 'test',
+            },
+          },
+        ),
+        'expectFallback',
+        message: 'cannot be computed when params override $name',
+      );
+    }
   });
 
   test('TG11 anchors: new kinds and where they may be used', () {
@@ -648,6 +671,269 @@ void main() {
         },
       ),
       build: false,
+    );
+  });
+
+  test('TG39 policyPhaseSweep (T11.1 §3 V1-V4)', () {
+    Map<String, Object?> sweep(
+      Object? value, {
+      Map<String, Object?>? config,
+      Map<String, Object?> more = const {},
+    }) => caseJson(config: config, extra: {'policyPhaseSweep': value, ...more});
+
+    expectOk(sweep(true));
+    expectOk(sweep(false));
+    for (final bad in ['yes', 1]) {
+      expectError(
+        sweep(bad),
+        'policyPhaseSweep',
+        message: 'must be true or false',
+      );
+    }
+    expectError(
+      sweep(
+        true,
+        more: {
+          'samplingModes': ['all'],
+        },
+      ),
+      'policyPhaseSweep',
+      message: 'policyPhaseSweep cannot be used with samplingModes ["all"]',
+    );
+    expectOk(
+      sweep(
+        true,
+        more: {
+          'samplingModes': ['policy'],
+        },
+      ),
+    );
+    expectError(
+      sweep(
+        true,
+        config: d1000({
+          'actions': [
+            {'at': edge('start', 60), 'action': 'batteryMaxSaving'},
+          ],
+        }),
+      ),
+      'policyPhaseSweep',
+      message: 'policyPhaseSweep cannot be used with action batteryMaxSaving',
+    );
+    expectError(
+      sweep(
+        true,
+        config: d1000({
+          'params': {'samplingSparseIntervalS': 182},
+        }),
+      ),
+      'policyPhaseSweep',
+      message:
+          'policyPhaseSweep needs samplingSparseIntervalS (182) to be a '
+          'multiple of sampleIntervalS (5)',
+    );
+    expectOk(
+      sweep(
+        true,
+        config: d1000({
+          'params': {'samplingSparseIntervalS': 180},
+        }),
+      ),
+    );
+
+    final (p, _) = synth(profile: profileWith(sweep(true)));
+    expect(p.cases.single.policyPhaseSweep, isTrue);
+    final (q, _) = synth(profile: profileWith(caseJson()));
+    expect(q.cases.single.policyPhaseSweep, isFalse);
+  });
+
+  test('TG41 killSweep (T11.1 §3 V5-V10)', () {
+    Map<String, Object?> ks([Map<String, Object?> more = const {}]) => {
+      'from': {'t': 60},
+      'everyS': 60,
+      'notAfter': {'anchor': 'arrival'},
+      'earlyFrom': {'anchor': 'straight<=1000'},
+      ...more,
+    };
+    Map<String, Object?> withSweep(
+      Map<String, Object?> sweep, {
+      Map<String, Object?>? config,
+    }) => caseJson(config: config, extra: {'killSweep': sweep});
+
+    expectOk(withSweep(ks()));
+    expectOk(withSweep(ks({'statsOnly': true})));
+    expectOk(withSweep(ks({'statsOnly': false})));
+
+    // V5: required keys.
+    for (final key in ['from', 'everyS', 'notAfter', 'earlyFrom']) {
+      expectError(
+        withSweep(ks()..remove(key)),
+        'killSweep.$key',
+        message: 'missing required key',
+      );
+    }
+    // V7: everyS.
+    expectError(
+      withSweep(ks({'everyS': 0})),
+      'killSweep.everyS',
+      message: 'must be > 0',
+    );
+    expectError(
+      withSweep(ks({'everyS': -60})),
+      'killSweep.everyS',
+      message: 'must be > 0',
+    );
+    expectError(
+      withSweep(ks({'everyS': 62})),
+      'killSweep.everyS',
+      message: 'must be a multiple of sampleIntervalS (5)',
+    );
+    expectError(
+      withSweep(ks({'everyS': '60'})),
+      'killSweep.everyS',
+      message: 'must be an integer',
+    );
+    // V6: from.t >= I; the multiple check comes first.
+    expectError(
+      withSweep(
+        ks({
+          'from': {'t': 0},
+        }),
+      ),
+      'killSweep.from.t',
+      message: 'must be >= sampleIntervalS (5)',
+    );
+    expectError(
+      withSweep(
+        ks({
+          'from': {'t': 3},
+        }),
+      ),
+      'killSweep.from.t',
+      message: 'must be a multiple of sampleIntervalS (5)',
+    );
+    expectOk(
+      withSweep(
+        ks({
+          'from': {'t': 5},
+        }),
+      ),
+    );
+    // V6 for an anchored from: checked after resolving.
+    expectOk(withSweep(ks({'from': edge('start')})), build: false);
+    expectError(
+      withSweep(ks({'from': edge('start')})),
+      'killSweep.from',
+      message: 'must be >= sampleIntervalS (5)',
+      build: true,
+    );
+    // V9: run anchors and kill.
+    expectError(
+      withSweep(
+        ks({
+          'notAfter': {'anchor': 'event:alarm'},
+        }),
+      ),
+      'killSweep.notAfter.anchor',
+      message: 'anchor "event:alarm" is not allowed in killSweep',
+    );
+    expectError(
+      withSweep(
+        ks({
+          'earlyFrom': {'anchor': 'kill'},
+        }),
+      ),
+      'killSweep.earlyFrom.anchor',
+      message: 'anchor "kill" is not allowed in killSweep',
+    );
+    // V8: statsOnly.
+    expectError(
+      withSweep(ks({'statsOnly': 'true'})),
+      'killSweep.statsOnly',
+      message: 'must be true or false',
+    );
+    // Must-understand inside killSweep and its At objects.
+    expectError(
+      withSweep(ks({'foo': 1})),
+      'killSweep.foo',
+      message: 'unknown key',
+    );
+    expectError(
+      withSweep(
+        ks({
+          'from': {'t': 60, 'foo': 1},
+        }),
+      ),
+      'killSweep.from.foo',
+      message: 'unknown key',
+    );
+    // V10: not with kill, relaunch, osDismiss, osSim false.
+    expectError(
+      withSweep(
+        ks(),
+        config: d1000({
+          'kill': {'t': 100},
+        }),
+      ),
+      'killSweep',
+      message: 'killSweep cannot be used with config.kill',
+    );
+    expectError(
+      withSweep(
+        ks(),
+        config: d1000({
+          'kill': {'t': 100},
+          'relaunch': {
+            'at': edge('osFallbackFired', 30),
+            'fallbackStatus': 'auto',
+          },
+        }),
+      ),
+      'killSweep',
+      message: 'killSweep cannot be used with config.',
+    );
+    expectError(
+      withSweep(ks(), config: d1000({'osSim': false})),
+      'killSweep',
+      message: 'killSweep cannot be used with config.osSim false',
+    );
+    expectOk(withSweep(ks(), config: d1000({'osSim': true})));
+    // A reference error shows up when generating.
+    expectError(
+      withSweep(
+        ks({
+          'notAfter': {'anchor': 'overshoot'},
+        }),
+      ),
+      'killSweep.notAfter.anchor',
+      message: 'trace has no overshoot',
+      build: true,
+    );
+
+    final (p, _) = synth(profile: profileWith(withSweep(ks())));
+    final sweep = p.cases.single.killSweep!;
+    expect(sweep.from.t, 60);
+    expect(sweep.everyS, 60);
+    expect(sweep.notAfter.anchor?.text, 'arrival');
+    expect(sweep.earlyFrom.anchor?.text, 'straight<=1000');
+    expect(sweep.statsOnly, isFalse);
+  });
+
+  test('V13 overshoot anchors are checked when the truth is known', () {
+    final anchor = Anchor.parse('overshoot');
+    String? check({bool? hasOvershoot}) => anchorReferenceError(
+      anchor,
+      hasKill: false,
+      hasRelaunch: false,
+      hasClosest: false,
+      paramNames: const [],
+      hasOvershoot: hasOvershoot,
+    );
+    expect(check(), isNull);
+    expect(check(hasOvershoot: true), isNull);
+    expect(
+      check(hasOvershoot: false),
+      'anchor "overshoot" needs truth.overshoot',
     );
   });
 }

@@ -1,5 +1,6 @@
 // T11 TG31 (tester): every T10 trace test TR01–TR35 maps to fixture cases
-// exactly as T11 §5.4/§5.5 prescribes.
+// exactly as T11 §5.4/§5.5 prescribes; T11.1 adds the seven TR37 cases
+// (T11.1 §5.8) and `policyPhaseSweep` (TR30, stopgap TR27).
 //
 // The golden table below was written by hand from the spec tables (not
 // copied from the generator output). Each case is reduced to a signature at
@@ -69,6 +70,9 @@ List<String> signature(Map<String, Object?> c) {
   if (c.containsKey('samplingModes')) {
     out.add('modes=${(c['samplingModes']! as List).join(',')}');
   }
+  if (c.containsKey('policyPhaseSweep')) {
+    out.add('sweep=${c['policyPhaseSweep']}');
+  }
   for (final e in (c['expect']! as List).cast<Map<String, Object?>>()) {
     final w = e['window']! as Map<String, Object?>;
     out.add(
@@ -89,6 +93,18 @@ List<String> signature(Map<String, Object?> c) {
     out.add(
       'F ${_at(w['modeAt']! as Map<String, Object?>)} '
       'tol[${(w['toleranceS']! as List).join(',')}]',
+    );
+  }
+  final k = c['killSweep'] as Map<String, Object?>?;
+  if (k != null) {
+    out.add(
+      [
+        'K ${_at(k['from']! as Map<String, Object?>)}',
+        'every=${k['everyS']}',
+        'notAfter=${_at(k['notAfter']! as Map<String, Object?>)}',
+        'early=${_at(k['earlyFrom']! as Map<String, Object?>)}',
+        if (k.containsKey('statsOnly')) 'statsOnly=${k['statsOnly']}',
+      ].join(' '),
     );
   }
   if (c.containsKey('expectOutcome')) {
@@ -112,11 +128,28 @@ List<String> signature(Map<String, Object?> c) {
   return out;
 }
 
-/// T11 §5.5: `summary_unknown`, present in every profile.
-List<String> summary(String guess) => [
+/// T11 §5.5: `summary_unknown`, present in every profile; [sweep] = T11.1
+/// `policyPhaseSweep: true` (stopgap only).
+List<String> summary(String guess, {bool sweep = false}) => [
   'D1000 nopa hint=unknown actions[stop@end]',
+  if (sweep) 'sweep=true',
   'E tripEnded [end,end]',
   'Σ $guess',
+];
+
+/// T11.1 §5.7/§5.8: a TR37 `killSweep` case.
+List<String> killSweepCase({
+  bool time = false,
+  bool sweep = false,
+  bool statsOnly = false,
+}) => [
+  if (time) 'T15 pa' else 'D1000 pa',
+  if (sweep) 'sweep=true',
+  [
+    'K t=60 every=60 notAfter=arrival',
+    'early=${time ? 'arrival-900' : 'straight<=1000'}',
+    if (statsOnly) 'statsOnly=true',
+  ].join(' '),
 ];
 
 const _r1300 = '[route<=1300,route<=700]';
@@ -215,6 +248,8 @@ final Map<String, (List<String>, List<String>)> golden = {
     ],
   ),
   'train_hn_dh/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  'train_hn_dh/distance_1000_killsweep': (['TR37'], killSweepCase()),
+  'train_hn_dh/time_15_killsweep': (['TR37'], killSweepCase(time: true)),
   // ---- coach_md_tb
   'coach_md_tb/distance_1000': (
     ['TR03'],
@@ -273,6 +308,7 @@ final Map<String, (List<String>, List<String>)> golden = {
     ['S pa kill@arrival-1800', 'F arrival-600 tol[-300,120]'],
   ),
   'coach_md_tb/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  'coach_md_tb/distance_1000_killsweep': (['TR37'], killSweepCase()),
   // ---- bus_hn_brt01
   'bus_hn_brt01/distance_500': (
     ['TR04'],
@@ -359,6 +395,10 @@ final Map<String, (List<String>, List<String>)> golden = {
     ],
   ),
   'coach_gb_phuly_overshoot/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  'coach_gb_phuly_overshoot/distance_1000_killsweep': (
+    ['TR37'],
+    killSweepCase(sweep: true, statsOnly: true),
+  ),
   // ---- new profiles (T11 §6.2)
   'bus_hn_slow/smart': (
     ['TR10'],
@@ -377,6 +417,7 @@ final Map<String, (List<String>, List<String>)> golden = {
     ],
   ),
   'bus_hn_slow/summary_unknown': (['TR27'], summary('BUS')),
+  'bus_hn_slow/distance_1000_killsweep': (['TR37'], killSweepCase()),
   'coach_dn_langco_shortgap/distance_1000_shortgap': (
     ['TR13'],
     [
@@ -426,12 +467,19 @@ final Map<String, (List<String>, List<String>)> golden = {
     ['TR30'],
     [
       'D1000 pa',
-      'modes=all',
+      'sweep=true',
       'E alarm/GPS_LOST/ringNow=true [gpsGap[0].start,arrival-300]',
       '! overshoot',
     ],
   ),
-  'train_hn_dh_stopgap/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  'train_hn_dh_stopgap/summary_unknown': (
+    ['TR27'],
+    summary('UNKNOWN', sweep: true),
+  ),
+  'train_hn_dh_stopgap/distance_1000_killsweep': (
+    ['TR37'],
+    killSweepCase(sweep: true),
+  ),
   'train_longstop/time_15': (
     ['TR12'],
     ['T15 pa', 'E alarm/TIME [arrival-960,arrival-840]', '! gpsLost,overshoot'],
@@ -441,6 +489,10 @@ final Map<String, (List<String>, List<String>)> golden = {
     ['T10 pa', 'E alarm/TIME [arrival-660,arrival-540]', '! gpsLost,overshoot'],
   ),
   'train_longstop/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  'train_longstop/distance_1000_killsweep': (
+    ['TR37'],
+    killSweepCase(sweep: true, statsOnly: true),
+  ),
   'train_longstop_nospd/time_15': (
     ['TR31'],
     ['T15 pa', 'E alarm/TIME [arrival-960,arrival-840]', '! gpsLost,overshoot'],
@@ -473,9 +525,9 @@ void main() {
   };
 
   group('TG31 trace coverage (T10 TR ↔ T11 cases)', () {
-    test('15 profiles, 51 cases, exactly the §5.4/§5.5 case list', () {
+    test('15 profiles, 58 cases, exactly the §5.4/§5.5 case list', () {
       expect(ids, hasLength(15));
-      expect(golden, hasLength(51));
+      expect(golden, hasLength(58));
       expect(cases.keys.toSet(), golden.keys.toSet());
     });
 
@@ -493,7 +545,7 @@ void main() {
       }
     });
 
-    test('every TR01–TR35 is covered by at least one case', () {
+    test('every TR01–TR35 and TR37 is covered, TR36 has no case', () {
       final covered = <String, List<String>>{};
       for (final MapEntry(:key, :value) in cases.entries) {
         for (final tr in (value['testIds']! as List).cast<String>()) {
@@ -502,14 +554,18 @@ void main() {
       }
       final all = [
         for (var i = 1; i <= 35; i++) 'TR${i.toString().padLeft(2, '0')}',
+        'TR37',
       ];
       expect(covered.keys.toSet(), all.toSet());
+      expect(covered.containsKey('TR36'), isFalse);
       // Multiplicities fixed by §5.4: TR03, TR04, TR12 have two cases;
-      // TR27 one per profile; every other TR exactly one.
+      // TR27 one per profile; TR37 seven (T11.1 §5.8); every other TR
+      // exactly one.
       for (final tr in all) {
         final n = switch (tr) {
           'TR03' || 'TR04' || 'TR12' => 2,
           'TR27' => 15,
+          'TR37' => 7,
           _ => 1,
         };
         expect(covered[tr], hasLength(n), reason: '$tr: ${covered[tr]}');
@@ -529,12 +585,26 @@ void main() {
       }
     });
 
-    test('only train_hn_dh_stopgap/distance_1000 restricts samplingModes', () {
+    test('no case restricts samplingModes (T11.1)', () {
       final restricted = [
         for (final MapEntry(:key, :value) in cases.entries)
           if (value.containsKey('samplingModes')) key,
       ];
-      expect(restricted, ['train_hn_dh_stopgap/distance_1000']);
+      expect(restricted, isEmpty);
+    });
+
+    test('policyPhaseSweep is true in exactly the five §5.8 cases', () {
+      final swept = [
+        for (final MapEntry(:key, :value) in cases.entries)
+          if (value['policyPhaseSweep'] == true) key,
+      ];
+      expect(swept.toSet(), {
+        'train_hn_dh_stopgap/distance_1000',
+        'train_hn_dh_stopgap/summary_unknown',
+        'train_hn_dh_stopgap/distance_1000_killsweep',
+        'coach_gb_phuly_overshoot/distance_1000_killsweep',
+        'train_longstop/distance_1000_killsweep',
+      });
     });
 
     for (final key in golden.keys) {
@@ -552,8 +622,12 @@ void main() {
       ((c['expect']! as List)[1]! as Map<String, Object?>).remove('reason');
       expect(signature(c), isNot(golden[tr01]!.$2));
       final d = deepCopy(cases[tr30])! as Map<String, Object?>
-        ..remove('samplingModes');
+        ..remove('policyPhaseSweep');
       expect(signature(d), isNot(golden[tr30]!.$2));
+      const tr37f = 'coach_gb_phuly_overshoot/distance_1000_killsweep';
+      final f = deepCopy(cases[tr37f])! as Map<String, Object?>;
+      (f['killSweep']! as Map<String, Object?>).remove('statsOnly');
+      expect(signature(f), isNot(golden[tr37f]!.$2));
     });
 
     test('profile JSON and fixture list the same cases in the same order', () {

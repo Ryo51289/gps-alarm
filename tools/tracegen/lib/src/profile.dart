@@ -91,6 +91,7 @@ const List<String> kSamplingModes = ['all', 'policy'];
 /// (T11 §5.1, T10 §5).
 const Set<String> kIntParams = {
   'fixMaxAgeS',
+  'lostSpeedGuardUpdates',
   'outlierResetSpanS',
   'smoothWindowS',
   'stopExitMinM',
@@ -175,18 +176,32 @@ const Set<String> kDoubleParams = {
   'batteryMinRatePctPerH',
   'tierHysteresisFactor',
   'fallbackEarlyFrac',
+  'fallbackHintSpeedFactor',
 };
 
 /// Fraction digits of a type D parameter in the fixture.
 const int kParamDecimals = 4;
 
-/// Parameters whose override invalidates the `expectFallback` formula.
+/// Parameters whose override invalidates the `expectFallback` formula
+/// (T11.1 §3 V11).
 const Set<String> kFallbackFormulaParams = {
   'fallbackLagS',
   'fallbackEarlyFrac',
   'fallbackEarlyMaxS',
   'fallbackNearS',
+  'fallbackHintSpeedFactor',
+  'routeFactorPrior',
+  'expectedSpeedKmhTrain',
+  'expectedSpeedKmhCoach',
+  'expectedSpeedKmhBus',
+  'expectedSpeedKmhUnknown',
+  'etaStopPenaltyS',
+  'smartTargetS',
 };
+
+/// Default `samplingSparseIntervalS` (T10 §5), for the `policyPhaseSweep`
+/// check (T11.1 §3 V4).
+const int kDefaultSamplingSparseIntervalS = 180;
 
 /// Parameters whose override invalidates the `closest.departT` anchor.
 const Set<String> kClosestParams = {
@@ -454,6 +469,23 @@ final class ExpectFallbackSpec {
   final String ref;
 }
 
+/// `killSweep` of a case (T11.1 §2, T10 §8.1-6).
+final class KillSweepSpec {
+  const new({
+    required this.from,
+    required this.everyS,
+    required this.notAfter,
+    required this.earlyFrom,
+    this.statsOnly = false,
+  });
+
+  final TimePoint from;
+  final int everyS;
+  final TimePoint notAfter;
+  final TimePoint earlyFrom;
+  final bool statsOnly;
+}
+
 final class ForbidAfterSpec {
   const new({required this.filter, required this.after});
 
@@ -503,8 +535,10 @@ final class CaseSpec {
     this.osSim,
     this.osRingMaxS,
     this.samplingModes,
+    this.policyPhaseSweep = false,
     this.expectAfter = const [],
     this.expectFallback,
+    this.killSweep,
     this.expectOutcome,
     this.expectSummaryVehicle,
     this.forbidMatch = const [],
@@ -536,9 +570,14 @@ final class CaseSpec {
   final bool? osSim;
   final int? osRingMaxS;
   final List<String>? samplingModes;
+
+  /// Sweep the phase of the sparse sampling cycle in the `policy` run
+  /// (T11.1 §2, T10 §8.1-3).
+  final bool policyPhaseSweep;
   final List<ExpectSpec> expect;
   final List<ExpectAfterSpec> expectAfter;
   final ExpectFallbackSpec? expectFallback;
+  final KillSweepSpec? killSweep;
   final String? expectOutcome;
 
   /// `expectSummary.vehicleGuess`.
@@ -1188,6 +1227,63 @@ List<CaseIssue> checkCaseConsistency({
   return issues;
 }
 
+/// Keys of a `killSweep` object, in fixture order (T11.1 §1).
+const Set<String> kKillSweepKeys = {
+  'from',
+  'everyS',
+  'notAfter',
+  'earlyFrom',
+  'statsOnly',
+};
+
+/// Error of `policyPhaseSweep: true` with the other keys of its case, or
+/// null (T11.1 §3 V2-V4). [sparseIntervalS] is the `samplingSparseIntervalS`
+/// override (null = default 180).
+String? policyPhaseSweepError({
+  required List<Object?>? samplingModes,
+  required Iterable<Object?> actions,
+  required num? sparseIntervalS,
+  required int sampleIntervalS,
+}) {
+  if (samplingModes != null &&
+      samplingModes.length == 1 &&
+      samplingModes.single == 'all') {
+    return 'policyPhaseSweep cannot be used with samplingModes ["all"]';
+  }
+  if (actions.contains('batteryMaxSaving')) {
+    return 'policyPhaseSweep cannot be used with action batteryMaxSaving';
+  }
+  final sparse = sparseIntervalS ?? kDefaultSamplingSparseIntervalS;
+  if (sampleIntervalS > 0 && sparse is int && sparse % sampleIntervalS != 0) {
+    return 'policyPhaseSweep needs samplingSparseIntervalS ($sparse) to be a '
+        'multiple of sampleIntervalS ($sampleIntervalS)';
+  }
+  return null;
+}
+
+/// Error of `killSweep` together with a config key it cannot be used with,
+/// or null (T11.1 §3 V10).
+String? killSweepConflict({
+  required bool hasKill,
+  required bool hasRelaunch,
+  required bool hasOsDismiss,
+  required bool osSimFalse,
+}) {
+  final String what;
+  if (hasKill) {
+    what = 'config.kill';
+  } else if (hasRelaunch) {
+    what = 'config.relaunch';
+  } else if (hasOsDismiss) {
+    what = 'config.osDismiss';
+  } else if (osSimFalse) {
+    what = 'config.osSim false';
+  } else {
+    return null;
+  }
+  return 'killSweep cannot be used with $what';
+}
+
 /// Error of filter key [key] = [value] on [event], or null (T11 §2.4).
 String? filterError(String event, String key, Object? value) {
   switch (key) {
@@ -1220,14 +1316,23 @@ String? filterError(String event, String key, Object? value) {
 }
 
 /// Reference conditions of T11 §2.3 for [anchor] in a case.
+///
+/// [hasOvershoot] is whether the trace has `truth.overshoot`; null = not
+/// known yet (profile parsing; `generate` reports it while resolving).
 String? anchorReferenceError(
   Anchor anchor, {
   required bool hasKill,
   required bool hasRelaunch,
   required bool hasClosest,
   required Iterable<String> paramNames,
+  bool? hasOvershoot,
 }) {
   final kind = anchor.kind;
+  if (kind == AnchorKind.overshoot) {
+    return hasOvershoot == false
+        ? 'anchor "overshoot" needs truth.overshoot'
+        : null;
+  }
   if (kind == AnchorKind.kill || kind == AnchorKind.osFallbackFired) {
     return hasKill ? null : 'anchor "${anchor.text}" needs config.kill';
   }
@@ -1254,9 +1359,11 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
     'testIds',
     'config',
     'samplingModes',
+    'policyPhaseSweep',
     'expect',
     'expectAfter',
     'expectFallback',
+    'killSweep',
     'expectOutcome',
     'expectSummary',
     'forbid',
@@ -1524,6 +1631,57 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
     samplingModes = [list.single! as String];
   }
 
+  // T11.1 §3 V1-V4.
+  final policyPhaseSweep =
+      c.has('policyPhaseSweep') && c.boolean('policyPhaseSweep');
+  if (policyPhaseSweep) {
+    final error = policyPhaseSweepError(
+      samplingModes: samplingModes,
+      actions: [for (final a in actions) a.action],
+      sparseIntervalS: params['samplingSparseIntervalS'],
+      sampleIntervalS: interval,
+    );
+    if (error != null) {
+      throw c.error('policyPhaseSweep', error);
+    }
+  }
+
+  // T11.1 §3 V5-V10.
+  KillSweepSpec? killSweep;
+  if (c.has('killSweep')) {
+    final k = c.obj('killSweep')..allowOnly(kKillSweepKeys);
+    final conflict = killSweepConflict(
+      hasKill: kill != null,
+      hasRelaunch: relaunch != null,
+      hasOsDismiss: osDismissS != null,
+      osSimFalse: osSim == false,
+    );
+    if (conflict != null) {
+      throw c.error('killSweep', conflict);
+    }
+    final fromObj = k.obj('from');
+    final from = timePoint(fromObj, AnchorUse.killSweep);
+    final fromT = from.t;
+    if (fromT != null && fromT < interval) {
+      throw fromObj.error('t', 'must be >= sampleIntervalS ($interval)');
+    }
+    final everyS = k.integer('everyS');
+    if (everyS <= 0) {
+      throw k.error('everyS', 'must be > 0');
+    }
+    multiple(k, 'everyS', everyS);
+    final notAfter = timePoint(k.obj('notAfter'), AnchorUse.killSweep);
+    final earlyFrom = timePoint(k.obj('earlyFrom'), AnchorUse.killSweep);
+    final statsOnly = k.has('statsOnly') && k.boolean('statsOnly');
+    killSweep = KillSweepSpec(
+      from: from,
+      everyS: everyS,
+      notAfter: notAfter,
+      earlyFrom: earlyFrom,
+      statsOnly: statsOnly,
+    );
+  }
+
   EventFilter filterOf(_Obj e) {
     final event = e.str('event');
     if (!kEventNames.contains(event)) {
@@ -1728,9 +1886,11 @@ CaseSpec _parseCase(_Obj c, Set<String> caseIds, _CaseContext ctx) {
     osSim: osSim,
     osRingMaxS: osRingMaxS,
     samplingModes: samplingModes,
+    policyPhaseSweep: policyPhaseSweep,
     expect: List.unmodifiable(expect),
     expectAfter: List.unmodifiable(expectAfter),
     expectFallback: expectFallback,
+    killSweep: killSweep,
     expectOutcome: expectOutcome,
     expectSummaryVehicle: summaryVehicle,
     forbid: List.unmodifiable(forbid),

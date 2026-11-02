@@ -333,7 +333,7 @@ void main() {
   });
 
   // T11 §6.3.1: dead-reckoning feasibility of TR30 (TG36, round 2).
-  group('train_hn_dh_stopgap feasibility (TG36)', () {
+  group('train_hn_dh_stopgap feasibility (TG36, T11.1 F1p)', () {
     test('closingVAt: constant speed straight at the destination', () {
       const interval = 5;
       final states = <TruthState>[];
@@ -406,7 +406,23 @@ void main() {
       );
     });
 
-    test('negative check: 60 km/h after Đồng Lê fails F1', () {
+    // T11.1 §11 (T10.1 item 3): feasibility in the policy mode with the
+    // lost-GPS speed guard, s = 0.95.
+    test('F1p holds', () {
+      final f = Feasibility.of(build('train_hn_dh_stopgap'));
+      final w = f.f1pWorst;
+      expect(
+        f.f1pHolds,
+        isTrue,
+        reason:
+            'F1p: worst tLast = ${w.tLast}: closingVAt(tLast) = '
+            '${f.dr.closingVAt(w.tLast)}, closingVAt(tLast - 180) = '
+            '${f.dr.closingVAt(w.tLast - 180)}, alarmTp(tLast, 0.95) = '
+            '${w.alarmTp} must be <= A - 420 = ${f.a - 420}',
+      );
+    });
+
+    test('negative check: 60 km/h after Đồng Lê fails F1 and F1p', () {
       final repo = ProfileRepository(dataDir);
       final (_, route) = repo.load('train_hn_dh_stopgap');
       final file = File('${dataDir.path}/profiles/train_hn_dh_stopgap.json');
@@ -427,6 +443,14 @@ void main() {
         reason:
             'alarmT(fromT - I, 0.95) = ${f.alarmLate}, A = ${f.a}, '
             'closingVAt(fromT - I) = ${f.closingV}',
+      );
+      final w = f.f1pWorst;
+      expect(
+        f.f1pHolds,
+        isFalse,
+        reason:
+            'worst alarmTp(${w.tLast}, 0.95) = ${w.alarmTp}, '
+            'A - 420 = ${f.a - 420}',
       );
     });
   });
@@ -539,6 +563,17 @@ final class DeadReckoning {
     tLast + straight[tLast ~/ interval] / (s * closingVAt(tLast)) - 1180,
     tLast + 540.0,
   );
+
+  /// [alarmT] with the lost-GPS speed guard of T10.1 (T11.1 §11): the
+  /// closing speed is the larger of the EMA at [tLast] and at
+  /// `tLast − 180` (previous sparse fix).
+  double alarmTp(int tLast, double s) => max(
+    tLast +
+        straight[tLast ~/ interval] /
+            (s * max(closingVAt(tLast), closingVAt(tLast - 180))) -
+        1180,
+    tLast + 540.0,
+  );
 }
 
 /// F1–F3 of T11 §6.3.1 on a built `train_hn_dh_stopgap`.
@@ -581,6 +616,22 @@ final class Feasibility {
   double get f3Left => 2 * (dr.straight[0] * 1.2 / (60 / 3.6) + 20);
 
   bool get f1Holds => alarmLate <= a - 300 - 120;
+
+  /// Largest `alarmTp(tLast, 0.95)` over `tLast ∈ [fromT − 180, fromT − I]`
+  /// (36 values with I = 5) and its `tLast`.
+  ({int tLast, double alarmTp}) get f1pWorst {
+    var worst = (tLast: fromT - 180, alarmTp: double.negativeInfinity);
+    for (var t = fromT - 180; t <= fromT - interval; t += interval) {
+      final v = dr.alarmTp(t, 0.95);
+      if (v > worst.alarmTp) {
+        worst = (tLast: t, alarmTp: v);
+      }
+    }
+    return worst;
+  }
+
+  /// F1p: every `alarmTp(tLast, 0.95) ≤ A − 300 − 120`.
+  bool get f1pHolds => f1pWorst.alarmTp <= a - 300 - 120;
 
   bool get f2Holds => alarmEarliest >= durationS - 3600 + 120;
 

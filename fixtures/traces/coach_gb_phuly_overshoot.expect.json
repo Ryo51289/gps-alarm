@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "trace": {
     "id": "coach_gb_phuly_overshoot",
@@ -403,6 +403,8 @@
           "modeAtT": 2340,
           "killT": 1825,
           "estimateT": 2370,
+          "asOfStraightM": 13288,
+          "hintEstimateT": 2663,
           "toleranceS": [
             -300,
             120
@@ -454,6 +456,38 @@
       ],
       "expectSummary": {
         "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    },
+    {
+      "id": "distance_1000_killsweep",
+      "status": "final",
+      "testIds": [
+        "TR37"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "policyPhaseSweep": true,
+      "expect": [],
+      "killSweep": {
+        "from": {
+          "t": 60
+        },
+        "everyS": 60,
+        "notAfter": {
+          "t": 2425,
+          "anchor": "arrival",
+          "offsetS": 0
+        },
+        "earlyFrom": {
+          "t": 2340,
+          "anchor": "straight<=1000",
+          "offsetS": 0
+        },
+        "statsOnly": true
       },
       "forbid": []
     }

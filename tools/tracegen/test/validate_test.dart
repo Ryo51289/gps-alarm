@@ -277,7 +277,7 @@ void main() {
           (f['window']! as Map<String, Object?>)['estimateT'] = 2375;
         }),
         'window.estimateT',
-        'T11 §5.3',
+        'is 2375 but T11 §5.3 gives 2370',
       );
     });
 
@@ -501,5 +501,428 @@ void main() {
         );
       });
     }
+  });
+
+  group('validate T11.1 (TG44, TG45, TG46)', () {
+    final texts = <String, (String, String)>{};
+    (String, String) pair(String id) =>
+        texts[id] ??= (readText('$id.gpx'), readText('$id.expect.json'));
+
+    List<String> run(String id, void Function(Map<String, Object?> j) f) {
+      final (gpx, text) = pair(id);
+      return validateTexts(gpx, mutateJson(text, f), id: id);
+    }
+
+    int indexOf(String id, String caseId) {
+      final cases =
+          (jsonDecode(pair(id).$2) as Map<String, Object?>)['cases']!
+              as List<Object?>;
+      final i = cases.indexWhere(
+        (c) => (c! as Map<String, Object?>)['id'] == caseId,
+      );
+      expect(i, greaterThanOrEqualTo(0), reason: '$id has no $caseId');
+      return i;
+    }
+
+    Map<String, Object?> caseOf(
+      Map<String, Object?> j,
+      String id,
+      String caseId,
+    ) =>
+        (j['cases']! as List<Object?>)[indexOf(id, caseId)]!
+            as Map<String, Object?>;
+
+    Map<String, Object?> objAt(Object? o, List<Object> path) {
+      var cur = o;
+      for (final k in path) {
+        cur = k is int ? (cur! as List<Object?>)[k] : (cur! as Map)[k];
+      }
+      return cur! as Map<String, Object?>;
+    }
+
+    /// Asserts that every error is `<id>.expect.json:<where>: …` with
+    /// [message], one per entry of [wheres].
+    void expectErrors(
+      List<String> errors,
+      String id,
+      List<(String, Pattern)> wheres,
+    ) {
+      final reason = 'got:\n${errors.isEmpty ? '(none)' : errors.join('\n')}';
+      expect(errors, hasLength(wheres.length), reason: reason);
+      for (final (where, message) in wheres) {
+        expect(
+          errors.any(
+            (e) =>
+                e.startsWith('$id.expect.json:$where: ') && e.contains(message),
+          ),
+          isTrue,
+          reason: 'expected "$where: …$message…", $reason',
+        );
+      }
+    }
+
+    const dh = 'train_hn_dh';
+    const md = 'coach_md_tb';
+    const tr22 = 'distance_1000_kill';
+    const tr29 = 'smart_kill';
+    const tr37a = 'distance_1000_killsweep';
+
+    group('TG44 expectFallback numbers', () {
+      String fb(String id, String caseId, String key) =>
+          'cases[${indexOf(id, caseId)}].expectFallback.$key';
+
+      Map<String, Object?> window(
+        Map<String, Object?> j,
+        String id,
+        String c,
+      ) => objAt(caseOf(j, id, c), ['expectFallback', 'window']);
+
+      test('the committed fixtures are valid (positive control)', () {
+        expect(run(dh, (_) {}), isEmpty);
+        expect(run(md, (_) {}), isEmpty);
+      });
+
+      for (final delta in [5, -5]) {
+        test('TR22 hintEstimateT ${delta > 0 ? '+' : ''}$delta', () {
+          final errors = run(dh, (j) {
+            final w = window(j, dh, tr22);
+            w['hintEstimateT'] = (w['hintEstimateT']! as int) + delta;
+          });
+          expectErrors(errors, dh, [
+            (fb(dh, tr22, 'window.hintEstimateT'), 'but T11 §5.3 gives'),
+          ]);
+        });
+      }
+
+      test('TR22 asOfStraightM + 1000 (other numbers kept)', () {
+        final errors = run(dh, (j) {
+          final w = window(j, dh, tr22);
+          w['asOfStraightM'] = (w['asOfStraightM']! as int) + 1000;
+        });
+        expectErrors(errors, dh, [
+          (fb(dh, tr22, 'window.hintEstimateT'), 'but T11 §5.3 gives'),
+        ]);
+      });
+
+      test('TR22 asOfStraightM -1', () {
+        final errors = run(
+          dh,
+          (j) => window(j, dh, tr22)['asOfStraightM'] = -1,
+        );
+        expectErrors(errors, dh, [
+          (fb(dh, tr22, 'window.asOfStraightM'), 'must be >= 0'),
+        ]);
+      });
+
+      for (final key in ['hintEstimateT', 'asOfStraightM']) {
+        test('TR22 without window.$key', () {
+          final errors = run(dh, (j) => window(j, dh, tr22).remove(key));
+          expectErrors(errors, dh, [
+            (fb(dh, tr22, 'window.$key'), 'missing required key'),
+          ]);
+        });
+      }
+
+      test('TR29 notBefore = estimateT − 300 (the floor must win)', () {
+        final errors = run(md, (j) {
+          final c = caseOf(j, md, tr29);
+          final f = c['expectFallback']! as Map<String, Object?>;
+          f['notBefore'] = (window(j, md, tr29)['estimateT']! as int) - 300;
+        });
+        expectErrors(errors, md, [
+          (
+            fb(md, tr29, 'notBefore'),
+            'min(estimateT, hintEstimateT) + toleranceS[0] = ',
+          ),
+        ]);
+      });
+
+      for (final (name, value) in [
+        ('routeFactorPrior', 1.3),
+        ('expectedSpeedKmhTrain', 70),
+        ('etaStopPenaltyS', 30),
+        ('smartTargetS', 500),
+        ('fallbackHintSpeedFactor', 0),
+      ]) {
+        test('TR22 with params.$name', () {
+          final errors = run(dh, (j) {
+            (caseOf(j, dh, tr22)['config']! as Map<String, Object?>)['params'] =
+                {name: value};
+          });
+          expectErrors(errors, dh, [
+            (
+              'cases[${indexOf(dh, tr22)}].expectFallback',
+              'cannot be checked when params override $name',
+            ),
+          ]);
+        });
+      }
+
+      test('TR29 with vehicleHint bus (numbers kept)', () {
+        final errors = run(md, (j) {
+          (caseOf(j, md, tr29)['config']!
+                  as Map<String, Object?>)['vehicleHint'] =
+              'bus';
+        });
+        expectErrors(errors, md, [
+          (fb(md, tr29, 'window.hintEstimateT'), 'but T11 §5.3 gives'),
+          (
+            fb(md, tr29, 'notBefore'),
+            'min(estimateT, hintEstimateT) + toleranceS[0] = ',
+          ),
+        ]);
+      });
+    });
+
+    group('TG45 policyPhaseSweep and killSweep', () {
+      const stopgap = 'train_hn_dh_stopgap';
+      String at(String id, String caseId, String key) =>
+          'cases[${indexOf(id, caseId)}].$key';
+
+      Map<String, Object?> sweepOf(Map<String, Object?> j) =>
+          caseOf(j, dh, tr37a)['killSweep']! as Map<String, Object?>;
+
+      test('positive controls', () {
+        expect(run(stopgap, (_) {}), isEmpty);
+        expect(
+          run(dh, (j) {
+            caseOf(j, dh, tr37a)['policyPhaseSweep'] = false;
+            sweepOf(j)['statsOnly'] = false;
+          }),
+          isEmpty,
+        );
+        expect(
+          run(dh, (j) {
+            caseOf(j, dh, tr37a)
+              ..['samplingModes'] = ['policy']
+              ..['policyPhaseSweep'] = true;
+          }),
+          isEmpty,
+        );
+      });
+
+      final cases =
+          <
+            (
+              String,
+              String,
+              String,
+              void Function(Map<String, Object?>),
+              String,
+              Pattern,
+            )
+          >[
+            (
+              'policyPhaseSweep "yes"',
+              stopgap,
+              'distance_1000',
+              (c) => c['policyPhaseSweep'] = 'yes',
+              'policyPhaseSweep',
+              'must be true or false',
+            ),
+            (
+              'policyPhaseSweep with samplingModes ["all"]',
+              stopgap,
+              'distance_1000',
+              (c) => c['samplingModes'] = ['all'],
+              'policyPhaseSweep',
+              'policyPhaseSweep cannot be used with samplingModes ["all"]',
+            ),
+            (
+              'policyPhaseSweep with action batteryMaxSaving',
+              stopgap,
+              'distance_1000',
+              (c) => (c['config']! as Map<String, Object?>)['actions'] = [
+                {
+                  'at': {'t': 600},
+                  'action': 'batteryMaxSaving',
+                },
+              ],
+              'policyPhaseSweep',
+              'policyPhaseSweep cannot be used with action batteryMaxSaving',
+            ),
+            (
+              'policyPhaseSweep with samplingSparseIntervalS 182',
+              stopgap,
+              'distance_1000',
+              (c) => (c['config']! as Map<String, Object?>)['params'] = {
+                'samplingSparseIntervalS': 182,
+              },
+              'policyPhaseSweep',
+              'needs samplingSparseIntervalS (182) to be a multiple of '
+                  'sampleIntervalS (5)',
+            ),
+            (
+              'killSweep without earlyFrom',
+              dh,
+              tr37a,
+              (c) =>
+                  (c['killSweep']! as Map<String, Object?>).remove('earlyFrom'),
+              'killSweep.earlyFrom',
+              'missing required key',
+            ),
+            (
+              'killSweep.statsOnly "true"',
+              dh,
+              tr37a,
+              (c) => (c['killSweep']! as Map<String, Object?>)['statsOnly'] =
+                  'true',
+              'killSweep.statsOnly',
+              'must be true or false',
+            ),
+            (
+              'killSweep.everyS 7',
+              dh,
+              tr37a,
+              (c) => (c['killSweep']! as Map<String, Object?>)['everyS'] = 7,
+              'killSweep.everyS',
+              'must be a multiple of sampleIntervalS (5)',
+            ),
+            (
+              'killSweep.everyS 0',
+              dh,
+              tr37a,
+              (c) => (c['killSweep']! as Map<String, Object?>)['everyS'] = 0,
+              'killSweep.everyS',
+              'must be > 0',
+            ),
+            (
+              'killSweep.from.t 0',
+              dh,
+              tr37a,
+              (c) => objAt(c, ['killSweep', 'from'])['t'] = 0,
+              'killSweep.from.t',
+              'must be >= sampleIntervalS (5)',
+            ),
+            (
+              'killSweep with config.kill',
+              dh,
+              tr37a,
+              (c) =>
+                  (c['config']! as Map<String, Object?>)['kill'] = {'t': 31390},
+              'killSweep',
+              'killSweep cannot be used with config.kill',
+            ),
+            (
+              'killSweep with osSim false',
+              dh,
+              tr37a,
+              (c) => (c['config']! as Map<String, Object?>)['osSim'] = false,
+              'killSweep',
+              'killSweep cannot be used with config.osSim false',
+            ),
+            (
+              'unknown key in killSweep.from',
+              dh,
+              tr37a,
+              (c) => objAt(c, ['killSweep', 'from'])['foo'] = 1,
+              'killSweep.from.foo',
+              'unknown key',
+            ),
+            (
+              'unknown key in killSweep',
+              dh,
+              tr37a,
+              (c) => (c['killSweep']! as Map<String, Object?>)['foo'] = 1,
+              'killSweep.foo',
+              'unknown key',
+            ),
+            (
+              'killSweep.notAfter run anchor',
+              dh,
+              tr37a,
+              (c) => objAt(c, ['killSweep', 'notAfter'])
+                ..['anchor'] = 'event:alarm'
+                ..remove('t'),
+              'killSweep.notAfter.anchor',
+              'anchor "event:alarm" is not allowed in killSweep',
+            ),
+            (
+              'killSweep.earlyFrom kill anchor',
+              dh,
+              tr37a,
+              (c) => objAt(c, ['killSweep', 'earlyFrom'])['anchor'] = 'kill',
+              'killSweep.earlyFrom.anchor',
+              'anchor "kill" is not allowed in killSweep',
+            ),
+            (
+              'killSweep.earlyFrom.t outside [0, durationS]',
+              dh,
+              tr37a,
+              (c) => objAt(c, ['killSweep', 'earlyFrom'])['t'] = 999995,
+              'killSweep.earlyFrom.t',
+              'outside [0, durationS',
+            ),
+          ];
+      for (final (name, id, caseId, mutate, key, message) in cases) {
+        test(name, () {
+          final errors = run(id, (j) => mutate(caseOf(j, id, caseId)));
+          final where = '$id.expect.json:${at(id, caseId, key)}: ';
+          expect(
+            errors.any((e) => e.startsWith(where) && e.contains(message)),
+            isTrue,
+            reason: 'expected "$where…$message…", got:\n${errors.join('\n')}',
+          );
+        });
+      }
+    });
+
+    group('TG46 anchor "overshoot" needs truth.overshoot (T11 finding #1)', () {
+      test('four places on train_hn_dh (no truth.overshoot)', () {
+        final errors = run(dh, (j) {
+          objAt(caseOf(j, dh, 'distance_1000'), [
+            'expect',
+            1,
+            'window',
+            'notAfter',
+          ])['anchor'] = 'overshoot';
+          objAt(caseOf(j, dh, tr22), [
+            'expectFallback',
+            'window',
+            'modeAt',
+          ])['anchor'] = 'overshoot';
+          objAt(caseOf(j, dh, tr37a), ['killSweep', 'notAfter'])['anchor'] =
+              'overshoot';
+          objAt(caseOf(j, dh, 'summary_unknown'), [
+            'config',
+            'actions',
+            0,
+            'at',
+          ])['anchor'] = 'overshoot';
+        });
+        const message = 'anchor "overshoot" needs truth.overshoot';
+        expectErrors(errors, dh, [
+          (
+            'cases[${indexOf(dh, 'distance_1000')}].expect[1].window.notAfter.'
+                'anchor',
+            message,
+          ),
+          (
+            'cases[${indexOf(dh, tr22)}].expectFallback.window.modeAt.anchor',
+            message,
+          ),
+          ('cases[${indexOf(dh, tr37a)}].killSweep.notAfter.anchor', message),
+          (
+            'cases[${indexOf(dh, 'summary_unknown')}].config.actions[0].at.'
+                'anchor',
+            message,
+          ),
+        ]);
+      });
+
+      test('a trace with truth.overshoot accepts it', () {
+        const ov = 'coach_gb_phuly_overshoot';
+        expect(run(ov, (_) {}), isEmpty);
+        expect(
+          run(ov, (j) {
+            objAt(caseOf(j, ov, 'distance_1000_killsweep'), [
+              'killSweep',
+              'earlyFrom',
+            ])['anchor'] = 'overshoot';
+          }),
+          isEmpty,
+        );
+      });
+    });
   });
 }

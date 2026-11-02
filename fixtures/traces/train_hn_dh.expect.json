@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "trace": {
     "id": "train_hn_dh",
@@ -396,8 +396,8 @@
       "expect": [],
       "expectFallback": {
         "asOfT": 31385,
-        "notBefore": 33259,
-        "notAfter": 33679,
+        "notBefore": 33003,
+        "notAfter": 33423,
         "window": {
           "modeAt": {
             "anchor": "straight<=1000",
@@ -405,7 +405,9 @@
           },
           "modeAtT": 33700,
           "killT": 31390,
-          "estimateT": 33559,
+          "estimateT": 33303,
+          "asOfStraightM": 39211,
+          "hintEstimateT": 33816,
           "toleranceS": [
             -300,
             120
@@ -606,8 +608,8 @@
       "expect": [],
       "expectFallback": {
         "asOfT": 31385,
-        "notBefore": 32530,
-        "notAfter": 32950,
+        "notBefore": 32395,
+        "notAfter": 32815,
         "window": {
           "modeAt": {
             "anchor": "arrival",
@@ -615,7 +617,9 @@
           },
           "modeAtT": 32890,
           "killT": 31390,
-          "estimateT": 32830,
+          "estimateT": 32695,
+          "asOfStraightM": 39211,
+          "hintEstimateT": 33215,
           "toleranceS": [
             -300,
             120
@@ -735,6 +739,66 @@
       ],
       "expectSummary": {
         "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    },
+    {
+      "id": "distance_1000_killsweep",
+      "status": "final",
+      "testIds": [
+        "TR37"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [],
+      "killSweep": {
+        "from": {
+          "t": 60
+        },
+        "everyS": 60,
+        "notAfter": {
+          "t": 33790,
+          "anchor": "arrival",
+          "offsetS": 0
+        },
+        "earlyFrom": {
+          "t": 33700,
+          "anchor": "straight<=1000",
+          "offsetS": 0
+        }
+      },
+      "forbid": []
+    },
+    {
+      "id": "time_15_killsweep",
+      "status": "final",
+      "testIds": [
+        "TR37"
+      ],
+      "config": {
+        "mode": "time",
+        "thresholdMin": 15,
+        "preAlert": true
+      },
+      "expect": [],
+      "killSweep": {
+        "from": {
+          "t": 60
+        },
+        "everyS": 60,
+        "notAfter": {
+          "t": 33790,
+          "anchor": "arrival",
+          "offsetS": 0
+        },
+        "earlyFrom": {
+          "t": 32890,
+          "anchor": "arrival",
+          "offsetS": -900
+        }
       },
       "forbid": []
     }

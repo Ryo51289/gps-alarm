@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "generator": {
     "name": "tracegen",
-    "version": "1.1.0"
+    "version": "1.2.0"
   },
   "trace": {
     "id": "coach_md_tb",
@@ -464,8 +464,8 @@
       "expect": [],
       "expectFallback": {
         "asOfT": 5505,
-        "notBefore": 6380,
-        "notAfter": 6800,
+        "notBefore": 5887,
+        "notAfter": 6710,
         "window": {
           "modeAt": {
             "anchor": "arrival",
@@ -473,7 +473,9 @@
           },
           "modeAtT": 6710,
           "killT": 5510,
-          "estimateT": 6680,
+          "estimateT": 6590,
+          "asOfStraightM": 17350,
+          "hintEstimateT": 6187,
           "toleranceS": [
             -300,
             120
@@ -525,6 +527,36 @@
       ],
       "expectSummary": {
         "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    },
+    {
+      "id": "distance_1000_killsweep",
+      "status": "final",
+      "testIds": [
+        "TR37"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": true
+      },
+      "expect": [],
+      "killSweep": {
+        "from": {
+          "t": 60
+        },
+        "everyS": 60,
+        "notAfter": {
+          "t": 7310,
+          "anchor": "arrival",
+          "offsetS": 0
+        },
+        "earlyFrom": {
+          "t": 7185,
+          "anchor": "straight<=1000",
+          "offsetS": 0
+        }
       },
       "forbid": []
     }
