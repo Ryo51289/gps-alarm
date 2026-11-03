@@ -88,7 +88,8 @@ struct SnapshotCodecTests {
     func u51() throws {
         var rng = SplitMix64(51)
         for i in 0..<20 {
-            let s = Self.randomState(&rng, guardCount: [0, 1, 2, 5][i % 4])
+            var s = Self.randomState(&rng, guardCount: [0, 1, 2, 5][i % 4])
+            s.minDChord = i % 2 == 0   // T10.5 round 3e: both values
             let json = TripEngine.encodeSnapshot(s)
             let back = try TripEngine.decodeSnapshot(json)
             #expect(Self.bitsEqual(s, back), "state \(i)")
@@ -110,9 +111,36 @@ struct SnapshotCodecTests {
         s.last3 = values
         s.cvGuard = values
         s.movingDistM = values[3]
-        let back = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s))
-        #expect(Bits.same(back.last3, values))
-        #expect(Bits.same(back.cvGuard, values))
+        for chord in [false, true] {   // T10.5 round 3e: minDChord both values
+            s.minDChord = chord
+            let back = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s))
+            #expect(Bits.same(back.last3, values))
+            #expect(Bits.same(back.cvGuard, values))
+            #expect(Self.bitsEqual(s, back))
+        }
+    }
+
+    @Test("U118 minDChord is written right after minD, round-trips, a missing key reads false and a wrong type (string, null) fails")
+    func u118() throws {
+        for chord in [true, false] {
+            var st = TesterT13Tests.t12TrackingState(d: 50_000.0)
+            st.minD = 1234.5
+            st.minDChord = chord
+            let json = TripEngine.encodeSnapshot(st)
+            #expect(json.contains("\"minD\":1234.5,\"minDChord\":\(chord),"), "\(json)")
+            #expect(try TripEngine.decodeSnapshot(json).minDChord == chord)
+            // Named exception to C20: a snapshot without the key (older writer, hand-made fixture) reads false.
+            let without = json.replacingOccurrences(of: ",\"minDChord\":\(chord)", with: "")
+            #expect(!without.contains("minDChord"))
+            var expected = st
+            expected.minDChord = false
+            #expect(try TripEngine.decodeSnapshot(without) == expected)
+            // A present key must be a bool.
+            for bad in ["\"\(chord)\"", "null"] {
+                let wrong = json.replacingOccurrences(of: "\"minDChord\":\(chord)", with: "\"minDChord\":\(bad)")
+                #expect(throws: SnapshotError(rule: "minDChord invalid")) { try TripEngine.decodeSnapshot(wrong) }
+            }
+        }
     }
 
     @Test("U51 (T12) missing key / snapshotVersion 0 / \"x\" / malformed → SnapshotError without content")

@@ -36,7 +36,15 @@ enum FallbackPlanner {
             return now - em >= TMath.ms(p.fallbackRetryS) ? target : nil
         }
         guard let cur = fb.targetAtMs else { return target }
-        if now >= TMath.min(cur, predicted) - TMath.ms(p.fallbackQuietBeforeS) { return nil }
+        let quietMs = TMath.ms(p.fallbackQuietBeforeS)
+        if now >= TMath.min(cur, predicted) - quietMs {
+            // S3/K4 #6 quiet window. T10.5 "urgent later shift": the OS alarm already set is about to ring but the NEW predicted
+            // time is far: the engine is not about to ring "now" (K1), >= fallbackMinLeadS left to set the new one before
+            // cancelling the old (K2), and only a significant later shift. Skips min-interval and the near-zone hold band.
+            let urgent = now < predicted - quietMs && cur - now >= TMath.ms(p.fallbackMinLeadS)
+                && target - cur >= TMath.ms(p.fallbackMinShiftS)
+            return urgent ? target : nil
+        }
         let emitted = fb.emittedAtMs ?? now
         if TMath.toS(predicted - now) <= Double(p.fallbackNearS) {
             let slackMs = TMath.ms(p.fallbackNearSlackS)
@@ -50,7 +58,10 @@ enum FallbackPlanner {
         let diff = target - cur
         if (diff < 0 ? -diff : diff) < TMath.ms(p.fallbackMinShiftS) { return nil }
         if target < cur { return target }
-        return now - emitted >= TMath.ms(p.fallbackMinIntervalS) ? target : nil
+        // Far zone, later: at most once a minute, unless the alarm already set is within the c8 range (<= Q + minInterval, T10.5
+        // round 2): then the last emission was not a far-zone one (restore, near zone) and no Step before the quiet window is left.
+        let soon = cur - now <= TMath.ms(p.fallbackQuietBeforeS + p.fallbackMinIntervalS)
+        return now - emitted >= TMath.ms(p.fallbackMinIntervalS) || soon ? target : nil
     }
 
     /// Step 9 FallbackPlanner. Only call when active (ACQUIRING/TRACKING, not alarmed).

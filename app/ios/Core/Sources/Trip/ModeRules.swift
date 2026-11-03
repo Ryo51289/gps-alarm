@@ -1,8 +1,14 @@
 // Alarm conditions of the three modes, alarm reason priority, predicted alarm time (T10 §4.5) and §4.13.
 
+/// §4.5 predicted alarm time (`noBattery`, `withBattery` = predictedAlarmAt) and, T10.5, the wake-up bases of §4.15:
+/// `wakeBasis` (`wakeBasisAt`) and `wakeBattery` (`wakeBatteryAt`). The wake-up bases never feed the view or the snapshot.
 struct Predicted: Sendable, Equatable {
     let noBattery: Int64?
     let withBattery: Int64?
+    let wakeBasis: Int64?
+    let wakeBattery: Int64?
+
+    static let none = Predicted(noBattery: nil, withBattery: nil, wakeBasis: nil, wakeBattery: nil)
 }
 
 enum ModeRules {
@@ -69,26 +75,35 @@ enum ModeRules {
 
     /// §4.5 predicted alarm time, computed once per Step after step 8 (T12 C7).
     static func predictedAlarmAt(_ s: EngineState, _ e: Estimate?, now: Int64) -> Predicted {
-        guard s.phase == .acquiring || s.phase == .tracking, s.alarm.atMs == nil else {
-            return Predicted(noBattery: nil, withBattery: nil)
-        }
+        guard s.phase == .acquiring || s.phase == .tracking, s.alarm.atMs == nil else { return .none }
         let p = s.params
         let deadlineAt = s.startedAtMs + TMath.ms(s.maxTripDurationS)
-        guard let e else { return Predicted(noBattery: deadlineAt, withBattery: deadlineAt) }
+        guard let e else { return Predicted(noBattery: deadlineAt, withBattery: deadlineAt, wakeBasis: deadlineAt, wakeBattery: nil) }
         let mAt = modeAt(s, e, now: now, atDist: { atDist($0, e, now: now) }, atTime: { atTime($0, e, now: now) })
         let lostAt = s.gps == .lost ? atTime(p.gpsLostAlarmEtaS, e, now: now) : nil
         let noBattery = TMath.minOrNull(mAt, lostAt, deadlineAt)
-        var batteryAt: Int64? = nil
-        let b = s.battery
-        if let level = b.levelPct, !b.charging, b.armed {
-            let rate = BatteryRule.rate(s, now: now)
-            if rate > 0 {
-                let eff = BatteryRule.alarmPctEff(s)
-                batteryAt = now + TMath.floorMs(Double(TMath.max(0, level - eff)) / rate * 3600.0)
-            }
-        }
-        return Predicted(noBattery: noBattery, withBattery: TMath.minOrNull(noBattery, batteryAt))
+        let battery = batteryAt(s, now: now)
+        // T10.5: GPS OK and stopped means dNow = dSmooth (§4.4), so modeAt = now + constant slides with now: not a wake-up basis.
+        let wakeBasis = slides(s, e) ? deadlineAt : noBattery
+        return Predicted(noBattery: noBattery, withBattery: TMath.minOrNull(noBattery, battery), wakeBasis: wakeBasis,
+                         wakeBattery: battery)
     }
+
+    /// §4.5 `batteryAt`: nil without a level, while charging, when not armed or with a zero rate.
+    static func batteryAt(_ s: EngineState, now: Int64) -> Int64? {
+        let b = s.battery
+        guard let level = b.levelPct, !b.charging, b.armed else { return nil }
+        let rate = BatteryRule.rate(s, now: now)
+        guard rate > 0 else { return nil }
+        let eff = BatteryRule.alarmPctEff(s)
+        return now + TMath.floorMs(Double(TMath.max(0, level - eff)) / rate * 3600.0)
+    }
+
+    /// T10.5 §4.5 `slides`: the estimate is frozen at dSmooth (GPS OK, stop in progress), the same test as `Estimator.estimate`.
+    static func slides(_ s: EngineState, _ e: Estimate?) -> Bool { e != nil && s.gps == .ok && s.stopStartMs != nil }
+
+    /// T10.5 §4.5 `wakeBasisAt` alone (U106 g); the engine reads it from `predictedAlarmAt`.
+    static func wakeBasisAt(_ s: EngineState, _ e: Estimate?, now: Int64) -> Int64? { predictedAlarmAt(s, e, now: now).wakeBasis }
 
     /// §4.13 at the Step that accepted the first fix.
     static func maxTripDurationFromFirstFix(_ e: Estimate?, _ p: EngineParams) -> Int {

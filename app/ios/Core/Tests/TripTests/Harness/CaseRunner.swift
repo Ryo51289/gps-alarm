@@ -47,6 +47,10 @@ struct Runner: Sendable {
     var violations: [String] = []
     var actionDone: [Bool]
     var started = false
+    /// TR39 (T10.5 §6): wake-up Ticks delivered by the Doze model inside / right after GPS gaps.
+    var dozeWakeTicks = 0
+    /// U116, U117 (T10.5 round 3, 3b): GPS-gap chord probes of the fixes that recovered GPS, were gap fixes or met the term.
+    var gapProbes: [GapProbe] = []
 
     var run: String { "\(trace.file.traceId)/\(spec.id)/\(mode)" }
     var killT: Int? { spec.config.kill?.t }
@@ -195,7 +199,12 @@ struct Runner: Sendable {
             _ = TripEngine.reduce(state, x)   // not recorded (T12 §8.3)
             return
         }
-        apply(TripEngine.reduce(state, x), t: t, input: .input(x, fixIndex: fixIndex))
+        let s0 = state
+        let step = TripEngine.reduce(state, x)
+        if case let .locationFix(lf) = x, let g = GapProbe.of(s0, lf, step), g.recovered || g.gapFix || g.standingTerm {
+            gapProbes.append(g)
+        }
+        apply(step, t: t, input: .input(x, fixIndex: fixIndex))
     }
 
     static func hasRingNow(_ events: [TripEvent]) -> Bool {
@@ -312,6 +321,7 @@ struct Runner: Sendable {
             if let f, w == nil || f <= w! {
                 for x in os.tick(t: t, nowMs: f, alive: true) { feed(x, t: t) }
             } else {
+                dozeWakeTicks += 1
                 feed(.tick(atMs: w!), t: t)
             }
             guardCount += 1

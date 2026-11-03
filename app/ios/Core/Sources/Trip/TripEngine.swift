@@ -75,7 +75,7 @@ struct StepWork {
     var firstFix = false
     var e: Estimate? = nil
     var eComputed = false
-    var predicted = Predicted(noBattery: nil, withBattery: nil)
+    var predicted = Predicted.none
     var predictedComputed = false
     /// Policy at the start of the Step (T10.4 §4.8: step 9 folds its interval into policyIntervalAtLastFixS).
     let policyAtStart: SamplingPolicy?
@@ -215,6 +215,7 @@ struct StepWork {
         var speed: Double? = nil
         if let v = f.speedMps, v.isFinite, !(v < 0) { speed = v }
         let wasFirst = s.last == nil
+        let noRejectsSincePrev = s.rejects.isEmpty   // T10.5 round 3f: classifyFix clears `rejects` on ACCEPT
         switch FixFilter.classifyFix(&s, atMs: f.atMs, fix: &rec) {
         case .drop:
             s.droppedFixes += 1
@@ -226,11 +227,24 @@ struct StepWork {
             s.last = rec
             s.dSmooth = d
             s.minD = d
+            s.minDChord = false
             s.last3 = [d]
             s.stopStartMs = nil
             s.stopAnchor = nil
         case let .accept(d):
             rec.d = d
+            // T10.5 round 3/3b (§4.11): first in ACCEPT, from the state before this fix (gps, lostAfterS, last). A chord through
+            // the destination lowers minD and ends the stop from before the gap (the vehicle went along the chord).
+            // Round 3f: not after a fix rejected as IMPLAUSIBLE since L (`rejects` read before ACCEPT cleared it).
+            if noRejectsSincePrev, OvershootDetector.isGapFix(s, l: s.last, f: rec), let l = s.last,
+               let dChord = OvershootDetector.chordClosest(l, rec, s.config) {
+                s.stopStartMs = nil
+                s.stopAnchor = nil
+                if s.minD == nil || dChord < s.minD! {
+                    s.minD = dChord
+                    s.minDChord = true   // T10.5 round 3e
+                }
+            }
             if let last = s.last {
                 let sample = SpeedEstimator.speedSample(last: last, f: rec, speedMps: speed, p)
                 rec.groundSample = sample.groundSample
@@ -402,7 +416,7 @@ struct StepWork {
             i += 1
         }
         let risk = BatteryRule.riskOf(s, predictedNoBattery: predicted.noBattery, now: now).risk
-        let wake = WakePlanner.wakeAt(s, predicted: predicted.withBattery, now: now)
+        let wake = WakePlanner.wakeAt(s, wakeBasis: predicted.wakeBasis, wakeBattery: predicted.wakeBattery, now: now)
         let view = ViewBuilder.buildView(s, e, predicted: predicted.withBattery, risk: risk, wakeAtMs: wake)
         let snoozeAllowed = s.phase == .alarming && s.alarm.snoozeCount < p.maxSnoozes
         // C4: numeric event fields come from the view of the same Step.

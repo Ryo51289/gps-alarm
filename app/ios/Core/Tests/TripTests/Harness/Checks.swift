@@ -123,8 +123,49 @@ enum Checks {
         return f
     }
 
-    /// I1–I7, I10–I13 (T10 §3; I4 as T12 §8.5).
-    static func invariants(_ r: Runner) -> [String] {
+    /// I4 of one ETA emission (T10 §3, T10.5 wording): nil = outside the quiet window or a first / FAILED-retry emission; true =
+    /// inside the quiet window and allowed as an urgent later shift; false = an I4 violation. `prev` is the previous Step's view.
+    static func quietEmission(_ prev: TripView?, _ view: TripView, _ e: TripEvent.FallbackAlarmChanged, _ p: EngineParams) -> Bool? {
+        guard let prev, let prevTarget = prev.fallbackAtMs, let pred = view.predictedAlarmAtMs else { return nil }
+        if prev.fallbackStatus == .failed { return nil }
+        let quietMs = TMath.ms(p.fallbackQuietBeforeS)
+        let now = view.atMs   // the Step's own clock, like Kotlin (= nowMs(t) except TR39 wake-ups)
+        if now < TMath.min(prevTarget, pred) - quietMs { return nil }
+        guard let at = e.fallbackAtMs else { return false }
+        return now < pred - quietMs && prevTarget - now >= TMath.ms(p.fallbackMinLeadS) && at - prevTarget >= TMath.ms(p.fallbackMinShiftS)
+    }
+
+    /// T10.5 "urgent later shift" (dời muộn khẩn, T10 §3 I4, §4.10): an ETA emission inside the quiet window that the I4
+    /// exception allows (or rejects). `t` is the tick of the record, `atMs` the Step's now; times are absolute ms.
+    struct UrgentShift: Sendable {
+        let t: Int
+        let atMs: Int64
+        let prevTarget: Int64
+        let newTarget: Int64?
+        let predicted: Int64
+    }
+
+    /// T10.5 §6: the urgent later shifts of a run (counter printed to the trace summary).
+    static func urgentShifts(_ records: [StepRecord], _ p: EngineParams) -> [UrgentShift] {
+        var out: [UrgentShift] = []
+        var prevView: TripView? = nil
+        for rec in records {
+            if case .kill = rec.input { continue }
+            for e in rec.events {
+                if case let .fallbackAlarmChanged(x) = e, x.cause == .eta, quietEmission(prevView, rec.view, x, p) != nil {
+                    out.append(UrgentShift(t: rec.t, atMs: rec.view.atMs, prevTarget: prevView!.fallbackAtMs!, newTarget: x.fallbackAtMs,
+                                           predicted: rec.view.predictedAlarmAtMs!))
+                }
+            }
+            prevView = rec.view
+        }
+        return out
+    }
+
+    /// I1–I7, I10–I13 (T10 §3; I4 as T12 §8.5 with the T10.5 urgent-later-shift exception, counted by `urgentShifts`).
+    static func invariants(_ r: Runner) -> [String] { invariants(r.records, r.params) }
+
+    static func invariants(_ records: [StepRecord], _ params: EngineParams) -> [String] {
         var f: [String] = []
         var seenAlarm = false
         var releasedSinceAlarm = false
@@ -132,8 +173,7 @@ enum Checks {
         var preAlerts = 0, overshoots = 0
         var lastGps: String? = nil
         var prevView: TripView? = nil
-        let quietMs = Int64(r.params.fallbackQuietBeforeS) * 1000
-        for rec in r.records {
+        for rec in records {
             if case .kill = rec.input { continue }
             if case let .input(x, _) = rec.input, case .alarmSilenced = x { releasedSinceAlarm = true }
             var alarms = 0, facs = 0
@@ -154,10 +194,8 @@ enum Checks {
                     if seenAlarm, x.fallbackAtMs != nil, x.cause != .snooze && x.cause != .resync {
                         f.append("I3: fallbackAlarmChanged(\(x.cause.jsonName)) with time after first alarm at t=\(rec.t)")
                     }
-                    if x.cause == .eta, let pv = prevView, let prevT = pv.fallbackAtMs, pv.fallbackStatus != .failed,
-                       let pred = rec.view.predictedAlarmAtMs {
-                        let now = rec.view.atMs   // the Step's own clock, like Kotlin (= nowMs(t) except TR39 wake-ups)
-                        if now >= TMath.min(prevT, pred) - quietMs { f.append("I4: ETA emission in quiet window at t=\(rec.t)") }
+                    if x.cause == .eta, quietEmission(prevView, rec.view, x, params) == false {
+                        f.append("I4: ETA emission in quiet window at t=\(rec.t)")
                     }
                 case .preAlert:
                     preAlerts += 1

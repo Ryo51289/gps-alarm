@@ -154,27 +154,27 @@ struct WakePlannerTests {
         #expect(a.events.compactMap(\.asGpsLost).first?.cause == .neverAcquired)
         var b = a.state
         b.fallback = .cleared   // U70 (a)–(f), (h) are specified with fb.targetAtMs = null (T10.2 round 2)
-        #expect(WakePlanner.wakeAt(b, predicted: a.view.predictedAlarmAtMs, now: 120_000) == 13_801_000)   // T10.4: D − 600 s + wakeGuardMs
+        #expect(WakePlanner.wakeAt(b, wakeBasis: a.view.predictedAlarmAtMs, wakeBattery: nil, now: 120_000) == 13_801_000)   // T10.4: D − 600 s + wakeGuardMs
         var c = Self.base()
         c.phase = .tracking; c.gps = .ok
         c.last = FixRec(fixAtMs: 1_000_000, lat: 0, lng: 0, accM: 8, d: 1, groundSample: nil)
         c.policy = SamplingPlanner.policyFor(.dense, p, maxSaving: false); c.policyIntervalAtLastFixS = 5
-        #expect(WakePlanner.wakeAt(c, predicted: 2_000_000, now: 1_000_000) == 1_060_000)
+        #expect(WakePlanner.wakeAt(c, wakeBasis: 2_000_000, wakeBattery: nil, now: 1_000_000) == 1_060_000)
         var g = c
         g.fallback = FallbackState(targetAtMs: 2_030_000, emittedAtMs: 980_000, status: .failed, confirmedAtMs: nil, resync: false, near: false)
-        #expect(WakePlanner.wakeAt(g, predicted: 2_000_000, now: 1_000_000) == 1_040_000)
+        #expect(WakePlanner.wakeAt(g, wakeBasis: 2_000_000, wakeBattery: nil, now: 1_000_000) == 1_040_000)
         var dd = c
         dd.gps = .lost
-        #expect(WakePlanner.wakeAt(dd, predicted: 3_000_000, now: 1_500_000) == 2_101_000)   // T10.4: predicted − 900 s + wakeGuardMs
+        #expect(WakePlanner.wakeAt(dd, wakeBasis: 3_000_000, wakeBattery: nil, now: 1_500_000) == 2_101_000)   // T10.4: predicted − 900 s + wakeGuardMs
         var e = c
         e.phase = .snoozed; e.alarm.snoozeUntilMs = 1_030_000; e.gps = .lost
-        #expect(WakePlanner.wakeAt(e, predicted: nil, now: 1_000_000) == 1_030_000)
+        #expect(WakePlanner.wakeAt(e, wakeBasis: nil, wakeBattery: nil, now: 1_000_000) == 1_030_000)
         var f = c
         f.phase = .alarming; f.gps = .lost; f.alarm.lastRingAtMs = 900_000
-        #expect(WakePlanner.wakeAt(f, predicted: nil, now: 1_000_000) == 4_500_000)
+        #expect(WakePlanner.wakeAt(f, wakeBasis: nil, wakeBattery: nil, now: 1_000_000) == 4_500_000)
         var h = c
         h.phase = .ended
-        #expect(WakePlanner.wakeAt(h, predicted: nil, now: 1_000_000) == nil)
+        #expect(WakePlanner.wakeAt(h, wakeBasis: nil, wakeBattery: nil, now: 1_000_000) == nil)
     }
 
     @Test("U70 (i) SNOOZED + fb FAILED: c7 is still a candidate (C13)")
@@ -182,7 +182,7 @@ struct WakePlannerTests {
         var s = Self.base()
         s.phase = .snoozed; s.gps = .lost; s.alarm.snoozeUntilMs = 2_000_000
         s.fallback = FallbackState(targetAtMs: 2_030_000, emittedAtMs: 980_000, status: .failed, confirmedAtMs: nil, resync: false, near: false)
-        #expect(WakePlanner.wakeAt(s, predicted: nil, now: 1_000_000) == 1_040_000)
+        #expect(WakePlanner.wakeAt(s, wakeBasis: nil, wakeBattery: nil, now: 1_000_000) == 1_040_000)
     }
 
     @Test("U96 c8: lost TRACKING, predicted N + 2 000 000: fb N + 700 000 → N + 610 000; fb N + 1 950 000 → c4 N + 1 101 000 (T10.4); ALARMING no c8")
@@ -191,11 +191,11 @@ struct WakePlannerTests {
         var s = Self.base()
         s.phase = .tracking; s.gps = .lost
         s.fallback = FallbackState(targetAtMs: n + 700_000, emittedAtMs: n, status: .confirmed, confirmedAtMs: n, resync: false, near: false)
-        #expect(WakePlanner.wakeAt(s, predicted: n + 2_000_000, now: n) == n + 610_000)
+        #expect(WakePlanner.wakeAt(s, wakeBasis: n + 2_000_000, wakeBattery: nil, now: n) == n + 610_000)
         s.fallback.targetAtMs = n + 1_950_000
-        #expect(WakePlanner.wakeAt(s, predicted: n + 2_000_000, now: n) == n + 1_101_000)   // T10.4
+        #expect(WakePlanner.wakeAt(s, wakeBasis: n + 2_000_000, wakeBattery: nil, now: n) == n + 1_101_000)   // T10.4
         s.phase = .alarming; s.fallback = .cleared; s.alarm.lastRingAtMs = n
-        #expect(WakePlanner.wakeAt(s, predicted: nil, now: n) == n + 3_600_000)
+        #expect(WakePlanner.wakeAt(s, wakeBasis: nil, wakeBattery: nil, now: n) == n + 3_600_000)
     }
 
     @Test("U102 T10.4: c3 and c4 are moved by wakeGuardMs and only count boundaries not yet crossed")
@@ -209,7 +209,7 @@ struct WakePlannerTests {
             s.nowMs = now; s.phase = .tracking; s.gps = .lost; s.gpsLostAtMs = n - 600_000; s.fallback = .cleared
             s.last = FixRec(fixAtMs: n - 600_000, lat: 0, lng: 0, accM: 8, d: 1, groundSample: nil)
             s.policy = SamplingPlanner.policyFor(.dense, p, maxSaving: false); s.policyIntervalAtLastFixS = 5
-            return WakePlanner.wakeAt(s, predicted: pr, now: now)
+            return WakePlanner.wakeAt(s, wakeBasis: pr, wakeBattery: nil, now: now)
         }
         #expect(lost(n) == n + 1_101_000)                // (a) c4 dense; c4 medium dropped (T = 2 000 <= 3 600)
         #expect(lost(n + 1_100_000) == n + 1_401_000)    // (b) T = 900: c4 dropped, near-zone entry
@@ -222,10 +222,10 @@ struct WakePlannerTests {
         var g = Self.base()
         g.nowMs = d - 700_000; g.lostEmittedBeforeFirstFix = true; g.fallback = .cleared
         g.policy = SamplingPlanner.policyFor(.dense, p, maxSaving: false)
-        #expect(WakePlanner.wakeAt(g, predicted: d, now: d - 700_000) == d - 599_000)
+        #expect(WakePlanner.wakeAt(g, wakeBasis: d, wakeBattery: nil, now: d - 700_000) == d - 599_000)
         // (h) ENDED.
         var h = Self.base()
         h.phase = .ended
-        #expect(WakePlanner.wakeAt(h, predicted: pr, now: n) == nil)
+        #expect(WakePlanner.wakeAt(h, wakeBasis: pr, wakeBattery: nil, now: n) == nil)
     }
 }

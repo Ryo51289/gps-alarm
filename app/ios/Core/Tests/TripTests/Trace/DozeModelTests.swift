@@ -74,7 +74,7 @@ struct DozeModelTests {
         let naCell = na.map { "\($0.t) \($0.a.reason.jsonName)" } ?? "-"
         let daCell = da.map { "\(s3($0.a.atMs, doze.startMs)) \($0.a.reason.jsonName) ringNow=\($0.a.ringNow)" } ?? "-"
         let md = "| \(name) | \(s3(nl?.atMs, normal.startMs)) | \(s3(dl?.atMs, doze.startMs)) | \(naCell) | \(daCell) | "
-            + "\(wakeTicks) | \(fails.isEmpty ? "pass" : "FAIL") |\n"
+            + "\(wakeTicks) | \(doze.dozeWakeTicks) | \(fails.isEmpty ? "pass" : "FAIL") |\n"
         return Row(name: name, fails: fails, md: md)
     }
 
@@ -95,9 +95,10 @@ struct DozeModelTests {
             for await r in g { out.append(r) }
             return out.sorted { $0.name < $1.name }
         }
-        var md = "## TR39 Doze model (T10.4 §7.3, mode all, no 9-minute Doze limit)\n\n"
-        md += "| case | gpsLost normal (s) | gpsLost Doze (s) | first alarm normal (t) | first alarm Doze (s) | wake Ticks off grid | result |\n"
-        md += "|---|---|---|---|---|---|---|\n"
+        var md = "## TR39 Doze model (T10.4 §7.3, T10.5 §6, mode all, no 9-minute Doze limit)\n\n"
+        md += "| case | gpsLost normal (s) | gpsLost Doze (s) | first alarm normal (t) | first alarm Doze (s) | wake Ticks off grid "
+            + "| wake Ticks in GPS gaps | result |\n"
+        md += "|---|---|---|---|---|---|---|---|\n"
         for r in rows { md += r.md }
         Report.shared.writePart(dir: "trace", name: "tr39", markdown: md + "\n", json: nil)
         var fails = rows.flatMap(\.fails)

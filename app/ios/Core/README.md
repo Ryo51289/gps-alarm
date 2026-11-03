@@ -8,12 +8,14 @@ P05 transcripts (`fixtures/p05/manifest.json`).
 ```
 Package.swift                   NapStopCore, product `Trip`, test target `TripTests`
 Sources/Trip/                   engine (T10 §2–§7): TripEngine, planners, MiniJson, SnapshotCodec, Redaction
-Tests/TripTests/Support/        paths, bits, SplitMix64, SHA-256 (FIPS 180-4), synthetic geometry, EngineDriver
+Tests/TripTests/Support/        paths, bits, SplitMix64, SHA-256 (FIPS 180-4), synthetic geometry, EngineDriver, KWorld (Kotlin test world)
 Tests/TripTests/Fixture/        GPX scanner, expect.json model (must-understand), anchors, ISO time
-Tests/TripTests/Harness/        CaseRunner (T12 §8.3), OsSim (§8.4), Checks, RestoreEquivalence (I8), KillSweep, Transcript (§9)
-Tests/TripTests/Unit/           U01–U105 + T12 extra cases + S01–S14
+Tests/TripTests/Harness/        CaseRunner (T12 §8.3), OsSim (§8.4), Checks (I4 T10.5 + urgent shifts), GapProbe (U116/U117),
+                                RestoreEquivalence (I8), KillSweep, Transcript (§9)
+Tests/TripTests/Unit/           U01–U118 + T12 extra cases + S01–S14; Kotlin tester ports TesterT131 (T121), TesterT132 (T122),
+                                TesterT132Overshoot (T122 O1–O4) writing the same <report>/unit/*.txt as Kotlin
 Tests/TripTests/Trace/          TraceSuite (TR01–TR35, TR37, P01–P04, P06–P08), NegativeSweepTests (TR36, TR37-neg), DozeModelTests (TR39),
-                                P05ManifestTests (P05, S15, S16), IdCoverageTests
+                                P05ManifestTests (P05, S15, S16), FixtureMainRuns (T10.5 urgent shifts, GPS-gap chord), IdCoverageTests
 scripts/test-wsl.sh             run the tests in WSL
 scripts/p05-diff.sh             Kotlin ↔ Swift transcript diff (Git Bash)
 ```

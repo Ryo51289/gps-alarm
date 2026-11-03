@@ -5,7 +5,8 @@ import Testing
 /// `TesterT121Test` (app/android/core-trip/src/test/kotlin/app/napstop/core/trip/unit/TesterT121Test.kt): same generator
 /// (splitmix64 seeded `seed * golden + 0x1234567`), same draw order, same builders (`trackingState` = `t12TrackingState`), so
 /// the random sets and trips are the Kotlin ones. Each test writes `<report>/unit/t131-*.txt` in the Kotlin `t121-*.txt` format
-/// (Kotlin `Double.toString` via `kd`) so the two files can be compared byte for byte.
+/// (Kotlin `Double.toString` via `kd`) so the two files can be compared byte for byte; since T13.2 (T10.5) the storm test is U106 a/b
+/// (`u106-storm.txt`), the A10 tests are U107 and the Doze fuzz is U111 (`u111-doze-*.txt`), same names as Kotlin T12.2.
 /// Question: "is there any situation where the engine does not wake the user on time?"
 @Suite("TesterT131Tests")
 struct TesterT131Tests {
@@ -120,10 +121,15 @@ struct TesterT131Tests {
                 return nil
             }
         }
+        // I5: at most one PreAlert over the trip, never at or after the Alarm (T10.5 U107).
+        let all = [lost] + wakes
+        let preIdx = all.indices.filter { !preAlerts(all[$0]).isEmpty }
+        let alarmIdx = all.firstIndex { !$0.events.alarms.isEmpty } ?? -1
+        #expect(preIdx.count <= 1 && preIdx.allSatisfy { $0 < alarmIdx }, "\(tag) I5: pre-alerts at \(preIdx), alarm at \(alarmIdx)")
         return DozeRun(lost: lost, wakes: wakes)
     }
 
-    @Test("T131 A10 (= T121): TIME/SMART pre-alert during GPS loss lands on the near-zone wake-up P − 599 s (etaS 1799), alarm at P + 1 s")
+    @Test("U107 a A10 (= T121): TIME/SMART pre-alert during GPS loss lands on the near-zone wake-up P − 599 s (etaS 1799), GPS_LOST at P + 1 s")
     func a10PreAlert() {
         var rng = Rng(10)
         let modes: [(String, TripConfig, Bool)] = [
@@ -156,7 +162,8 @@ struct TesterT131Tests {
                 }
                 let preStep = pre[0]
                 let a = alarmStep.events.alarms[0]
-                #expect(a.ringNow && a.reason != .fallback, "\(tag)")
+                #expect(a.reason == .gpsLost, "\(tag)")
+                #expect(a.ringNow, "\(tag)")
                 #expect(preStep.state.nowMs < alarmStep.state.nowMs, "\(tag): pre-alert not before the alarm")
                 let expect = p0 - 600_000 + Self.G
                 #expect((expect - 1)...(expect + 1) ~= preStep.state.nowMs, "\(tag): pre-alert at \(preStep.state.nowMs - p0) ms vs P0")
@@ -171,8 +178,9 @@ struct TesterT131Tests {
         Report.shared.write("unit/t131-a10.txt", "sets=\(sets)\n\(log)")
     }
 
-    /// Kotlin "A10 outside the claim" (designer note #2 of the T12.1 report, now T10.5): pinned, not fixed.
-    @Test("T131 A10 outside the claim (= T121, pinned): TIME 21/25 and SMART slow 1.5 pre-alert only 61 s before the alarm; SMART slow 1.41 and DISTANCE none")
+    /// U107 b–d, outside the A10 scope of T10.5 §2.2 (pinned numbers of the T12.1 tester): TIME 21–25 min, SMART slow closing
+    /// < 2.12 m/s and DISTANCE. The pre-alert comes at the c8 wake-up 61 s before the alarm, or not at all (I5 allows).
+    @Test("U107 b c d A10 outside the scope (= T121): TIME 21/25 and SMART slow 1.5 pre-alert 61 s before GPS_LOST; SMART slow 1.41 and DISTANCE none")
     func a10Outside() {
         var out = ""
         func measure(_ name: String, _ config: TripConfig, _ ground: Double, _ closing: Double, _ slow: Bool) -> [Double]? {
@@ -182,7 +190,7 @@ struct TesterT131Tests {
                 return nil
             }
             let a = alarm.events.alarms[0]
-            #expect(a.ringNow && a.reason != .fallback, "\(name)")
+            #expect(a.ringNow && a.reason == .gpsLost, "\(name)")
             let leads = r.wakes.filter { !Self.preAlerts($0).isEmpty }.map { Double(alarm.state.nowMs - $0.state.nowMs) / 1000.0 }
             out += "\(name): alarm \(a.reason.jsonName) at etaS \(Self.opt(alarm.view.etaS)); pre-alert lead "
                 + "[\(leads.map { Self.kd($0) }.joined(separator: ", "))] s; wake-ups \(r.wakes.count)\n"
@@ -199,7 +207,7 @@ struct TesterT131Tests {
         #expect(t25 == [61.0])
         #expect(slow15 == [61.0])
         #expect(slow141 == [])
-        #expect((dist?.count ?? 99) <= 1)
+        #expect(dist == [])
     }
 
     // MARK: - early wake-up delivery (T10.4 §3.1 (2))
@@ -301,35 +309,43 @@ struct TesterT131Tests {
         Report.shared.write("unit/t131-gpsok.txt", "sets=\(n)\n\(out)")
     }
 
-    // MARK: - wake-up storm (designer note #1 of the T12.1 report, now T10.5): pinned, not fixed
+    // MARK: - U106 a/b: no wake-up storm (GPS OK + stopped; designer note #1 of the T12.1 report, fixed by T10.5)
 
-    @Test("T131 storm (= T121, pinned): GPS OK + stopped with T just above a boundary asks for a wake-up every 1 499 ms (40/60/360; 794 in a 20-min stop)")
+    /// U106 (a), (b) (T10 mục T10.5 §6; was the storm characterisation). GPS OK, the last fix is STATIONARY: dNow = dSmooth, so
+    /// predicted = now + T slides with now. Before T10.5 a wake-up every 1 499 ms (40 / 60 / 360 before c2; 794 in a 20-minute
+    /// SPARSE stop). T10.5: c3/c4 come from wakeBasisAt (= deadlineAt while sliding), so the only wake-up left is c2.
+    @Test("U106 a b (= T121): GPS OK and stopped with T just above a boundary asks for no wake-up storm (1 Tick to GpsLost; 0 in a 20-min stop)")
     func storm() {
         var out = ""
-        let tiers: [(SamplingTier, Int)] = [(.dense, 600), (.medium, 900), (.sparse, 3600)]
-        var counts: [Int] = []
-        for (tier, b) in tiers {
+        let tiers: [(SamplingTier, Int, Int64)] = [(.dense, 600, 60_000), (.medium, 900, 90_000), (.sparse, 3600, 540_000)]
+        for (tier, b, expectWake) in tiers {
             // DISTANCE 1000, cvDr = 12.5: T = (d − 1000)/12.5 = B + 0.5 s.
             let d = 1000.0 + 12.5 * (Double(b) + 0.5)
             var e = TesterT13Tests.t12Driver(TesterT13Tests.t12TrackingState(Self.cfg(), d: d, inStop: true, tier: tier))
             var s = e.feed(.tick(atMs: Self.S + 1))
+            #expect(Self.i13(s) == nil)
+            #expect(s.view.wakeAtMs == Self.S + expectWake, "\(tier.jsonName): wakeAtMs after Tick(S + 1)")
             var wakes = 0
-            var minGap = Int64.max
-            let first = s.view.samplingPolicy!.tier
             while s.view.gps == .ok && s.events.alarms.isEmpty {
-                let w = s.view.wakeAtMs!
-                minGap = Swift.min(minGap, w - s.state.nowMs)
-                s = e.feed(.tick(atMs: w))
+                s = e.feed(.tick(atMs: s.view.wakeAtMs!))
+                #expect(Self.i13(s) == nil, "\(tier.jsonName)")
                 wakes += 1
                 if wakes > 5_000 { break }
             }
-            out += "tier \(first.jsonName) B=\(b): \(wakes) wake-ups before GpsLost at \(Self.kd(Double(s.state.nowMs - Self.S) / 1000.0)) s, min gap \(minGap) ms\n"
-            #expect(minGap == 1_499)
-            #expect(s.view.gps == .lost)
-            counts.append(wakes)
+            out += "tier \(tier.jsonName) B=\(b): \(wakes) wake-up Tick(s) until GpsLost at \(Self.kd(Double(s.state.nowMs - Self.S) / 1000.0)) s "
+                + "(before T10.5: 40/60/360)\n"
+            #expect(wakes == 1, "\(tier.jsonName): wake-up Ticks until GpsLost")
+            let lost = s.events.compactMap(\.asGpsLost)
+            #expect(lost.count == 1 && lost.first?.cause == .noFixTimeout)
+            let alarm = s.events.alarms
+            if tier == .sparse {
+                #expect(alarm.isEmpty, "SPARSE: only GpsLost")
+            } else {
+                // etaS 640.5 / 910.5 < gpsLostAlarmEtaS 1 200.
+                #expect(alarm.count == 1 && alarm.first?.reason == .gpsLost && alarm.first?.ringNow == true, "\(tier.jsonName): \(alarm)")
+            }
         }
-        #expect(counts == [40, 60, 360])
-        // Same, with stationary fixes every policy interval for a 20-minute stop: the storm lasts the whole stop.
+        // (b) Stationary fixes every 180 s for a 20-minute SPARSE stop; a wake-up Tick only when it comes before the next fix.
         let d = 1000.0 + 12.5 * 3600.5
         var e = TesterT13Tests.t12Driver(TesterT13Tests.t12TrackingState(Self.cfg(), d: d, inStop: true, tier: .sparse))
         var s = e.feed(.tick(atMs: Self.S + 1))
@@ -347,12 +363,13 @@ struct TesterT131Tests {
                 ticks += 1
                 s = e.feed(.tick(atMs: w))
             }
+            #expect(Self.i13(s) == nil)
             #expect(s.view.gps == .ok)
             #expect(s.events.alarms.isEmpty)
         }
-        out += "SPARSE B=3600, stopped 1 200 s with a stationary fix every 180 s: \(ticks) wake-up Ticks requested\n"
-        #expect(ticks == 794, "storm: \(ticks)")
-        Report.shared.write("unit/t131-storm.txt", out)
+        out += "SPARSE B=3600, stopped 1 200 s with a stationary fix every 180 s: \(ticks) wake-up Ticks (before T10.5: 794)\n"
+        #expect(ticks == 0, "U106 b: wake-up Ticks during the stop")
+        Report.shared.write("unit/u106-storm.txt", out)
     }
 
     // MARK: - Doze platform fuzz (Kotlin `dozeTrip`)
@@ -407,6 +424,17 @@ struct TesterT131Tests {
         var lateVsTruth: [Double] = []
         var lateCases: [(Double, String)] = []
         var fbAfterInfo: [String] = []
+        /// T10.5: urgent later shifts (I4 exception) emitted in the fuzz.
+        var urgentShifts = 0
+        /// T10.5: `fallback (new info after planning)` first alarms: predicted at the last Step before it fired − F, s.
+        var earlyS: [Double] = []
+        /// T10.5 round 2: fallback-first planned on unchanged information while the engine believes it is stopped with <= Q to the
+        /// boundary, by the truth speed at the ring (< stationarySpeedMps: really stopped).
+        var believedStopReal: [String] = []
+        var believedStopMoving: [String] = []
+        /// U116 (b): OVERSHOOT / PASSED_CLOSEST using a minD from the GPS-gap chord.
+        var gapTriggers = 0
+        var gapLines: [String] = []
 
         func v(_ kind: String, _ at: @autoclosure () -> String) {
             violations[kind, default: 0] += 1
@@ -422,6 +450,32 @@ struct TesterT131Tests {
     enum Variant: Int {
         case noFix = 0, withFixes, fromStart
         var name: String { ["DOZE_NO_FIX", "DOZE_WITH_FIXES", "DOZE_FROM_START"][rawValue] }
+    }
+
+    /// T10.5 U111: the last Step that carried new information (fix, battery sample, restore): its now, the fallback in force before
+    /// it, the predicted time after it and whether it moved the fallback later.
+    struct InfoStep {
+        let t: Int64
+        let fBefore: Int64?
+        let statusBefore: FallbackStatus
+        let predicted: Int64?
+        let movedLater: Bool
+    }
+
+    static func infoStep(_ t: Int64, _ s0: EngineState, _ step: Step) -> InfoStep {
+        let f = s0.fallback.targetAtMs
+        let moved = f != nil && step.events.fallbacks.contains { ($0.fallbackAtMs ?? .min) > f! }
+        return InfoStep(t: t, fBefore: f, statusBefore: s0.fallback.status, predicted: step.view.predictedAlarmAtMs, movedLater: moved)
+    }
+
+    /// Kotlin `AlarmReason.name` / "Overshoot" list of the Alarm and Overshoot events of a Step, as Kotlin `List.toString()`.
+    static func passKinds(_ events: [TripEvent]) -> String {
+        var k: [String] = []
+        for e in events {
+            if case let .alarm(a) = e { k.append(a.reason.jsonName) }
+            if case .overshoot = e { k.append("Overshoot") }
+        }
+        return KW.klist(k)
     }
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
@@ -447,6 +501,9 @@ struct TesterT131Tests {
         var lastFixAt = S - 1_000_000
         var lastInfoAt = S   // last input that may move predicted: fix, battery, restore
         var lastInfoKind = "start"
+        var lastInfo: InfoStep? = nil
+        var chordMinD: Double? = nil   // U116 (b): last dChord of the trip
+        let p = EngineParams.defaults
         var batteryAt = S
         var level = 20 + r.int(81)
         let drainPerH = r.dbl(1.0, 12.0)
@@ -465,6 +522,14 @@ struct TesterT131Tests {
             st.steps += 1
             let at = { "\(tripTag) t=\(kd(Double(s.state.nowMs - S) / 1000.0)) after \(label())" }
             if !Runner.finite(s.state) { st.v("finite", at()) }
+            // I4 (T10.5 wording) and the urgent-later-shift counter.
+            for x in s.events.fallbacks where x.cause == .eta {
+                switch Checks.quietEmission(prev.view, s.view, x, s.state.params) {
+                case false?: st.v("I4", at())
+                case true?: st.urgentShifts += 1
+                case nil: break
+                }
+            }
             if let m = i13(s) {
                 var k = m
                 if let r = k.firstRange(of: " in ") { k = String(k[..<r.lowerBound]) }
@@ -543,6 +608,7 @@ struct TesterT131Tests {
                 step = TripEngine.restore(snap, nowMs: restartAt, info: info)
                 lastInfoAt = restartAt
                 lastInfoKind = "restore"
+                lastInfo = infoStep(restartAt, s0, step)
                 label = { "RESTORE \(info.status.jsonName)" }
                 if !rang, let a = step.events.alarms.first {
                     rang = true
@@ -594,21 +660,74 @@ struct TesterT131Tests {
                 }
                 step = TripEngine.reduce(s0, input)
                 label = { "\(input)" }
+                if case let .locationFix(lf) = input {
+                    // U116 (b) (round 3b): an OVERSHOOT / PASSED_CLOSEST that uses a minD from the GPS-gap chord must not come
+                    // before the vehicle really passed the destination.
+                    if let dc = GapProbe.of(s0, lf, step)?.dChord { chordMinD = dc }
+                    let passEv = step.events.contains { e in
+                        if case .overshoot = e { return true }
+                        if case let .alarm(a) = e { return a.reason == .overshoot || a.reason == .passedClosest }
+                        return false
+                    }
+                    if let cm = chordMinD, passEv, step.state.minD == cm {
+                        st.gapTriggers += 1
+                        let dTruth = truth.dAt(Double(t - S) / 1000.0)
+                        st.gapLines.append("\(tripTag) t=\(kd(Double(t - S) / 1000.0)) truthD=\(KW.ki(dTruth)) chordMinD=\(kd(cm)) "
+                                           + passKinds(step.events))
+                        if dTruth > 0.0 { st.v("chord minD used before the destination was passed", st.gapLines.last!) }
+                    }
+                }
+                switch input {
+                case .locationFix, .batterySample: lastInfo = infoStep(t, s0, step)
+                default: break
+                }
                 if !rang, let a = step.events.alarms.first {
                     rang = true
                     if viaFb {
                         // Engine-first: a fallback planned after the last new information (pure dead reckoning since then)
                         // must never beat the engine's own wake-up alarm.
                         let emitted = s0.fallback.emittedAtMs ?? .min
-                        if emitted >= lastInfoAt {
-                            st.v("first alarm from OS fallback though planned on unchanged information", "\(tripTag) t=\(kd(Double(t - S) / 1000.0))")
+                        let pv = prev.view.predictedAlarmAtMs
+                        let detail = "\(tripTag) t=\(kd(Double(t - S) / 1000.0)) emitted=\(kd(Double(emitted &- S) / 1000.0)) "
+                            + "engineP=\(optKd(pv)) engineWake=\(optKd(prev.view.wakeAtMs)) "
+                            + "gps=\(prev.view.gps.jsonName) stopped=\(prev.state.stopStartMs != nil)"
+                        // T10 "T10.5" (a) + "T10.5 vòng 2" (2): the engine believes it is stopped (GPS OK, stop in progress) with
+                        // predicted − now <= Q: K1 forbids moving the fallback and the forecast slides with now. Not a violation
+                        // while the fallback rings no later than predicted (previous Step) + (fallbackLagS + fallbackNearSlackS)
+                        // + 1 s (T10.5 round 3 §11); split by the truth speed at the ring.
+                        let believedStop = prev.view.gps == .ok && prev.state.stopStartMs != nil && pv != nil
+                            && pv! - prev.state.nowMs <= TMath.ms(p.fallbackQuietBeforeS)
+                        if emitted >= lastInfoAt && believedStop {
+                            let v = truth.speedAt(Double(t - S) / 1000.0)
+                            let moving = v >= p.stationarySpeedMps
+                            let bound = pv! + TMath.ms(p.fallbackLagS + p.fallbackNearSlackS) + 1000
+                            let line = "\(detail) truthSpeed=\(kd(v)) \(moving ? "moving" : "stopped") ring-P=\(kd(Double(t - pv!) / 1000.0)) s"
+                            if t > bound {
+                                st.v("believed-stop fallback later than predicted + fallbackLag + fallbackNearSlack + 1 s", line)
+                            }
+                            st.first("fallback (pure DR, engine believes stopped, <= Q to the boundary) \(a.reason.jsonName)")
+                            if moving { st.believedStopMoving.append(line) } else { st.believedStopReal.append(line) }
+                        } else if emitted >= lastInfoAt {
+                            st.v("first alarm from OS fallback though planned on unchanged information", detail)
                             st.first("fallback (pure DR) \(a.reason.jsonName)")
                         } else {
                             st.first("fallback (new info after planning) \(a.reason.jsonName)")
+                            let q = TMath.ms(p.fallbackQuietBeforeS)
+                            // T10.5 U111: the last new information could rescue it (F − t >= minLead, predicted − t > Q,
+                            // predicted >= F), so that Step must have moved the fallback later.
+                            let f = fb!
+                            if let li = lastInfo, li.fBefore == f, li.statusBefore != .failed, let lp = li.predicted,
+                               f - li.t >= TMath.ms(p.fallbackMinLeadS), lp - li.t > q, lp >= f, !li.movedLater {
+                                st.v("eligible for the urgent later shift but not rescued", "\(tripTag) t=\(kd(Double(t - S) / 1000.0))")
+                            }
+                            if let pp = prev.view.predictedAlarmAtMs { st.earlyS.append(Double(pp - t) / 1000.0) }
                             st.fbAfterInfo.append(
                                 "\(tripTag) F=\(kd(Double(t - S) / 1000.0)) emitted=\(kd(Double(emitted &- S) / 1000.0)) lastInfo=\(lastInfoKind)@"
-                                    + "\(kd(Double(lastInfoAt - S) / 1000.0)) engineP=\(optKd(prev.view.predictedAlarmAtMs)) "
-                                    + "engineWake=\(optKd(prev.view.wakeAtMs)) gps=\(prev.view.gps.jsonName)")
+                                    + "\(kd(Double(lastInfoAt - S) / 1000.0)) F-tInfo=\(kd(Double(f - lastInfoAt) / 1000.0)) "
+                                    + "engineP=\(optKd(prev.view.predictedAlarmAtMs)) "
+                                    + "early=\(prev.view.predictedAlarmAtMs.map { kd(Double($0 - t) / 1000.0) } ?? "null") "
+                                    + "engineWake=\(optKd(prev.view.wakeAtMs)) gps=\(prev.view.gps.jsonName) "
+                                    + "stopped=\(prev.state.stopStartMs != nil)")
                         }
                     } else {
                         st.first((awake ? "awake " : "doze ") + (a.ringNow ? "engine " : "noRing ") + a.reason.jsonName)
@@ -663,18 +782,32 @@ struct TesterT131Tests {
             + "rang after passing the threshold: \(late.filter { $0 < 0 }.count)/\(late.count)"
         // Kotlin sortedByDescending (stable): ties keep insertion order.
         let lateSorted = st.lateCases.enumerated().sorted { $0.element.0 != $1.element.0 ? $0.element.0 > $1.element.0 : $0.offset < $1.offset }
-        let text = "trips=\(st.trips) steps=\(st.steps) probes=\(st.probes) kills=\(st.kills) ties=\(st.ties)\n"
-            + "firstAlarm=\(FuzzStats.map(st.firstBy))\nviolations=\(FuzzStats.map(st.violations))\nfirst=\(FuzzStats.map(st.firstViolation))\n"
-            + "minGapBetweenDozeWakeTicksMs=\(st.minWakeGapMs) maxDozeWakeTicksIn9Min=\(st.maxWakesIn9Min) "
+        let early = st.earlyS.sorted()
+        let fbNewInfo = st.firstBy.filter { $0.key.hasPrefix("fallback (new info after planning)") }.values.reduce(0, +)
+        // T10.5 round 2: DISTANCE lateness vs truth (threshold crossing → first alarm) of the trips that rang after the threshold.
+        let lateS = st.lateCases.map(\.0).sorted()
+        func q(_ f: Double) -> Double { lateS[Swift.min(lateS.count - 1, Int(f * Double(lateS.count)))] }
+        let lateSTxt = lateS.isEmpty ? "-" : "n \(lateS.count), p50 \(kd(q(0.5))) s, p90 \(kd(q(0.9))) s, max \(kd(lateS.last!)) s"
+        let warn = st.believedStopMoving.count > 3 ? "WARNING: believed-stop moving > 3, report to the designer\n" : ""
+        let earlyTxt = early.isEmpty ? "-" : "median \(kd(early[early.count / 2])) max \(kd(early.last!))"
+        var text = "trips=\(st.trips) steps=\(st.steps) probes=\(st.probes) kills=\(st.kills) ties=\(st.ties)\n"
+        text += "urgentLaterShifts=\(st.urgentShifts) fallbackNewInfoAfterPlanning=\(fbNewInfo) earlyVsPredictedS: \(earlyTxt)\n"
+        text += "believedStopFallbackFirst: stopped=\(st.believedStopReal.count) moving=\(st.believedStopMoving.count)\n" + warn
+        text += "chordMinDPassAlarms=\(st.gapTriggers)" + st.gapLines.map { "\n  \($0)" }.joined() + "\n"
+        text += "DISTANCE late vs truth (crossing → first alarm, rang after the threshold): \(lateSTxt)\n"
+        text += "firstAlarm=\(FuzzStats.map(st.firstBy))\nviolations=\(FuzzStats.map(st.violations))\nfirst=\(FuzzStats.map(st.firstViolation))\n"
+        text += "minGapBetweenDozeWakeTicksMs=\(st.minWakeGapMs) maxDozeWakeTicksIn9Min=\(st.maxWakesIn9Min) "
             + "firstAlarmFromDozeTick=\(st.dozeTickAlarms) ofWhichWithin9MinOfPreviousWake=\(st.dozeTickAlarmsWithin9Min)\n"
-            + "DISTANCE truth at first alarm (d − thr): \(lateTxt)\n"
-            + lateSorted.prefix(25).map(\.element.1).joined(separator: "\n") + "\n"
-            + "fallback first after new information:\n" + st.fbAfterInfo.joined(separator: "\n") + "\n"
-        Report.shared.write("unit/t131-doze-\(name).txt", text)
+        text += "DISTANCE truth at first alarm (d − thr): \(lateTxt)\n"
+        text += lateSorted.prefix(25).map(\.element.1).joined(separator: "\n") + "\n"
+        text += "fallback first after new information:\n" + st.fbAfterInfo.joined(separator: "\n") + "\n"
+        text += "fallback first, engine believes stopped with <= Q to the boundary (not a violation within P + lag + 1 s):\n"
+            + (st.believedStopReal + st.believedStopMoving).joined(separator: "\n") + "\n"
+        Report.shared.write("unit/u111-doze-\(name).txt", text)
         return st
     }
 
-    @Test("T131 Doze fuzz (= T121): no fix in Doze, fallback always scheduled OK, no kill → engine always rings first (700 trips)")
+    @Test("U111 a Doze fuzz (= T121): no fix in Doze, fallback always scheduled OK, no kill → engine always rings first (700 trips)")
     func dozeNoFixOk() throws {
         let st = try Self.runDozeFuzz("nofix-ok", 1...700, .noFix, okP: 1.0, killP: 0.0, battery: false)
         #expect(st.steps > 100_000, "too small: \(st.steps)")
@@ -682,34 +815,35 @@ struct TesterT131Tests {
         #expect(!st.firstBy.keys.contains { $0.hasPrefix("fallback") }, "first alarms: \(st.firstBy)")
     }
 
-    @Test("T131 Doze fuzz (= T121): from trip start, random FallbackScheduled failures (15 %) and kills/restores (50 %) → invariants, liveness")
+    @Test("U111 b Doze fuzz (= T121): from trip start, random FallbackScheduled failures (15 %) and kills/restores (50 %) → invariants, liveness")
     func dozeFromStart() throws {
         let st = try Self.runDozeFuzz("fromstart", 1...700, .fromStart, okP: 0.85, killP: 0.5, battery: true)
         #expect(st.violations.isEmpty, "violations \(st.violations) first \(st.firstViolation)")
     }
 
-    @Test("T131 Doze fuzz (= T121): fixes at wake-ups, battery, FallbackScheduled failures, kills/restores → invariants, liveness")
+    @Test("U111 c Doze fuzz (= T121): fixes at wake-ups, battery, FallbackScheduled failures, kills/restores → invariants, liveness, urgent later shift")
     func dozeWithFixes() throws {
         let st = try Self.runDozeFuzz("withfix", 1...700, .withFixes, okP: 0.85, killP: 0.4, battery: true)
         #expect(st.violations.isEmpty, "violations \(st.violations) first \(st.firstViolation)")
     }
 
-    @Test("T131 Doze fuzz (= T121): no fix in Doze with battery, FallbackScheduled failures, kills/restores (seeds 701–1400)")
+    @Test("U111 d Doze fuzz (= T121): no fix in Doze with battery, FallbackScheduled failures, kills/restores (seeds 701–1400)")
     func dozeNoFixMixed() throws {
         let st = try Self.runDozeFuzz("nofix-mixed", 701...1400, .noFix, okP: 0.85, killP: 0.4, battery: true)
         #expect(st.violations.isEmpty, "violations \(st.violations) first \(st.firstViolation)")
     }
 
-    /// Designer note #3 of the T12.1 report (now T10.5): the OS fallback rings early when a fix arrives inside the 30 s quiet window
-    /// before it and moves predicted far later. Pinned with the Kotlin numbers (seed 26, DOZE_WITH_FIXES), not fixed.
-    @Test("T131 seed 26 (= T121 note #3, pinned): fix 29 s before F inside the quiet window → OS fallback rings first at 11 698.544 s, engine P 13 685.193 s")
+    /// Designer note #3 of the T12.1 report, fixed by T10.5 (urgent later shift, §4.10): before T10.5 the fix 29 s before F inside
+    /// the quiet window (seed 26, DOZE_WITH_FIXES) left the OS fallback to ring first at 11 698.544 s while the engine predicted
+    /// 13 685.193 s. Flipped: the fallback is moved later at that fix, so the first alarm no longer comes from the fallback.
+    @Test("T131 seed 26 (= T121 note #3, flipped by T10.5): the fix 29 s before F moves the fallback later; first alarm not from the fallback")
     func seed26EarlyFallback() throws {
         let st = FuzzStats()
         try Self.dozeTrip(26, .withFixes, okP: 0.85, killP: 0.4, battery: true, st)
         #expect(st.violations.isEmpty, "\(st.violations)")
-        #expect(st.firstBy == ["fallback (new info after planning) FALLBACK": 1], "\(st.firstBy)")
-        #expect(st.fbAfterInfo == ["seed=26 DOZE_WITH_FIXES mode=DISTANCE thr=7427/null d0=321636 F=11698.544 emitted=11069.544 "
-                                   + "lastInfo=fix@11669.544 engineP=13685.193 engineWake=11758.256 gps=OK"], "\(st.fbAfterInfo)")
+        #expect(st.firstBy.keys.allSatisfy { !$0.hasPrefix("fallback") }, "\(st.firstBy)")
+        #expect(st.fbAfterInfo.isEmpty, "\(st.fbAfterInfo)")
+        #expect(st.urgentShifts >= 1, "urgent later shifts \(st.urgentShifts)")
     }
 
     @Test("T131 kd = Kotlin Double.toString on the shapes used in the t121 files")

@@ -63,13 +63,22 @@ struct FallbackPlannerTests {
         FallbackState(targetAtMs: target, emittedAtMs: emitted, status: status, confirmedAtMs: nil, resync: false, near: near)
     }
 
-    @Test("U41 fb = now + 25 s: any new target (± 120 s, far or near) → null (30 s quiet)")
+    @Test("U41 fb = now + 25 s: quiet window blocks any change except the T10.5 urgent later shift (+120 s with predicted > now + 30 s)")
     func u41() {
         let now: Int64 = 10_000_000, p = EngineParams.defaults
-        for pred in [now + 2_000_000, now + 300_000, now + 20_000] {
+        let f = now + 25_000
+        let fb = Self.fb(f, emitted: now - 100_000)
+        for pred in [now + 2_000_000, now + 300_000] {
+            #expect(FallbackPlanner.nextFallbackAt(fb, target: f - 120_000, predicted: pred, now: now, p) == nil, "earlier, pred \(pred - now)")
+            // T10.5 (§4.10, U108 a): later by >= fallbackMinShiftS while predicted − now > 30 s and F − now >= 10 s is the urgent
+            // later shift (before T10.5: null).
+            #expect(FallbackPlanner.nextFallbackAt(fb, target: f + 120_000, predicted: pred, now: now, p) == f + 120_000,
+                    "later, pred \(pred - now)")
+        }
+        // K1: the engine itself is about to ring (predicted − now <= 30 s): any change stays blocked.
+        for pred in [now + 30_000, now + 20_000] {
             for delta: Int64 in [-120_000, 120_000] {
-                #expect(FallbackPlanner.nextFallbackAt(Self.fb(now + 25_000, emitted: now - 100_000), target: now + 25_000 + delta,
-                                                       predicted: pred, now: now, p) == nil)
+                #expect(FallbackPlanner.nextFallbackAt(fb, target: f + delta, predicted: pred, now: now, p) == nil)
             }
         }
     }

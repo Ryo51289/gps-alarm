@@ -21,6 +21,7 @@ enum SnapshotCodec {
         o.append(("dSmooth", optDouble(s.dSmooth)))
         o.append(("dStartM", optDouble(s.dStartM)))
         o.append(("minD", optDouble(s.minD)))
+        o.append(("minDChord", .bool(s.minDChord)))
         o.append(("last3", .array(s.last3.map(double))))
         o.append(("ground", optDouble(s.ground)))
         o.append(("closing", optDouble(s.closing)))
@@ -136,6 +137,7 @@ enum SnapshotCodec {
             recent: try r.array("recent").map { v throws(SnapshotError) in try decodeFix(try Reader.wrap(v, "recent")) },
             rejects: try r.array("rejects").map { v throws(SnapshotError) in try decodeFix(try Reader.wrap(v, "rejects")) },
             dSmooth: try r.optDouble("dSmooth"), dStartM: try r.optDouble("dStartM"), minD: try r.optDouble("minD"),
+            minDChord: try r.boolOrFalse("minDChord"),
             last3: try r.doubleArray("last3"),
             ground: try r.optDouble("ground"), closing: try r.optDouble("closing"),
             movingTimeS: try r.double("movingTimeS"), movingSamples: try r.int("movingSamples"),
@@ -252,6 +254,11 @@ enum SnapshotCodec {
         func bool(_ k: String) throws(SnapshotError) -> Bool {
             guard let v = try raw(k).boolValue else { throw bad(k) }
             return v
+        }
+        /// T10.5 round 3e, named exception to C20: a missing key reads as false; a present key (even `null`) must be a bool.
+        func boolOrFalse(_ k: String) throws(SnapshotError) -> Bool {
+            if obj[k] == nil { return false }
+            return try bool(k)
         }
         func string(_ k: String) throws(SnapshotError) -> String {
             guard let v = try raw(k).stringValue else { throw bad(k) }

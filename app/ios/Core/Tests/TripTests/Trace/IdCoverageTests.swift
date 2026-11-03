@@ -47,11 +47,11 @@ struct IdCoverageTests {
         #expect(Self.declaredIds("@Test(\"U10 EMA\")") == ["U10"])
     }
 
-    @Test("IdCoverage: U01–U105 and S01–S16 have a test whose name starts with the ID")
+    @Test("IdCoverage: U01–U118 and S01–S16 have a test whose name starts with the ID")
     func unitIds() throws {
         let declared = Self.declaredIds(try Self.testSources())
         var missing: [String] = []
-        for i in 1...105 {
+        for i in 1...118 {
             let id = String(format: "U%02d", i)
             if !declared.contains(id) { missing.append(id) }
         }
