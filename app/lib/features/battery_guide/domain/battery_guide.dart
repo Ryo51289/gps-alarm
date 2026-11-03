@@ -7,6 +7,7 @@ import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:napstop/core/bridge/core_api.g.dart';
+import 'package:napstop/core/telemetry/analytics/analytics_event.dart';
 
 /// Which settings page a step's "Mở Cài đặt của máy" opens.
 enum GuideSettings {
@@ -269,8 +270,6 @@ List<String> guideChips(BatteryGuideCatalog catalog, BatteryGuide detected) => [
   kGenericGuideId,
 ];
 
-/// T29 `battery_guide_test.oem`: xiaomi | samsung | oppo | vivo | other.
-String oemTelemetryId(String guideId) => switch (guideId) {
-  'xiaomi' || 'samsung' || 'oppo' || 'vivo' => guideId,
-  _ => 'other',
-};
+/// T29 `battery_guide_test.oem`: the guide brands (T21 Q1 = A: xiaomi,
+/// samsung, oppo, vivo, realme, oneplus, huawei, honor), else other.
+String oemTelemetryId(String guideId) => OemTag.fromGuideId(guideId).wire;

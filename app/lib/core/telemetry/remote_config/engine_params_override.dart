@@ -89,7 +89,7 @@ abstract interface class EngineParamsReader {
   EngineParamsOverride current();
 }
 
-/// Before T29: always the engine defaults.
+/// Always the engine defaults (tests, or a build without Remote Config).
 final class DefaultEngineParamsReader implements EngineParamsReader {
   const new();
 

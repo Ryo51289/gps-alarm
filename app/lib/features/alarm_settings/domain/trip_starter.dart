@@ -135,8 +135,8 @@ final class TripStartFacts {
       '$shortDistanceWarning, $batteryPct, $charging, $simulated, $paramsId)';
 }
 
-/// Telemetry of the start flow. T29 writes the Analytics/Crashlytics
-/// adapter; until then a no-op.
+/// Telemetry of the start flow; the app uses `TelemetryTripStartReporter`
+/// (T29). Must never throw outside debug.
 abstract interface class TripStartReporter {
   void started(TripStartFacts facts);
 
@@ -200,7 +200,8 @@ final class TripStarter {
   ///    trip (the alarm matters more than the history);
   /// 6. `startTrip`; errors map to [StartBlocked] / [StartFailed]. No answer
   ///    within [kStartTripTimeout] → [StartError.timeout]; the history row
-  ///    stays until the late answer (success keeps it, failure removes it).
+  ///    stays until the late answer (success keeps it and reports
+  ///    `started`, failure removes it).
   ///
   /// A start while a timed-out `startTrip` is still pending waits for it (up
   /// to the timeout again) before step 3, so a late success is seen by
@@ -276,6 +277,19 @@ final class TripStarter {
       device = null;
     }
 
+    final facts = TripStartFacts(
+      mode: config.mode,
+      distanceThresholdM: config.distanceThresholdM,
+      timeThresholdMin: config.timeThresholdMin,
+      vehicleHint: config.vehicleHint,
+      destSource: r.draft.source,
+      preAlert: config.preAlertEnabled,
+      shortDistanceWarning: r.shortDistanceWarning,
+      batteryPct: device?.batteryPct,
+      charging: device?.charging ?? false,
+      simulated: simulated,
+      paramsId: r.engineParams.id,
+    );
     final wrote = await _insertHistory(r, config, simulated: simulated);
     final call = _bridge.startTrip(
       config,
@@ -286,7 +300,7 @@ final class TripStarter {
     try {
       await call.timeout(_startTimeout);
     } on TimeoutException {
-      _trackLate(call, tripId, wrote: wrote);
+      _trackLate(call, tripId, facts, wrote: wrote);
       _reporter.blocked(TripStartBlockReason.startFailed, simulated: simulated);
       return const StartFailed(StartError.timeout);
     } on Object catch (error) {
@@ -307,30 +321,29 @@ final class TripStarter {
       );
     }
 
-    _reporter.started(
-      TripStartFacts(
-        mode: config.mode,
-        distanceThresholdM: config.distanceThresholdM,
-        timeThresholdMin: config.timeThresholdMin,
-        vehicleHint: config.vehicleHint,
-        destSource: r.draft.source,
-        preAlert: config.preAlertEnabled,
-        shortDistanceWarning: r.shortDistanceWarning,
-        batteryPct: device?.batteryPct,
-        charging: device?.charging ?? false,
-        simulated: simulated,
-        paramsId: r.engineParams.id,
-      ),
-    );
+    _reporter.started(facts);
     return StartSucceeded(tripId);
   }
 
   /// Keeps the timed-out [call] as [_pendingStart] until it answers (the
   /// tracked future never fails): a late failure removes the history row, a
-  /// late success keeps it.
-  void _trackLate(Future<void> call, String tripId, {required bool wrote}) {
+  /// late success keeps it and reports [facts] as started (T25 review R2-1:
+  /// a trip that runs is counted as a start, after the timeout's
+  /// `blocked(startFailed)`).
+  void _trackLate(
+    Future<void> call,
+    String tripId,
+    TripStartFacts facts, {
+    required bool wrote,
+  }) {
     final pending = call.then<void>(
-      (_) {},
+      (_) {
+        try {
+          _reporter.started(facts);
+        } on Object {
+          // The tracked future must not fail (a retry awaits it).
+        }
+      },
       onError: (Object _) async {
         if (wrote) {
           await _deleteHistory(tripId);

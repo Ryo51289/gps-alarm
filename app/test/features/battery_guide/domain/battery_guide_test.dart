@@ -196,12 +196,25 @@ void main() {
     ]);
   });
 
-  test('U21 oemTelemetryId keeps the PRD four, the rest is other', () {
-    for (final id in ['xiaomi', 'samsung', 'oppo', 'vivo']) {
-      expect(oemTelemetryId(id), id);
-    }
-    for (final id in ['realme', 'oneplus', 'huawei', 'honor', 'generic']) {
-      expect(oemTelemetryId(id), 'other');
-    }
-  });
+  // T29 (T21 proposal 4, Q1 = A): the four draft brands have their own tag.
+  test(
+    'U21 oemTelemetryId keeps the eight guide brands, the rest is other',
+    () {
+      for (final id in [
+        'xiaomi',
+        'samsung',
+        'oppo',
+        'vivo',
+        'realme',
+        'oneplus',
+        'huawei',
+        'honor',
+      ]) {
+        expect(oemTelemetryId(id), id);
+      }
+      for (final id in ['generic', 'other', 'Xiaomi', 'nokia', '']) {
+        expect(oemTelemetryId(id), 'other');
+      }
+    },
+  );
 }

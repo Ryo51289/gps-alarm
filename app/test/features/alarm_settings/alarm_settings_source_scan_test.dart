@@ -26,7 +26,10 @@ void main() {
       'lib/features/alarm_settings',
       'lib/core/preferences',
       'lib/core/storage',
-      'lib/core/telemetry',
+      // T29: only the part screen 3 uses. The rest of lib/core/telemetry is
+      // the telemetry API itself (`CrashSink.log`, `AppAnalytics.log`) and
+      // has its own scan (test/core/telemetry/source_scan_test.dart).
+      'lib/core/telemetry/remote_config',
       'lib/core/text',
     ])
       ..._dartFiles(d),
@@ -46,7 +49,9 @@ void main() {
     final forbidden = <String, RegExp>{
       'print(': RegExp(r'\bprint\('),
       'debugPrint(': RegExp(r'\bdebugPrint\('),
-      'log(': RegExp(r'\blog\('),
+      // T29: `analytics.log(event)` sends a typed, guarded Analytics event
+      // (no value of the config or the draft); it is not logging.
+      'log(': RegExp(r'(?<!analytics\.)\blog\('),
       'Logger(': RegExp(r'\bLogger\('),
       'developer.log': RegExp(r'developer\.log'),
       'dart:developer': RegExp('dart:developer'),

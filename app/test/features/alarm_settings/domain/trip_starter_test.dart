@@ -370,6 +370,34 @@ void main() {
       expect(s.reporter.startedFacts, isEmpty);
     });
 
+    test('T29 (review R2-1): a late success is reported as started', () async {
+      final s = hung();
+      await s.start(warning: true);
+      expect(s.reporter.startedFacts, isEmpty);
+      s.bridge.startTripGate!.complete();
+      await settle();
+      final facts = s.reporter.startedFacts.single;
+      expect(facts.shortDistanceWarning, isTrue);
+      expect(facts.paramsId, 'default');
+      // The timeout itself was counted once, as before.
+      expect(s.reporter.blockedEvents, [
+        (TripStartBlockReason.startFailed, false),
+      ]);
+    });
+
+    test('T29: a late failure reports no start', () async {
+      final s = hung();
+      await s.start();
+      s.bridge
+        ..startTripError = const BridgeException(
+          BridgeErrorCode.internal,
+          rawCode: 'internal',
+        )
+        ..startTripGate!.complete();
+      await settle();
+      expect(s.reporter.startedFacts, isEmpty);
+    });
+
     test('late failure removes the row', () async {
       final s = hung();
       await s.start();
