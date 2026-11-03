@@ -80,9 +80,11 @@ class _GatedBridge extends FakeCoreBridge {
 
 void main() {
   group('one-tap restart (TASKS T22, D7)', () {
+    // T25: screen 3 replaced the T22 placeholder; the prefilled threshold
+    // shows as its big value.
     for (final (locale, subtitle, summary) in [
-      ('vi', 'Tàu · Báo trước 1,5 km', 'Báo trước 1,5 km'),
-      ('en', 'Train · Alert 1.5 km before', 'Alert 1.5 km before'),
+      ('vi', 'Tàu · Báo trước 1,5 km', '1,5 km'),
+      ('en', 'Train · Alert 1.5 km before', '1.5 km'),
     ]) {
       testWidgets('distance 1500 m, pre-alert off ($locale)', (tester) async {
         final h = await pumpAppHarness(
@@ -130,7 +132,8 @@ void main() {
       expect(draft.alarm, _smart);
       expect(draft.vehicleHint, VehicleKindMsg.coach);
       expect(draft.source, DestinationSource.recentTrip);
-      expect(find.text('Báo thông minh'), findsOneWidget);
+      // T25: the smart panel of screen 3 (was the placeholder summary).
+      expect(find.text('App tự chọn lúc báo'), findsOneWidget);
     });
 
     testWidgets('restart, Back, restart again: same draft both times', (

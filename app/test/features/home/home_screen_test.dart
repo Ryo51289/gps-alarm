@@ -122,7 +122,8 @@ void main() {
     );
     expect(find.text('Cài đặt báo thức'), findsOneWidget);
     expect(find.text('Ga Đồng Hới'), findsOneWidget);
-    expect(find.text('Báo trước 15 phút'), findsOneWidget);
+    // T25: screen 3 shows the prefilled time threshold as its big value.
+    expect(find.text('15 phút'), findsOneWidget);
     // PRD §4: tracking only starts when the user presses the start button.
     expect(h.bridge.callCount('startTrip'), 0);
   });

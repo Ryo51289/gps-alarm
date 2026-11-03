@@ -178,6 +178,12 @@ class FakeCoreBridge implements CoreBridge {
   Object? startTripError;
 
   final List<String> calls = [];
+
+  /// Arguments of every [startTrip] call, in order (T25).
+  final List<StartTripCall> startTripCalls = [];
+
+  /// When set, [startTrip] waits for it before answering (T25 W13).
+  Completer<void>? startTripGate;
   final StreamController<TripUpdateMsg> _updates =
       StreamController<TripUpdateMsg>.broadcast();
 
@@ -212,7 +218,23 @@ class FakeCoreBridge implements CoreBridge {
     required double destLat,
     required double destLng,
     SimulationMsg? simulation,
-  }) => _answer('startTrip', startTripError, () {});
+  }) {
+    startTripCalls.add((
+      config: config,
+      destLat: destLat,
+      destLng: destLng,
+      simulation: simulation,
+    ));
+    final gate = startTripGate;
+    if (gate == null) {
+      return _answer('startTrip', startTripError, () {});
+    }
+    calls.add('startTrip');
+    return gate.future.then((_) {
+      final error = startTripError;
+      return error == null ? null : Future<void>.error(error);
+    });
+  }
 
   @override
   Future<void> stopTrip(String tripId) => _answer('stopTrip', null, () {});
@@ -297,6 +319,14 @@ class FakeCoreBridge implements CoreBridge {
   @override
   Future<void> stopPreview() => _answer('stopPreview', null, () {});
 }
+
+/// One [FakeCoreBridge.startTrip] call.
+typedef StartTripCall = ({
+  TripConfigMsg config,
+  double destLat,
+  double destLng,
+  SimulationMsg? simulation,
+});
 
 /// The error a failing Pigeon channel produces (T14 §4).
 BridgeException channelError() => const BridgeException(

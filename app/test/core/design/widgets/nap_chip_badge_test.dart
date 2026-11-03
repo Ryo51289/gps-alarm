@@ -98,6 +98,33 @@ void main() {
     expect(tester.getSize(find.byType(NapChip)).height, 48);
   });
 
+  testWidgets('T25 §5 semanticLabel replaces the visible label', (
+    tester,
+  ) async {
+    await pumpNap(
+      tester,
+      Center(
+        child: NapChip(
+          label: '15',
+          semanticLabel: '15 phút',
+          selected: true,
+          onTap: () {},
+        ),
+      ),
+    );
+    expect(find.text('15'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byType(NapChip)),
+      isSemantics(
+        label: '15 phút',
+        isButton: true,
+        hasSelectedState: true,
+        isSelected: true,
+        isEnabled: true,
+      ),
+    );
+  });
+
   testWidgets('TC19 disabled chip is not enabled', (tester) async {
     await pumpNap(
       tester,

@@ -17,6 +17,7 @@ final class NapChip extends StatelessWidget {
     required this.onTap,
     this.style = NapChipStyle.choice,
     this.compact = false,
+    this.semanticLabel,
     super.key,
   });
 
@@ -29,6 +30,10 @@ final class NapChip extends StatelessWidget {
 
   /// 40 px visible height instead of 44.
   final bool compact;
+
+  /// Read by screen readers instead of [label], e.g. "15 min" for a chip
+  /// that only shows "15". Null: [label].
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -77,18 +82,21 @@ final class NapChip extends StatelessWidget {
       visualDensity: VisualDensity.standard,
       animationDuration: NapMotion.of(context, NapMotion.fast),
     );
+    final semanticLabel = this.semanticLabel;
+    final Widget text = Text(
+      label,
+      maxLines: 2,
+      textAlign: TextAlign.center,
+      overflow: TextOverflow.ellipsis,
+    );
     return MergeSemantics(
       child: Semantics(
         selected: selected,
+        label: semanticLabel,
         child: OutlinedButton(
           onPressed: onTap,
           style: buttonStyle,
-          child: Text(
-            label,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-            overflow: TextOverflow.ellipsis,
-          ),
+          child: semanticLabel == null ? text : ExcludeSemantics(child: text),
         ),
       ),
     );

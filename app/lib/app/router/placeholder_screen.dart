@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/core/design/design.dart';
-import 'package:napstop/core/trip/domain/trip_draft.dart';
-import 'package:napstop/features/home/presentation/home_format.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Stand-in for a screen that a later task builds (T22 §3.3). Each task
@@ -45,35 +43,6 @@ class PlaceholderScreen extends StatelessWidget {
             if (body != null) ...[const SizedBox(height: NapSpace.s16), body!],
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Screen 3 placeholder: shows the received draft so that "restart in one
-/// tap" can be tested end to end before T25. T25 replaces it.
-class AlarmSettingsPlaceholder extends StatelessWidget {
-  const new({required this.draft, super.key});
-
-  final TripDraft draft;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    final alarm = draft.alarm;
-    return PlaceholderScreen(
-      title: l.appScreenAlarmSettingsTitle,
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: NapSpace.s4,
-        children: [
-          Text(draft.destination.name, style: context.napText.titleMedium),
-          if (alarm != null)
-            Text(
-              alarmSummary(alarm, l, Localizations.localeOf(context)),
-              style: context.napText.bodyMedium,
-            ),
-        ],
       ),
     );
   }

@@ -592,5 +592,318 @@
         "type": "String"
       }
     }
+  },
+  "commonMinutes": "{minutes} phút",
+  "@commonMinutes": {
+    "description": "Duration in whole minutes, short form.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "commonSeconds": "{seconds} giây",
+  "@commonSeconds": {
+    "description": "Duration in whole seconds, short form.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsChangeDestination": "Đổi",
+  "@alarmSettingsChangeDestination": {
+    "description": "Screen 3: link button on the destination card that goes back to choose another destination."
+  },
+  "alarmSettingsChangeDestinationLabel": "Đổi điểm đến",
+  "@alarmSettingsChangeDestinationLabel": {
+    "description": "Screen 3: screen reader label of the \"Đổi\" button."
+  },
+  "alarmSettingsModeHeader": "Báo khi",
+  "@alarmSettingsModeHeader": {
+    "description": "Screen 3: section header and screen reader group label of the alarm mode control."
+  },
+  "alarmSettingsModeDistance": "Khoảng cách",
+  "@alarmSettingsModeDistance": {
+    "description": "Screen 3: alarm mode option, ring at a distance before the destination."
+  },
+  "alarmSettingsModeTime": "Thời gian",
+  "@alarmSettingsModeTime": {
+    "description": "Screen 3: alarm mode option, ring some minutes before arrival."
+  },
+  "alarmSettingsModeSmart": "Thông minh",
+  "@alarmSettingsModeSmart": {
+    "description": "Screen 3: alarm mode option, the app picks the moment (about 10 minutes)."
+  },
+  "alarmSettingsDistanceLeading": "Còn cách",
+  "@alarmSettingsDistanceLeading": {
+    "description": "Screen 3 distance mode: small text before the big distance value."
+  },
+  "alarmSettingsDistanceSliderLabel": "Khoảng cách báo",
+  "@alarmSettingsDistanceSliderLabel": {
+    "description": "Screen 3 distance mode: screen reader label of the distance slider."
+  },
+  "alarmSettingsTimeLeading": "Trước",
+  "@alarmSettingsTimeLeading": {
+    "description": "Screen 3 time mode: small text before the big minutes value."
+  },
+  "alarmSettingsTimeHint": "Tính theo tốc độ thực tế của xe. Tàu dừng lâu ở ga thì giờ báo tự lùi lại.",
+  "@alarmSettingsTimeHint": {
+    "description": "Screen 3 time mode: explanation under the minute chips."
+  },
+  "alarmSettingsSmartTitle": "App tự chọn lúc báo",
+  "@alarmSettingsSmartTitle": {
+    "description": "Screen 3 smart mode: title of the panel."
+  },
+  "alarmSettingsSmartBody": "Đảm bảo bạn có khoảng {minutes} phút để tỉnh ngủ và soạn đồ, dù xe chạy nhanh hay chậm.",
+  "@alarmSettingsSmartBody": {
+    "description": "Screen 3 smart mode: body of the panel. minutes = engine smart target.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsShortDistanceWarning": "{vehicle, select, train{Tàu} coach{Xe khách} bus{Xe buýt} other{Xe}} chạy khoảng {speed} km/h: báo ở {distance} chỉ còn khoảng {lead} để xuống. Nên chọn Thời gian hoặc Thông minh.",
+  "@alarmSettingsShortDistanceWarning": {
+    "description": "Screen 3 distance mode: warning when the alarm distance leaves less than 4 minutes at the expected speed. vehicle is train, coach, bus or unknown; distance is formatted (e.g. 1 km); lead is a duration (e.g. 1 phút).",
+    "placeholders": {
+      "vehicle": {
+        "type": "String"
+      },
+      "speed": {
+        "type": "int"
+      },
+      "distance": {
+        "type": "String"
+      },
+      "lead": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmSettingsPreAlertTitle": "Nhắc nhẹ trước 1 lần",
+  "@alarmSettingsPreAlertTitle": {
+    "description": "Screen 3: title of the pre-alert switch."
+  },
+  "alarmSettingsPreAlertMinutes": "Rung khẽ khi còn {minutes} phút, rồi mới báo chính",
+  "@alarmSettingsPreAlertMinutes": {
+    "description": "Screen 3: pre-alert subtitle for the time and smart modes.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsPreAlertDistance": "Rung khẽ khi còn {distance}, rồi mới báo chính",
+  "@alarmSettingsPreAlertDistance": {
+    "description": "Screen 3: pre-alert subtitle for the distance mode; distance is formatted (e.g. 5 km).",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmSettingsPreAlertSkipped": "Báo trước {minutes} phút đã đủ sớm, không nhắc thêm",
+  "@alarmSettingsPreAlertSkipped": {
+    "description": "Screen 3: pre-alert subtitle when the time threshold is too close to the pre-alert time.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsStyleHeader": "Kiểu báo",
+  "@alarmSettingsStyleHeader": {
+    "description": "Screen 3: section header of the alarm style cards."
+  },
+  "alarmSettingsStyleRing": "Chuông + rung",
+  "@alarmSettingsStyleRing": {
+    "description": "Screen 3: alarm style card, sound and vibration."
+  },
+  "alarmSettingsStyleVibrate": "Chỉ rung",
+  "@alarmSettingsStyleVibrate": {
+    "description": "Screen 3: alarm style card, vibration only."
+  },
+  "alarmSettingsStyleHeadphones": "Chỉ tai nghe",
+  "@alarmSettingsStyleHeadphones": {
+    "description": "Screen 3: alarm style card, sound in headphones only."
+  },
+  "alarmSettingsStyleRingHint": "Kêu to cả khi máy để im lặng, âm lượng tăng dần.",
+  "@alarmSettingsStyleRingHint": {
+    "description": "Screen 3: hint of the sound + vibrate style when the volume ramps up."
+  },
+  "alarmSettingsStyleRingHintNoRamp": "Kêu to cả khi máy để im lặng.",
+  "@alarmSettingsStyleRingHintNoRamp": {
+    "description": "Screen 3: hint of the sound + vibrate style without ramp-up."
+  },
+  "alarmSettingsStyleRingHintNoSilent": "Kêu theo âm lượng thông báo. Khi máy để Im lặng có thể không kêu.",
+  "@alarmSettingsStyleRingHintNoSilent": {
+    "description": "Screen 3 (iOS without AlarmKit): hint of the sound + vibrate style."
+  },
+  "alarmSettingsStyleVibrateHint": "Rung mạnh liên tục. Hợp khi để máy trong túi áo.",
+  "@alarmSettingsStyleVibrateHint": {
+    "description": "Screen 3: hint of the vibrate only style."
+  },
+  "alarmSettingsStyleHeadphonesHint": "Chỉ phát trong tai nghe, không làm phiền người nằm cạnh. Rút tai nghe ra thì tự chuyển sang rung.",
+  "@alarmSettingsStyleHeadphonesHint": {
+    "description": "Screen 3: hint of the headphones only style."
+  },
+  "alarmSettingsDismissHeader": "Cách tắt báo",
+  "@alarmSettingsDismissHeader": {
+    "description": "Screen 3: section header of the dismiss method chips."
+  },
+  "alarmSettingsDismissSwipe": "Vuốt hết thanh",
+  "@alarmSettingsDismissSwipe": {
+    "description": "Screen 3: dismiss method chip, swipe a slider to the end."
+  },
+  "alarmSettingsDismissShake": "Lắc máy",
+  "@alarmSettingsDismissShake": {
+    "description": "Screen 3: dismiss method chip, shake the phone."
+  },
+  "alarmSettingsDismissMath": "Giải phép tính",
+  "@alarmSettingsDismissMath": {
+    "description": "Screen 3: dismiss method chip, solve a simple sum."
+  },
+  "alarmSettingsSnoozeNote": "Báo lại tối đa {count} lần, sau {interval}",
+  "@alarmSettingsSnoozeNote": {
+    "description": "Screen 3: line under the dismiss chips. interval is a duration (e.g. 1 phút).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "interval": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmSettingsSnoozeNone": "Không có báo lại",
+  "@alarmSettingsSnoozeNone": {
+    "description": "Screen 3: line under the dismiss chips when snooze is off."
+  },
+  "alarmSettingsSummaryPrefix": "Sẽ báo khi",
+  "@alarmSettingsSummaryPrefix": {
+    "description": "Screen 3: start of the summary line above the start button (the value follows in bold)."
+  },
+  "alarmSettingsSummaryDistance": "còn {distance}",
+  "@alarmSettingsSummaryDistance": {
+    "description": "Screen 3 summary value, distance mode; distance is formatted.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmSettingsSummaryTime": "còn {minutes} phút",
+  "@alarmSettingsSummaryTime": {
+    "description": "Screen 3 summary value, time mode.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsSummarySmart": "còn khoảng {minutes} phút (tự tính)",
+  "@alarmSettingsSummarySmart": {
+    "description": "Screen 3 summary value, smart mode.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsStart": "Bắt đầu theo dõi",
+  "@alarmSettingsStart": {
+    "description": "Screen 3: main button that starts tracking the trip."
+  },
+  "alarmSettingsStarting": "Đang bắt đầu…",
+  "@alarmSettingsStarting": {
+    "description": "Screen 3: main button label while the trip is starting."
+  },
+  "alarmSettingsBatteryLowTitle": "Pin còn {percent}%",
+  "@alarmSettingsBatteryLowTitle": {
+    "description": "Screen 3: title of the low battery warning.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsBatteryLowBody": "Máy có thể tắt trước khi tới nơi. Hãy cắm sạc trước khi ngủ.",
+  "@alarmSettingsBatteryLowBody": {
+    "description": "Screen 3: body of the low battery warning."
+  },
+  "alarmSettingsAlarmMutedTitle": "Báo thức có thể không kêu",
+  "@alarmSettingsAlarmMutedTitle": {
+    "description": "Screen 3: title of the warning shown when the alarm volume is muted or Do Not Disturb blocks alarms."
+  },
+  "alarmSettingsAlarmMutedBody": "Âm báo thức đang tắt hoặc chế độ Không làm phiền đang chặn. Hãy bật lại trước khi ngủ.",
+  "@alarmSettingsAlarmMutedBody": {
+    "description": "Screen 3: body of the muted alarm warning."
+  },
+  "alarmSettingsSimulationBanner": "Chuyến giả lập · tốc độ {speed}×",
+  "@alarmSettingsSimulationBanner": {
+    "description": "Screen 3: banner of a simulated (demo) trip; speed is the speed-up factor.",
+    "placeholders": {
+      "speed": {
+        "type": "int"
+      }
+    }
+  },
+  "alarmSettingsBlockedTitle": "Chưa thể bắt đầu theo dõi",
+  "@alarmSettingsBlockedTitle": {
+    "description": "Screen 3: title of the sheet listing missing permissions."
+  },
+  "alarmSettingsBlockedSubtitle": "NapStop cần thêm:",
+  "@alarmSettingsBlockedSubtitle": {
+    "description": "Screen 3: subtitle of the missing permissions sheet."
+  },
+  "alarmSettingsBlockedLocation": "Cho phép dùng vị trí khi dùng ứng dụng",
+  "@alarmSettingsBlockedLocation": {
+    "description": "Screen 3 missing permissions sheet: location permission."
+  },
+  "alarmSettingsBlockedPrecise": "Bật vị trí chính xác",
+  "@alarmSettingsBlockedPrecise": {
+    "description": "Screen 3 missing permissions sheet: precise location."
+  },
+  "alarmSettingsBlockedServices": "Bật định vị của máy",
+  "@alarmSettingsBlockedServices": {
+    "description": "Screen 3 missing permissions sheet: device location services."
+  },
+  "alarmSettingsBlockedAlarmChannel": "Cho phép báo thức hoặc thông báo",
+  "@alarmSettingsBlockedAlarmChannel": {
+    "description": "Screen 3 missing permissions sheet (iOS): AlarmKit or notifications."
+  },
+  "alarmSettingsBlockedAction": "Cấp quyền",
+  "@alarmSettingsBlockedAction": {
+    "description": "Screen 3 missing permissions sheet: button that opens the permissions screen."
+  },
+  "alarmSettingsErrorTripActive": "Đang có một chuyến được theo dõi.",
+  "@alarmSettingsErrorTripActive": {
+    "description": "Screen 3 error banner: another trip is running."
+  },
+  "alarmSettingsViewActiveTrip": "Xem chuyến",
+  "@alarmSettingsViewActiveTrip": {
+    "description": "Screen 3 error banner action: open the running trip."
+  },
+  "alarmSettingsErrorNotForeground": "Hãy mở NapStop trên màn hình rồi bấm lại.",
+  "@alarmSettingsErrorNotForeground": {
+    "description": "Screen 3 error banner: the app was not in the foreground when starting."
+  },
+  "alarmSettingsErrorSimulation": "Không mở được chuyến giả lập.",
+  "@alarmSettingsErrorSimulation": {
+    "description": "Screen 3 error banner: the simulated trip could not start."
+  },
+  "alarmSettingsErrorInvalidDestination": "Điểm đến không hợp lệ. Hãy chọn lại.",
+  "@alarmSettingsErrorInvalidDestination": {
+    "description": "Screen 3 error banner: the destination is invalid."
+  },
+  "alarmSettingsErrorGeneric": "Chưa bắt đầu được theo dõi. Thử lại sau giây lát.",
+  "@alarmSettingsErrorGeneric": {
+    "description": "Screen 3 error banner: any other start error."
+  },
+  "alarmSettingsErrorTimeout": "Việc bắt đầu theo dõi lâu hơn bình thường. Bấm Thử lại để kiểm tra.",
+  "@alarmSettingsErrorTimeout": {
+    "description": "Screen 3 error banner: startTrip did not answer in time; the trip may still have started. Retry checks first."
   }
 }

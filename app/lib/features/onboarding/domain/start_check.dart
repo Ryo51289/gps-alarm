@@ -104,3 +104,26 @@ StartCheck checkStart(PermissionStatusMsg s, DeviceInfoMsg device) {
 /// Shortcut for `checkStart(s, device).canStart`.
 bool canStart(PermissionStatusMsg s, DeviceInfoMsg device) =>
     checkStart(s, device).canStart;
+
+/// The requirements named in the details of a `permission-missing` error
+/// (T14 §4: a list of [StartRequirement] names). Null when [details] is not
+/// such a list, is empty or holds an unknown name.
+List<StartRequirement>? requirementsFromDetails(Object? details) {
+  if (details is! List || details.isEmpty) {
+    return null;
+  }
+  final out = <StartRequirement>[];
+  for (final item in details) {
+    StartRequirement? match;
+    for (final r in StartRequirement.values) {
+      if (r.name == item) {
+        match = r;
+      }
+    }
+    if (match == null) {
+      return null;
+    }
+    out.add(match);
+  }
+  return List.unmodifiable(out);
+}

@@ -28,7 +28,8 @@ abstract final class AppRoutes {
   /// Screen 2 as a picker.
   static const String destinationPick = '/destination?mode=pick';
 
-  /// Screen 3 (T25); `extra` must be a [TripDraft].
+  /// Screen 3 (T25); `extra` must be a [TripDraft] or an
+  /// `AlarmSettingsArgs` (preset, simulation).
   static const String alarmSettings = '/alarm-settings';
 
   /// Screen 4, with states 6 and 7 (T26).

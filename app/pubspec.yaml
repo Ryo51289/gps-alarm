@@ -35,6 +35,8 @@ dependencies:
   meta: any
   path: ^1.9.0
   path_provider: ^2.1.6
+  # Trip defaults and alarm preferences (T25 A5; T28 writes them).
+  shared_preferences: ^2.5.6
   # OpenStreetMap copyright page from screen 2 (T23).
   url_launcher: ^6.3.3
 

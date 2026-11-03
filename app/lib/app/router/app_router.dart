@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/app/router/app_shell.dart';
 import 'package:napstop/app/router/placeholder_screen.dart';
-import 'package:napstop/core/trip/domain/trip_draft.dart';
+import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
+import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/destination/presentation/destination_screen.dart';
 import 'package:napstop/features/home/presentation/home_screen.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
@@ -78,10 +79,14 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
       GoRoute(
         path: AppRoutes.alarmSettings,
         parentNavigatorKey: rootNavigatorKey,
-        redirect: (_, state) =>
-            state.extra is TripDraft ? null : AppRoutes.home,
-        builder: (context, state) =>
-            AlarmSettingsPlaceholder(draft: state.extra! as TripDraft),
+        // No usable extra (e.g. a route restored after the process died):
+        // back to screen 1 (T25 §2.2).
+        redirect: (_, state) => AlarmSettingsArgs.fromExtra(state.extra) == null
+            ? AppRoutes.home
+            : null,
+        builder: (context, state) => AlarmSettingsScreen(
+          args: AlarmSettingsArgs.fromExtra(state.extra)!,
+        ),
       ),
       fullScreen(AppRoutes.tracking, (l) => l.appScreenTrackingTitle),
       fullScreen(AppRoutes.alarm, (l) => l.appScreenAlarmTitle),
