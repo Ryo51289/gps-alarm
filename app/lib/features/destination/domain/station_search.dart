@@ -1,4 +1,5 @@
-/// Ranked offline station search (spec T24 §7.3). Pure Dart, no Flutter.
+/// Ranked offline station search (spec T24 §7.3, T23 §4). Pure Dart, no
+/// Flutter.
 ///
 /// Never log queries or results: a destination is location data of the
 /// user (spec §8).
@@ -12,6 +13,13 @@ import 'package:napstop/features/destination/domain/station_query.dart';
 const int kDefaultSearchLimit = 20;
 
 /// Match tiers, best first.
+///
+/// The tier is the kind of string match. The order of results only depends
+/// on the sort group and the score, and a score can be higher than the next
+/// tier up in the T24 table: with a kind hint (T23 §4.2) a qualified match
+/// ("Bến xe Bắc Vinh" for "bến xe vinh") scores 950 under [orderedTokens],
+/// and a query equal to the province name scores 800 under
+/// [provinceAssisted].
 enum StationMatchTier {
   exact,
   prefix,
@@ -46,21 +54,67 @@ final class StationMatch {
 const int _aliasPenalty = 25;
 const int _kindHintBonus = 150;
 
+/// Fuzzy matches with more edits are dropped (T23 §4.2, review T24 #10: the
+/// score would reach 0 or below).
+const int _maxFuzzyErrors = 3;
+
+/// Base score of a station of the hinted kind whose whole province name is
+/// the query (T23 §4.2).
+const int _provinceNameScore = 800;
+
 final class _Key {
-  const new(this.tokens, this.text, {required this.alias});
+  const new(
+    this.tokens,
+    this.text,
+    this.compact,
+    this.qualifiedText,
+    this.qualifiedCompact, {
+    required this.alias,
+  });
 
   final List<String> tokens;
   final String text;
+
+  /// [tokens] joined without spaces ("hanoi").
+  final String compact;
+
+  /// [tokens] after [stripLeadingQualifiers], joined with / without spaces;
+  /// null when no qualifier was removed.
+  final String? qualifiedText;
+  final String? qualifiedCompact;
   final bool alias;
 }
 
 final class _Entry {
-  const new(this.station, this.keys, this.provinceTokens);
+  const new(
+    this.station,
+    this.keys,
+    this.provinceTokens, {
+    required this.nameKeyLength,
+    required this.provinceText,
+    required this.provinceCompact,
+    required this.provinceCoreText,
+    required this.provinceCoreCompact,
+  });
 
   final Station station;
   final List<_Key> keys;
   final List<String> provinceTokens;
+
+  /// Length of the display name key (0 when the name has no tokens).
+  final int nameKeyLength;
+
+  /// Province tokens joined with / without spaces: full, and without a
+  /// leading "tp" / "thanh pho" / "tinh".
+  final String provinceText;
+  final String provinceCompact;
+  final String provinceCoreText;
+  final String provinceCoreCompact;
 }
+
+/// A candidate while searching: the match, the length of its key and its
+/// sort group (0 = strong match of the hinted kind, 1 = everything else).
+typedef _Found = (StationMatch match, int keyLength, int group);
 
 /// In-memory index over the dataset; linear scan with precomputed keys.
 final class StationSearchIndex {
@@ -70,15 +124,40 @@ final class StationSearchIndex {
     final entries = <_Entry>[];
     for (final s in stations) {
       final keys = <_Key>[];
+      var nameKeyLength = 0;
       for (final (i, text) in [s.name, ...s.aliases].indexed) {
         final tokens = stationCoreTokens(text);
-        if (tokens.isNotEmpty) {
-          keys.add(
-            _Key(List.unmodifiable(tokens), tokens.join(' '), alias: i > 0),
-          );
+        if (tokens.isEmpty) {
+          continue;
         }
+        final qualified = stripLeadingQualifiers(tokens);
+        final key = _Key(
+          List.unmodifiable(tokens),
+          tokens.join(' '),
+          tokens.join(),
+          qualified?.join(' '),
+          qualified?.join(),
+          alias: i > 0,
+        );
+        if (i == 0) {
+          nameKeyLength = key.text.length;
+        }
+        keys.add(key);
       }
-      entries.add(_Entry(s, List.unmodifiable(keys), foldTokens(s.province)));
+      final province = foldTokens(s.province);
+      final provinceCore = provinceCoreTokens(s.province);
+      entries.add(
+        _Entry(
+          s,
+          List.unmodifiable(keys),
+          province,
+          nameKeyLength: nameKeyLength,
+          provinceText: province.join(' '),
+          provinceCompact: province.join(),
+          provinceCoreText: provinceCore.join(' '),
+          provinceCoreCompact: provinceCore.join(),
+        ),
+      );
     }
     return StationSearchIndex._(List.unmodifiable(entries));
   }
@@ -91,18 +170,37 @@ final class StationSearchIndex {
   int get length => _entries.length;
 
   /// Ranked matches for [query], at most [limit]. Empty query → `[]`.
-  List<StationMatch> search(String query, {int limit = kDefaultSearchLimit}) {
+  ///
+  /// [kindHint] applies when the query has no kind prefix of its own (the
+  /// filter chips of screen 2); a prefix in the query wins. With a hint,
+  /// strong matches of that kind come before every other result (T23 §4.2).
+  List<StationMatch> search(
+    String query, {
+    int limit = kDefaultSearchLimit,
+    StationKind? kindHint,
+  }) {
     final q = parseStationQuery(query);
     if (q.tokens.isEmpty || limit <= 0) {
       return const [];
     }
+    final hint = q.kindHint ?? kindHint;
     final qs = q.tokens.join(' ');
-    final found = <(StationMatch, int)>[];
+    final qc = q.tokens.join();
+    final found = <_Found>[];
     for (final e in _entries) {
+      final hinted = hint != null && hint == e.station.kind;
+      final qualifiedAllowed = hinted && e.station.kind != StationKind.train;
       StationMatch? best;
       var bestLen = 0;
       for (final k in e.keys) {
-        final m = _matchKey(k, q.tokens, qs, e.provinceTokens);
+        final m = _matchKey(
+          k,
+          q.tokens,
+          qs,
+          qc,
+          e.provinceTokens,
+          qualifiedAllowed: qualifiedAllowed,
+        );
         if (m == null) {
           continue;
         }
@@ -110,7 +208,7 @@ final class StationSearchIndex {
         final score =
             base -
             (k.alias ? _aliasPenalty : 0) +
-            (q.kindHint == e.station.kind ? _kindHintBonus : 0);
+            (hinted ? _kindHintBonus : 0);
         // Keys are in order name, alias 1, alias 2 …: on a tie the earlier
         // (non-alias) key wins.
         if (best == null || score > best.score) {
@@ -123,19 +221,46 @@ final class StationSearchIndex {
           bestLen = k.text.length;
         }
       }
+      if (hinted && _isProvinceName(e, qs, qc)) {
+        const score = _provinceNameScore + _kindHintBonus;
+        if (best == null || score > best.score) {
+          best = StationMatch(
+            station: e.station,
+            score: score,
+            tier: StationMatchTier.provinceAssisted,
+            viaAlias: false,
+          );
+          bestLen = e.nameKeyLength;
+        }
+      }
       if (best != null) {
-        found.add((best, bestLen));
+        final strong =
+            best.tier != StationMatchTier.substring &&
+            best.tier != StationMatchTier.fuzzy;
+        found.add((best, bestLen, hinted && strong ? 0 : 1));
       }
     }
     found.sort(_compareFound);
-    return [for (final (m, _) in found.take(limit)) m];
+    return [for (final (m, _, _) in found.take(limit)) m];
   }
 }
 
-int _compareFound((StationMatch, int) a, (StationMatch, int) b) {
-  final (ma, la) = a;
-  final (mb, lb) = b;
-  var c = mb.score.compareTo(ma.score);
+/// The whole query is the province name ("bến xe huế"): full or without a
+/// leading "tp"/"tỉnh", with or without spaces. No prefix match.
+bool _isProvinceName(_Entry e, String qs, String qc) =>
+    qs == e.provinceCoreText ||
+    qs == e.provinceText ||
+    (qc.length >= 4 &&
+        (qc == e.provinceCoreCompact || qc == e.provinceCompact));
+
+int _compareFound(_Found a, _Found b) {
+  final (ma, la, ga) = a;
+  final (mb, lb, gb) = b;
+  var c = ga.compareTo(gb);
+  if (c != 0) {
+    return c;
+  }
+  c = mb.score.compareTo(ma.score);
   if (c != 0) {
     return c;
   }
@@ -154,17 +279,34 @@ int _compareFound((StationMatch, int) a, (StationMatch, int) b) {
   return ma.station.id.compareTo(mb.station.id);
 }
 
+/// First tier reached by key [k] (T23 §4.2, steps 1–10).
 (StationMatchTier, int)? _matchKey(
   _Key k,
   List<String> q,
   String qs,
-  List<String> province,
-) {
+  String qc,
+  List<String> province, {
+  required bool qualifiedAllowed,
+}) {
   if (k.text == qs) {
     return (StationMatchTier.exact, 1000);
   }
+  // Words typed together: "hanoi", "sapa".
+  if (qc.length >= 4 && k.compact == qc) {
+    return (StationMatchTier.exact, 990);
+  }
+  // "bến xe vinh" → "Bến xe Bắc Vinh" (coach/bus with the hint only).
+  if (qualifiedAllowed &&
+      k.qualifiedText != null &&
+      qc.length >= 3 &&
+      (k.qualifiedText == qs || (qc.length >= 4 && k.qualifiedCompact == qc))) {
+    return (StationMatchTier.orderedTokens, 950);
+  }
   if (k.text.startsWith(qs)) {
     return (StationMatchTier.prefix, 900);
+  }
+  if (qc.length >= 4 && k.compact.startsWith(qc)) {
+    return (StationMatchTier.prefix, 890);
   }
   if (_orderedTokens(k.tokens, q)) {
     return (StationMatchTier.orderedTokens, 700);
@@ -180,7 +322,7 @@ int _compareFound((StationMatch, int) a, (StationMatch, int) b) {
     return (StationMatchTier.substring, 300);
   }
   final errors = _fuzzyErrors(k.tokens, q);
-  if (errors != null && errors >= 1) {
+  if (errors != null && errors >= 1 && errors <= _maxFuzzyErrors) {
     return (StationMatchTier.fuzzy, 200 - 50 * errors);
   }
   return null;

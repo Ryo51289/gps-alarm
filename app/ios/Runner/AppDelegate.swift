@@ -1,4 +1,5 @@
 import Flutter
+import GoogleMaps
 import UIKit
 
 @main
@@ -10,6 +11,11 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // Maps key from Secrets.xcconfig via Info.plist (T23 D3). Without one, Dart never
+    // creates a map (mapsConfig().apiKey == nil). Never log the key.
+    if let key = MapsConfig.apiKey() {
+      GMSServices.provideAPIKey(key)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

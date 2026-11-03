@@ -29,17 +29,30 @@ object BridgeRegistrar {
             tripBackend ?: createBackend(context.applicationContext).also { tripBackend = it }
         }
 
-    fun register(messenger: BinaryMessenger, context: Context): Registration =
-        register(messenger, backend(context), DeviceStatusReader(context.applicationContext)::read)
+    fun register(messenger: BinaryMessenger, context: Context): Registration {
+        val appContext = context.applicationContext
+        return register(
+            messenger,
+            backend(context),
+            mapsConfig = MapsConfigReader(appContext)::read,
+            distances = LastKnownDistance(appContext)::distances,
+            deviceStatus = DeviceStatusReader(appContext)::read,
+        )
+    }
 
-    /** [register] with an explicit backend and device status source (JVM tests). */
+    /**
+     * [register] with an explicit backend and sources (JVM tests). [deviceStatus] stays the
+     * last parameter so existing tests can pass it as a trailing lambda.
+     */
     internal fun register(
         messenger: BinaryMessenger,
         backend: TripBackend,
+        mapsConfig: () -> MapsConfigMsg = { MapsConfigMsg() },
+        distances: suspend (List<Double>, Long) -> List<Double>? = { _, _ -> null },
         deviceStatus: () -> DeviceStatusMsg = { PermissionHostApiStub.UNKNOWN_DEVICE_STATUS },
     ): Registration {
         TripHostApi.setUp(messenger, TripHostApiImpl(backend))
-        PermissionHostApi.setUp(messenger, PermissionHostApiStub(deviceStatus))
+        PermissionHostApi.setUp(messenger, PermissionHostApiStub(deviceStatus, mapsConfig, distances))
         AlarmHostApi.setUp(messenger, AlarmHostApiStub())
         val updates = TripUpdatesHandler(backend)
         val eventChannel = TripUpdatesStreamHandler.register(messenger, updates)

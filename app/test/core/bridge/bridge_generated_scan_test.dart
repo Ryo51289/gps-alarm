@@ -3,6 +3,15 @@
 // outside TripHostApi.startTrip. Generated toString()/description prints every
 // field of a message class (Pigeon >= 27), so a coordinate field in any of
 // them would end up in logs.
+//
+// T23 (CD1, orchestrator decision (a), reviewer-approved): the
+// PermissionHostApi.distancesFromLastKnownM parameter `latLngPairs` (and the
+// generated handler local `latLngPairsArg`) is allowed too. It carries only
+// station coordinates (public data, Dart -> native); the user's position stays
+// native and only rounded distances come back (T23 D9). It is a method
+// parameter, not a message field, so no toString()/description prints it. The
+// location check below pins it to the distancesFromLastKnownM handler, and the
+// message-type check does not use the allowlist.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -13,9 +22,26 @@ const _generated = [
   'ios/Runner/Bridge/CoreApi.g.swift',
 ];
 
-/// The only coordinate identifiers allowed: the startTrip parameters and the
-/// local copies the generated Kotlin/Swift handlers decode them into.
-const _allowed = {'destLat', 'destLng', 'destLatArg', 'destLngArg'};
+/// The only coordinate identifiers allowed: the startTrip parameters, the
+/// distancesFromLastKnownM station pairs (T23 CD1), and the local copies the
+/// generated Kotlin/Swift handlers decode them into.
+const _allowed = {
+  'destLat',
+  'destLng',
+  'destLatArg',
+  'destLngArg',
+  'latLngPairs',
+  'latLngPairsArg',
+};
+
+/// Every host/event API method name of `pigeons/core_api.dart`; the nearest
+/// one before an allowed identifier names the handler it sits in.
+final _apiMethod = RegExp(
+  r'\b(startTrip|stopTrip|currentTrip|setBatteryChoice|dismiss|snooze'
+  '|pendingFinishedTrips|ackFinishedTrips|status|request|openSettings'
+  '|deviceInfo|deviceStatus|mapsConfig|distancesFromLastKnownM'
+  r'|previewSound|stopPreview|tripUpdates)\b',
+);
 
 /// Words of an identifier that mean "coordinate".
 const _coordinateWords = {
@@ -91,6 +117,28 @@ void main() {
     }
   });
 
+  test('T23 CD1: latLngPairs in another handler is located there', () {
+    // The location check must catch the pairs leaking into a different
+    // method (e.g. a future mapsConfig/deviceStatus field or parameter).
+    const ok =
+        'fun mapsConfig() {}\n'
+        'suspend fun distancesFromLastKnownM(latLngPairs: List<Double>)';
+    const bad =
+        'suspend fun distancesFromLastKnownM(x: Long)\n'
+        'fun deviceStatus(latLngPairs: List<Double>)';
+    String? owner(String code) {
+      final m = RegExp(r'\blatLngPairs\w*').firstMatch(code)!;
+      return _apiMethod.allMatches(code.substring(0, m.start)).last[1];
+    }
+
+    expect(owner(ok), 'distancesFromLastKnownM');
+    expect(owner(bad), 'deviceStatus');
+    // The allowlist does not exempt message types.
+    expect(_coordinateIdentifiers('class FooMsg { val latLngPairs }'), {
+      'latLngPairs',
+    });
+  });
+
   for (final path in _generated) {
     test('D09+ $path: coordinates only as startTrip arguments', () {
       final code = _stripComments(File(path).readAsStringSync());
@@ -126,6 +174,20 @@ void main() {
           r'|pendingFinishedTrips|ackFinishedTrips)\b',
         ).allMatches(before).last[1];
         expect(lastMethod, 'startTrip', reason: '${m[0]} in $path');
+      }
+
+      // T23 CD1: the station pairs only inside the distancesFromLastKnownM
+      // handler/method (nearest preceding API method name of any host API).
+      final pairs = RegExp(r'\blatLngPairs\w*').allMatches(code).toList();
+      expect(pairs, isNotEmpty, reason: 'distancesFromLastKnownM in $path');
+      for (final m in pairs) {
+        final before = code.substring(0, m.start);
+        final lastMethod = _apiMethod.allMatches(before).last[1];
+        expect(
+          lastMethod,
+          'distancesFromLastKnownM',
+          reason: '${m[0]} in $path',
+        );
       }
     });
   }

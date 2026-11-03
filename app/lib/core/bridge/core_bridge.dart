@@ -132,6 +132,18 @@ class CoreBridge {
   /// Unreadable items are null (iOS: battery only).
   Future<DeviceStatusMsg> deviceStatus() => _guard(_permission.deviceStatus);
 
+  /// Maps/Places key and app identity of this build (T23 D4). PRIVACY: never
+  /// log the result (its toString prints the key).
+  Future<MapsConfigMsg> mapsConfig() => _guard(_permission.mapsConfig);
+
+  /// Metres from the last known position to each (lat, lng) pair of [pairs],
+  /// or null (no permission, location off, no fix younger than [maxAgeMs]).
+  /// The user's position never reaches Dart (T23 D9).
+  Future<List<double>?> distancesFromLastKnownM(
+    List<double> pairs,
+    int maxAgeMs,
+  ) => _guard(() => _permission.distancesFromLastKnownM(pairs, maxAgeMs));
+
   Future<void> previewSound(String soundId, double volume) =>
       _guard(() => _alarm.previewSound(soundId, volume));
 

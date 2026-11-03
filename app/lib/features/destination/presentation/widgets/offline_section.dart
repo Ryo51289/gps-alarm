@@ -1,0 +1,94 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:napstop/core/design/design.dart';
+import 'package:napstop/features/destination/domain/destination_logic.dart';
+import 'package:napstop/features/destination/domain/station.dart';
+import 'package:napstop/features/destination/presentation/destination_controller.dart';
+import 'package:napstop/features/destination/presentation/destination_strings.dart';
+import 'package:napstop/features/destination/presentation/widgets/osm_attribution.dart';
+import 'package:napstop/features/destination/presentation/widgets/result_row.dart';
+import 'package:napstop/l10n/gen/app_localizations.dart';
+
+/// Station results of chips "Tất cả / Ga tàu / Bến xe" (T23 §9): state line
+/// or rows, then always the address search entry, then the OSM attribution
+/// when a station is listed.
+class OfflineSection extends StatelessWidget {
+  const new({
+    required this.state,
+    required this.isSelected,
+    required this.onSelect,
+    required this.onRetry,
+    required this.onOpenPlaces,
+    super.key,
+  });
+
+  final DestinationState state;
+  final bool Function(Station s) isSelected;
+  final ValueChanged<Station> onSelect;
+  final VoidCallback onRetry;
+  final VoidCallback onOpenPlaces;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final query = state.query.trim();
+    final rows = state.offline;
+    final catalog = state.catalog;
+    final Widget? status;
+    if (catalog.hasError && !catalog.hasValue) {
+      status = Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: NapSpace.s16,
+          vertical: NapSpace.s8,
+        ),
+        child: NapBanner(
+          message: l.destinationCatalogError,
+          action: NapButton(
+            label: l.commonRetry,
+            variant: NapButtonVariant.secondary,
+            size: NapButtonSize.small,
+            onPressed: onRetry,
+          ),
+        ),
+      );
+    } else if (!catalog.hasValue) {
+      status = PanelNote(l.destinationCatalogLoading, loading: true);
+    } else if (queryChars(state.query) < kMinOfflineQueryChars) {
+      status = PanelNote(l.destinationStartTyping);
+    } else if (rows.isEmpty) {
+      status = PanelNote(l.destinationNoStationMatch(query));
+    } else {
+      status = null;
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ?status,
+        for (final m in rows)
+          ResultRow(
+            key: ValueKey('station-${m.station.id}'),
+            icon: stationKindIcon(m.station.kind),
+            title: m.station.name,
+            subtitle: l.stationRowSubtitle(
+              m.station,
+              state.distanceByStationId[m.station.id],
+            ),
+            selected: isSelected(m.station),
+            onTap: () => onSelect(m.station),
+          ),
+        PlacesEntryRow(
+          title: query.isEmpty
+              ? l.destinationPlacesEntryEmpty
+              : l.destinationPlacesEntry(query),
+          subtitle: l.destinationPlacesEntryHint,
+          onTap: onOpenPlaces,
+        ),
+        if (rows.isNotEmpty)
+          OsmAttribution(
+            label: l.stationDataAttribution,
+            hint: l.destinationOsmAttributionHint,
+          ),
+      ],
+    );
+  }
+}

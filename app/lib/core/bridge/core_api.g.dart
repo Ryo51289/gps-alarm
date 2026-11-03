@@ -1604,6 +1604,67 @@ class DeviceStatusMsg {
   }
 }
 
+/// T23: Maps/Places configuration of this build. apiKey null = no key
+/// configured. PRIVACY: never log (toString prints the key). No coordinates.
+class MapsConfigMsg {
+  MapsConfigMsg({
+    this.apiKey,
+    this.androidPackage,
+    this.androidCertSha1,
+    this.iosBundleId,
+  });
+
+  String? apiKey;
+
+  String? androidPackage;
+
+  String? androidCertSha1;
+
+  String? iosBundleId;
+
+  List<Object?> _toList() {
+    return <Object?>[apiKey, androidPackage, androidCertSha1, iosBundleId];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MapsConfigMsg decode(Object result) {
+    result as List<Object?>;
+    return MapsConfigMsg(
+      apiKey: result[0] as String?,
+      androidPackage: result[1] as String?,
+      androidCertSha1: result[2] as String?,
+      iosBundleId: result[3] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MapsConfigMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(apiKey, other.apiKey) &&
+        _deepEquals(androidPackage, other.androidPackage) &&
+        _deepEquals(androidCertSha1, other.androidCertSha1) &&
+        _deepEquals(iosBundleId, other.iosBundleId);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MapsConfigMsg(apiKey: $apiKey, androidPackage: $androidPackage, androidCertSha1: $androidCertSha1, iosBundleId: $iosBundleId)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -1728,6 +1789,9 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is DeviceStatusMsg) {
       buffer.putUint8(167);
       writeValue(buffer, value.encode());
+    } else if (value is MapsConfigMsg) {
+      buffer.putUint8(168);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1834,6 +1898,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return DeviceInfoMsg.decode(readValue(buffer)!);
       case 167:
         return DeviceStatusMsg.decode(readValue(buffer)!);
+      case 168:
+        return MapsConfigMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2154,6 +2220,56 @@ class PermissionHostApi {
       isNullValid: false,
     );
     return pigeonVar_replyValue! as DeviceStatusMsg;
+  }
+
+  /// T23: Maps/Places configuration of this build. Cheap, main-safe, no
+  /// permission.
+  Future<MapsConfigMsg> mapsConfig() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.PermissionHostApi.mapsConfig$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as MapsConfigMsg;
+  }
+
+  /// T23: distances in metres from the device's last known position to each
+  /// (lat, lng) pair of [latLngPairs] (flat list, even length <= 100). null
+  /// when: no location permission, location off, no cached fix younger than
+  /// [maxAgeMs], or invalid input. Never requests a new fix, never prompts.
+  /// The user's coordinates never cross the bridge (T14 D5).
+  Future<List<double>?> distancesFromLastKnownM(
+    List<double> latLngPairs,
+    int maxAgeMs,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.PermissionHostApi.distancesFromLastKnownM$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[latLngPairs, maxAgeMs],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return (pigeonVar_replyValue as List<Object?>?)?.cast<double>();
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/app/router/app_shell.dart';
 import 'package:napstop/app/router/placeholder_screen.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
+import 'package:napstop/features/destination/presentation/destination_screen.dart';
 import 'package:napstop/features/home/presentation/home_screen.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
@@ -67,7 +68,13 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
       ),
       fullScreen(AppRoutes.onboarding, (l) => l.appScreenOnboardingTitle),
       fullScreen(AppRoutes.batteryGuide, (l) => l.appScreenBatteryGuideTitle),
-      fullScreen(AppRoutes.destination, (l) => l.appScreenDestinationTitle),
+      GoRoute(
+        path: AppRoutes.destination,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => DestinationScreen(
+          pickMode: state.uri.queryParameters['mode'] == kDestinationModePick,
+        ),
+      ),
       GoRoute(
         path: AppRoutes.alarmSettings,
         parentNavigatorKey: rootNavigatorKey,

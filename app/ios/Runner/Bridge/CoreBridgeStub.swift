@@ -268,6 +268,40 @@ final class PermissionHostApiStub: PermissionHostApi {
   func deviceStatus() throws -> DeviceStatusMsg {
     MainActor.assumeIsolated { CoreBridgeStub.readDeviceStatus() }
   }
+
+  /// T23: key from Info.plist `GMSApiKey` (Secrets.xcconfig) and the bundle id for the
+  /// `X-Ios-Bundle-Identifier` header. Never log the result.
+  func mapsConfig() throws -> MapsConfigMsg {
+    MapsConfigMsg(
+      apiKey: MapsConfig.apiKey(),
+      androidPackage: nil,
+      androidCertSha1: nil,
+      iosBundleId: Bundle.main.bundleIdentifier
+    )
+  }
+
+  /// T23: no distances on iOS until T17 (CLLocationManager().location). T17 must round each
+  /// value like Android `LastKnownMath.roundForDisplay` (10 m under 1 km, 100 m above) and
+  /// never log them: several distances to public stations locate the user.
+  func distancesFromLastKnownM(latLngPairs: [Double], maxAgeMs: Int64) async throws -> [Double]? {
+    nil
+  }
+}
+
+/// Maps/Places key of this build (T23 D3, D4).
+enum MapsConfig {
+  /// `GMSApiKey` of Info.plist, nil when empty or when the build variable was not set
+  /// (an unexpanded `$(MAPS_API_KEY)`).
+  static func apiKey(bundle: Bundle = .main) -> String? {
+    guard let raw = bundle.object(forInfoDictionaryKey: "GMSApiKey") as? String else {
+      return nil
+    }
+    let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    if key.isEmpty || key.hasPrefix("$(") {
+      return nil
+    }
+    return key
+  }
 }
 
 /// Sound preview stub (T17 plays it).

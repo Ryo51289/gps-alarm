@@ -17,9 +17,12 @@ import 'package:napstop/core/bridge/core_bridge_provider.dart';
 import 'package:napstop/core/db/app_database.dart';
 import 'package:napstop/core/db/db_providers.dart';
 import 'package:napstop/core/design/design.dart';
+import 'package:napstop/features/destination/data/destination_providers.dart';
+import 'package:napstop/features/destination/data/station_repository.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 import 'fake_core_bridge.dart';
+import 'test_station_catalog.dart';
 
 /// Default "now" of the harness: 19:30 local time ("Chào buổi tối").
 final DateTime kHarnessNow = DateTime(2026, 11, 2, 19, 30);
@@ -60,6 +63,7 @@ class AppHarness {
 /// [size] with dpr 1. [bridge] and [db] default to a [FakeCoreBridge] and an
 /// in-memory database. [fontFamily] is for golden tests (FlutterTest font).
 /// [seed] runs against the database before the first frame.
+/// [stationCatalog] replaces the real dataset of screen 2 (T23).
 Future<AppHarness> pumpAppHarness(
   WidgetTester tester, {
   List<Override> overrides = const [],
@@ -74,6 +78,7 @@ Future<AppHarness> pumpAppHarness(
   DateTime? now,
   Future<void> Function(ProviderContainer container)? seed,
   bool settle = true,
+  Future<StationCatalog> Function()? stationCatalog,
 }) async {
   tester.view
     ..physicalSize = size
@@ -96,6 +101,10 @@ Future<AppHarness> pumpAppHarness(
         ref.onDispose(router.dispose);
         return router;
       }),
+      // Screen 2 (T23): the real dataset, already decoded.
+      stationCatalogProvider.overrideWith(
+        (ref) => stationCatalog?.call() ?? Future.value(kTestStationCatalog),
+      ),
       ...overrides,
     ],
   );

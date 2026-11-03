@@ -366,5 +366,231 @@
   "homeChipBatteryOptimization": "Tối ưu pin đang bật",
   "@homeChipBatteryOptimization": {
     "description": "Readiness chip (Android): battery optimization still applies."
+  },
+  "destinationSearchHint": "Tìm ga, bến xe, địa chỉ…",
+  "@destinationSearchHint": {
+    "description": "Screen 2: hint of the search field floating on the map."
+  },
+  "destinationClearQuery": "Xoá nội dung tìm",
+  "@destinationClearQuery": {
+    "description": "Screen 2: label of the button that clears the search field."
+  },
+  "destinationFilterAll": "Tất cả",
+  "@destinationFilterAll": {
+    "description": "Screen 2 filter chip: every station kind."
+  },
+  "destinationFilterTrain": "Ga tàu",
+  "@destinationFilterTrain": {
+    "description": "Screen 2 filter chip: train stations only."
+  },
+  "destinationFilterCoach": "Bến xe",
+  "@destinationFilterCoach": {
+    "description": "Screen 2 filter chip: coach stations and bus terminals."
+  },
+  "destinationFilterPlaces": "Địa chỉ",
+  "@destinationFilterPlaces": {
+    "description": "Screen 2 filter chip: address search with Google Maps (Places)."
+  },
+  "stationKindTrain": "Ga tàu",
+  "@stationKindTrain": {
+    "description": "Kind of an offline station: train station."
+  },
+  "stationKindCoach": "Bến xe khách",
+  "@stationKindCoach": {
+    "description": "Kind of an offline station: long-distance coach station."
+  },
+  "stationKindBus": "Bến xe buýt",
+  "@stationKindBus": {
+    "description": "Kind of an offline station: city bus terminal."
+  },
+  "destinationRowSubtitle": "{kind} · {province}",
+  "@destinationRowSubtitle": {
+    "description": "Screen 2 station row subtitle: station kind and province.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "province": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationRowSubtitleDistance": "{kind} · {province} · cách {distance}",
+  "@destinationRowSubtitleDistance": {
+    "description": "Screen 2 station row subtitle with the distance from the last known position, e.g. 402 km.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "province": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationStartTyping": "Gõ tên ga, bến xe hoặc địa chỉ.",
+  "@destinationStartTyping": {
+    "description": "Screen 2: hint shown before the user typed enough to search."
+  },
+  "destinationCatalogLoading": "Đang tải danh sách ga, bến xe…",
+  "@destinationCatalogLoading": {
+    "description": "Screen 2: the offline station list is loading."
+  },
+  "destinationCatalogError": "Không tải được danh sách ga, bến xe. Bạn vẫn tìm được địa chỉ qua Google Maps.",
+  "@destinationCatalogError": {
+    "description": "Screen 2: the offline station list could not be loaded."
+  },
+  "destinationNoStationMatch": "Không có ga, bến xe nào khớp \"{query}\".",
+  "@destinationNoStationMatch": {
+    "description": "Screen 2: no offline station matches the query.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationPlacesEntry": "Tìm \"{query}\" bằng Google Maps",
+  "@destinationPlacesEntry": {
+    "description": "Screen 2: row that opens the address search (Google Places) with the current query.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationPlacesEntryEmpty": "Tìm địa chỉ bằng Google Maps",
+  "@destinationPlacesEntryEmpty": {
+    "description": "Screen 2: row that opens the address search when nothing is typed."
+  },
+  "destinationPlacesEntryHint": "Nội dung tìm sẽ được gửi tới Google",
+  "@destinationPlacesEntryHint": {
+    "description": "Screen 2: subtitle of the address search row (privacy notice)."
+  },
+  "destinationPlacesDisclosure": "Nội dung bạn gõ được gửi tới Google để tìm địa chỉ. Vị trí của bạn không được gửi.",
+  "@destinationPlacesDisclosure": {
+    "description": "Screen 2, address search: privacy notice above the results."
+  },
+  "destinationPlacesTypeMore": "Gõ ít nhất 3 ký tự để tìm địa chỉ.",
+  "@destinationPlacesTypeMore": {
+    "description": "Screen 2, address search: the query is too short."
+  },
+  "destinationPlacesLoading": "Đang tìm địa chỉ…",
+  "@destinationPlacesLoading": {
+    "description": "Screen 2, address search: request in progress."
+  },
+  "destinationPlacesEmpty": "Không tìm thấy địa chỉ nào.",
+  "@destinationPlacesEmpty": {
+    "description": "Screen 2, address search: no result."
+  },
+  "destinationPlacesOffline": "Không có mạng. Tìm ga, bến xe vẫn dùng được.",
+  "@destinationPlacesOffline": {
+    "description": "Screen 2, address search: no network."
+  },
+  "destinationPlacesUnavailable": "Tìm địa chỉ tạm thời không dùng được.",
+  "@destinationPlacesUnavailable": {
+    "description": "Screen 2, address search: the service refused or failed."
+  },
+  "destinationPlacesNotConfigured": "Bản này chưa bật tìm địa chỉ.",
+  "@destinationPlacesNotConfigured": {
+    "description": "Screen 2, address search: the build has no API key."
+  },
+  "destinationPlaceResolveFailed": "Không lấy được vị trí của địa chỉ này. Thử lại.",
+  "@destinationPlaceResolveFailed": {
+    "description": "Screen 2 snack bar: the coordinates of the chosen address could not be read."
+  },
+  "stationDataAttribution": "Dữ liệu ga/bến © OpenStreetMap contributors",
+  "@stationDataAttribution": {
+    "description": "Screen 2: attribution line under the offline results (OpenStreetMap, ODbL)."
+  },
+  "destinationOsmAttributionHint": "Mở trang bản quyền OpenStreetMap",
+  "@destinationOsmAttributionHint": {
+    "description": "Screen 2: screen reader hint of the OpenStreetMap attribution link."
+  },
+  "destinationMapUnavailable": "Bản đồ chưa sẵn sàng trong bản này.",
+  "@destinationMapUnavailable": {
+    "description": "Screen 2: shown instead of the map when the build has no map key."
+  },
+  "destinationAlarmZoneBadge": "Báo trong vòng {distance}",
+  "@destinationAlarmZoneBadge": {
+    "description": "Screen 2: badge over the map with the previewed alarm radius, e.g. 1 km.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationPinHint": "Nhấn giữ trên bản đồ để ghim, kéo ghim để chỉnh.",
+  "@destinationPinHint": {
+    "description": "Screen 2: how to drop and move the pin."
+  },
+  "destinationPinned": "Điểm đã ghim",
+  "@destinationPinned": {
+    "description": "Screen 2: name of a destination dropped on the map."
+  },
+  "destinationPinnedFrom": "Cách {place} {distance}",
+  "@destinationPinnedFrom": {
+    "description": "Detail of a pinned destination moved away from a station or address.",
+    "placeholders": {
+      "place": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationPinMoved": "Đã dời ghim {distance}.",
+  "@destinationPinMoved": {
+    "description": "Screen 2 snack bar after the pin was dragged.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationConfirm": "Chọn {name}",
+  "@destinationConfirm": {
+    "description": "Screen 2 main button with the chosen destination name.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationConfirmDisabled": "Chọn điểm đến",
+  "@destinationConfirmDisabled": {
+    "description": "Screen 2 main button before anything is chosen (disabled)."
+  },
+  "destinationSave": "Lưu điểm này",
+  "@destinationSave": {
+    "description": "Screen 2: label of the button that saves the chosen place."
+  },
+  "destinationSaveSheetTitle": "Lưu vào",
+  "@destinationSaveSheetTitle": {
+    "description": "Screen 2: title of the sheet that picks a saved place slot."
+  },
+  "destinationSaveSheetCurrent": "Đang là: {name}",
+  "@destinationSaveSheetCurrent": {
+    "description": "Screen 2 save sheet: what the slot holds now.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationSaveSheetEmpty": "Chưa đặt",
+  "@destinationSaveSheetEmpty": {
+    "description": "Screen 2 save sheet: the slot is empty."
+  },
+  "destinationSaved": "Đã lưu vào {slot}",
+  "@destinationSaved": {
+    "description": "Screen 2 snack bar after saving the place into a slot.",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
   }
 }

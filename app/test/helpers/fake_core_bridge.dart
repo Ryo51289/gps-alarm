@@ -142,14 +142,31 @@ class FakeCoreBridge implements CoreBridge {
     DeviceInfoMsg? deviceInfoValue,
     this.deviceStatusValue,
     this.active,
+    MapsConfigMsg? mapsConfig,
+    this.distances,
   }) : permissions = permissions ?? androidPermissions(),
-       deviceInfoValue = deviceInfoValue ?? androidDevice() {
+       deviceInfoValue = deviceInfoValue ?? androidDevice(),
+       mapsConfigValue = mapsConfig ?? MapsConfigMsg() {
     deviceStatusValue ??= deviceStatusMsg();
   }
 
   PermissionStatusMsg permissions;
   DeviceInfoMsg deviceInfoValue;
   DeviceStatusMsg? deviceStatusValue;
+
+  /// Returned by [mapsConfig]; no key by default (map placeholder, Places
+  /// "not configured"), like a CI build (T23).
+  MapsConfigMsg mapsConfigValue;
+
+  /// Answers [distancesFromLastKnownM] from the requested pairs; null
+  /// answers null (no position).
+  List<double>? Function(List<double> pairs)? distances;
+
+  /// Arguments of every [distancesFromLastKnownM] call, in order.
+  final List<({List<double> pairs, int maxAgeMs})> distancesCalls = [];
+
+  Object? mapsConfigError;
+  Object? distancesError;
 
   /// Returned by [currentTrip].
   ActiveTripMsg? active;
@@ -255,6 +272,23 @@ class FakeCoreBridge implements CoreBridge {
         deviceStatusValue ??
         DeviceStatusMsg(interruptionFilter: InterruptionFilterMsg.unknown),
   );
+
+  @override
+  Future<MapsConfigMsg> mapsConfig() =>
+      _answer('mapsConfig', mapsConfigError, () => mapsConfigValue);
+
+  @override
+  Future<List<double>?> distancesFromLastKnownM(
+    List<double> pairs,
+    int maxAgeMs,
+  ) {
+    distancesCalls.add((pairs: List.unmodifiable(pairs), maxAgeMs: maxAgeMs));
+    return _answer(
+      'distancesFromLastKnownM',
+      distancesError,
+      () => distances?.call(pairs),
+    );
+  }
 
   @override
   Future<void> previewSound(String soundId, double volume) =>

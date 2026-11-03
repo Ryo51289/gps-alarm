@@ -426,6 +426,22 @@ class DeviceStatusMsg {
   bool? priorityAllowsAlarms; // Android 30+, only when filter == priority
 }
 
+/// T23: Maps/Places configuration of this build. apiKey null = no key
+/// configured. PRIVACY: never log (toString prints the key). No coordinates.
+class MapsConfigMsg {
+  MapsConfigMsg({
+    this.apiKey,
+    this.androidPackage,
+    this.androidCertSha1,
+    this.iosBundleId,
+  });
+
+  String? apiKey;
+  String? androidPackage; // Context.packageName, e.g. app.napstop.dev
+  String? androidCertSha1; // SHA-1 of the signing cert, 40 upper-case hex, no colons
+  String? iosBundleId;
+}
+
 // --------------------------------------------------------------------- APIs
 
 @HostApi()
@@ -487,6 +503,18 @@ abstract class PermissionHostApi {
   /// T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
   /// for an unreadable item (that item is null / unknown).
   DeviceStatusMsg deviceStatus();
+
+  /// T23: Maps/Places configuration of this build. Cheap, main-safe, no
+  /// permission.
+  MapsConfigMsg mapsConfig();
+
+  /// T23: distances in metres from the device's last known position to each
+  /// (lat, lng) pair of [latLngPairs] (flat list, even length <= 100). null
+  /// when: no location permission, location off, no cached fix younger than
+  /// [maxAgeMs], or invalid input. Never requests a new fix, never prompts.
+  /// The user's coordinates never cross the bridge (T14 D5).
+  @async
+  List<double>? distancesFromLastKnownM(List<double> latLngPairs, int maxAgeMs);
 }
 
 @HostApi()

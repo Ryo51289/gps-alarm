@@ -56,6 +56,8 @@ void main() {
       'PermissionHostApi.openSettings',
       'PermissionHostApi.deviceInfo',
       'PermissionHostApi.deviceStatus',
+      'PermissionHostApi.mapsConfig',
+      'PermissionHostApi.distancesFromLastKnownM',
       'AlarmHostApi.previewSound',
       'AlarmHostApi.stopPreview',
     ]) {
@@ -395,6 +397,55 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('TB01 mapsConfig and distancesFromLastKnownM (T23)', () async {
+      var config = sampleMapsConfig();
+      _handle('PermissionHostApi', 'mapsConfig', (_) => [config]);
+      expect(await bridge.mapsConfig(), sampleMapsConfig());
+      config = sampleMapsConfig(nulls: true);
+      expect((await bridge.mapsConfig()).apiKey, isNull);
+
+      final calls = <List<Object?>>[];
+      List<Object?>? reply = <Object?>[402000.0, 12.5];
+      _handle(
+        'PermissionHostApi',
+        'distancesFromLastKnownM',
+        (_) => [reply],
+        calls,
+      );
+      expect(
+        await bridge.distancesFromLastKnownM([
+          17.47,
+          106.6,
+          16.0,
+          108.2,
+        ], 1800000),
+        [402000.0, 12.5],
+      );
+      expect(calls, [
+        [
+          [17.47, 106.6, 16.0, 108.2],
+          1800000,
+        ],
+      ]);
+      reply = null;
+      expect(await bridge.distancesFromLastKnownM([17.47, 106.6], 1), isNull);
+    });
+
+    test('TB01 T23 methods map errors to BridgeException', () async {
+      for (final method in ['mapsConfig', 'distancesFromLastKnownM']) {
+        _handle('PermissionHostApi', method, (_) => ['internal', null, null]);
+      }
+      final internal = throwsA(
+        isA<BridgeException>().having(
+          (e) => e.code,
+          'code',
+          BridgeErrorCode.internal,
+        ),
+      );
+      await expectLater(bridge.mapsConfig(), internal);
+      await expectLater(bridge.distancesFromLastKnownM([1, 2], 1), internal);
     });
 
     test('startTrip sends engineParamsJson verbatim (T14.1)', () async {

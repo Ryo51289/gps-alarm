@@ -71,3 +71,62 @@ List<String> stationCoreTokens(String nameOrAlias) {
   }
   return t;
 }
+
+/// Folded qualifier phrases stripped from the front of a coach/bus core name
+/// for the "bến xe `city`" rule (T23 §4.3). Longest first.
+const List<List<String>> kQualifierPhrases = [
+  ['lien', 'tinh'],
+  ['trung', 'tam'],
+  ['thanh', 'pho'],
+  ['phia', 'bac'],
+  ['phia', 'nam'],
+  ['phia', 'dong'],
+  ['phia', 'tay'],
+  ['tp'],
+  ['bac'],
+  ['nam'],
+  ['dong'],
+  ['tay'],
+];
+
+/// Repeatedly removes a leading phrase of [kQualifierPhrases] while at least
+/// one token remains. Returns null when nothing was removed.
+///
+/// "Bến xe liên tỉnh phía Nam Nha Trang" → `[nha, trang]`; "Bến xe phía
+/// Nam" → null (removing would leave nothing).
+List<String>? stripLeadingQualifiers(List<String> coreTokens) {
+  var rest = coreTokens;
+  var removed = false;
+  var progress = true;
+  while (progress) {
+    progress = false;
+    for (final phrase in kQualifierPhrases) {
+      if (rest.length > phrase.length && _startsWith(rest, phrase)) {
+        rest = rest.sublist(phrase.length);
+        removed = true;
+        progress = true;
+        break;
+      }
+    }
+  }
+  return removed ? rest : null;
+}
+
+/// Folded leading words of a province name that are not part of the name.
+const List<List<String>> _provinceLeads = [
+  ['thanh', 'pho'],
+  ['tp'],
+  ['tinh'],
+];
+
+/// Province tokens without a leading "tp" / "thanh pho" / "tinh" (keeps at
+/// least one token): "TP. Hồ Chí Minh" → `[ho, chi, minh]`.
+List<String> provinceCoreTokens(String province) {
+  final t = foldTokens(province);
+  for (final lead in _provinceLeads) {
+    if (t.length > lead.length && _startsWith(t, lead)) {
+      return t.sublist(lead.length);
+    }
+  }
+  return t;
+}

@@ -30,6 +30,9 @@ app/ios/Core/.swiftpm/
 google-services.json
 GoogleService-Info.plist
 .env*
+# Maps/Places keys (T23): app/android/secrets.properties, app/ios/Flutter/Secrets.xcconfig
+secrets.properties
+Secrets.xcconfig
 
 # Claude Code local settings
 .claude/settings.local.json

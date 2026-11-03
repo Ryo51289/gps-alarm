@@ -1,8 +1,24 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Maps/Places API keys stay out of git (T23 D3). Order: android/secrets.properties
+// (gitignored, see secrets.properties.example), env NAPSTOP_<name>, placeholder.
+// The placeholder builds fine; the app then shows no map and no address search.
+val napSecrets =
+    Properties().apply {
+        val f = rootProject.file("secrets.properties")
+        if (f.isFile) f.inputStream().use { load(it) }
+    }
+
+fun napSecret(name: String): String =
+    napSecrets.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: System.getenv("NAPSTOP_$name")?.trim()?.takeIf { it.isNotEmpty() }
+        ?: "DEFAULT_API_KEY"
 
 android {
     namespace = "app.napstop"
@@ -37,9 +53,11 @@ android {
             // app.napstop.dev, installable side by side with prod.
             applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
+            manifestPlaceholders["mapsApiKey"] = napSecret("MAPS_API_KEY_DEV")
         }
         create("prod") {
             dimension = "default"
+            manifestPlaceholders["mapsApiKey"] = napSecret("MAPS_API_KEY_PROD")
         }
     }
 

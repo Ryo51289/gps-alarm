@@ -39,6 +39,10 @@ final _calls = <String, Future<Object?> Function(CoreBridge)>{
   'PermissionHostApi.deviceInfo': (b) => b.deviceInfo(),
   // T14.1 tester.
   'PermissionHostApi.deviceStatus': (b) => b.deviceStatus(),
+  // T23 coder: new host methods join the error-mapping loops.
+  'PermissionHostApi.mapsConfig': (b) => b.mapsConfig(),
+  'PermissionHostApi.distancesFromLastKnownM': (b) =>
+      b.distancesFromLastKnownM([16.8, 107.1], 1800000),
   'AlarmHostApi.previewSound': (b) => b.previewSound('chime', 0.5),
   'AlarmHostApi.stopPreview': (b) => b.stopPreview(),
 };

@@ -1,1 +1,3 @@
 #include "Generated.xcconfig"
+// Maps/Places key, gitignored (T23 D3); see Secrets.xcconfig.example.
+#include? "Secrets.xcconfig"

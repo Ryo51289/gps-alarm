@@ -115,6 +115,14 @@ DeviceStatusMsg sampleDeviceStatus({bool nulls = false}) => DeviceStatusMsg(
   priorityAllowsAlarms: nulls ? null : true,
 );
 
+/// T23: Maps/Places configuration (fake key, never a real one).
+MapsConfigMsg sampleMapsConfig({bool nulls = false}) => MapsConfigMsg(
+  apiKey: nulls ? null : 'test-key',
+  androidPackage: nulls ? null : 'app.napstop.dev',
+  androidCertSha1: nulls ? null : 'A9993E364706816ABA3E25717850C26C9CD0D89D',
+  iosBundleId: nulls ? null : 'app.napstop',
+);
+
 /// One instance of every TripUpdateMsg subclass, all fields set or all
 /// nullable fields null.
 List<TripUpdateMsg> sampleUpdates({required bool nulls}) => [
