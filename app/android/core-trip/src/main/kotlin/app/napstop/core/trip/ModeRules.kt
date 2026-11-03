@@ -62,9 +62,13 @@ internal inline fun modeAtWith(
         if (slow) atDist(slowDistM(p)) else TMath.minOrNull(atTime(p.smartTargetS), atDist(p.smartFloorM.toDouble()))
 }
 
-internal data class Predicted(val noBattery: Long?, val withBattery: Long?) {
+/**
+ * §4.5 predicted alarm time ([noBattery], [withBattery] = predictedAlarmAt) and, T10.5, the wake-up bases of §4.15:
+ * [wakeBasis] (`wakeBasisAt`) and [wakeBattery] (`wakeBatteryAt`). The wake-up bases never feed the view or the snapshot.
+ */
+internal data class Predicted(val noBattery: Long?, val withBattery: Long?, val wakeBasis: Long?, val wakeBattery: Long?) {
     companion object {
-        val NONE = Predicted(null, null)
+        val NONE = Predicted(null, null, null, null)
     }
 }
 
@@ -74,14 +78,23 @@ internal fun predictedAlarmAt(w: StepWork, e: Estimate?): Predicted {
     val p = w.p
     val now = w.now
     val deadlineAt = w.startedAtMs + w.maxTripDurationS * 1000L
-    if (e == null) return Predicted(deadlineAt, deadlineAt)
+    if (e == null) return Predicted(deadlineAt, deadlineAt, deadlineAt, null)
     val atDist = { x: Double -> if (e.cvDr > 0.0) now + TMath.floorMs(TMath.max(0.0, e.dNow - x) / e.cvDr) else null }
     val atTime = { s: Int -> e.etaS?.let { now + TMath.floorMs(TMath.max(0.0, it - s.toDouble())) } }
     val modeAt = modeAtWith(w.cfg, w.slow, p, atDist, atTime)
     val lostAt = if (w.gps == GpsStatus.LOST) atTime(p.gpsLostAlarmEtaS) else null
     val noBattery = TMath.minOrNull(modeAt, lostAt, deadlineAt)
-    return Predicted(noBattery, TMath.minOrNull(noBattery, batteryAt(w)))
+    val battery = batteryAt(w)
+    // T10.5: GPS OK and stopped means dNow = dSmooth (§4.4), so modeAt = now + constant slides with now: not a wake-up basis.
+    val wakeBasis = if (slides(w, e)) deadlineAt else noBattery
+    return Predicted(noBattery, TMath.minOrNull(noBattery, battery), wakeBasis, battery)
 }
+
+/** T10.5 §4.5 `slides`: the estimate is frozen at dSmooth (GPS OK, stop in progress), the same test as [estimate]. */
+internal fun slides(w: StepWork, e: Estimate?): Boolean = e != null && w.gps == GpsStatus.OK && w.stopStartMs != null
+
+/** T10.5 §4.5 `wakeBasisAt` alone (U106 g); the engine reads it from [predictedAlarmAt]. */
+internal fun wakeBasisAt(w: StepWork, e: Estimate?): Long? = predictedAlarmAt(w, e).wakeBasis
 
 /** §4.13: max trip duration fixed at the Step of the first accepted fix (step 5). */
 internal fun maxTripDurationFromFirstFix(etaS: Double?, p: EngineParams): Int =

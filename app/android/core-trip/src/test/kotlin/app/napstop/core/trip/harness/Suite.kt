@@ -2,6 +2,7 @@ package app.napstop.core.trip.harness
 
 import app.napstop.core.trip.Alarm
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -20,6 +21,11 @@ internal class RunOutcome(
     val i8: List<String>?,
     val i9: String?,
     val p06: String?,
+    /** T10.5 §6: urgent later shifts of this run (expected none on the fixtures). */
+    val urgentShifts: List<UrgentShift> = emptyList(),
+    val startMs: Long = 0,
+    /** U116 (T10.5 round 3): GPS-gap chord probes of the run. */
+    val gapProbes: List<GapProbe> = emptyList(),
 )
 
 internal class CaseRef(val trace: TraceModel, val entry: CaseEntry) {
@@ -97,7 +103,49 @@ internal object Suite {
             val o = f.get()
             m[o.key.run] = o
         }
+        urgentShiftReport(m.values)
+        gapReport(m.values)
         return m
+    }
+
+    /** T10.5 §6: urgent later shifts over all main runs, written to summary.md (total, and the list when not 0). */
+    /** U116, U117 (T10.5 round 3/3b): GPS-gap chord probes over all main runs (counts per trace, u / dChord range, standing term). */
+    private fun gapReport(outs: Collection<RunOutcome>) {
+        val md = StringBuilder("### GPS-gap chord (T10.5 round 3/3b, U116 a, U117), all main runs\n\n")
+        val all = outs.flatMap { o -> o.gapProbes.map { o to it } }
+        md.append("Probes (GpsRecovered or gap fix): ").append(all.size).append(", gap fixes: ").append(all.count { it.second.gapFix })
+            .append(", 0 < u < 1: ").append(all.count { it.second.dChord != null }).append(", standing term: ")
+            .append(all.count { it.second.standingTerm }).append("\n\n| trace | runs | probes | gap fixes | u range | dChord min (m) | standing term |\n")
+            .append("|---|---|---|---|---|---|---|\n")
+        for ((trace, list) in all.groupBy { it.first.key.traceId }.toSortedMap()) {
+            val us = list.mapNotNull { it.second.u }
+            val dc = list.mapNotNull { it.second.dChord }
+            fun f(x: Double) = String.format(Locale.ROOT, "%.3f", x)
+            md.append("| ").append(trace).append(" | ").append(list.map { it.first.key.run }.distinct().size).append(" | ").append(list.size)
+                .append(" | ").append(list.count { it.second.gapFix }).append(" | ")
+                .append(if (us.isEmpty()) "-" else "${f(us.min())}..${f(us.max())}").append(" | ")
+                .append(if (dc.isEmpty()) "-" else f(dc.min())).append(" | ").append(list.count { it.second.standingTerm }).append(" |\n")
+        }
+        Reports.section("gap chord", md.toString())
+    }
+
+    private fun urgentShiftReport(outs: Collection<RunOutcome>) {
+        val withShift = outs.filter { it.urgentShifts.isNotEmpty() }
+        val total = withShift.sumOf { it.urgentShifts.size }
+        val md = StringBuilder("### Urgent later shifts (T10.5 §6, I4 exception), all main runs\n\n")
+        md.append("Total: ").append(total).append(" in ").append(withShift.size).append(" of ").append(outs.size).append(" runs\n")
+        if (withShift.isNotEmpty()) {
+            md.append("\n| run | t | F before (s) | F after (s) | predicted (s) |\n|---|---|---|---|---|\n")
+            for (o in withShift) {
+                val start = o.startMs
+                fun rel(ms: Long?) = ms?.let { String.format(Locale.ROOT, "%.3f", (it - start) / 1000.0) } ?: "-"
+                for (u in o.urgentShifts) {
+                    md.append("| ").append(o.key.run).append(" | ").append(u.t).append(" | ").append(rel(u.prevTarget)).append(" | ")
+                        .append(rel(u.newTarget)).append(" | ").append(rel(u.predicted)).append(" |\n")
+                }
+            }
+        }
+        Reports.section("urgent shifts", md.toString())
     }
 
     fun runOne(trace: TraceModel, case: CaseModel, key: RunKey): RunOutcome {
@@ -132,7 +180,10 @@ internal object Suite {
                 p06 = if (shText == text) null else "P06: +1 day transcript differs (${key.run})"
             }
             val keep = dumpTranscripts || key.run in SAMPLE_RUNS
-            RunOutcome(key, fails, Transcript.sha256(text), Transcript.lineCount(text), if (keep) text else null, firstAlarm, ks, i8, i9, p06)
+            RunOutcome(
+                key, fails, Transcript.sha256(text), Transcript.lineCount(text), if (keep) text else null, firstAlarm, ks, i8, i9, p06,
+                Checks.urgentShifts(main), main.startMs, main.gapProbes,
+            )
         } catch (e: ConfigError) {
             RunOutcome(key, listOf("config error: ${e.message} (${key.run} j=${key.j})"), null, 0, null, null, null, null, null, null)
         }

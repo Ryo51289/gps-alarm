@@ -75,6 +75,10 @@ internal class RunResult(
     val killT: Int?,
     val violations: List<String>,
     val forks: Map<Int, CaseRun>,
+    /** TR39 (T10.5 §6): wake-up Ticks delivered by the Doze model inside / right after GPS gaps. */
+    val dozeWakeTicks: Int = 0,
+    /** U116, U117 (T10.5 round 3, 3b): GPS-gap chord probes of the fixes that recovered GPS, were gap fixes or met the standing term. */
+    val gapProbes: List<GapProbe> = emptyList(),
 )
 
 internal fun eventName(e: TripEvent): String = when (e) {
@@ -148,6 +152,8 @@ internal class CaseRun private constructor(
     private var predAfterTick = arrayOfNulls<Long>(ticks)
     private val forks = LinkedHashMap<Int, CaseRun>()
     private val queue = ArrayDeque<EngineInput>()
+    private var dozeWakeTicks = 0
+    private val gapProbes = ArrayList<GapProbe>()
 
     companion object {
         fun create(trace: TraceModel, case: CaseModel, key: RunKey, opts: RunOpts = RunOpts()): CaseRun {
@@ -197,7 +203,7 @@ internal class CaseRun private constructor(
 
     fun result(): RunResult = RunResult(
         key, startMs, params, records, fbOsAfterTick, predAfterTick, firstAlarmT, firstEventT, relaunchT,
-        os.osFallbackFiredT, case.config.kill?.t, violations, forks,
+        os.osFallbackFiredT, case.config.kill?.t, violations, forks, dozeWakeTicks, gapProbes,
     )
 
     /** Copy of the harness state at the end of the current tick (records empty). */
@@ -296,6 +302,7 @@ internal class CaseRun private constructor(
             if (f != null && (w == null || f <= w)) {
                 for (x in os.tick(t, f, true)) feed(t, x)
             } else {
+                dozeWakeTicks++
                 feed(t, Tick(w!!))
             }
             if (++guard > 10_000) throw ConfigError("doze model: no progress (${where(t)})")
@@ -375,7 +382,9 @@ internal class CaseRun private constructor(
     private fun feed(t: Int, x: EngineInput, sampleIndex: Int = -1) {
         if (x is UserAction && (x.action == UserActionKind.DISMISS || x.action == UserActionKind.STOP_TRIP)) os.onUserDismissOrStop()
         if (state.phase == TripPhase.ENDED) return // reduce is a no-op on ENDED; not recorded (§8.3)
+        val s0 = state
         val step = TripEngine.reduce(state, x)
+        if (x is LocationFix) GapProbe.of(s0, x, step)?.takeIf { it.recovered || it.gapFix || it.standingTerm }?.let { gapProbes += it }
         state = step.state
         lastView = step.view
         record(t, x, Transcript.encodeInput(x, startMs, sampleIndex), step)

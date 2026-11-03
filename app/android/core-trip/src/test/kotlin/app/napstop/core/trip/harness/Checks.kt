@@ -2,6 +2,7 @@ package app.napstop.core.trip.harness
 
 import app.napstop.core.trip.Alarm
 import app.napstop.core.trip.AlarmSilenced
+import app.napstop.core.trip.EngineParams
 import app.napstop.core.trip.EngineState
 import app.napstop.core.trip.EndReason
 import app.napstop.core.trip.FallbackAlarmChanged
@@ -15,9 +16,16 @@ import app.napstop.core.trip.PreAlert
 import app.napstop.core.trip.Snoozed
 import app.napstop.core.trip.TripEnded
 import app.napstop.core.trip.TripEvent
+import app.napstop.core.trip.TripView
 
 /** Event with the tick it was emitted at and the index of its record. */
 internal class TimedEvent(val t: Int, val rec: Int, val e: TripEvent)
+
+/**
+ * T10.5 "urgent later shift" (dời muộn khẩn, T10 §3 I4, §4.10): an ETA emission inside the quiet window that the I4 exception
+ * allows. [t] is the tick of the record, [atMs] the Step's now; times are absolute ms.
+ */
+internal class UrgentShift(val t: Int, val atMs: Long, val prevTarget: Long, val newTarget: Long?, val predicted: Long)
 
 /**
  * Per-run checks of T12 §8.5 (expect*, forbid*, I1–I7, I10–I13, C16, P02 unless allowFallbackFirst). P07, I14, P08 and finite
@@ -110,17 +118,51 @@ internal object Checks {
         return fails
     }
 
-    /** I1–I7, I10–I13 (T10 §3). I4 against the previous Step's view and the current Step's predictedAlarmAtMs. */
+    /**
+     * I4 of one ETA emission (T10 §3, T10.5 wording): null = outside the quiet window or a first / FAILED-retry emission; true =
+     * inside the quiet window and allowed as an urgent later shift; false = an I4 violation. [prev] is the previous Step's view.
+     */
+    fun quietEmission(prev: TripView?, view: TripView, e: FallbackAlarmChanged, p: EngineParams): Boolean? {
+        val prevTarget = prev?.fallbackAtMs ?: return null
+        val pred = view.predictedAlarmAtMs ?: return null
+        if (prev.fallbackStatus == FallbackStatus.FAILED) return null
+        val quietMs = p.fallbackQuietBeforeS * 1000L
+        val now = view.atMs
+        if (now < minOf(prevTarget, pred) - quietMs) return null
+        val at = e.fallbackAtMs
+        return now < pred - quietMs && prevTarget - now >= p.fallbackMinLeadS * 1000L &&
+            at != null && at - prevTarget >= p.fallbackMinShiftS * 1000L
+    }
+
+    /** T10.5 §6: the urgent later shifts of a run (counter printed to summary.md). */
+    fun urgentShifts(r: RunResult): List<UrgentShift> {
+        val out = ArrayList<UrgentShift>()
+        var prevView: TripView? = null
+        for (rec in r.records) {
+            val view = rec.view ?: continue
+            for (e in rec.events) {
+                if (e is FallbackAlarmChanged && e.cause == FallbackCause.ETA && quietEmission(prevView, view, e, r.params) != null) {
+                    out += UrgentShift(rec.t, view.atMs, prevView!!.fallbackAtMs!!, e.fallbackAtMs, view.predictedAlarmAtMs!!)
+                }
+            }
+            prevView = view
+        }
+        return out
+    }
+
+    /**
+     * I1–I7, I10–I13 (T10 §3). I4 against the previous Step's view and the current Step's predictedAlarmAtMs, with the T10.5
+     * urgent-later-shift exception (counted by [urgentShifts]).
+     */
     fun invariants(r: RunResult, tag: String): List<String> {
         val f = ArrayList<String>()
-        val quietMs = r.params.fallbackQuietBeforeS * 1000L
         var alarmSeen = false
         var releasedSinceAlarm = false
         var ended = false
         var preAlerts = 0
         var overshoots = 0
         var expectLost = true
-        var prevView: app.napstop.core.trip.TripView? = null
+        var prevView: TripView? = null
         for (rec in r.records) {
             val view = rec.view ?: continue
             if (rec.input is AlarmSilenced) releasedSinceAlarm = true
@@ -141,14 +183,8 @@ internal object Checks {
                         if (alarmSeen && e.fallbackAtMs != null && e.cause != FallbackCause.SNOOZE && e.cause != FallbackCause.RESYNC) {
                             f += "I3: FallbackAlarmChanged(${e.cause}) with a time after the first alarm at t=${rec.t} ($tag)"
                         }
-                        if (e.cause == FallbackCause.ETA) {
-                            val pv = prevView
-                            val prevTarget = pv?.fallbackAtMs
-                            val pred = view.predictedAlarmAtMs
-                            if (pv != null && prevTarget != null && pv.fallbackStatus != FallbackStatus.FAILED && pred != null) {
-                                val lim = minOf(prevTarget, pred) - quietMs
-                                if (view.atMs >= lim) f += "I4: ETA emission inside the quiet window at t=${rec.t} ($tag)"
-                            }
+                        if (e.cause == FallbackCause.ETA && quietEmission(prevView, view, e, r.params) == false) {
+                            f += "I4: ETA emission inside the quiet window at t=${rec.t} ($tag)"
                         }
                     }
                     is PreAlert -> {

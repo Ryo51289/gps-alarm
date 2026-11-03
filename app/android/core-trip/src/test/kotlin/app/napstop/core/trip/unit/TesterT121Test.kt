@@ -8,13 +8,16 @@ import app.napstop.core.trip.EngineInput
 import app.napstop.core.trip.EngineParams
 import app.napstop.core.trip.EngineState
 import app.napstop.core.trip.FallbackAlarmChanged
+import app.napstop.core.trip.FallbackCause
 import app.napstop.core.trip.FallbackFired
 import app.napstop.core.trip.FallbackRestoreStatus
 import app.napstop.core.trip.FallbackScheduled
 import app.napstop.core.trip.FallbackStatus
 import app.napstop.core.trip.GpsLost
+import app.napstop.core.trip.GpsLostCause
 import app.napstop.core.trip.GpsStatus
 import app.napstop.core.trip.LocationFix
+import app.napstop.core.trip.Overshoot
 import app.napstop.core.trip.PreAlert
 import app.napstop.core.trip.RestoreInfo
 import app.napstop.core.trip.SamplingTier
@@ -26,6 +29,7 @@ import app.napstop.core.trip.TripPhase
 import app.napstop.core.trip.VehicleKind
 import app.napstop.core.trip.WAKE_GUARD_MS
 import app.napstop.core.trip.harness.Checks
+import app.napstop.core.trip.harness.GapProbe
 import app.napstop.core.trip.lostAfterS
 import app.napstop.core.trip.support.DEST
 import app.napstop.core.trip.support.S
@@ -40,15 +44,17 @@ import org.junit.jupiter.api.Test
 import java.io.File
 
 /**
- * Tester additions for T12.1 (T10.4: wakeGuardMs, lostAfterS monotone between fixes; docs/test-reports/T12.1.md).
+ * Tester additions for T12.1 (T10.4: wakeGuardMs, lostAfterS monotone between fixes; docs/test-reports/T12.1.md), turned into
+ * T10.5 tests by T12.2 (U106 a/b, U107, U111; T10 mục T10.5 §6).
  * Question: "is there any situation where the engine does not wake the user on time?"
- *  - A10: pre-alert (nhắc nhẹ) for TIME/SMART during GPS loss lands on the near-zone wake-up (review T12.1 nit #5).
+ *  - U107 (A10): pre-alert (nhắc nhẹ) for TIME/SMART during GPS loss lands on the near-zone wake-up within the T10.5 §2.2 scope.
  *  - Early wake-up delivery (T10.4 §3.1 (2)): a Tick up to 998 ms before wakeAtMs still rings.
- *  - Doze platform fuzz: longer trips, fixes only while "awake" (or never), only wake-up Ticks + OS fallback, random
- *    FallbackScheduled failures, random kill/restart (RANG/PENDING/MISSING/UNKNOWN); I13, I14, "Tick at wakeAtMs rings or
- *    re-arms strictly later", liveness, and "the first alarm never comes from the OS fallback when it was scheduled OK
- *    and nothing new was learnt after it was planned".
- *  - Wake-up storm characterisation: GPS OK + stopped, predicted − now just above a candidate boundary.
+ *  - U111 Doze platform fuzz: longer trips, fixes only while "awake" (or never), only wake-up Ticks + OS fallback, random
+ *    FallbackScheduled failures, random kill/restart (RANG/PENDING/MISSING/UNKNOWN); I4 (T10.5 wording), I13, I14, "Tick at
+ *    wakeAtMs rings or re-arms strictly later", liveness, "the first alarm never comes from the OS fallback when it was
+ *    scheduled OK and nothing new was learnt after it was planned", and (T10.5) "an early fallback the urgent later shift
+ *    could rescue was rescued".
+ *  - U106 a/b: no wake-up storm with GPS OK + stopped (before T10.5: one wake-up every T − B + 1 s).
  */
 class TesterT121Test {
     private val outDir = File(System.getProperty("napstop.outDir") ?: "build/napstop").also { it.mkdirs() }
@@ -120,11 +126,16 @@ class TesterT121Test {
             wakes += prev
             check(++guard < 500)
         }
+        // I5: at most one PreAlert over the trip, never at or after the Alarm.
+        val all = e.steps
+        val preIdx = all.indices.filter { i -> all[i].events.any { it is PreAlert } }
+        val alarmIdx = all.indexOfFirst { s -> s.events.any { it is Alarm } }
+        assertTrue(preIdx.size <= 1 && preIdx.all { it < alarmIdx }) { "I5: pre-alerts at $preIdx, alarm at $alarmIdx" }
         return DozeRun(lost, wakes)
     }
 
     @Test
-    fun `T121 A10 TIME and SMART pre-alert during GPS loss rings at the near-zone wake-up (etaS about 1799)`() {
+    fun `U107 a A10 TIME and SMART pre-alert during GPS loss rings at the near-zone wake-up (etaS about 1799)`() {
         val rng = Rng(10)
         val modes = listOf(
             Triple("TIME 5", cfg(AlarmMode.TIME, thrMin = 5), false),
@@ -152,7 +163,8 @@ class TesterT121Test {
                 val preStep = pre.single()
                 val alarmStep = r.wakes.last()
                 val a = alarmStep.events.filterIsInstance<Alarm>().single()
-                assertTrue(a.ringNow && a.reason != AlarmReason.FALLBACK, tag)
+                assertEquals(AlarmReason.GPS_LOST, a.reason, tag)
+                assertTrue(a.ringNow, tag)
                 assertTrue(preStep.state.nowMs < alarmStep.state.nowMs, "$tag: pre-alert not before the alarm")
                 // Near-zone wake-up of c3: P − fallbackNearS·1000 + wakeGuardMs (P stable to ±1 ms while lost).
                 val expect = p0 - 600_000L + WAKE_GUARD_MS
@@ -165,21 +177,23 @@ class TesterT121Test {
                 sets++
             }
         }
+        assertEquals(155, sets)
         File(outDir, "t121-a10.txt").writeText("sets=$sets\n$log")
     }
 
     /**
-     * Outside the A10 claim, measured (not a spec requirement): TIME 21–25 min (mode boundary before lostAt, pre-alert allowed
-     * since 1800 − thr >= 300) and DISTANCE (no wake-up candidate for the pre-alert, T10.4 §3.4). Pinned so a change is seen.
+     * U107 b–d, outside the A10 scope of T10.5 §2.2 (pinned numbers of the T12.1 tester): TIME 21–25 min (mode boundary before
+     * lostAt, pre-alert allowed since 1800 − thr >= 300), SMART slow closing < 2.12 m/s and DISTANCE (no wake-up candidate for
+     * the pre-alert, T10.4 §3.4). The pre-alert comes at the c8 wake-up 61 s before the alarm, or not at all (I5 allows).
      */
     @Test
-    fun `T121 A10 outside the claim TIME 25 and DISTANCE pre-alert lead during GPS loss in Doze (measured)`() {
+    fun `U107 b c d A10 outside the scope TIME 21 and 25, SMART slow below 2_12 m per s, DISTANCE pre-alert lead in Doze`() {
         val out = StringBuilder()
         fun measure(name: String, config: TripConfig, ground: Double, closing: Double, slow: Boolean): List<Double> {
             val r = lostDoze(config, 5_000.0, ground, closing, slow)
             val alarm = r.wakes.last()
             val a = alarm.events.filterIsInstance<Alarm>().single()
-            assertTrue(a.ringNow && a.reason != AlarmReason.FALLBACK, name)
+            assertTrue(a.ringNow && a.reason == AlarmReason.GPS_LOST, name)
             val leads = r.wakes.filter { s -> s.events.any { it is PreAlert } }.map { (alarm.state.nowMs - it.state.nowMs) / 1000.0 }
             out.append("$name: alarm ${a.reason} at etaS ${alarm.view.etaS}; pre-alert lead $leads s; wake-ups ${r.wakes.size}\n")
             return leads
@@ -191,12 +205,12 @@ class TesterT121Test {
         val slow141 = measure("SMART slow closing 1.41", cfg(AlarmMode.SMART), 1.69, 1.41, true)
         val dist = measure("DISTANCE 1000", cfg(AlarmMode.DISTANCE, thr = 1000), 15.0, 12.5, false)
         File(outDir, "t121-a10-outside.txt").writeText(out.toString())
-        // Pinned (outside the T10.4 A10 claim, I5 allows): the pre-alert comes at the c8 wake-up 61 s before the alarm, or not at all.
+        // Pinned (outside the A10 scope, I5 allows): the pre-alert comes at the c8 wake-up 61 s before the alarm, or not at all.
         assertEquals(listOf(61.0), t21)
         assertEquals(listOf(61.0), t25)
         assertEquals(listOf(61.0), slow15)
         assertEquals(emptyList<Double>(), slow141)
-        assertTrue(dist.size <= 1)
+        assertEquals(emptyList<Double>(), dist)
     }
 
     // ================================================================ early wake-up delivery (T10.4 §3.1 (2))
@@ -280,38 +294,46 @@ class TesterT121Test {
     @Suppress("FunctionName")
     private fun TMathMax(a: Double, b: Double): Double = if (a > b) a else b
 
-    // ================================================================ wake-up storm (characterisation, GPS OK + stopped)
+    // ================================================================ U106 a/b: no wake-up storm (GPS OK + stopped)
 
     /**
-     * GPS OK, the last fix is STATIONARY (stop in progress): dNow = dSmooth, so predicted = now + T with T constant. Every c4 /
-     * near-zone candidate with T just above its boundary B lands at now + (T − B) + 1 s, i.e. the engine asks to be woken every
-     * T − B + 1 s until the next fix or c2. Measured, not a spec rule (T10.4 §3.1 only bounds it to >= 1 s; before T10.4 it was
-     * >= 1 ms). Reported to the designer as a battery / RK17 note.
+     * U106 (a), (b) (T10 mục T10.5 §6; was the T12.1 tester's storm characterisation). GPS OK, the last fix is STATIONARY (stop in
+     * progress): dNow = dSmooth, so predicted = now + T with T constant (it slides with now). Before T10.5 every c4 / near-zone
+     * candidate with T just above its boundary B landed at now + (T − B) + 1 s: a wake-up every 1 499 ms (40 / 60 / 360 before
+     * c2; 794 in a 20-minute SPARSE stop). T10.5: c3/c4 come from wakeBasisAt (= deadlineAt while sliding), so the only wake-up
+     * left is c2.
      */
     @Test
-    fun `T121 storm GPS OK stopped with T just above a boundary asks for a wake-up every T - B + 1 s`() {
+    fun `U106 a b GPS OK and stopped with T just above a boundary asks for no wake-up storm`() {
         val out = StringBuilder()
+        val expectWake = mapOf(SamplingTier.DENSE to 60_000L, SamplingTier.MEDIUM to 90_000L, SamplingTier.SPARSE to 540_000L)
         for ((tier, b) in listOf(SamplingTier.DENSE to 600, SamplingTier.MEDIUM to 900, SamplingTier.SPARSE to 3600)) {
             // DISTANCE 1000, cvDr = 12.5: T = (d − 1000)/12.5. T = B + 0.5 s.
             val d = 1000.0 + 12.5 * (b + 0.5)
             val st = trackingState(cfg(), d = d, inStop = true, tier = tier)
             val e = driverFrom(st)
             var s = e.tickMs(S + 1)
+            assertEquals(null, i13(s))
+            assertEquals(S + expectWake.getValue(tier), s.view.wakeAtMs, "$tier: wakeAtMs after Tick(S + 1)")
             var wakes = 0
-            var minGap = Long.MAX_VALUE
-            val first = s.view.samplingPolicy!!.tier
             while (s.view.gps == GpsStatus.OK && s.events.none { it is Alarm }) {
-                val w = s.view.wakeAtMs!!
-                minGap = minOf(minGap, w - s.state.nowMs)
-                s = e.tickMs(w)
+                s = e.tickMs(s.view.wakeAtMs!!)
+                assertEquals(null, i13(s), "$tier")
                 if (++wakes > 5_000) break
             }
-            out.append("tier $first B=$b: $wakes wake-ups before GpsLost at ${(s.state.nowMs - S) / 1000.0} s, min gap $minGap ms\n")
-            // Pinned: one wake-up request every T − B + 1 s = 1.5 s, until c2 (lostAfterS after the last fix).
-            assertEquals(minGap, 1_499L)
-            assertEquals(GpsStatus.LOST, s.view.gps)
+            out.append("tier $tier B=$b: $wakes wake-up Tick(s) until GpsLost at ${(s.state.nowMs - S) / 1000.0} s (before T10.5: 40/60/360)\n")
+            assertEquals(1, wakes, "$tier: wake-up Ticks until GpsLost")
+            val lost = s.events.filterIsInstance<GpsLost>().single()
+            assertEquals(GpsLostCause.NO_FIX_TIMEOUT, lost.cause)
+            val alarm = s.events.filterIsInstance<Alarm>()
+            if (tier == SamplingTier.SPARSE) {
+                assertTrue(alarm.isEmpty(), "SPARSE: only GpsLost")
+            } else {
+                // etaS 640.5 / 910.5 < gpsLostAlarmEtaS 1 200.
+                assertTrue(alarm.single().reason == AlarmReason.GPS_LOST && alarm.single().ringNow, "$tier: $alarm")
+            }
         }
-        // Same, with stationary fixes arriving every policy interval for a 20-minute stop: the storm lasts the whole stop.
+        // (b) Stationary fixes every 180 s for a 20-minute SPARSE stop; a wake-up Tick only when it comes before the next fix.
         val d = 1000.0 + 12.5 * 3600.5
         val e = driverFrom(trackingState(cfg(), d = d, inStop = true, tier = SamplingTier.SPARSE))
         var s = e.tickMs(S + 1)
@@ -325,12 +347,13 @@ class TesterT121Test {
                 ticks++
                 e.tickMs(w)
             }
+            assertEquals(null, i13(s))
             assertEquals(GpsStatus.OK, s.view.gps)
             assertTrue(s.events.none { it is Alarm })
         }
-        out.append("SPARSE B=3600, stopped 1 200 s with a stationary fix every 180 s: $ticks wake-up Ticks requested\n")
-        assertTrue(ticks > 700) { "storm: $ticks" }
-        File(outDir, "t121-storm.txt").writeText(out.toString())
+        out.append("SPARSE B=3600, stopped 1 200 s with a stationary fix every 180 s: $ticks wake-up Ticks (before T10.5: 794)\n")
+        assertEquals(0, ticks, "U106 b: wake-up Ticks during the stop")
+        File(outDir, "u106-storm.txt").writeText(out.toString())
     }
 
     // ================================================================ Doze platform fuzz
@@ -384,6 +407,23 @@ class TesterT121Test {
         val lateCases = ArrayList<Pair<Double, String>>()
         val fbAfterInfo = ArrayList<String>()
 
+        /** T10.5: urgent later shifts (I4 exception) emitted in the fuzz. */
+        var urgentShifts = 0
+
+        /** T10.5: `fallback (new info after planning)` first alarms: predicted at the last Step before it fired − F, s. */
+        val earlyS = ArrayList<Double>()
+
+        /**
+         * T10.5 round 2: first alarm from a fallback planned on unchanged information while the engine believes it is stopped with
+         * <= Q to the boundary, by the truth speed at the ring (< stationarySpeedMps: really stopped).
+         */
+        val believedStopReal = ArrayList<String>()
+
+        /** U116 (b): OVERSHOOT / PASSED_CLOSEST using a minD from the GPS-gap chord. */
+        var gapTriggers = 0
+        val gapLines = ArrayList<String>()
+        val believedStopMoving = ArrayList<String>()
+
         fun v(kind: String, where: String) {
             violations[kind] = (violations[kind] ?: 0) + 1
             if (kind !in firstViolation) firstViolation[kind] = where
@@ -395,6 +435,12 @@ class TesterT121Test {
     }
 
     private enum class Variant { DOZE_NO_FIX, DOZE_WITH_FIXES, DOZE_FROM_START }
+
+    /**
+     * T10.5 U111: the last Step that carried new information (fix, battery sample, restore): its now, the fallback in force
+     * before it ([fBefore], [statusBefore]), the predicted time after it and whether it moved the fallback later.
+     */
+    private class InfoStep(val t: Long, val fBefore: Long?, val statusBefore: FallbackStatus, val predicted: Long?, val movedLater: Boolean)
 
     /**
      * One trip under a platform model. Awake phase: a fix every policy interval (GPS gaps allowed), wake-up Ticks, OS fallback.
@@ -429,6 +475,8 @@ class TesterT121Test {
         var lastFixAt = S - 1_000_000L
         var lastInfoAt = S // last input that may move predicted: fix, battery, restore
         var lastInfoKind = "start"
+        var lastInfo: InfoStep? = null
+        var chordMinD: Double? = null // U116 (b): last dChord of the trip
         var batteryAt = S
         var level = 20 + r.int(81)
         val drainPerH = r.dbl(1.0, 12.0)
@@ -447,6 +495,16 @@ class TesterT121Test {
             st.steps++
             val where = "$tripTag t=${(s.state.nowMs - S) / 1000.0} after $label"
             Checks.finiteStateViolation(s.state)?.let { st.v("finite", "$where: $it") }
+            // I4 (T10.5 wording) and the urgent-later-shift counter.
+            for (ev in s.events) {
+                if (ev is FallbackAlarmChanged && ev.cause == FallbackCause.ETA) {
+                    when (Checks.quietEmission(prev.view, s.view, ev, s.state.params)) {
+                        false -> st.v("I4", where)
+                        true -> st.urgentShifts++
+                        null -> Unit
+                    }
+                }
+            }
             i13(s)?.let { st.v(it.substringBefore(" in ").substringBefore(" ms"), where) }
             i14(s)?.let { st.v(it.take(40), where) }
             if (s.view.phase != TripPhase.ENDED) {
@@ -525,6 +583,7 @@ class TesterT121Test {
                 step = TripEngine.restore(snap, restartAt, info)
                 lastInfoAt = restartAt
                 lastInfoKind = "restore"
+                lastInfo = infoStep(restartAt, s0, step)
                 label = "RESTORE ${info.status}"
                 if (!rang && step.events.any { it is Alarm }) {
                     rang = true
@@ -570,6 +629,23 @@ class TesterT121Test {
                 }
                 step = TripEngine.reduce(s0, input)
                 label = input.toString()
+                if (input is LocationFix) {
+                    // U116 (b) (round 3b): an OVERSHOOT / PASSED_CLOSEST that uses a minD from the GPS-gap chord must not come before
+                    // the vehicle really passed the destination.
+                    GapProbe.of(s0, input, step)?.dChord?.let { chordMinD = it }
+                    val cm = chordMinD
+                    val passEv = step.events.any {
+                        it is Overshoot || (it is Alarm && (it.reason == AlarmReason.OVERSHOOT || it.reason == AlarmReason.PASSED_CLOSEST))
+                    }
+                    if (cm != null && passEv && step.state.minD == cm) {
+                        st.gapTriggers++
+                        val dTruth = truth.dAt((t - S) / 1000.0)
+                        val kinds = step.events.filter { it is Overshoot || it is Alarm }.map { if (it is Alarm) it.reason.name else "Overshoot" }
+                        st.gapLines += "$tripTag t=${(t - S) / 1000.0} truthD=${dTruth.toInt()} chordMinD=$cm $kinds"
+                        if (dTruth > 0.0) st.v("chord minD used before the destination was passed", st.gapLines.last())
+                    }
+                }
+                if (input is LocationFix || input is BatterySample) lastInfo = infoStep(t, s0, step)
                 if (!rang && step.events.any { it is Alarm }) {
                     rang = true
                     val a = step.events.filterIsInstance<Alarm>().single()
@@ -577,14 +653,49 @@ class TesterT121Test {
                         // Engine-first: a fallback planned after the last new information (pure dead reckoning since then)
                         // must never beat the engine's own wake-up alarm.
                         val emitted = s0.fallback.emittedAtMs ?: Long.MIN_VALUE
-                        if (emitted >= lastInfoAt) {
-                            st.v("first alarm from OS fallback though planned on unchanged information", "$tripTag t=${(t - S) / 1000.0}")
+                        val pv = prev.view.predictedAlarmAtMs
+                        val detail = "$tripTag t=${(t - S) / 1000.0} emitted=${(emitted - S) / 1000.0} " +
+                            "engineP=${pv?.let { (it - S) / 1000.0 }} engineWake=${prev.view.wakeAtMs?.let { (it - S) / 1000.0 }} " +
+                            "gps=${prev.view.gps} stopped=${prev.state.stopStartMs != null}"
+                        // T10 "T10.5" (a) + "T10.5 vòng 2" (2): the engine believes it is stopped (GPS OK, stop in progress) with
+                        // predicted − now <= Q: K1 forbids moving the fallback and the forecast slides with now. Not a violation
+                        // while the fallback rings no later than predicted (previous Step) + (fallbackLagS + fallbackNearSlackS)
+                        // + 1 s (T10.5 round 3 §11: the near-zone hold band); split by the truth
+                        // speed at the ring (really stopped / moving, the latter from a stop misclassified on two close fixes).
+                        val believedStop = prev.view.gps == GpsStatus.OK && prev.state.stopStartMs != null && pv != null &&
+                            pv - prev.state.nowMs <= p.fallbackQuietBeforeS * 1000L
+                        if (emitted >= lastInfoAt && believedStop) {
+                            val v = truth.speedAt((t - S) / 1000.0)
+                            val moving = v >= p.stationarySpeedMps
+                            val bound = pv + (p.fallbackLagS + p.fallbackNearSlackS) * 1000L + 1000L
+                            val line = "$detail truthSpeed=$v ${if (moving) "moving" else "stopped"} ring-P=${(t - pv) / 1000.0} s"
+                            if (t > bound) {
+                                st.v("believed-stop fallback later than predicted + fallbackLag + fallbackNearSlack + 1 s", line)
+                            }
+                            st.first("fallback (pure DR, engine believes stopped, <= Q to the boundary) ${a.reason}")
+                            if (moving) st.believedStopMoving += line else st.believedStopReal += line
+                        } else if (emitted >= lastInfoAt) {
+                            st.v("first alarm from OS fallback though planned on unchanged information", detail)
                             st.first("fallback (pure DR) ${a.reason}")
                         } else {
                             st.first("fallback (new info after planning) ${a.reason}")
+                            val li = lastInfo
+                            val q = p.fallbackQuietBeforeS * 1000L
+                            // T10.5 U111: the last new information could rescue it (F − t >= minLead, predicted − t > Q, predicted >= F)
+                            // so that Step must have moved the fallback later.
+                            val f: Long = fb
+                            if (li != null && li.fBefore == f && li.statusBefore != FallbackStatus.FAILED && li.predicted != null &&
+                                f - li.t >= p.fallbackMinLeadS * 1000L && li.predicted - li.t > q && li.predicted >= f && !li.movedLater
+                            ) {
+                                st.v("eligible for the urgent later shift but not rescued", "$tripTag t=${(t - S) / 1000.0}")
+                            }
+                            prev.view.predictedAlarmAtMs?.let { st.earlyS += (it - t) / 1000.0 }
                             st.fbAfterInfo += "$tripTag F=${(t - S) / 1000.0} emitted=${(emitted - S) / 1000.0} lastInfo=$lastInfoKind@" +
-                                "${(lastInfoAt - S) / 1000.0} engineP=${prev.view.predictedAlarmAtMs?.let { (it - S) / 1000.0 }} " +
-                                "engineWake=${prev.view.wakeAtMs?.let { (it - S) / 1000.0 }} gps=${prev.view.gps}"
+                                "${(lastInfoAt - S) / 1000.0} F-tInfo=${(f - lastInfoAt) / 1000.0} " +
+                                "engineP=${prev.view.predictedAlarmAtMs?.let { (it - S) / 1000.0 }} " +
+                                "early=${prev.view.predictedAlarmAtMs?.let { (it - t) / 1000.0 }} " +
+                                "engineWake=${prev.view.wakeAtMs?.let { (it - S) / 1000.0 }} gps=${prev.view.gps} " +
+                                "stopped=${prev.state.stopStartMs != null}"
                         }
                     } else {
                         st.first((if (awake) "awake " else "doze ") + (if (a.ringNow) "engine " else "noRing ") + a.reason)
@@ -633,25 +744,45 @@ class TesterT121Test {
         st.trips++
     }
 
+    private fun infoStep(t: Long, s0: EngineState, step: Step): InfoStep {
+        val f = s0.fallback.targetAtMs
+        val moved = f != null && step.events.any { it is FallbackAlarmChanged && (it.fallbackAtMs ?: Long.MIN_VALUE) > f }
+        return InfoStep(t, f, s0.fallback.status, step.view.predictedAlarmAtMs, moved)
+    }
+
     private fun runDozeFuzz(name: String, seeds: LongRange, variant: Variant, okP: Double, killP: Double, battery: Boolean): FuzzStats {
         val st = FuzzStats()
         for (seed in seeds) dozeTrip(seed, variant, okP, killP, battery, st)
         val late = st.lateVsTruth.sorted()
         val lateTxt = if (late.isEmpty()) "-" else "min ${late.first().toInt()} m, p05 ${late[late.size / 20].toInt()} m, median ${late[late.size / 2].toInt()} m, " +
             "rang after passing the threshold: ${late.count { it < 0 }}/${late.size}"
-        File(outDir, "t121-doze-$name.txt").writeText(
+        val early = st.earlyS.sorted()
+        val fbNewInfo = st.firstBy.filterKeys { it.startsWith("fallback (new info after planning)") }.values.sum()
+        // T10.5 round 2: DISTANCE lateness vs truth (threshold crossing → first alarm) of the trips that rang after the threshold.
+        val lateS = st.lateCases.map { it.first }.sorted()
+        fun q(f: Double) = lateS[minOf(lateS.size - 1, (f * lateS.size).toInt())]
+        val lateSTxt = if (lateS.isEmpty()) "-" else "n ${lateS.size}, p50 ${q(0.5)} s, p90 ${q(0.9)} s, max ${lateS.last()} s"
+        val warn = if (st.believedStopMoving.size > 3) "WARNING: believed-stop moving > 3, report to the designer\n" else ""
+        File(outDir, "u111-doze-$name.txt").writeText(
             "trips=${st.trips} steps=${st.steps} probes=${st.probes} kills=${st.kills} ties=${st.ties}\n" +
+                "urgentLaterShifts=${st.urgentShifts} fallbackNewInfoAfterPlanning=$fbNewInfo earlyVsPredictedS: " +
+                (if (early.isEmpty()) "-" else "median ${early[early.size / 2]} max ${early.last()}") + "\n" +
+                "believedStopFallbackFirst: stopped=${st.believedStopReal.size} moving=${st.believedStopMoving.size}\n" + warn +
+                "chordMinDPassAlarms=${st.gapTriggers}${st.gapLines.joinToString("") { "\n  $it" }}\n" +
+                "DISTANCE late vs truth (crossing → first alarm, rang after the threshold): $lateSTxt\n" +
                 "firstAlarm=${st.firstBy}\nviolations=${st.violations}\nfirst=${st.firstViolation}\n" +
                 "minGapBetweenDozeWakeTicksMs=${st.minWakeGapMs} maxDozeWakeTicksIn9Min=${st.maxWakesIn9Min} " +
                 "firstAlarmFromDozeTick=${st.dozeTickAlarms} ofWhichWithin9MinOfPreviousWake=${st.dozeTickAlarmsWithin9Min}\nDISTANCE truth at first alarm (d − thr): $lateTxt\n" +
                 st.lateCases.sortedByDescending { it.first }.take(25).joinToString("\n") { it.second } + "\n" +
-                "fallback first after new information:\n" + st.fbAfterInfo.joinToString("\n") + "\n",
+                "fallback first after new information:\n" + st.fbAfterInfo.joinToString("\n") + "\n" +
+                "fallback first, engine believes stopped with <= Q to the boundary (not a violation within P + lag + 1 s):\n" +
+                (st.believedStopReal + st.believedStopMoving).joinToString("\n") + "\n",
         )
         return st
     }
 
     @Test
-    fun `T121 Doze fuzz no fix in Doze, fallback always scheduled OK, no kill - engine always rings first`() {
+    fun `U111 a Doze fuzz no fix in Doze, fallback always scheduled OK, no kill - engine always rings first`() {
         val st = runDozeFuzz("nofix-ok", 1L..700L, Variant.DOZE_NO_FIX, okP = 1.0, killP = 0.0, battery = false)
         assertTrue(st.steps > 100_000) { "too small: ${st.steps}" }
         assertTrue(st.violations.isEmpty()) { "violations ${st.violations} first ${st.firstViolation}" }
@@ -659,19 +790,19 @@ class TesterT121Test {
     }
 
     @Test
-    fun `T121 Doze fuzz from trip start, random fallback failures and kills - invariants and liveness`() {
+    fun `U111 b Doze fuzz from trip start, random fallback failures and kills - invariants and liveness`() {
         val st = runDozeFuzz("fromstart", 1L..700L, Variant.DOZE_FROM_START, okP = 0.85, killP = 0.5, battery = true)
         assertTrue(st.violations.isEmpty()) { "violations ${st.violations} first ${st.firstViolation}" }
     }
 
     @Test
-    fun `T121 Doze fuzz with fixes at wake-ups, battery, failures and kills - invariants and liveness`() {
+    fun `U111 c Doze fuzz with fixes at wake-ups, battery, failures and kills - invariants, liveness, urgent later shift`() {
         val st = runDozeFuzz("withfix", 1L..700L, Variant.DOZE_WITH_FIXES, okP = 0.85, killP = 0.4, battery = true)
         assertTrue(st.violations.isEmpty()) { "violations ${st.violations} first ${st.firstViolation}" }
     }
 
     @Test
-    fun `T121 Doze fuzz no fix in Doze with battery, failures and kills - invariants and liveness`() {
+    fun `U111 d Doze fuzz no fix in Doze with battery, failures and kills - invariants and liveness`() {
         val st = runDozeFuzz("nofix-mixed", 701L..1400L, Variant.DOZE_NO_FIX, okP = 0.85, killP = 0.4, battery = true)
         assertTrue(st.violations.isEmpty()) { "violations ${st.violations} first ${st.firstViolation}" }
     }

@@ -70,7 +70,7 @@ class DozeModelTest {
         val wakeTicks = doze.records.count { it.input is Tick && (it.input.atMs - doze.startMs) % (1000L * iS) != 0L }
         val md = "| ${ref.name} | ${nl?.let { s3(it.atMs, normal.startMs) } ?: "-"} | ${dl?.let { s3(it.atMs, doze.startMs) } ?: "-"} | " +
             "${na?.let { "${it.first} ${it.second.reason}" } ?: "-"} | ${da?.let { "${s3(it.second.atMs, doze.startMs)} ${it.second.reason} " +
-                "ringNow=${it.second.ringNow}" } ?: "-"} | $wakeTicks | ${if (fails.isEmpty()) "pass" else "FAIL"} |\n"
+                "ringNow=${it.second.ringNow}" } ?: "-"} | $wakeTicks | ${doze.dozeWakeTicks} | ${if (fails.isEmpty()) "pass" else "FAIL"} |\n"
         return Row(ref.name, fails, md)
     }
 
@@ -83,9 +83,9 @@ class DozeModelTest {
         }
         assertEquals(11, refs.size) { "TR39 case set changed: ${refs.map { it.name }}" }
         val rows = refs.map { ref -> Suite.pool.submit(Callable { check(ref) }) }.map { it.get() }.sortedBy { it.name }
-        val md = StringBuilder("### TR39 Doze model (T10.4 §7.3, mode all, no 9-minute Doze limit)\n\n")
-        md.append("| case | gpsLost normal (s) | gpsLost Doze (s) | first alarm normal (t) | first alarm Doze (s) | wake Ticks off grid | result |\n")
-        md.append("|---|---|---|---|---|---|---|\n")
+        val md = StringBuilder("### TR39 Doze model (T10.4 §7.3, T10.5 §6, mode all, no 9-minute Doze limit)\n\n")
+        md.append("| case | gpsLost normal (s) | gpsLost Doze (s) | first alarm normal (t) | first alarm Doze (s) | wake Ticks off grid | wake Ticks in GPS gaps | result |\n")
+        md.append("|---|---|---|---|---|---|---|---|\n")
         for (r in rows) md.append(r.md)
         Reports.section("TR39 doze", md.toString())
         val fails = rows.flatMap { it.fails }

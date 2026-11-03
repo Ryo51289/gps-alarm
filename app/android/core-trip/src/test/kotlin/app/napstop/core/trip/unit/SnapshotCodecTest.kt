@@ -24,6 +24,7 @@ import app.napstop.core.trip.support.trackingState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Random
 
@@ -46,7 +47,7 @@ class SnapshotCodecTest {
         val p = EngineParamsFactory.fromOverrides(if (i % 3 == 0) "{\"lostSpeedGuardUpdates\": 5, \"accRelMax\": 0.1234}" else null)
         return trackingState(p = p, d = rng.nextDouble() * 100000).copy(
             nowMs = S + rng.nextInt(100_000_000), last = fix(), stopAnchor = if (rng.nextBoolean()) fix() else null,
-            recent = List(rng.nextInt(4)) { fix() }, rejects = List(rng.nextInt(4)) { fix() }, dSmooth = d(), dStartM = d(), minD = d(),
+            recent = List(rng.nextInt(4)) { fix() }, rejects = List(rng.nextInt(4)) { fix() }, dSmooth = d(), dStartM = d(), minD = d(), minDChord = i % 2 == 0,
             last3 = List(rng.nextInt(4)) { d() }, ground = if (rng.nextBoolean()) d() else null, closing = d(), movingTimeS = d(),
             movingSamples = rng.nextInt(1000), movingDistM = d(), stopStartMs = if (rng.nextBoolean()) S + 5 else null, slow = rng.nextBoolean(),
             cvGuard = List(guardSizes[i % 4]) { d() }, policy = policy(SamplingTier.entries[rng.nextInt(3)]), gps = GpsStatus.entries[rng.nextInt(3)],
@@ -78,7 +79,10 @@ class SnapshotCodecTest {
     fun `U69 awkward doubles round-trip bit-exactly`() {
         val xs = listOf(0.1, 1.0 / 3, 2.0 / 3 * 1e-300, 123456.789, 5e-324, 1.7976931348623157e308, -0.0, 1e23)
         val s = trackingState().copy(cvGuard = xs, last3 = xs.take(3), dSmooth = xs[2], ground = xs[4], closing = xs[5], movingDistM = xs[6])
-        assertBitEqual(s, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s)))
+        for (chord in listOf(false, true)) { // T10.5 round 3e: minDChord both values
+            val sc = s.copy(minDChord = chord)
+            assertBitEqual(sc, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sc)))
+        }
     }
 
     @Test
@@ -93,6 +97,24 @@ class SnapshotCodecTest {
         for (b in bad) {
             val e = assertThrows(SnapshotFormatException::class.java, { TripEngine.decodeSnapshot(b) }, b.take(80))
             assertFalse(e.message!!.contains("TRACKING") || e.message!!.contains("106"), e.message)
+        }
+    }
+
+    @Test
+    fun `U118 minDChord is written right after minD, round-trips, a missing key reads false and a wrong type fails`() {
+        for (chord in listOf(true, false)) {
+            val st = trackingState().copy(minD = 1234.5, minDChord = chord)
+            val json = TripEngine.encodeSnapshot(st)
+            assertTrue(json.contains("\"minD\":1234.5,\"minDChord\":$chord,"), json.substringAfter("\"minD\"").take(40))
+            assertEquals(chord, TripEngine.decodeSnapshot(json).minDChord)
+            // Named exception to C20: a snapshot without the key (older writer, hand-made fixture) reads false.
+            val without = json.replace(",\"minDChord\":$chord", "")
+            assertFalse(without.contains("minDChord"))
+            assertEquals(st.copy(minDChord = false), TripEngine.decodeSnapshot(without))
+            // A present key must be a bool.
+            val wrong = json.replace("\"minDChord\":$chord", "\"minDChord\":\"$chord\"")
+            assertThrows(SnapshotFormatException::class.java) { TripEngine.decodeSnapshot(wrong) }
+            assertThrows(SnapshotFormatException::class.java) { TripEngine.decodeSnapshot(json.replace("\"minDChord\":$chord", "\"minDChord\":null")) }
         }
     }
 }

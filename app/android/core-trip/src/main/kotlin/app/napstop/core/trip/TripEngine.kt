@@ -18,6 +18,7 @@ internal class StepWork(s: EngineState) {
     var dSmooth: Double? = s.dSmooth
     var dStartM: Double? = s.dStartM
     var minD: Double? = s.minD
+    var minDChord: Boolean = s.minDChord
     var last3: List<Double> = s.last3
     var ground: Double? = s.ground
     var closing: Double? = s.closing
@@ -58,7 +59,7 @@ internal class StepWork(s: EngineState) {
     fun toState(): EngineState = EngineState(
         snapshotVersion = 1, params = p, config = cfg, nowMs = now, startedAtMs = startedAtMs, phase = phase, gps = gps,
         locationCause = locationCause, last = last, stopAnchor = stopAnchor, recent = recent, rejects = rejects,
-        dSmooth = dSmooth, dStartM = dStartM, minD = minD, last3 = last3, ground = ground, closing = closing,
+        dSmooth = dSmooth, dStartM = dStartM, minD = minD, minDChord = minDChord, last3 = last3, ground = ground, closing = closing,
         movingTimeS = movingTimeS, movingSamples = movingSamples, movingDistM = movingDistM, stopStartMs = stopStartMs,
         slow = slow, cvGuard = cvGuard, policy = policy, policyIntervalAtLastFixS = policyIntervalAtLastFixS,
         gpsLostAtMs = gpsLostAtMs, lostEmittedBeforeFirstFix = lostEmittedBeforeFirstFix, preAlertArmed = preAlertArmed,
@@ -267,6 +268,7 @@ private fun applyUserAction(w: StepWork, action: UserActionKind): Boolean {
 private fun applyFix(w: StepWork, f: LocationFix) {
     val p = w.p
     val prev = w.last
+    val noRejectsSincePrev = w.rejects.isEmpty() // T10.5 round 3f: classifyFix clears `rejects` on ACCEPT
     when (val v = classifyFix(w, f)) {
         is FixVerdict.Drop -> w.droppedFixes += 1
         is FixVerdict.Reanchor -> {
@@ -276,6 +278,7 @@ private fun applyFix(w: StepWork, f: LocationFix) {
             w.last = rec
             w.dSmooth = rec.d
             w.minD = rec.d
+            w.minDChord = false
             w.last3 = listOf(rec.d)
             w.stopStartMs = null
             w.stopAnchor = null
@@ -283,6 +286,21 @@ private fun applyFix(w: StepWork, f: LocationFix) {
         }
         is FixVerdict.Accept -> {
             var rec = v.rec
+            // T10.5 round 3/3b (§4.11): first in ACCEPT, from the state before this fix (gps, lostAfterS, last). A chord through
+            // the destination lowers minD and ends the stop from before the gap (the vehicle went along the chord).
+            // T10.5 round 3f: not after a fix rejected as IMPLAUSIBLE since L (`rejects` read before ACCEPT cleared it).
+            val gap = noRejectsSincePrev &&
+                isGapFix(w.phase, w.alarm.atMs != null, w.gps, prev, rec, p, w.policyIntervalAtLastFixS, w.policy)
+            val dChord = if (gap) chordClosest(prev!!, rec, w.cfg) else null
+            if (dChord != null) {
+                w.stopStartMs = null
+                w.stopAnchor = null
+                val m = w.minD
+                if (m == null || dChord < m) {
+                    w.minD = dChord
+                    w.minDChord = true // T10.5 round 3e
+                }
+            }
             if (prev != null) {
                 val s = speedSample(prev, rec, normalisedSpeed(f.speedMps), p)
                 rec = rec.copy(groundSample = s.groundSample)
@@ -430,7 +448,7 @@ private fun finish(w: StepWork): Step {
     if (w.phase != TripPhase.SNOOZED && w.alarm.snoozeUntilMs != null) w.alarm = w.alarm.copy(snoozeUntilMs = null)
     val st = w.toState()
     val predicted = w.predicted.withBattery
-    val view = buildView(st, w.e, predicted, w.risk, wakeAt(st, predicted))
+    val view = buildView(st, w.e, predicted, w.risk, wakeAt(st, w.predicted.wakeBasis, w.predicted.wakeBattery))
     val snoozeAllowed = st.phase == TripPhase.ALARMING && st.alarm.snoozeCount < st.params.maxSnoozes
     val events = ArrayList<TripEvent>(w.events.size)
     for (ev in w.events) {

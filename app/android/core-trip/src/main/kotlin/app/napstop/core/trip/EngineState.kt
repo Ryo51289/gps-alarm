@@ -77,6 +77,8 @@ data class EngineState(
     val dSmooth: Double?,
     val dStartM: Double?,
     val minD: Double?,
+    /** T10.5 round 3e: minD comes from a GPS-gap chord (not from an observed fix); gates the `notCloser` overshoot term. */
+    val minDChord: Boolean = false,
     val last3: List<Double>,
     val ground: Double?,
     val closing: Double?,

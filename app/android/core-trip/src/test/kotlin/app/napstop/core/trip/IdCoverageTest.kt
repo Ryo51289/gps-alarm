@@ -10,14 +10,14 @@ class IdCoverageTest {
     private val testSrc = File(System.getProperty("napstop.testSrcDir") ?: "src/test/kotlin")
 
     @Test
-    fun `U01 to U105 each have a test named with the ID prefix`() {
+    fun `U01 to U118 each have a test named with the ID prefix`() {
         val unitDir = File(testSrc, "app/napstop/core/trip/unit")
         val names = HashSet<String>()
         val re = Regex("fun `(U\\d{2,3})\\b")
         unitDir.walkTopDown().filter { it.isFile && it.name.endsWith(".kt") }.forEach { f ->
             re.findAll(f.readText()).forEach { names += it.groupValues[1] }
         }
-        val missing = (1..105).map { "U" + it.toString().padStart(2, '0') }.filter { it !in names }
+        val missing = (1..118).map { "U" + it.toString().padStart(2, '0') }.filter { it !in names }
         assertTrue(missing.isEmpty()) { "missing unit IDs: $missing" }
     }
 

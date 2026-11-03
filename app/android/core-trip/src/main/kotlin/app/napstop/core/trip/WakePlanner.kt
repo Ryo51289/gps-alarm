@@ -1,6 +1,7 @@
 package app.napstop.core.trip
 
-// T10 §4.15 wake-up time (c1–c8; C13: c7 applies in every phase except ENDED; T10.4: wakeGuardMs on c3/c4).
+// T10 §4.15 wake-up time (c1–c8; C13: c7 applies in every phase except ENDED; T10.4: wakeGuardMs on c3/c4;
+// T10.5: c3/c4 from wakeBasisAt / wakeBatteryAt so a sliding forecast never asks for a wake-up storm).
 
 /**
  * T10.4 `wakeGuardMs`: predicted is a boundary rounded down to the ms (<= the instant the condition really holds), so a
@@ -9,8 +10,12 @@ package app.napstop.core.trip
  */
 internal const val WAKE_GUARD_MS = 1000L
 
-/** [s] is the state at the end of the Step (now = s.nowMs); [predicted] is the Step's predictedAlarmAt. */
-internal fun wakeAt(s: EngineState, predicted: Long?): Long? {
+/**
+ * [s] is the state at the end of the Step (now = s.nowMs); [wakeBasis] / [wakeBattery] are the Step's `wakeBasisAt` /
+ * `wakeBatteryAt` (T10.5 §4.5, [Predicted]). Without a sliding estimate and without a battery forecast, wakeBasis equals
+ * predictedAlarmAt and every candidate is the T10.4 one.
+ */
+internal fun wakeAt(s: EngineState, wakeBasis: Long?, wakeBattery: Long?): Long? {
     if (s.phase == TripPhase.ENDED) return null
     val p = s.params
     val now = s.nowMs
@@ -21,15 +26,16 @@ internal fun wakeAt(s: EngineState, predicted: Long?): Long? {
     if (s.gps == GpsStatus.OK && last != null) {
         c += last.fixAtMs + lostAfterS(p, s.policyIntervalAtLastFixS, s.policy) * 1000L
     }
-    if (active && predicted != null) {
-        // c3: always (> now while active and not alarmed, so I13 holds); near-zone entry only while not yet crossed.
-        c += predicted + WAKE_GUARD_MS
-        if (predicted - now > p.fallbackNearS * 1000L) c += predicted - p.fallbackNearS * 1000L + WAKE_GUARD_MS
+    if (active && wakeBasis != null) {
+        // c3: always (> now while active and not alarmed, so I13 holds); the battery forecast only here (T10.5: it slides
+        // slowly between two samples). Near-zone entry only while not yet crossed, from wakeBasis only.
+        c += TMath.min(wakeBasis, wakeBattery ?: wakeBasis) + WAKE_GUARD_MS
+        if (wakeBasis - now > p.fallbackNearS * 1000L) c += wakeBasis - p.fallbackNearS * 1000L + WAKE_GUARD_MS
     }
-    if (s.phase == TripPhase.TRACKING && predicted != null) {
-        // c4: tier boundaries not yet crossed in this Step.
+    if (s.phase == TripPhase.TRACKING && wakeBasis != null) {
+        // c4: tier boundaries not yet crossed in this Step, from wakeBasis only (T10.5).
         for (b in intArrayOf(p.denseEnterS, p.mediumEnterS)) {
-            if (predicted - now > b * 1000L) c += predicted - b * 1000L + WAKE_GUARD_MS
+            if (wakeBasis - now > b * 1000L) c += wakeBasis - b * 1000L + WAKE_GUARD_MS
         }
     }
     if (s.phase == TripPhase.SNOOZED) s.alarm.snoozeUntilMs?.let { c += it }

@@ -44,7 +44,15 @@ internal fun nextFallbackAt(fb: FallbackState, target: Long?, predicted: Long, n
         return if (now - emitted >= p.fallbackRetryS * 1000L) target else null
     }
     val cur = fb.targetAtMs ?: return target
-    if (now >= TMath.min(cur, predicted) - p.fallbackQuietBeforeS * 1000L) return null
+    val quietMs = p.fallbackQuietBeforeS * 1000L
+    if (now >= TMath.min(cur, predicted) - quietMs) {
+        // S3/K4 #6 quiet window. T10.5 "urgent later shift": the OS alarm already set is about to ring but the NEW predicted
+        // time is far: the engine is not about to ring "now" (K1), >= fallbackMinLeadS left to set the new one before
+        // cancelling the old (K2), and only a significant later shift. Skips min-interval and the near-zone hold band.
+        val urgent = now < predicted - quietMs && cur - now >= p.fallbackMinLeadS * 1000L &&
+            target - cur >= p.fallbackMinShiftS * 1000L
+        return if (urgent) target else null
+    }
     val emitted = fb.emittedAtMs ?: now
     if (TMath.toS(predicted - now) <= p.fallbackNearS.toDouble()) {
         val slackMs = p.fallbackNearSlackS * 1000L
@@ -56,7 +64,10 @@ internal fun nextFallbackAt(fb: FallbackState, target: Long?, predicted: Long, n
     }
     if (abs(target - cur) < p.fallbackMinShiftS * 1000L) return null
     if (target < cur) return target
-    return if (now - emitted >= p.fallbackMinIntervalS * 1000L) target else null
+    // Far zone, later: at most once a minute, unless the alarm already set is within the c8 range (<= Q + minInterval, T10.5
+    // round 2): then the last emission was not a far-zone one (restore, near zone) and no Step before the quiet window is left.
+    val soon = cur - now <= (p.fallbackQuietBeforeS + p.fallbackMinIntervalS) * 1000L
+    return if (now - emitted >= p.fallbackMinIntervalS * 1000L || soon) target else null
 }
 
 /** Step 9 FallbackPlanner. */

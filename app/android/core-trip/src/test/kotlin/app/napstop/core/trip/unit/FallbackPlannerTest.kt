@@ -39,11 +39,17 @@ class FallbackPlannerTest {
     }
 
     @Test
-    fun `U41 quiet window 30 s before the fallback blocks any change`() {
-        val fb = FallbackState(now + 25_000, now - 100_000, FallbackStatus.CONFIRMED, now - 99_000, false, false)
+    fun `U41 quiet window 30 s before the fallback blocks any change except the T10_5 urgent later shift`() {
+        val f = now + 25_000
+        val fb = FallbackState(f, now - 100_000, FallbackStatus.CONFIRMED, now - 99_000, false, false)
         for (pred in listOf(now + 2_000_000L, now + 300_000L)) {
-            for (delta in listOf(-120_000L, 120_000L)) assertNull(nextFallbackAt(fb, fb.targetAtMs!! + delta, pred, now, p))
+            assertNull(nextFallbackAt(fb, f - 120_000L, pred, now, p), "earlier, pred ${pred - now}")
+            // T10.5 (§4.10, U108 a): later by >= fallbackMinShiftS while predicted − now > 30 s and F − now >= 10 s is the
+            // urgent later shift (before T10.5: null).
+            assertEquals(f + 120_000L, nextFallbackAt(fb, f + 120_000L, pred, now, p), "later, pred ${pred - now}")
         }
+        // K1: the engine itself is about to ring (predicted − now <= 30 s): any change stays blocked.
+        for (delta in listOf(-120_000L, 120_000L)) assertNull(nextFallbackAt(fb, f + delta, now + 30_000L, now, p))
     }
 
     @Test
