@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:ui' show CheckedState;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show SemanticsNode;
+import 'package:flutter/rendering.dart' show RenderParagraph, SemanticsNode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/core/bridge/core_bridge.dart';
@@ -17,10 +17,13 @@ import 'package:napstop/core/trip/trip_providers.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/domain/trip_starter.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
+import 'package:napstop/features/alarm_settings/presentation/widgets/equal_chip_row.dart';
+import 'package:napstop/features/alarm_settings/presentation/widgets/start_bar.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 import '../../../helpers/app_harness.dart';
 import '../../../helpers/fake_core_bridge.dart';
+import '../../../helpers/nap_test_app.dart';
 import '../../../helpers/trip_fixtures.dart';
 import '../helpers/alarm_settings_harness.dart';
 
@@ -35,6 +38,33 @@ SemanticsNode _semanticsOf(WidgetTester tester, Finder f) =>
 
 Future<void> _start(WidgetTester tester) =>
     tapVisible(tester, find.text('Bắt đầu theo dõi'));
+
+Future<void> hangAndTimeOutAt(WidgetTester tester, String start) async {
+  await tester.ensureVisible(find.text(start));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(start));
+  await tester.pump(kStartTripTimeout);
+  await tester.pumpAndSettle();
+}
+
+/// The chip label [label] is neither ellipsized nor broken inside a word:
+/// every word lies on a single line (T25.1 review #3: "50 / 0 m" has 2
+/// lines for 2 words, so counting lines is not enough).
+void expectLabelWhole(WidgetTester tester, String label) {
+  final paragraph = tester.renderObject<RenderParagraph>(
+    find.descendant(of: chip(label), matching: find.text(label)),
+  );
+  expect(paragraph.didExceedMaxLines, isFalse, reason: label);
+  var start = 0;
+  for (final word in label.split(' ')) {
+    final boxes = paragraph.getBoxesForSelection(
+      TextSelection(baseOffset: start, extentOffset: start + word.length),
+    );
+    final lineTops = {for (final b in boxes) b.top.round()};
+    expect(lineTops, hasLength(1), reason: '"$word" of "$label" is split');
+    start += word.length + 1;
+  }
+}
 
 void main() {
   testWidgets('W01 defaults: smart, pre-alert, ring, swipe, snooze', (
@@ -930,6 +960,256 @@ void main() {
         vi.alarmSettingsSnoozeNote(1, '1 phút'),
         'Báo lại tối đa 1 lần, sau 1 phút',
       );
+    });
+  });
+
+  group('T25.1', () {
+    Future<void> hangAndTimeOut(WidgetTester tester, String start) async {
+      await tester.ensureVisible(find.text(start));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(start));
+      await tester.pump(kStartTripTimeout);
+      await tester.pumpAndSettle();
+    }
+
+    void expectStartFullyVisible(WidgetTester tester, String start, Size size) {
+      final button = find.ancestor(
+        of: find.text(start),
+        matching: find.byType(NapButton),
+      );
+      final rect = tester.getRect(button);
+      expect(rect.top, greaterThanOrEqualTo(0));
+      expect(rect.bottom, lessThanOrEqualTo(size.height));
+      expect(rect.height, greaterThanOrEqualTo(44));
+      expect(find.text(start).hitTestable(), findsOneWidget);
+    }
+
+    for (final (locale, start, retry, size, scale) in [
+      ('vi', 'Bắt đầu theo dõi', 'Thử lại', const Size(360, 640), 2.0),
+      ('en', 'Start tracking', 'Retry', const Size(360, 640), 2.0),
+      ('vi', 'Bắt đầu theo dõi', 'Thử lại', const Size(320, 568), 2.0),
+      ('vi', 'Bắt đầu theo dõi', 'Thử lại', const Size(320, 568), 1.75),
+    ]) {
+      testWidgets(
+        '#1 $locale ${size.width.toInt()}x${size.height.toInt()} x$scale: '
+        'timeout banner scrolls in the bar, Start fully visible',
+        (tester) async {
+          final bridge = FakeCoreBridge(
+            deviceStatusValue: deviceStatusMsg(batteryPct: 3, alarmMuted: true),
+          )..startTripGate = Completer<void>();
+          await pumpAlarmSettings(
+            tester,
+            bridge: bridge,
+            size: size,
+            textScale: scale,
+            locale: Locale(locale),
+            extra: kDraftCoach,
+          );
+          await hangAndTimeOut(tester, start);
+          expect(tester.takeException(), isNull);
+          expectStartFullyVisible(tester, start, size);
+          // The content above keeps room to scroll.
+          final content = tester.getRect(
+            find.byType(SingleChildScrollView).first,
+          );
+          expect(content.height, greaterThan(size.height * 0.25));
+          // "Retry" is reachable by scrolling inside the bar, and works.
+          bridge.startTripError = null;
+          await tester.ensureVisible(find.text(retry));
+          await tester.pumpAndSettle();
+          expect(find.text(retry).hitTestable(), findsOneWidget);
+          bridge.startTripGate!.complete();
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(retry));
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets('#1 generic banner at 320x568 x2.0 fits', (tester) async {
+      const size = Size(320, 568);
+      await pumpAlarmSettings(
+        tester,
+        bridge: FakeCoreBridge()..startTripError = StateError('boom'),
+        size: size,
+        textScale: 2,
+      );
+      await tapVisible(tester, find.text('Bắt đầu theo dõi'));
+      expect(
+        find.text('Chưa bắt đầu được theo dõi. Thử lại sau giây lát.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      expectStartFullyVisible(tester, 'Bắt đầu theo dõi', size);
+    });
+
+    for (final (size, scale) in [
+      (const Size(411, 891), 2.0),
+      (const Size(360, 640), 2.0),
+      (const Size(320, 568), 1.75),
+      (const Size(390, 844), 1.0),
+    ]) {
+      testWidgets('#2 chip labels are never cut at '
+          '${size.width.toInt()}x${size.height.toInt()} x$scale', (
+        tester,
+      ) async {
+        await pumpAlarmSettings(tester, size: size, textScale: scale);
+        for (final (mode, labels) in [
+          ('Khoảng cách', ['500 m', '1 km', '2 km', '5 km']),
+          ('Thời gian', ['5', '10', '15', '20', '30']),
+        ]) {
+          await tapVisible(tester, find.text(mode));
+          expect(tester.takeException(), isNull);
+          for (final label in labels) {
+            expectLabelWhole(tester, label);
+          }
+        }
+      });
+    }
+
+    testWidgets('#2 equal widths on one line when the labels fit', (
+      tester,
+    ) async {
+      await pumpAlarmSettings(tester, size: const Size(800, 1000));
+      await tapVisible(tester, find.text('Khoảng cách'));
+      final rects = [
+        for (final label in ['500 m', '1 km', '2 km', '5 km'])
+          tester.getRect(chip(label)),
+      ];
+      for (final r in rects) {
+        expect(r.width, moreOrLessEquals(rects.first.width, epsilon: 0.5));
+        expect(r.top, rects.first.top);
+      }
+    });
+
+    testWidgets('#3 en timeout copy names the real button', (tester) async {
+      final bridge = FakeCoreBridge()..startTripGate = Completer<void>();
+      await pumpAlarmSettings(
+        tester,
+        bridge: bridge,
+        locale: const Locale('en'),
+      );
+      await hangAndTimeOut(tester, 'Start tracking');
+      expect(
+        find.text('Starting is taking longer than usual. Tap Retry to check.'),
+        findsOneWidget,
+      );
+      expect(find.text('Retry'), findsOneWidget);
+      bridge.startTripGate!.complete();
+      await tester.pumpAndSettle();
+    });
+
+    test('review #1 chipLabelStyle applies what Text applies', () {
+      const base = TextStyle(fontSize: 14, fontWeight: FontWeight.w600);
+      expect(chipLabelStyle(base, boldText: false), base);
+      expect(chipLabelStyle(base, boldText: true).fontWeight, FontWeight.bold);
+      final spaced = chipLabelStyle(
+        base,
+        boldText: false,
+        letterSpacing: 2,
+        wordSpacing: 3,
+        lineHeightScaleFactor: 1.5,
+      );
+      expect(
+        (spaced.letterSpacing, spaced.wordSpacing, spaced.height),
+        (2.0, 3.0, 1.5),
+      );
+    });
+
+    testWidgets('review #1 bold text 360x640 x2.0: measured = rendered', (
+      tester,
+    ) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(boldText: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await pumpAlarmSettings(tester, size: const Size(360, 640), textScale: 2);
+      await tapVisible(tester, find.text('Khoảng cách'));
+      final context = tester.element(find.byType(EqualChipRow).first);
+      expect(MediaQuery.boldTextOf(context), isTrue);
+      final measured = chipLabelStyle(
+        context.napText.labelMedium!,
+        boldText: true,
+      );
+      for (final label in ['500 m', '1 km', '2 km', '5 km']) {
+        expectLabelWhole(tester, label);
+        final paragraph = tester.renderObject<RenderParagraph>(
+          find.descendant(of: chip(label), matching: find.text(label)),
+        );
+        final rendered = (paragraph.text as TextSpan).style!;
+        expect(rendered.fontWeight, FontWeight.bold, reason: label);
+        expect(measured.fontWeight, rendered.fontWeight);
+        expect(measured.fontSize, rendered.fontSize);
+        expect(measured.letterSpacing, rendered.letterSpacing);
+        expect(measured.fontFamily, rendered.fontFamily);
+      }
+    });
+
+    for (final (spacing, rowExpected) in [(null, true), (2.0, false)]) {
+      testWidgets(
+        'review #1 near the threshold (320 px), letter spacing $spacing',
+        (tester) async {
+          // FlutterTest glyphs are 14 px: "500" = 42 px = exactly the share
+          // left after the chip padding at 320 px. Extra letter spacing
+          // pushes it over, so the row must wrap instead of cutting.
+          const labels = ['500 m', '1 km', '2 km', '5 km'];
+          await pumpNap(
+            tester,
+            MediaQuery.applyTextStyleOverrides(
+              lineHeightScaleFactorOverride: null,
+              letterSpacingOverride: spacing,
+              wordSpacingOverride: null,
+              paragraphSpacingOverride: null,
+              child: EqualChipRow(
+                labels: labels,
+                chipBuilder: (i) =>
+                    NapChip(label: labels[i], selected: i == 0, onTap: () {}),
+              ),
+            ),
+            width: 320,
+          );
+          expect(tester.takeException(), isNull);
+          final tops = {
+            for (final label in labels) tester.getRect(chip(label)).top,
+          };
+          expect(tops.length == 1, rowExpected, reason: '$tops');
+          for (final label in labels) {
+            expectLabelWhole(tester, label);
+          }
+        },
+      );
+    }
+
+    testWidgets('review #2 bar scrollbar shows only when it can scroll; '
+        'TalkBack reaches Retry', (tester) async {
+      final handle = tester.ensureSemantics();
+      const size = Size(320, 568);
+      final bridge = FakeCoreBridge()..startTripGate = Completer<void>();
+      await pumpAlarmSettings(tester, bridge: bridge, size: size, textScale: 2);
+      final barScrollbar = find.descendant(
+        of: find.byType(StartBar),
+        matching: find.byType(Scrollbar),
+      );
+      ScrollPosition barPosition() =>
+          tester.widget<Scrollbar>(barScrollbar).controller!.position;
+      // Summary only: nothing to scroll, so no thumb is painted.
+      expect(barPosition().maxScrollExtent, 0);
+      await hangAndTimeOutAt(tester, 'Bắt đầu theo dõi');
+      expect(barPosition().maxScrollExtent, greaterThan(0));
+      expect(tester.widget<Scrollbar>(barScrollbar).thumbVisibility, isTrue);
+      // A screen reader brings Retry on screen and activates it.
+      bridge.startTripGate!.complete();
+      await tester.pumpAndSettle();
+      final retry = find.semantics.byLabel('Thử lại');
+      tester.semantics.showOnScreen(retry);
+      await tester.pumpAndSettle();
+      expect(find.text('Thử lại').hitTestable(), findsOneWidget);
+      tester.semantics.tap(retry);
+      await tester.pumpAndSettle();
+      expect(bridge.callCount('startTrip'), 2);
+      handle.dispose();
     });
   });
 }

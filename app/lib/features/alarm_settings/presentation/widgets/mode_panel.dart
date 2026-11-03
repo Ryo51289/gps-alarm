@@ -7,6 +7,7 @@ import 'package:napstop/features/alarm_settings/domain/alarm_settings_hints.dart
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dart';
 import 'package:napstop/features/alarm_settings/domain/pre_alert_hint.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_strings.dart';
+import 'package:napstop/features/alarm_settings/presentation/widgets/equal_chip_row.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Parameters of the selected mode (T25 §3.1).
@@ -98,18 +99,13 @@ class _DistancePanel extends StatelessWidget {
           maxLabel: l.distance(kMaxDistanceThresholdM),
         ),
         const SizedBox(height: NapSpace.s12),
-        Row(
-          spacing: NapSpace.s8,
-          children: [
-            for (final m in kDistanceChipsM)
-              Expanded(
-                child: NapChip(
-                  label: l.distance(m),
-                  selected: m == thresholdM,
-                  onTap: () => onChanged(m),
-                ),
-              ),
-          ],
+        EqualChipRow(
+          labels: [for (final m in kDistanceChipsM) l.distance(m)],
+          chipBuilder: (i) => NapChip(
+            label: l.distance(kDistanceChipsM[i]),
+            selected: kDistanceChipsM[i] == thresholdM,
+            onTap: () => onChanged(kDistanceChipsM[i]),
+          ),
         ),
         if (warning != null) ...[
           const SizedBox(height: NapSpace.s16),
@@ -143,20 +139,15 @@ class _TimePanel extends StatelessWidget {
           alignment: WrapAlignment.center,
         ),
         const SizedBox(height: NapSpace.s16),
-        Row(
-          spacing: NapSpace.s8,
-          children: [
-            for (final t in kTimeChipsMin)
-              Expanded(
-                child: NapChip(
-                  // The number is data, not a string (T25 §6).
-                  label: '$t',
-                  semanticLabel: l.commonMinutes(t),
-                  selected: t == thresholdMin,
-                  onTap: () => onChanged(t),
-                ),
-              ),
-          ],
+        EqualChipRow(
+          // The number is data, not a string (T25 §6).
+          labels: [for (final t in kTimeChipsMin) '$t'],
+          chipBuilder: (i) => NapChip(
+            label: '${kTimeChipsMin[i]}',
+            semanticLabel: l.commonMinutes(kTimeChipsMin[i]),
+            selected: kTimeChipsMin[i] == thresholdMin,
+            onTap: () => onChanged(kTimeChipsMin[i]),
+          ),
         ),
         const SizedBox(height: NapSpace.s12),
         Text(

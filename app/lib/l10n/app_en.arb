@@ -175,5 +175,5 @@
   "alarmSettingsErrorSimulation": "Couldn't open the simulated trip.",
   "alarmSettingsErrorInvalidDestination": "Invalid destination. Please pick again.",
   "alarmSettingsErrorGeneric": "Couldn't start tracking. Try again in a moment.",
-  "alarmSettingsErrorTimeout": "Starting is taking longer than usual. Tap Try again to check."
+  "alarmSettingsErrorTimeout": "Starting is taking longer than usual. Tap Retry to check."
 }

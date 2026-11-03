@@ -363,19 +363,17 @@ void main() {
         await tester.pumpAndSettle();
       });
 
-      testWidgets(
-        '$locale 360x640 smart + timeout banner: bottom bar fits',
-        (tester) async {
-          const size = Size(360, 640);
-          final bridge = await pumpAllBanners(tester, size, locale);
-          await _startAndTimeOut(tester, label: start);
-          expect(tester.takeException(), isNull);
-          expectStartReachable(tester, start, size);
-          bridge.startTripGate!.complete();
-          await tester.pumpAndSettle();
-        },
-        skip: true, // Bug #1 docs/test-reports/T25.md: overflow 16/54 px.
-      );
+      testWidgets('$locale 360x640 smart + timeout banner: bottom bar fits', (
+        tester,
+      ) async {
+        const size = Size(360, 640);
+        final bridge = await pumpAllBanners(tester, size, locale);
+        await _startAndTimeOut(tester, label: start);
+        expect(tester.takeException(), isNull);
+        expectStartReachable(tester, start, size);
+        bridge.startTripGate!.complete();
+        await tester.pumpAndSettle();
+      });
     }
   });
 
