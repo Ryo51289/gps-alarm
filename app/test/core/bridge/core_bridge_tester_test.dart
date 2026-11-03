@@ -43,6 +43,11 @@ final _calls = <String, Future<Object?> Function(CoreBridge)>{
   'PermissionHostApi.mapsConfig': (b) => b.mapsConfig(),
   'PermissionHostApi.distancesFromLastKnownM': (b) =>
       b.distancesFromLastKnownM([16.8, 107.1], 1800000),
+  // T21: screen 9 background check.
+  'PermissionHostApi.startBackgroundCheck': (b) =>
+      b.startBackgroundCheck(const Duration(seconds: 30)),
+  'PermissionHostApi.backgroundCheck': (b) => b.backgroundCheck(),
+  'PermissionHostApi.cancelBackgroundCheck': (b) => b.cancelBackgroundCheck(),
   'AlarmHostApi.previewSound': (b) => b.previewSound('chime', 0.5),
   'AlarmHostApi.stopPreview': (b) => b.stopPreview(),
 };

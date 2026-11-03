@@ -1665,6 +1665,72 @@ class MapsConfigMsg {
   }
 }
 
+/// T21: screen 9 background check (Android). Times are epoch ms
+/// (System.currentTimeMillis). No coordinates.
+class BackgroundCheckMsg {
+  BackgroundCheckMsg({
+    required this.scheduledAtMs,
+    required this.dueAtMs,
+    this.firedAtMs,
+    this.screenOnAtFire,
+    required this.exact,
+  });
+
+  int scheduledAtMs;
+
+  int dueAtMs;
+
+  int? firedAtMs;
+
+  bool? screenOnAtFire;
+
+  bool exact;
+
+  List<Object?> _toList() {
+    return <Object?>[scheduledAtMs, dueAtMs, firedAtMs, screenOnAtFire, exact];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static BackgroundCheckMsg decode(Object result) {
+    result as List<Object?>;
+    return BackgroundCheckMsg(
+      scheduledAtMs: result[0]! as int,
+      dueAtMs: result[1]! as int,
+      firedAtMs: result[2] as int?,
+      screenOnAtFire: result[3] as bool?,
+      exact: result[4]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BackgroundCheckMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(scheduledAtMs, other.scheduledAtMs) &&
+        _deepEquals(dueAtMs, other.dueAtMs) &&
+        _deepEquals(firedAtMs, other.firedAtMs) &&
+        _deepEquals(screenOnAtFire, other.screenOnAtFire) &&
+        _deepEquals(exact, other.exact);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'BackgroundCheckMsg(scheduledAtMs: $scheduledAtMs, dueAtMs: $dueAtMs, firedAtMs: $firedAtMs, screenOnAtFire: $screenOnAtFire, exact: $exact)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -1792,6 +1858,9 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is MapsConfigMsg) {
       buffer.putUint8(168);
       writeValue(buffer, value.encode());
+    } else if (value is BackgroundCheckMsg) {
+      buffer.putUint8(169);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1900,6 +1969,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return DeviceStatusMsg.decode(readValue(buffer)!);
       case 168:
         return MapsConfigMsg.decode(readValue(buffer)!);
+      case 169:
+        return BackgroundCheckMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2118,6 +2189,8 @@ class PermissionHostApi {
 
   final String pigeonVar_messageChannelSuffix;
 
+  /// T21: @async (native reads stored flags off the main thread; iOS reads
+  /// notification settings asynchronously). Dart signature unchanged.
   Future<PermissionStatusMsg> status() async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.napstop.PermissionHostApi.status$pigeonVar_messageChannelSuffix';
@@ -2270,6 +2343,69 @@ class PermissionHostApi {
       isNullValid: true,
     );
     return (pigeonVar_replyValue as List<Object?>?)?.cast<double>();
+  }
+
+  /// T21: schedules the screen 9 check alarm in [delayMs] (5000..120000),
+  /// replacing any previous check. Errors: invalid-config
+  /// ("delayMs: out of range"). iOS: internal ("unsupported").
+  Future<BackgroundCheckMsg> startBackgroundCheck(int delayMs) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.PermissionHostApi.startBackgroundCheck$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[delayMs],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as BackgroundCheckMsg;
+  }
+
+  /// T21: the latest check (survives process death), or null.
+  Future<BackgroundCheckMsg?> backgroundCheck() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.PermissionHostApi.backgroundCheck$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as BackgroundCheckMsg?;
+  }
+
+  /// T21: cancels the alarm and forgets the record. No-op when none.
+  Future<void> cancelBackgroundCheck() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.PermissionHostApi.cancelBackgroundCheck$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
 

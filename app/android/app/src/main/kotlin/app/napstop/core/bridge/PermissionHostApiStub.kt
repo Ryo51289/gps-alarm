@@ -1,12 +1,10 @@
 package app.napstop.core.bridge
 
-import android.os.Build
-
 /**
- * Fixed permission answers so screens can be built before the real implementation
- * (T21, spec T14 §5.5). deviceInfo() and deviceStatus() are real (deviceStatus via
- * [readDeviceStatus], prod: DeviceStatusReader, T14.1), and so are mapsConfig() and
- * distancesFromLastKnownM() (T23: MapsConfigReader, LastKnownDistance); T21 keeps them.
+ * Fixed permission answers (spec T14 §5.5). **Test/default only, not registered in
+ * production**: since T21 `BridgeRegistrar.register(messenger, activity)` registers
+ * `permission.PermissionHostApiImpl`; this stub stays the default of the JVM-test overload.
+ * deviceStatus(), mapsConfig() and distancesFromLastKnownM() answer from the injected sources.
  * ADR-001: Android never asks for background location, so `location` is at most whileInUse.
  */
 class PermissionHostApiStub(
@@ -14,22 +12,13 @@ class PermissionHostApiStub(
     private val readMapsConfig: () -> MapsConfigMsg = { MapsConfigMsg() },
     private val readDistances: suspend (List<Double>, Long) -> List<Double>? = { _, _ -> null },
 ) : PermissionHostApi {
-    override fun status(): PermissionStatusMsg = FIXED_STATUS
+    override suspend fun status(): PermissionStatusMsg = FIXED_STATUS
 
     override suspend fun request(kind: PermissionKindMsg): PermissionStatusMsg = status()
 
     override fun openSettings(target: SettingsTargetMsg): Boolean = false
 
-    override fun deviceInfo(): DeviceInfoMsg =
-        DeviceInfoMsg(
-            platform = PlatformMsg.ANDROID,
-            manufacturer = Build.MANUFACTURER.orEmpty(),
-            brand = Build.BRAND.orEmpty(),
-            model = Build.MODEL.orEmpty(),
-            osVersion = Build.VERSION.RELEASE.orEmpty(),
-            androidSdkInt = Build.VERSION.SDK_INT.toLong(),
-            iosMajor = null,
-        )
+    override fun deviceInfo(): DeviceInfoMsg = BridgeRegistrar.readDeviceInfo()
 
     override fun deviceStatus(): DeviceStatusMsg = readDeviceStatus()
 
@@ -37,6 +26,13 @@ class PermissionHostApiStub(
 
     override suspend fun distancesFromLastKnownM(latLngPairs: List<Double>, maxAgeMs: Long): List<Double>? =
         readDistances(latLngPairs, maxAgeMs)
+
+    override suspend fun startBackgroundCheck(delayMs: Long): BackgroundCheckMsg =
+        throw FlutterError(BridgeErrors.INTERNAL, "unsupported", null)
+
+    override suspend fun backgroundCheck(): BackgroundCheckMsg? = null
+
+    override suspend fun cancelBackgroundCheck() = Unit
 
     companion object {
         /** Nothing known; default of the JVM-test registration. */

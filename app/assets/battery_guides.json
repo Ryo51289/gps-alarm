@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "status": "draft: menu names from dontkillmyapp + wireframe, to verify on devices in S1",
+  "chipOrder": [
+    "xiaomi",
+    "samsung",
+    "oppo",
+    "vivo"
+  ],
+  "guides": [
+    {
+      "id": "xiaomi",
+      "labelKey": "bgBrandXiaomi",
+      "match": {
+        "manufacturers": [
+          "xiaomi"
+        ],
+        "brands": [
+          "xiaomi",
+          "redmi",
+          "poco"
+        ]
+      },
+      "steps": [
+        {
+          "id": "battery",
+          "titleKey": "bgXiaomi1Title",
+          "pathKey": "bgXiaomi1Path",
+          "highlightKey": "bgXiaomi1Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "autostart",
+          "titleKey": "bgXiaomi2Title",
+          "pathKey": "bgXiaomi2Path",
+          "highlightKey": "bgXiaomi2Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgXiaomi3Path",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "samsung",
+      "labelKey": "bgBrandSamsung",
+      "match": {
+        "manufacturers": [
+          "samsung"
+        ],
+        "brands": [
+          "samsung"
+        ]
+      },
+      "steps": [
+        {
+          "id": "battery",
+          "titleKey": "bgSamsung1Title",
+          "pathKey": "bgSamsung1Path",
+          "highlightKey": "bgSamsung1Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "neverSleep",
+          "titleKey": "bgSamsung2Title",
+          "pathKey": "bgSamsung2Path",
+          "highlightKey": "bgSamsung2Highlight",
+          "settings": "none"
+        },
+        {
+          "id": "unusedSleep",
+          "titleKey": "bgSamsung3Title",
+          "pathKey": "bgSamsung2Path",
+          "highlightKey": "bgSamsung3Highlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "oppo",
+      "labelKey": "bgBrandOppo",
+      "match": {
+        "manufacturers": [
+          "oppo"
+        ],
+        "brands": [
+          "oppo"
+        ]
+      },
+      "steps": [
+        {
+          "id": "background",
+          "titleKey": "bgColorOs1Title",
+          "pathKey": "bgColorOs1Path",
+          "highlightKey": "bgColorOs1Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "autostart",
+          "titleKey": "bgColorOs2Title",
+          "pathKey": "bgColorOs1Path",
+          "highlightKey": "bgColorOs2Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgColorOs3Path",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "realme",
+      "labelKey": "bgBrandRealme",
+      "match": {
+        "manufacturers": [
+          "realme"
+        ],
+        "brands": [
+          "realme"
+        ]
+      },
+      "steps": [
+        {
+          "id": "background",
+          "titleKey": "bgColorOs1Title",
+          "pathKey": "bgColorOs1Path",
+          "highlightKey": "bgColorOs1Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "autostart",
+          "titleKey": "bgColorOs2Title",
+          "pathKey": "bgColorOs1Path",
+          "highlightKey": "bgColorOs2Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgColorOs3Path",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "oneplus",
+      "labelKey": "bgBrandOnePlus",
+      "match": {
+        "manufacturers": [
+          "oneplus"
+        ],
+        "brands": [
+          "oneplus"
+        ]
+      },
+      "steps": [
+        {
+          "id": "background",
+          "titleKey": "bgColorOs1Title",
+          "pathKey": "bgColorOs1Path",
+          "highlightKey": "bgColorOs1Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "autostart",
+          "titleKey": "bgColorOs2Title",
+          "pathKey": "bgColorOs1Path",
+          "highlightKey": "bgColorOs2Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgColorOs3Path",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "vivo",
+      "labelKey": "bgBrandVivo",
+      "match": {
+        "manufacturers": [
+          "vivo"
+        ],
+        "brands": [
+          "vivo",
+          "iqoo"
+        ]
+      },
+      "steps": [
+        {
+          "id": "background",
+          "titleKey": "bgVivo1Title",
+          "pathKey": "bgVivo1Path",
+          "highlightKey": "bgVivo1Highlight",
+          "settings": "none"
+        },
+        {
+          "id": "autostart",
+          "titleKey": "bgVivo2Title",
+          "pathKey": "bgVivo2Path",
+          "highlightKey": "bgVivo2Highlight",
+          "settings": "none"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgPullDownLockPath",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "huawei",
+      "labelKey": "bgBrandHuawei",
+      "match": {
+        "manufacturers": [
+          "huawei"
+        ],
+        "brands": [
+          "huawei"
+        ]
+      },
+      "steps": [
+        {
+          "id": "appLaunch",
+          "titleKey": "bgHuawei1Title",
+          "pathKey": "bgHuawei1Path",
+          "highlightKey": "bgHuawei1Highlight",
+          "settings": "none"
+        },
+        {
+          "id": "battery",
+          "titleKey": "bgHuawei2Title",
+          "pathKey": "bgHuawei2Path",
+          "highlightKey": "bgHuawei2Highlight",
+          "settings": "batteryOptimization"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgPullDownLockPath",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "honor",
+      "labelKey": "bgBrandHonor",
+      "match": {
+        "manufacturers": [
+          "honor"
+        ],
+        "brands": [
+          "honor"
+        ]
+      },
+      "steps": [
+        {
+          "id": "appLaunch",
+          "titleKey": "bgHuawei1Title",
+          "pathKey": "bgHuawei1Path",
+          "highlightKey": "bgHuawei1Highlight",
+          "settings": "none"
+        },
+        {
+          "id": "battery",
+          "titleKey": "bgHuawei2Title",
+          "pathKey": "bgHuawei2Path",
+          "highlightKey": "bgHuawei2Highlight",
+          "settings": "batteryOptimization"
+        },
+        {
+          "id": "lock",
+          "titleKey": "bgLockTitle",
+          "pathKey": "bgPullDownLockPath",
+          "highlightKey": "bgLockHighlight",
+          "settings": "none"
+        }
+      ]
+    },
+    {
+      "id": "generic",
+      "labelKey": null,
+      "match": {
+        "manufacturers": [],
+        "brands": []
+      },
+      "steps": [
+        {
+          "id": "battery",
+          "titleKey": "bgGeneric1Title",
+          "pathKey": "bgGeneric1Path",
+          "highlightKey": "bgGeneric1Highlight",
+          "settings": "appDetails"
+        },
+        {
+          "id": "recents",
+          "titleKey": "bgGeneric2Title",
+          "pathKey": "bgGeneric2Path",
+          "highlightKey": "bgGeneric2Highlight",
+          "settings": "none"
+        }
+      ]
+    }
+  ]
+}

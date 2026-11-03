@@ -144,6 +144,20 @@ class CoreBridge {
     int maxAgeMs,
   ) => _guard(() => _permission.distancesFromLastKnownM(pairs, maxAgeMs));
 
+  /// Screen 9 "chạy thử 30 giây" (T21 §5): one exact alarm in [delay] that
+  /// vibrates and records when it ran. Replaces any previous check. iOS:
+  /// `internal`.
+  Future<BackgroundCheckMsg> startBackgroundCheck(Duration delay) =>
+      _guard(() => _permission.startBackgroundCheck(delay.inMilliseconds));
+
+  /// The latest check (survives process death), or null.
+  Future<BackgroundCheckMsg?> backgroundCheck() =>
+      _guard(_permission.backgroundCheck);
+
+  /// Cancels the check alarm and forgets the record.
+  Future<void> cancelBackgroundCheck() =>
+      _guard(_permission.cancelBackgroundCheck);
+
   Future<void> previewSound(String soundId, double volume) =>
       _guard(() => _alarm.previewSound(soundId, volume));
 

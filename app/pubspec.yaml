@@ -37,6 +37,9 @@ dependencies:
   path_provider: ^2.1.6
   # Trip defaults and alarm preferences (T25 A5; T28 writes them).
   shared_preferences: ^2.5.6
+  # Android options of SharedPreferencesAsync (T21 review #3): screen 0 flags in their
+  # own file, excluded from backup. Already resolved as a transitive dependency.
+  shared_preferences_android: ^2.5.4
   # OpenStreetMap copyright page from screen 2 (T23).
   url_launcher: ^6.3.3
 
@@ -60,6 +63,8 @@ flutter:
   # Offline station dataset (T24), built by tools/stationgen. Loaded lazily.
   assets:
     - assets/stations.json
+    # Screen 9 battery guides per brand (T21 §6.3); texts are ARB keys.
+    - assets/battery_guides.json
     # Be Vietnam Pro license, shown on the license page (T20).
     - assets/fonts/BeVietnamPro/OFL.txt
   # Be Vietnam Pro (T20), see assets/fonts/BeVietnamPro/README.md.

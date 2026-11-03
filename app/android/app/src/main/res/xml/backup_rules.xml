@@ -3,4 +3,8 @@
      database (destination coordinates) is never backed up. -->
 <full-backup-content>
     <exclude domain="file" path="napstop_db/"/>
+    <!-- T21 §13: "already asked" flags restored on a new phone would show denied;
+         screen 0 flags too (review #3): permissions do not transfer. -->
+    <exclude domain="sharedpref" path="napstop_permissions.xml"/>
+    <exclude domain="sharedpref" path="napstop_onboarding.xml"/>
 </full-backup-content>

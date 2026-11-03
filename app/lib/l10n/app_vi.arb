@@ -56,6 +56,566 @@
   "@appScreenSettingsTitle": {
     "description": "Title of screen 12 (settings)."
   },
+  "commonDone": "Xong",
+  "@commonDone": {
+    "description": "Generic \"done\" button (closes a screen)."
+  },
+  "commonLater": "Để sau",
+  "@commonLater": {
+    "description": "Generic \"later\" button: closes a sheet without doing anything."
+  },
+  "onboardingTitle": "Để không bao giờ lỡ trạm",
+  "@onboardingTitle": {
+    "description": "Screen 0 title."
+  },
+  "onboardingSubtitle": "NapStop cần vài quyền để vẫn báo được khi bạn khoá màn hình và ngủ.",
+  "@onboardingSubtitle": {
+    "description": "Screen 0 subtitle."
+  },
+  "onboardingContinue": "Tiếp tục",
+  "@onboardingContinue": {
+    "description": "Screen 0 main button on first run; also the primary button of the explainer sheets."
+  },
+  "onboardingPrivacyNote": "Vị trí chỉ dùng trên máy, không gửi lên máy chủ.",
+  "@onboardingPrivacyNote": {
+    "description": "Screen 0 privacy line under the main button."
+  },
+  "onboardingMissingNote": "Còn mục cần bật trước khi bắt đầu chuyến đi.",
+  "@onboardingMissingNote": {
+    "description": "Screen 0: a blocking permission is missing (the button still works)."
+  },
+  "onboardingStatusOn": "Đã bật",
+  "@onboardingStatusOn": {
+    "description": "Screen 0 row status when the permission is granted."
+  },
+  "onboardingActionAllow": "Cấp quyền",
+  "@onboardingActionAllow": {
+    "description": "Screen 0 row button: show the system permission dialog."
+  },
+  "onboardingActionPrecise": "Bật Chính xác",
+  "@onboardingActionPrecise": {
+    "description": "Screen 0 location row button: ask for precise location."
+  },
+  "onboardingActionLocationServices": "Bật định vị",
+  "@onboardingActionLocationServices": {
+    "description": "Screen 0 location row button: open the phone's location settings."
+  },
+  "onboardingActionFor": "{action}: {item}",
+  "@onboardingActionFor": {
+    "description": "Screen reader label of a row button, e.g. \"Cấp quyền: Thông báo\". action is the button text, item the row title.",
+    "placeholders": {
+      "action": {
+        "type": "String"
+      },
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "onboardingError": "Chưa đọc được quyền của máy.",
+  "@onboardingError": {
+    "description": "Screen 0 banner when the permission status cannot be read."
+  },
+  "onboardingRequestFailed": "Không mở được hộp thoại quyền. Thử lại.",
+  "@onboardingRequestFailed": {
+    "description": "Screen 0 snack bar: the permission request failed."
+  },
+  "onboardingSettingsUnavailable": "Không mở được Cài đặt. Hãy mở Cài đặt của máy và tìm NapStop.",
+  "@onboardingSettingsUnavailable": {
+    "description": "Snack bar (screens 0 and 9): no settings page could be opened."
+  },
+  "onboardingLocationServicesIos": "Mở Cài đặt › Quyền riêng tư & Bảo mật › Dịch vụ định vị và bật lên.",
+  "@onboardingLocationServicesIos": {
+    "description": "Screen 0 snack bar on iOS: location services cannot be opened directly."
+  },
+  "permOpenSettings": "Mở Cài đặt",
+  "@permOpenSettings": {
+    "description": "Button: open the settings page of a permission (S5 drafts §4.1)."
+  },
+  "permLocationTitle": "Cho phép dùng vị trí",
+  "@permLocationTitle": {
+    "description": "Explainer sheet title before the location dialog (S5)."
+  },
+  "permLocationBody": "NapStop dùng dữ liệu vị trí để theo dõi chuyến đi và báo thức khi bạn sắp tới nơi, kể cả khi màn hình tắt hoặc bạn mở ứng dụng khác, cho tới khi chuyến đi kết thúc. Vị trí chỉ xử lý trên máy này, không gửi đi đâu.",
+  "@permLocationBody": {
+    "description": "Explainer sheet body before the location dialog (S5, Play prominent disclosure)."
+  },
+  "permLocationHint": "Hãy chọn \"Khi dùng ứng dụng\" và bật \"Vị trí chính xác\".",
+  "@permLocationHint": {
+    "description": "Explainer sheet footnote: what to pick in the system dialog (S5)."
+  },
+  "permLocationPreciseTitle": "Bật vị trí chính xác",
+  "@permLocationPreciseTitle": {
+    "description": "Explainer sheet title before asking for precise location."
+  },
+  "permLocationPreciseRequired": "NapStop cần \"Vị trí chính xác\" để báo đúng lúc. Vị trí gần đúng có thể lệch vài km.",
+  "@permLocationPreciseRequired": {
+    "description": "Explainer sheet body before asking for precise location (T19)."
+  },
+  "permLocationRowTitle": "Vị trí · Khi dùng ứng dụng",
+  "@permLocationRowTitle": {
+    "description": "Screen 0 location row title."
+  },
+  "permLocationRowOn": "Vị trí chính xác đang bật",
+  "@permLocationRowOn": {
+    "description": "Screen 0 location row subtitle when done."
+  },
+  "permLocationRowNeeded": "Để biết khi nào bạn sắp tới nơi",
+  "@permLocationRowNeeded": {
+    "description": "Screen 0 location row subtitle when not asked yet."
+  },
+  "permLocationRowDenied": "Đang bị từ chối. Bật trong Cài đặt.",
+  "@permLocationRowDenied": {
+    "description": "Screen 0 location row subtitle when denied."
+  },
+  "permLocationRowApprox": "Đang là vị trí gần đúng, có thể lệch vài km",
+  "@permLocationRowApprox": {
+    "description": "Screen 0 location row subtitle when only approximate location is allowed."
+  },
+  "permLocationRowServicesOff": "Định vị của máy đang tắt",
+  "@permLocationRowServicesOff": {
+    "description": "Screen 0 location row subtitle when location services are off."
+  },
+  "permNotificationsTitle": "Cho phép thông báo",
+  "@permNotificationsTitle": {
+    "description": "Explainer sheet title before the notification dialog (S5)."
+  },
+  "permNotificationsBody": "Cần để hiện báo thức và trạng thái chuyến đi. Không có quyền này, báo thức có thể không hiện trên màn hình khoá.",
+  "@permNotificationsBody": {
+    "description": "Explainer sheet body before the notification dialog (S5)."
+  },
+  "permNotificationsRowTitle": "Thông báo",
+  "@permNotificationsRowTitle": {
+    "description": "Screen 0 notifications row title."
+  },
+  "permNotificationsRowNeeded": "Hiện báo thức và trạng thái chuyến đi",
+  "@permNotificationsRowNeeded": {
+    "description": "Screen 0 notifications row subtitle."
+  },
+  "permRowDeniedSettings": "Đang tắt. Bật trong Cài đặt.",
+  "@permRowDeniedSettings": {
+    "description": "Screen 0 row subtitle when only Settings can turn the permission on."
+  },
+  "permFullScreenTitle": "Báo thức toàn màn hình",
+  "@permFullScreenTitle": {
+    "description": "Full-screen alarm permission: explainer sheet and screen 0 row title (S5)."
+  },
+  "permFullScreenBody": "Cho phép NapStop hiện báo thức toàn màn hình khi máy đang khoá, giống đồng hồ báo thức.",
+  "@permFullScreenBody": {
+    "description": "Explainer sheet body before opening the full-screen alarm settings (S5)."
+  },
+  "permFullScreenRowNeeded": "Hiện báo thức khi máy đang khoá",
+  "@permFullScreenRowNeeded": {
+    "description": "Screen 0 full-screen alarm row subtitle."
+  },
+  "permExactAlarmTitle": "Cho phép đặt báo thức",
+  "@permExactAlarmTitle": {
+    "description": "Explainer sheet title before opening the exact alarm settings (T19)."
+  },
+  "permExactAlarmBody": "Cần để báo thức dự phòng vẫn kêu nếu hệ thống tắt NapStop giữa chuyến. Bật \"Báo thức và lời nhắc\" cho NapStop.",
+  "@permExactAlarmBody": {
+    "description": "Explainer sheet body before opening the exact alarm settings (T19)."
+  },
+  "permExactAlarmRowTitle": "Báo thức chính xác",
+  "@permExactAlarmRowTitle": {
+    "description": "Screen 0 exact alarm row title."
+  },
+  "permExactAlarmRowNeeded": "Để báo thức dự phòng vẫn kêu nếu app bị tắt",
+  "@permExactAlarmRowNeeded": {
+    "description": "Screen 0 exact alarm row subtitle."
+  },
+  "permAlarmKitTitle": "Cho phép báo thức",
+  "@permAlarmKitTitle": {
+    "description": "iOS 26+: explainer sheet title before the AlarmKit dialog (T19)."
+  },
+  "permAlarmKitBody": "Để báo thức kêu cả khi máy đang Im lặng hoặc bật Tập trung.",
+  "@permAlarmKitBody": {
+    "description": "iOS 26+: explainer sheet body before the AlarmKit dialog (T19)."
+  },
+  "permAlarmKitDenied": "Báo thức sẽ không kêu khi máy đang Im lặng. Mở Cài đặt để cho phép.",
+  "@permAlarmKitDenied": {
+    "description": "iOS 26+: screen 0 AlarmKit row subtitle when denied (T19)."
+  },
+  "permAlarmKitRowTitle": "Báo thức",
+  "@permAlarmKitRowTitle": {
+    "description": "iOS 26+: screen 0 AlarmKit row title."
+  },
+  "permAlarmKitRowNeeded": "Kêu cả khi máy đang Im lặng",
+  "@permAlarmKitRowNeeded": {
+    "description": "iOS 26+: screen 0 AlarmKit row subtitle."
+  },
+  "permBatteryTitle": "Tắt tối ưu pin cho NapStop",
+  "@permBatteryTitle": {
+    "description": "Screen 0 battery card title (S5)."
+  },
+  "permBatteryBody": "Một số máy tự tắt ứng dụng chạy lâu. Tắt tối ưu pin để NapStop theo dõi suốt chuyến đi.",
+  "@permBatteryBody": {
+    "description": "Screen 0 battery card subtitle when the brand is not known (S5)."
+  },
+  "permBatteryOemSubtitle": "Máy {brand} hay tự tắt app chạy nền",
+  "@permBatteryOemSubtitle": {
+    "description": "Screen 0 battery card subtitle for a known brand. brand is a brand name, e.g. Xiaomi.",
+    "placeholders": {
+      "brand": {
+        "type": "String"
+      }
+    }
+  },
+  "permBatteryGuideButton": "Xem hướng dẫn cho {brand} ({steps} bước)",
+  "@permBatteryGuideButton": {
+    "description": "Screen 0 battery card button for a known brand. brand is a brand name, steps the number of guide steps.",
+    "placeholders": {
+      "brand": {
+        "type": "String"
+      },
+      "steps": {
+        "type": "int"
+      }
+    }
+  },
+  "permBatteryGuideButtonGeneric": "Xem hướng dẫn",
+  "@permBatteryGuideButtonGeneric": {
+    "description": "Screen 0 battery card button when the brand is not known."
+  },
+  "homeChipDeviceStatusUnknown": "Chưa kiểm tra được âm báo",
+  "@homeChipDeviceStatusUnknown": {
+    "description": "Screen 1 readiness chip: alarm volume or Do Not Disturb could not be read (Android)."
+  },
+  "homeChipDndCheckAlarms": "Không làm phiền đang bật · cho phép Báo thức",
+  "@homeChipDndCheckAlarms": {
+    "description": "Screen 1 readiness chip: Do Not Disturb \"priority\" whose alarm policy cannot be read (Android 8-10)."
+  },
+  "batteryGuideTitle": "Giữ app chạy khi bạn ngủ",
+  "@batteryGuideTitle": {
+    "description": "Screen 9 title."
+  },
+  "batteryGuideDetected": "Đã nhận diện máy của bạn · chọn lại nếu sai",
+  "@batteryGuideDetected": {
+    "description": "Screen 9: the brand was detected."
+  },
+  "batteryGuidePickBrand": "Chọn hãng điện thoại của bạn",
+  "@batteryGuidePickBrand": {
+    "description": "Screen 9: the brand is not known."
+  },
+  "batteryGuideStepLabel": "BƯỚC {step}/{total}",
+  "@batteryGuideStepLabel": {
+    "description": "Screen 9 step label, upper case.",
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryGuideStepSemantics": "Bước {step} trên {total}",
+  "@batteryGuideStepSemantics": {
+    "description": "Screen 9 step label for screen readers.",
+    "placeholders": {
+      "step": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryGuideHighlightSemantics": "Cần chọn: {value}",
+  "@batteryGuideHighlightSemantics": {
+    "description": "Screen 9 screen reader label of the highlighted setting. value is the setting to choose.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "batteryGuideNamesMayDiffer": "Tên mục có thể khác một chút trên máy bạn.",
+  "@batteryGuideNamesMayDiffer": {
+    "description": "Screen 9 note under each step."
+  },
+  "batteryGuideOpenSettings": "Mở Cài đặt của máy",
+  "@batteryGuideOpenSettings": {
+    "description": "Screen 9 button: open the settings page of the step."
+  },
+  "batteryGuideStepDone": "Đã làm xong bước này",
+  "@batteryGuideStepDone": {
+    "description": "Screen 9 button: go to the next step."
+  },
+  "batteryGuideAllDone": "Xong {count} bước!",
+  "@batteryGuideAllDone": {
+    "description": "Screen 9 title after the last step. count is the number of steps.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryGuideTestIntro": "Chạy thử: app sẽ chạy ngầm 30 giây. Bạn hãy khoá màn hình, đợi điện thoại rung là đạt.",
+  "@batteryGuideTestIntro": {
+    "description": "Screen 9: explains the 30 second background check."
+  },
+  "batteryGuideTestRow": "Kiểm tra chạy ngầm",
+  "@batteryGuideTestRow": {
+    "description": "Screen 9: name of the check, next to its duration."
+  },
+  "batteryGuideTestStart": "Bắt đầu kiểm tra",
+  "@batteryGuideTestStart": {
+    "description": "Screen 9 button: start the background check."
+  },
+  "batteryGuideReview": "Xem lại hướng dẫn",
+  "@batteryGuideReview": {
+    "description": "Screen 9 button: back to step 1."
+  },
+  "batteryGuideTestRunning": "Khoá màn hình ngay. Điện thoại sẽ rung khi hết giờ.",
+  "@batteryGuideTestRunning": {
+    "description": "Screen 9 while the check runs."
+  },
+  "batteryGuideTestCancel": "Huỷ kiểm tra",
+  "@batteryGuideTestCancel": {
+    "description": "Screen 9 button: cancel the running check."
+  },
+  "batteryGuideTestPassed": "Đạt: điện thoại đã rung khi màn hình khoá.",
+  "@batteryGuideTestPassed": {
+    "description": "Screen 9 result: the backup alarm ran while the screen was locked."
+  },
+  "batteryGuideTestPassedNote": "Báo thức dự phòng chạy được trên máy này. Kiểm tra lại nếu bạn đổi cài đặt pin.",
+  "@batteryGuideTestPassedNote": {
+    "description": "Screen 9 result note. Does not promise a whole night (T21 Q2)."
+  },
+  "batteryGuideTestScreenOn": "Đã rung, nhưng màn hình chưa khoá. Thử lại và khoá màn hình.",
+  "@batteryGuideTestScreenOn": {
+    "description": "Screen 9 result: ran with the screen on."
+  },
+  "batteryGuideTestLate": "Rung muộn {seconds} giây. Máy có thể đang hạn chế NapStop.",
+  "@batteryGuideTestLate": {
+    "description": "Screen 9 result: ran late. seconds is how late.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryGuideTestFailed": "Không thấy rung. Làm lại các bước rồi thử lại.",
+  "@batteryGuideTestFailed": {
+    "description": "Screen 9 result: the check did not run."
+  },
+  "batteryGuideTestStartFailed": "Không bắt đầu được kiểm tra. Thử lại.",
+  "@batteryGuideTestStartFailed": {
+    "description": "Screen 9 snack bar: the check could not be scheduled."
+  },
+  "batteryGuideError": "Không tải được hướng dẫn.",
+  "@batteryGuideError": {
+    "description": "Screen 9 banner: the guide data failed to load."
+  },
+  "batteryGuideIosNotNeeded": "iPhone không cần bước này.",
+  "@batteryGuideIosNotNeeded": {
+    "description": "Screen 9 on iOS."
+  },
+  "bgBrandXiaomi": "Xiaomi",
+  "@bgBrandXiaomi": {
+    "description": "Brand name (also Redmi, POCO). Not translated."
+  },
+  "bgBrandSamsung": "Samsung",
+  "@bgBrandSamsung": {
+    "description": "Brand name. Not translated."
+  },
+  "bgBrandOppo": "Oppo",
+  "@bgBrandOppo": {
+    "description": "Brand name. Not translated."
+  },
+  "bgBrandVivo": "Vivo",
+  "@bgBrandVivo": {
+    "description": "Brand name (also iQOO). Not translated."
+  },
+  "bgBrandRealme": "Realme",
+  "@bgBrandRealme": {
+    "description": "Brand name. Not translated."
+  },
+  "bgBrandOnePlus": "OnePlus",
+  "@bgBrandOnePlus": {
+    "description": "Brand name. Not translated."
+  },
+  "bgBrandHuawei": "Huawei",
+  "@bgBrandHuawei": {
+    "description": "Brand name. Not translated."
+  },
+  "bgBrandHonor": "Honor",
+  "@bgBrandHonor": {
+    "description": "Brand name. Not translated."
+  },
+  "bgBrandOther": "Khác",
+  "@bgBrandOther": {
+    "description": "Screen 9 chip for any other brand."
+  },
+  "bgLockTitle": "Khoá NapStop trong đa nhiệm",
+  "@bgLockTitle": {
+    "description": "Battery guide step title (draft, S1 checks)."
+  },
+  "bgLockHighlight": "Đã khoá",
+  "@bgLockHighlight": {
+    "description": "Battery guide: the state to look for (draft)."
+  },
+  "bgPullDownLockPath": "Mở màn đa nhiệm, kéo thẻ NapStop xuống để khoá",
+  "@bgPullDownLockPath": {
+    "description": "Battery guide: how to lock the app in recent apps (draft)."
+  },
+  "bgXiaomi1Title": "Đặt pin của NapStop thành \"Không hạn chế\"",
+  "@bgXiaomi1Title": {
+    "description": "Xiaomi step 1 title (draft)."
+  },
+  "bgXiaomi1Path": "Cài đặt › Ứng dụng › Quản lý ứng dụng › NapStop › Tiết kiệm pin",
+  "@bgXiaomi1Path": {
+    "description": "Xiaomi step 1 settings path (draft)."
+  },
+  "bgXiaomi1Highlight": "Không hạn chế",
+  "@bgXiaomi1Highlight": {
+    "description": "Xiaomi step 1 setting to choose (draft)."
+  },
+  "bgXiaomi2Title": "Bật \"Tự khởi động\"",
+  "@bgXiaomi2Title": {
+    "description": "Xiaomi step 2 title (draft)."
+  },
+  "bgXiaomi2Path": "Cài đặt › Ứng dụng › Quản lý ứng dụng › NapStop › Tự khởi động",
+  "@bgXiaomi2Path": {
+    "description": "Xiaomi step 2 settings path (draft)."
+  },
+  "bgXiaomi2Highlight": "Tự khởi động: Bật",
+  "@bgXiaomi2Highlight": {
+    "description": "Xiaomi step 2 setting to choose (draft)."
+  },
+  "bgXiaomi3Path": "Mở màn đa nhiệm, nhấn giữ thẻ NapStop, chọn biểu tượng ổ khoá",
+  "@bgXiaomi3Path": {
+    "description": "Xiaomi step 3: lock in recent apps (draft)."
+  },
+  "bgSamsung1Title": "Đặt pin của NapStop thành \"Không hạn chế\"",
+  "@bgSamsung1Title": {
+    "description": "Samsung step 1 title (draft)."
+  },
+  "bgSamsung1Path": "Cài đặt › Ứng dụng › NapStop › Pin",
+  "@bgSamsung1Path": {
+    "description": "Samsung step 1 settings path (draft)."
+  },
+  "bgSamsung1Highlight": "Không hạn chế",
+  "@bgSamsung1Highlight": {
+    "description": "Samsung step 1 setting to choose (draft)."
+  },
+  "bgSamsung2Title": "Thêm NapStop vào \"Ứng dụng không bao giờ ngủ\"",
+  "@bgSamsung2Title": {
+    "description": "Samsung step 2 title (draft)."
+  },
+  "bgSamsung2Path": "Cài đặt › Chăm sóc thiết bị › Pin › Giới hạn sử dụng nền",
+  "@bgSamsung2Path": {
+    "description": "Samsung steps 2 and 3 settings path (draft)."
+  },
+  "bgSamsung2Highlight": "Ứng dụng không bao giờ ngủ",
+  "@bgSamsung2Highlight": {
+    "description": "Samsung step 2 setting to choose (draft)."
+  },
+  "bgSamsung3Title": "Tắt \"Đặt ứng dụng không dùng vào chế độ ngủ\"",
+  "@bgSamsung3Title": {
+    "description": "Samsung step 3 title (draft)."
+  },
+  "bgSamsung3Highlight": "Tắt",
+  "@bgSamsung3Highlight": {
+    "description": "Samsung step 3 setting to choose (draft)."
+  },
+  "bgColorOs1Title": "Cho phép hoạt động nền",
+  "@bgColorOs1Title": {
+    "description": "Oppo/Realme/OnePlus step 1 title (draft)."
+  },
+  "bgColorOs1Path": "Cài đặt › Ứng dụng › Quản lý ứng dụng › NapStop › Mức sử dụng pin",
+  "@bgColorOs1Path": {
+    "description": "Oppo/Realme/OnePlus steps 1 and 2 settings path (draft)."
+  },
+  "bgColorOs1Highlight": "Cho phép hoạt động nền: Bật",
+  "@bgColorOs1Highlight": {
+    "description": "Oppo/Realme/OnePlus step 1 setting (draft)."
+  },
+  "bgColorOs2Title": "Cho phép tự khởi chạy",
+  "@bgColorOs2Title": {
+    "description": "Oppo/Realme/OnePlus step 2 title (draft)."
+  },
+  "bgColorOs2Highlight": "Cho phép tự khởi chạy: Bật",
+  "@bgColorOs2Highlight": {
+    "description": "Oppo/Realme/OnePlus step 2 setting (draft)."
+  },
+  "bgColorOs3Path": "Mở màn đa nhiệm, nhấn dấu ba chấm trên thẻ NapStop, chọn Khoá",
+  "@bgColorOs3Path": {
+    "description": "Oppo/Realme/OnePlus step 3: lock in recent apps (draft)."
+  },
+  "bgVivo1Title": "Cho phép NapStop dùng pin ở nền",
+  "@bgVivo1Title": {
+    "description": "Vivo step 1 title (draft)."
+  },
+  "bgVivo1Path": "Cài đặt › Pin › Mức tiêu thụ điện nền cao",
+  "@bgVivo1Path": {
+    "description": "Vivo step 1 settings path (draft)."
+  },
+  "bgVivo1Highlight": "NapStop: Cho phép",
+  "@bgVivo1Highlight": {
+    "description": "Vivo step 1 setting to choose (draft)."
+  },
+  "bgVivo2Title": "Bật \"Tự khởi động\" cho NapStop",
+  "@bgVivo2Title": {
+    "description": "Vivo step 2 title (draft)."
+  },
+  "bgVivo2Path": "Cài đặt › Ứng dụng › Tự khởi động",
+  "@bgVivo2Path": {
+    "description": "Vivo step 2 settings path (draft)."
+  },
+  "bgVivo2Highlight": "NapStop: Bật",
+  "@bgVivo2Highlight": {
+    "description": "Vivo step 2 setting to choose (draft)."
+  },
+  "bgHuawei1Title": "Quản lý \"Khởi chạy ứng dụng\" thủ công",
+  "@bgHuawei1Title": {
+    "description": "Huawei/Honor step 1 title (draft)."
+  },
+  "bgHuawei1Path": "Cài đặt › Pin › Khởi chạy ứng dụng › NapStop",
+  "@bgHuawei1Path": {
+    "description": "Huawei/Honor step 1 settings path (draft)."
+  },
+  "bgHuawei1Highlight": "Quản lý thủ công: bật cả 3 mục",
+  "@bgHuawei1Highlight": {
+    "description": "Huawei/Honor step 1 setting (draft)."
+  },
+  "bgHuawei2Title": "Không tối ưu hoá pin cho NapStop",
+  "@bgHuawei2Title": {
+    "description": "Huawei/Honor step 2 title (draft)."
+  },
+  "bgHuawei2Path": "Tối ưu hoá pin › Tất cả ứng dụng › NapStop",
+  "@bgHuawei2Path": {
+    "description": "Huawei/Honor step 2 settings path (draft)."
+  },
+  "bgHuawei2Highlight": "Không cho phép",
+  "@bgHuawei2Highlight": {
+    "description": "Huawei/Honor step 2 setting to choose (draft)."
+  },
+  "bgGeneric1Title": "Đặt pin của NapStop thành \"Không hạn chế\"",
+  "@bgGeneric1Title": {
+    "description": "Generic step 1 title."
+  },
+  "bgGeneric1Path": "Cài đặt › Ứng dụng › NapStop › Pin",
+  "@bgGeneric1Path": {
+    "description": "Generic step 1 settings path."
+  },
+  "bgGeneric1Highlight": "Không hạn chế",
+  "@bgGeneric1Highlight": {
+    "description": "Generic step 1 setting to choose."
+  },
+  "bgGeneric2Title": "Giữ NapStop trong đa nhiệm",
+  "@bgGeneric2Title": {
+    "description": "Generic step 2 title."
+  },
+  "bgGeneric2Path": "Khi đang có chuyến, đừng vuốt tắt NapStop khỏi màn đa nhiệm.",
+  "@bgGeneric2Path": {
+    "description": "Generic step 2 instruction."
+  },
+  "bgGeneric2Highlight": "NapStop vẫn mở",
+  "@bgGeneric2Highlight": {
+    "description": "Generic step 2 state to look for."
+  },
   "commonUndo": "Hoàn tác",
   "@commonUndo": {
     "description": "Snack bar action that reverts the last change."

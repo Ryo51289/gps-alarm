@@ -6,8 +6,14 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="napstop_db/"/>
+        <!-- T21 §13 + review #3: permission and screen 0 flags stay on this phone. -->
+        <exclude domain="sharedpref" path="napstop_permissions.xml"/>
+        <exclude domain="sharedpref" path="napstop_onboarding.xml"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="napstop_db/"/>
+        <!-- T21 §13 + review #3: permission and screen 0 flags stay on this phone. -->
+        <exclude domain="sharedpref" path="napstop_permissions.xml"/>
+        <exclude domain="sharedpref" path="napstop_onboarding.xml"/>
     </device-transfer>
 </data-extraction-rules>

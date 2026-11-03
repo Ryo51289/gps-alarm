@@ -104,7 +104,7 @@ flutter test --tags golden                           # chỉ chạy golden
 | Nền tảng | File sinh | Viết tay |
 |---|---|---|
 | Dart | `lib/core/bridge/core_api.g.dart` | `core_bridge.dart` (`CoreBridge`, `StubTraces`), `bridge_exception.dart` |
-| Android | `android/app/src/main/kotlin/app/napstop/core/bridge/CoreApi.g.kt` | `BridgeRegistrar`, `TripHostApiImpl`, `TripConfigValidator`, `stub/` |
+| Android | `android/app/src/main/kotlin/app/napstop/core/bridge/CoreApi.g.kt` | `BridgeRegistrar`, `BridgeGuard`, `TripHostApiImpl`, `TripConfigValidator`, `stub/`, `permission/` (`PermissionHostApi` thật, T21) |
 | iOS | `ios/Runner/Bridge/CoreApi.g.swift` | `CoreBridgeStub.swift` (trạng thái trong bộ nhớ, chờ T17) |
 
 ```bash
@@ -160,6 +160,9 @@ dart format lib/core/bridge/core_api.g.dart
 
   Điều hướng qua extension `AppNavigation` (`context.openAlarmSettings(draft)`, `pickDestination()`…). Màn chưa làm dùng
   `PlaceholderScreen`; task làm màn đó thay builder của route.
+- Lần chạy đầu (T21): `main()` đọc cờ `onboarding.completedVersion` (`startupLocation`, tối đa 500 ms; chậm hơn thì coi như
+  chưa xong) rồi đặt `initialLocation` = `/onboarding` hoặc `/home` qua `startupLocationProvider`. Màn 9 đọc hướng dẫn theo
+  hãng từ `assets/battery_guides.json` (cấu trúc + khoá ARB `bg*`; thêm/sửa hãng chỉ sửa JSON + ARB, `docs/specs/T21.md` §6.3).
 - Riverpod 3, provider viết tay; `ProviderScope(retry: (_, _) => null)` trong `main.dart` (tắt tự thử lại).
   Provider lõi: `coreBridgeProvider`, `appDatabaseProvider`, `tripsRepositoryProvider`, `savedPlacesRepositoryProvider`,
   `activeTripProvider`, `deviceInfoProvider`, `clockProvider`, `appRouterProvider`, `destinationPickerProvider`.
@@ -167,7 +170,8 @@ dart format lib/core/bridge/core_api.g.dart
   `checkStart` ở `lib/features/onboarding/domain/start_check.dart` (T19 §1.3).
 - Test: `test/helpers/fake_core_bridge.dart` (`FakeCoreBridge` + builder `androidPermissions()`, `deviceStatusMsg()`,
   `activeTrip()`…), `test/helpers/app_harness.dart` (`pumpAppHarness(tester, {overrides, initialLocation, theme,
-  textScale, locale, size, fontFamily, seed})`: cả app với fake bridge, DB bộ nhớ, giờ cố định 19:30),
+  textScale, locale, size, fontFamily, seed, batteryGuides…})`: cả app với fake bridge, DB bộ nhớ, giờ cố định 19:30,
+  hướng dẫn pin parse sẵn),
   `test/helpers/trip_fixtures.dart` (đích, bản ghi mẫu, `seedData`).
 
 ## drift (cơ sở dữ liệu, T22)

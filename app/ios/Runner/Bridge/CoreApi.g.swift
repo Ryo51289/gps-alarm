@@ -1587,6 +1587,64 @@ struct MapsConfigMsg: Hashable, CustomStringConvertible {
   }
 }
 
+/// T21: screen 9 background check (Android). Times are epoch ms
+/// (System.currentTimeMillis). No coordinates.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct BackgroundCheckMsg: Hashable, CustomStringConvertible {
+  var scheduledAtMs: Int64
+  var dueAtMs: Int64
+  var firedAtMs: Int64? = nil
+  var screenOnAtFire: Bool? = nil
+  var exact: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> BackgroundCheckMsg? {
+    let scheduledAtMs = pigeonVar_list[0] as! Int64
+    let dueAtMs = pigeonVar_list[1] as! Int64
+    let firedAtMs: Int64? = nilOrValue(pigeonVar_list[2])
+    let screenOnAtFire: Bool? = nilOrValue(pigeonVar_list[3])
+    let exact = pigeonVar_list[4] as! Bool
+
+    return BackgroundCheckMsg(
+      scheduledAtMs: scheduledAtMs,
+      dueAtMs: dueAtMs,
+      firedAtMs: firedAtMs,
+      screenOnAtFire: screenOnAtFire,
+      exact: exact
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      scheduledAtMs,
+      dueAtMs,
+      firedAtMs,
+      screenOnAtFire,
+      exact,
+    ]
+  }
+  static func == (lhs: BackgroundCheckMsg, rhs: BackgroundCheckMsg) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return CoreApiPigeonInternal.deepEquals(lhs.scheduledAtMs, rhs.scheduledAtMs) && CoreApiPigeonInternal.deepEquals(lhs.dueAtMs, rhs.dueAtMs) && CoreApiPigeonInternal.deepEquals(lhs.firedAtMs, rhs.firedAtMs) && CoreApiPigeonInternal.deepEquals(lhs.screenOnAtFire, rhs.screenOnAtFire) && CoreApiPigeonInternal.deepEquals(lhs.exact, rhs.exact)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("BackgroundCheckMsg")
+    CoreApiPigeonInternal.deepHash(value: scheduledAtMs, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: dueAtMs, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: firedAtMs, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: screenOnAtFire, hasher: &hasher)
+    CoreApiPigeonInternal.deepHash(value: exact, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "BackgroundCheckMsg(scheduledAtMs: \(String(describing: scheduledAtMs)), dueAtMs: \(String(describing: dueAtMs)), firedAtMs: \(String(describing: firedAtMs)), screenOnAtFire: \(String(describing: screenOnAtFire)), exact: \(String(describing: exact)))"
+  }
+}
+
 private class CoreApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1750,6 +1808,8 @@ private class CoreApiPigeonCodecReader: FlutterStandardReader {
       return DeviceStatusMsg.fromList(self.readValue() as! [Any?])
     case 168:
       return MapsConfigMsg.fromList(self.readValue() as! [Any?])
+    case 169:
+      return BackgroundCheckMsg.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1877,6 +1937,9 @@ private class CoreApiPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? MapsConfigMsg {
       super.writeByte(168)
+      super.writeValue(value.toList())
+    } else if let value = value as? BackgroundCheckMsg {
+      super.writeByte(169)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -2079,7 +2142,9 @@ class TripHostApiSetup {
 }
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol PermissionHostApi {
-  func status() throws -> PermissionStatusMsg
+  /// T21: @async (native reads stored flags off the main thread; iOS reads
+  /// notification settings asynchronously). Dart signature unchanged.
+  func status() async throws -> PermissionStatusMsg
   /// Shows the system prompt. Not applicable kinds return status() unchanged.
   /// Errors: request-in-progress.
   func request(kind: PermissionKindMsg) async throws -> PermissionStatusMsg
@@ -2098,6 +2163,14 @@ protocol PermissionHostApi {
   /// [maxAgeMs], or invalid input. Never requests a new fix, never prompts.
   /// The user's coordinates never cross the bridge (T14 D5).
   func distancesFromLastKnownM(latLngPairs: [Double], maxAgeMs: Int64) async throws -> [Double]?
+  /// T21: schedules the screen 9 check alarm in [delayMs] (5000..120000),
+  /// replacing any previous check. Errors: invalid-config
+  /// ("delayMs: out of range"). iOS: internal ("unsupported").
+  func startBackgroundCheck(delayMs: Int64) async throws -> BackgroundCheckMsg
+  /// T21: the latest check (survives process death), or null.
+  func backgroundCheck() async throws -> BackgroundCheckMsg?
+  /// T21: cancels the alarm and forgets the record. No-op when none.
+  func cancelBackgroundCheck() async throws
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -2106,14 +2179,18 @@ class PermissionHostApiSetup {
   /// Sets up an instance of `PermissionHostApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: PermissionHostApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// T21: @async (native reads stored flags off the main thread; iOS reads
+    /// notification settings asynchronously). Dart signature unchanged.
     let statusChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.napstop.PermissionHostApi.status\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       statusChannel.setMessageHandler { _, reply in
-        do {
-          let result = try api.status()
-          reply(wrapResult(result))
-        } catch {
-          reply(wrapError(error))
+        Task { @MainActor in
+          do {
+            let result = try await api.status()
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
         }
       }
     } else {
@@ -2219,6 +2296,58 @@ class PermissionHostApiSetup {
       }
     } else {
       distancesFromLastKnownMChannel.setMessageHandler(nil)
+    }
+    /// T21: schedules the screen 9 check alarm in [delayMs] (5000..120000),
+    /// replacing any previous check. Errors: invalid-config
+    /// ("delayMs: out of range"). iOS: internal ("unsupported").
+    let startBackgroundCheckChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.napstop.PermissionHostApi.startBackgroundCheck\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startBackgroundCheckChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let delayMsArg = args[0] as! Int64
+        Task { @MainActor in
+          do {
+            let result = try await api.startBackgroundCheck(delayMs: delayMsArg)
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startBackgroundCheckChannel.setMessageHandler(nil)
+    }
+    /// T21: the latest check (survives process death), or null.
+    let backgroundCheckChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.napstop.PermissionHostApi.backgroundCheck\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      backgroundCheckChannel.setMessageHandler { _, reply in
+        Task { @MainActor in
+          do {
+            let result = try await api.backgroundCheck()
+            reply(wrapResult(result))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      backgroundCheckChannel.setMessageHandler(nil)
+    }
+    /// T21: cancels the alarm and forgets the record. No-op when none.
+    let cancelBackgroundCheckChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.napstop.PermissionHostApi.cancelBackgroundCheck\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      cancelBackgroundCheckChannel.setMessageHandler { _, reply in
+        Task { @MainActor in
+          do {
+            try await api.cancelBackgroundCheck()
+            reply(wrapResult(nil))
+          } catch {
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      cancelBackgroundCheckChannel.setMessageHandler(nil)
     }
   }
 }

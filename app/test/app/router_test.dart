@@ -76,8 +76,9 @@ void main() {
   testWidgets('full-screen routes cover the bottom navigation', (tester) async {
     final h = await pumpAppHarness(tester);
     for (final (path, title) in [
-      (AppRoutes.onboarding, 'Cấp quyền'),
-      (AppRoutes.batteryGuide, 'Tắt tối ưu pin'),
+      // T21: real screens 0 and 9 (first-run layout of screen 0 via go).
+      (AppRoutes.onboarding, 'Để không bao giờ lỡ trạm'),
+      (AppRoutes.batteryGuide, 'Giữ app chạy khi bạn ngủ'),
       (AppRoutes.destination, 'Chọn điểm đến'),
       (AppRoutes.tracking, 'Đang theo dõi'),
       (AppRoutes.alarm, 'Báo thức'),

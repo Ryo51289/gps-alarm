@@ -16,9 +16,10 @@ final recentTripsProvider = StreamProvider<List<TripRecord>>(
 );
 
 /// The "Sẵn sàng" card. Re-read on resume and after returning from screens
-/// 0 and 9 (the screen invalidates it). A failing `deviceStatus()` only
-/// drops the battery/volume/DND chips; a failing `permissionStatus()` or
-/// `deviceInfo()` puts the card in its error state.
+/// 0 and 9 (the screen invalidates it). A failing `deviceStatus()` drops the
+/// battery/volume/DND chips and, on Android, shows the chip "Chưa kiểm tra
+/// được âm báo" (T21 §12: the card is "check", not "ready"); a failing
+/// `permissionStatus()` or `deviceInfo()` puts the card in its error state.
 final FutureProvider<Readiness> readinessProvider =
     FutureProvider.autoDispose<Readiness>((ref) async {
       final bridge = ref.watch(coreBridgeProvider);

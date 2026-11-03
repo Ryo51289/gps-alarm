@@ -35,4 +35,8 @@ abstract final class NapIcons {
   static const IconData smart = Icons.auto_awesome_outlined;
   static const IconData add = Icons.add;
   static const IconData clear = Icons.close;
+  // T21: screens 0 and 9.
+  static const IconData fullScreen = Icons.fullscreen;
+  static const IconData alarmClock = Icons.alarm;
+  static const IconData timer = Icons.timer_outlined;
 }

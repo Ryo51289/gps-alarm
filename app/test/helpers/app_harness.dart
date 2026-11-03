@@ -19,12 +19,16 @@ import 'package:napstop/core/db/db_providers.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/storage/key_value_store.dart';
 import 'package:napstop/core/storage/shared_preferences_key_value_store.dart';
+import 'package:napstop/features/battery_guide/data/battery_guide_providers.dart';
+import 'package:napstop/features/battery_guide/domain/battery_guide.dart';
 import 'package:napstop/features/destination/data/destination_providers.dart';
 import 'package:napstop/features/destination/data/station_repository.dart';
+import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 import 'fake_core_bridge.dart';
 import 'fake_key_value_store.dart';
+import 'test_battery_guides.dart';
 import 'test_station_catalog.dart';
 
 /// Default "now" of the harness: 19:30 local time ("Chào buổi tối").
@@ -68,6 +72,7 @@ class AppHarness {
 /// [seed] runs against the database before the first frame.
 /// [stationCatalog] replaces the real dataset of screen 2 (T23).
 /// [keyValueStore] holds the preferences (T25); empty by default.
+/// [batteryGuides] replaces the real guides of screens 0 and 9 (T21).
 Future<AppHarness> pumpAppHarness(
   WidgetTester tester, {
   List<Override> overrides = const [],
@@ -84,6 +89,7 @@ Future<AppHarness> pumpAppHarness(
   bool settle = true,
   Future<StationCatalog> Function()? stationCatalog,
   KeyValueStore? keyValueStore,
+  Future<BatteryGuideCatalog> Function()? batteryGuides,
 }) async {
   tester.view
     ..physicalSize = size
@@ -92,6 +98,7 @@ Future<AppHarness> pumpAppHarness(
   final fake = bridge ?? FakeCoreBridge();
   final database = db ?? memoryDatabase();
   final fixedNow = now ?? kHarnessNow;
+  final store = keyValueStore ?? FakeKeyValueStore();
   final container = ProviderContainer.test(
     retry: (_, _) => null,
     overrides: [
@@ -107,12 +114,17 @@ Future<AppHarness> pumpAppHarness(
         return router;
       }),
       // Screen 3 (T25): preferences in memory, empty unless overridden.
-      keyValueStoreProvider.overrideWithValue(
-        keyValueStore ?? FakeKeyValueStore(),
-      ),
+      keyValueStoreProvider.overrideWithValue(store),
+      // Screen 0 flags (T21): the same in-memory store.
+      onboardingStoreProvider.overrideWithValue(store),
       // Screen 2 (T23): the real dataset, already decoded.
       stationCatalogProvider.overrideWith(
         (ref) => stationCatalog?.call() ?? Future.value(kTestStationCatalog),
+      ),
+      // Screens 0 and 9 (T21): the real guides, already parsed.
+      batteryGuideCatalogProvider.overrideWith(
+        (ref) =>
+            batteryGuides?.call() ?? Future.value(kTestBatteryGuideCatalog),
       ),
       ...overrides,
     ],

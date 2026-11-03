@@ -353,7 +353,8 @@ void main() {
     expect(_badgeTone(tester, 'Tối ưu pin đang bật'), NapTone.neutral);
     await _tap(tester, find.text('Xem hướng dẫn'));
     expect(h.location, AppRoutes.batteryGuide);
-    expect(find.text('Tắt tối ưu pin'), findsOneWidget);
+    // T21: screen 9 replaces the placeholder.
+    expect(find.text('Giữ app chạy khi bạn ngủ'), findsOneWidget);
   });
 
   testWidgets('W11 resume re-reads permissions', (tester) async {
@@ -533,11 +534,20 @@ void main() {
     );
   });
 
-  testWidgets('W21 deviceStatus error: location chip only', (tester) async {
+  // T21 W24 (replaces T22 W21, T21 §12 / O6): a failing deviceStatus() is
+  // "not checked", so the card is "check", not "ready".
+  testWidgets('W21/T21 W24 deviceStatus error: check, alarm sound unknown', (
+    tester,
+  ) async {
     final bridge = FakeCoreBridge()..deviceStatusError = channelError();
     await pumpAppHarness(tester, bridge: bridge);
-    expect(find.text('Sẵn sàng cho chuyến đi'), findsOneWidget);
-    expect(_badgeLabels(tester), ['Vị trí: Khi dùng ứng dụng']);
+    expect(find.text('Nên kiểm tra trước khi ngủ'), findsOneWidget);
+    expect(find.text('Sẵn sàng cho chuyến đi'), findsNothing);
+    expect(_badgeLabels(tester), [
+      'Vị trí: Khi dùng ứng dụng',
+      'Chưa kiểm tra được âm báo',
+    ]);
+    expect(_badgeTone(tester, 'Chưa kiểm tra được âm báo'), NapTone.warning);
   });
 
   testWidgets('W22 database error: tiles locked, search still works', (

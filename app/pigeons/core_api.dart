@@ -442,6 +442,24 @@ class MapsConfigMsg {
   String? iosBundleId;
 }
 
+/// T21: screen 9 background check (Android). Times are epoch ms
+/// (System.currentTimeMillis). No coordinates.
+class BackgroundCheckMsg {
+  BackgroundCheckMsg({
+    required this.scheduledAtMs,
+    required this.dueAtMs,
+    this.firedAtMs,
+    this.screenOnAtFire,
+    required this.exact,
+  });
+
+  int scheduledAtMs; // when startBackgroundCheck ran
+  int dueAtMs; // scheduledAtMs + delayMs
+  int? firedAtMs; // when the receiver ran; null = not yet
+  bool? screenOnAtFire; // PowerManager.isInteractive() at fire time
+  bool exact; // true: setExactAndAllowWhileIdle; false: setAndAllowWhileIdle
+}
+
 // --------------------------------------------------------------------- APIs
 
 @HostApi()
@@ -488,6 +506,9 @@ abstract class TripHostApi {
 
 @HostApi()
 abstract class PermissionHostApi {
+  /// T21: @async (native reads stored flags off the main thread; iOS reads
+  /// notification settings asynchronously). Dart signature unchanged.
+  @async
   PermissionStatusMsg status();
 
   /// Shows the system prompt. Not applicable kinds return status() unchanged.
@@ -515,6 +536,20 @@ abstract class PermissionHostApi {
   /// The user's coordinates never cross the bridge (T14 D5).
   @async
   List<double>? distancesFromLastKnownM(List<double> latLngPairs, int maxAgeMs);
+
+  /// T21: schedules the screen 9 check alarm in [delayMs] (5000..120000),
+  /// replacing any previous check. Errors: invalid-config
+  /// ("delayMs: out of range"). iOS: internal ("unsupported").
+  @async
+  BackgroundCheckMsg startBackgroundCheck(int delayMs);
+
+  /// T21: the latest check (survives process death), or null.
+  @async
+  BackgroundCheckMsg? backgroundCheck();
+
+  /// T21: cancels the alarm and forgets the record. No-op when none.
+  @async
+  void cancelBackgroundCheck();
 }
 
 @HostApi()

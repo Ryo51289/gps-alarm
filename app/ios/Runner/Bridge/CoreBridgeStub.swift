@@ -230,7 +230,8 @@ final class TripHostApiStub: TripHostApi {
 }
 
 /// Fixed answers until T17 (ARCHITECTURE §7). Android-only items are notApplicable.
-/// `deviceStatus()` is real (battery only).
+/// `deviceStatus()` is real (battery only). T21: `status()` is async (Pigeon @async); T17
+/// implements the mapping of docs/specs/T21.md §9 (`precise` is never notApplicable).
 final class PermissionHostApiStub: PermissionHostApi {
   private let device: DeviceInfoMsg
 
@@ -238,7 +239,11 @@ final class PermissionHostApiStub: PermissionHostApi {
     self.device = device
   }
 
-  func status() throws -> PermissionStatusMsg {
+  func status() async throws -> PermissionStatusMsg {
+    fixedStatus()
+  }
+
+  private func fixedStatus() -> PermissionStatusMsg {
     PermissionStatusMsg(
       location: .whileInUse,
       precise: .granted,
@@ -252,7 +257,7 @@ final class PermissionHostApiStub: PermissionHostApi {
   }
 
   func request(kind: PermissionKindMsg) async throws -> PermissionStatusMsg {
-    try status()
+    fixedStatus()
   }
 
   func openSettings(target: SettingsTargetMsg) throws -> Bool {
@@ -286,6 +291,17 @@ final class PermissionHostApiStub: PermissionHostApi {
   func distancesFromLastKnownM(latLngPairs: [Double], maxAgeMs: Int64) async throws -> [Double]? {
     nil
   }
+
+  /// T21: the screen 9 background check is Android only (iOS has no battery optimization).
+  func startBackgroundCheck(delayMs: Int64) async throws -> BackgroundCheckMsg {
+    throw PigeonError(code: "internal", message: "unsupported", details: nil)
+  }
+
+  func backgroundCheck() async throws -> BackgroundCheckMsg? {
+    nil
+  }
+
+  func cancelBackgroundCheck() async throws {}
 }
 
 /// Maps/Places key of this build (T23 D3, D4).

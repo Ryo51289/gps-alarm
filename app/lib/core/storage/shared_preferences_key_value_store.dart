@@ -7,14 +7,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// platform plugin, makes the call fail; callers treat any error as
 /// "missing".
 final class SharedPreferencesKeyValueStore implements KeyValueStore {
-  new([this._injected]);
+  new([this._injected, this._options = const SharedPreferencesOptions()]);
 
   final SharedPreferencesAsync? _injected;
+
+  /// Options of the store created on first use (T21: a separate Android file).
+  final SharedPreferencesOptions _options;
 
   /// Created on first use: the constructor throws when no platform plugin is
   /// registered (plain unit tests), which must surface as a failed call.
   late final SharedPreferencesAsync _prefs =
-      _injected ?? SharedPreferencesAsync();
+      _injected ?? SharedPreferencesAsync(options: _options);
 
   @override
   Future<String?> getString(String key) =>

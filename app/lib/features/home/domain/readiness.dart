@@ -33,6 +33,14 @@ enum ReadinessChipKind {
   alarmMuted,
   dndBlocksAlarms,
   batteryOptimization,
+
+  /// Android: deviceStatus() failed, or volume / Do Not Disturb unreadable
+  /// (T21 §12, O6): "not checked" is not "ready".
+  deviceStatusUnknown,
+
+  /// Android: Do Not Disturb "priority" whose alarm policy cannot be read
+  /// (API 26-29, or a read error), T21 §12.
+  dndCheckAlarms,
 }
 
 /// One line of the card.
@@ -86,12 +94,14 @@ const int kLowBatteryPct = 20;
 const int kLowAlarmVolumePct = 30;
 
 /// Builds the card from the permission status, the device and the live
-/// device status (null when unreadable).
+/// device status (null when unreadable). On Android an unreadable status,
+/// volume or Do Not Disturb is a caution chip, never "ready" (T21 §12).
 Readiness evaluateReadiness({
   required PermissionStatusMsg permissions,
   required DeviceInfoMsg device,
   DeviceStatusMsg? status,
 }) {
+  final android = device.platform == PlatformMsg.android;
   final check = checkStart(permissions, device);
   final missing = check.missing;
   final chips = <ReadinessChip>[];
@@ -206,7 +216,16 @@ Readiness evaluateReadiness({
   // Disturb "total silence", T14.1 O1) warns even if the percent is unknown.
   final volume = status?.alarmVolumePct;
   final muted = status?.alarmMuted == true;
-  if (volume != null || muted) {
+  var statusUnknown = false;
+  if (android && (status == null || (volume == null && !muted))) {
+    statusUnknown = true;
+    chips.add(
+      const ReadinessChip(
+        ReadinessChipKind.deviceStatusUnknown,
+        ReadinessSeverity.caution,
+      ),
+    );
+  } else if (volume != null || muted) {
     if (muted || volume == 0) {
       chips.add(
         const ReadinessChip(
@@ -242,6 +261,25 @@ Readiness evaluateReadiness({
       const ReadinessChip(
         ReadinessChipKind.dndBlocksAlarms,
         ReadinessSeverity.warning,
+      ),
+    );
+  } else if (filter == InterruptionFilterMsg.priority &&
+      status?.priorityAllowsAlarms == null &&
+      !muted) {
+    // API 26-29 cannot read the applied policy (T21 D9).
+    chips.add(
+      const ReadinessChip(
+        ReadinessChipKind.dndCheckAlarms,
+        ReadinessSeverity.caution,
+      ),
+    );
+  } else if (android &&
+      filter == InterruptionFilterMsg.unknown &&
+      !statusUnknown) {
+    chips.add(
+      const ReadinessChip(
+        ReadinessChipKind.deviceStatusUnknown,
+        ReadinessSeverity.caution,
       ),
     );
   }

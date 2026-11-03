@@ -6,8 +6,11 @@ import 'package:napstop/app/router/app_shell.dart';
 import 'package:napstop/app/router/placeholder_screen.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
+import 'package:napstop/features/battery_guide/presentation/battery_guide_screen.dart';
 import 'package:napstop/features/destination/presentation/destination_screen.dart';
 import 'package:napstop/features/home/presentation/home_screen.dart';
+import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
+import 'package:napstop/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Navigator of the full-screen routes; they cover the bottom navigation.
@@ -15,9 +18,9 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey(
   debugLabel: 'root',
 );
 
-/// The app router (T22 §3). T21 adds the first-run redirect and a
-/// `refreshListenable` here. No route observer: route names never leave the
-/// device (T29 §2).
+/// The app router (T22 §3). First run (T21 D10): main() picks
+/// [initialLocation] (screen 0 or 1) from a stored flag; no redirect. No route
+/// observer: route names never leave the device (T29 §2).
 GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
   GoRoute fullScreen(String path, String Function(AppLocalizations l) title) =>
       GoRoute(
@@ -67,8 +70,16 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
           ),
         ],
       ),
-      fullScreen(AppRoutes.onboarding, (l) => l.appScreenOnboardingTitle),
-      fullScreen(AppRoutes.batteryGuide, (l) => l.appScreenBatteryGuideTitle),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, _) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.batteryGuide,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, _) => const BatteryGuideScreen(),
+      ),
       GoRoute(
         path: AppRoutes.destination,
         parentNavigatorKey: rootNavigatorKey,
@@ -96,7 +107,9 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
 }
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final router = createAppRouter();
+  final router = createAppRouter(
+    initialLocation: ref.read(startupLocationProvider),
+  );
   ref.onDispose(router.dispose);
   return router;
 });

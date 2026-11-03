@@ -1672,6 +1672,64 @@ data class MapsConfigMsg (
     return "MapsConfigMsg(apiKey=$apiKey, androidPackage=$androidPackage, androidCertSha1=$androidCertSha1, iosBundleId=$iosBundleId)"
   }
 }
+
+/**
+ * T21: screen 9 background check (Android). Times are epoch ms
+ * (System.currentTimeMillis). No coordinates.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class BackgroundCheckMsg (
+  val scheduledAtMs: Long,
+  val dueAtMs: Long,
+  val firedAtMs: Long? = null,
+  val screenOnAtFire: Boolean? = null,
+  val exact: Boolean
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): BackgroundCheckMsg {
+      val scheduledAtMs = pigeonVar_list[0] as Long
+      val dueAtMs = pigeonVar_list[1] as Long
+      val firedAtMs = pigeonVar_list[2] as Long?
+      val screenOnAtFire = pigeonVar_list[3] as Boolean?
+      val exact = pigeonVar_list[4] as Boolean
+      return BackgroundCheckMsg(scheduledAtMs, dueAtMs, firedAtMs, screenOnAtFire, exact)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      scheduledAtMs,
+      dueAtMs,
+      firedAtMs,
+      screenOnAtFire,
+      exact,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as BackgroundCheckMsg
+    return CoreApiPigeonUtils.deepEquals(this.scheduledAtMs, other.scheduledAtMs) && CoreApiPigeonUtils.deepEquals(this.dueAtMs, other.dueAtMs) && CoreApiPigeonUtils.deepEquals(this.firedAtMs, other.firedAtMs) && CoreApiPigeonUtils.deepEquals(this.screenOnAtFire, other.screenOnAtFire) && CoreApiPigeonUtils.deepEquals(this.exact, other.exact)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.scheduledAtMs)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.dueAtMs)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.firedAtMs)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.screenOnAtFire)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.exact)
+    return result
+  }
+  override fun toString(): String {
+    return "BackgroundCheckMsg(scheduledAtMs=$scheduledAtMs, dueAtMs=$dueAtMs, firedAtMs=$firedAtMs, screenOnAtFire=$screenOnAtFire, exact=$exact)"
+  }
+}
 private open class CoreApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1875,6 +1933,11 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
           MapsConfigMsg.fromList(it)
         }
       }
+      169.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          BackgroundCheckMsg.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -2038,6 +2101,10 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
       }
       is MapsConfigMsg -> {
         stream.write(168)
+        writeValue(stream, value.toList())
+      }
+      is BackgroundCheckMsg -> {
+        stream.write(169)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2243,7 +2310,11 @@ interface TripHostApi {
 }
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface PermissionHostApi {
-  fun status(): PermissionStatusMsg
+  /**
+   * T21: @async (native reads stored flags off the main thread; iOS reads
+   * notification settings asynchronously). Dart signature unchanged.
+   */
+  suspend fun status(): PermissionStatusMsg
   /**
    * Shows the system prompt. Not applicable kinds return status() unchanged.
    * Errors: request-in-progress.
@@ -2270,6 +2341,16 @@ interface PermissionHostApi {
    * The user's coordinates never cross the bridge (T14 D5).
    */
   suspend fun distancesFromLastKnownM(latLngPairs: List<Double>, maxAgeMs: Long): List<Double>?
+  /**
+   * T21: schedules the screen 9 check alarm in [delayMs] (5000..120000),
+   * replacing any previous check. Errors: invalid-config
+   * ("delayMs: out of range"). iOS: internal ("unsupported").
+   */
+  suspend fun startBackgroundCheck(delayMs: Long): BackgroundCheckMsg
+  /** T21: the latest check (survives process death), or null. */
+  suspend fun backgroundCheck(): BackgroundCheckMsg?
+  /** T21: cancels the alarm and forgets the record. No-op when none. */
+  suspend fun cancelBackgroundCheck()
 
   companion object {
     /** The codec used by PermissionHostApi. */
@@ -2284,12 +2365,14 @@ interface PermissionHostApi {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.PermissionHostApi.status$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              listOf(api.status())
-            } catch (exception: Throwable) {
-              CoreApiPigeonUtils.wrapError(exception)
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.status())
+              } catch (exception: Throwable) {
+                CoreApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
             }
-            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)
@@ -2386,6 +2469,60 @@ interface PermissionHostApi {
             CoroutineScope(Dispatchers.Main).launch {
               val wrapped: List<Any?> = try {
                 listOf(api.distancesFromLastKnownM(latLngPairsArg, maxAgeMsArg))
+              } catch (exception: Throwable) {
+                CoreApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.PermissionHostApi.startBackgroundCheck$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val delayMsArg = args[0] as Long
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.startBackgroundCheck(delayMsArg))
+              } catch (exception: Throwable) {
+                CoreApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.PermissionHostApi.backgroundCheck$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.backgroundCheck())
+              } catch (exception: Throwable) {
+                CoreApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.PermissionHostApi.cancelBackgroundCheck$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                api.cancelBackgroundCheck()
+                listOf(null)
               } catch (exception: Throwable) {
                 CoreApiPigeonUtils.wrapError(exception)
               }

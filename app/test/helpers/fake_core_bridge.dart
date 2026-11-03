@@ -42,10 +42,14 @@ PermissionStatusMsg iosPermissions({
   alarmKit: alarmKit,
 );
 
-DeviceInfoMsg androidDevice({int sdk = 34}) => DeviceInfoMsg(
+DeviceInfoMsg androidDevice({
+  int sdk = 34,
+  String manufacturer = 'Google',
+  String brand = 'google',
+}) => DeviceInfoMsg(
   platform: PlatformMsg.android,
-  manufacturer: 'Google',
-  brand: 'google',
+  manufacturer: manufacturer,
+  brand: brand,
   model: 'Pixel 8',
   osVersion: '14',
   androidSdkInt: sdk,
@@ -172,6 +176,42 @@ class FakeCoreBridge implements CoreBridge {
   ActiveTripMsg? active;
 
   Object? permissionStatusError;
+
+  /// Answers [requestPermission]; null returns [permissions] (T21).
+  PermissionStatusMsg Function(PermissionKindMsg kind)? requestPermissionResult;
+
+  /// Thrown by [requestPermission] when set (T21).
+  Object? requestPermissionError;
+
+  /// When set, [requestPermission] waits for it before answering (T21 W08).
+  Completer<void>? requestGate;
+
+  /// Returned by [openSettings] (T21).
+  bool openSettingsResult = true;
+
+  /// Thrown by [openSettings] when set (T21).
+  Object? openSettingsError;
+
+  /// Arguments of every [requestPermission] / [openSettings] call (T21).
+  final List<PermissionKindMsg> requestCalls = [];
+  final List<SettingsTargetMsg> openSettingsCalls = [];
+
+  /// Returned by [backgroundCheck] (T21 screen 9).
+  BackgroundCheckMsg? backgroundCheckValue;
+
+  /// Answers [startBackgroundCheck]; null returns a record due in `delay`
+  /// from [backgroundCheckNowMs], and stores it in [backgroundCheckValue].
+  BackgroundCheckMsg Function(Duration delay)? startBackgroundCheckResult;
+  Object? startBackgroundCheckError;
+
+  /// "Now" of the default [startBackgroundCheck] record.
+  int backgroundCheckNowMs = 1700000000000;
+
+  /// When set, [startBackgroundCheck] waits for it before answering (T21).
+  Completer<void>? startBackgroundCheckGate;
+
+  /// Arguments of every [startBackgroundCheck] call.
+  final List<Duration> startBackgroundCheckCalls = [];
   Object? deviceInfoError;
   Object? deviceStatusError;
   Object? currentTripError;
@@ -275,12 +315,70 @@ class FakeCoreBridge implements CoreBridge {
       _answer('permissionStatus', permissionStatusError, () => permissions);
 
   @override
-  Future<PermissionStatusMsg> requestPermission(PermissionKindMsg kind) =>
-      _answer('requestPermission', null, () => permissions);
+  Future<PermissionStatusMsg> requestPermission(PermissionKindMsg kind) {
+    requestCalls.add(kind);
+    PermissionStatusMsg answer() {
+      final next = requestPermissionResult?.call(kind);
+      if (next != null) {
+        permissions = next;
+      }
+      return permissions;
+    }
+
+    final gate = requestGate;
+    if (gate == null) {
+      return _answer('requestPermission', requestPermissionError, answer);
+    }
+    calls.add('requestPermission');
+    return gate.future.then((_) {
+      final error = requestPermissionError;
+      return error == null
+          ? answer()
+          : Future<PermissionStatusMsg>.error(error);
+    });
+  }
 
   @override
-  Future<bool> openSettings(SettingsTargetMsg target) =>
-      _answer('openSettings', null, () => true);
+  Future<bool> openSettings(SettingsTargetMsg target) {
+    openSettingsCalls.add(target);
+    return _answer('openSettings', openSettingsError, () => openSettingsResult);
+  }
+
+  @override
+  Future<BackgroundCheckMsg> startBackgroundCheck(Duration delay) {
+    startBackgroundCheckCalls.add(delay);
+    BackgroundCheckMsg answer() {
+      final record =
+          startBackgroundCheckResult?.call(delay) ??
+          BackgroundCheckMsg(
+            scheduledAtMs: backgroundCheckNowMs,
+            dueAtMs: backgroundCheckNowMs + delay.inMilliseconds,
+            exact: true,
+          );
+      backgroundCheckValue = record;
+      return record;
+    }
+
+    final gate = startBackgroundCheckGate;
+    if (gate == null) {
+      return _answer('startBackgroundCheck', startBackgroundCheckError, answer);
+    }
+    calls.add('startBackgroundCheck');
+    return gate.future.then((_) {
+      final error = startBackgroundCheckError;
+      return error == null ? answer() : Future<BackgroundCheckMsg>.error(error);
+    });
+  }
+
+  @override
+  Future<BackgroundCheckMsg?> backgroundCheck() =>
+      _answer('backgroundCheck', null, () => backgroundCheckValue);
+
+  @override
+  Future<void> cancelBackgroundCheck() =>
+      _answer('cancelBackgroundCheck', null, () {
+        backgroundCheckValue = null;
+      });
 
   @override
   Future<DeviceInfoMsg> deviceInfo() =>

@@ -53,7 +53,11 @@ void main() {
     final r = _eval(
       permissions: androidPermissions(location: LocationAccessMsg.always),
     );
-    expect(_kinds(r), [ReadinessChipKind.locationAlways]);
+    // T21 §12 (O6): Android without a device status adds "not checked".
+    expect(_kinds(r), [
+      ReadinessChipKind.locationAlways,
+      ReadinessChipKind.deviceStatusUnknown,
+    ]);
   });
 
   group('U06 battery', () {
@@ -148,15 +152,21 @@ void main() {
       );
     });
 
-    test('unknown (iOS): no volume chip', () {
-      final r = _eval(
-        status: deviceStatusMsg(alarmVolumePct: null, alarmMuted: null),
-      );
-      expect(_kinds(r), [
-        ReadinessChipKind.locationWhileInUse,
-        ReadinessChipKind.battery,
-      ]);
-    });
+    // T21 §12 (O6): the device here is Android, where an unreadable volume
+    // is "not checked" (caution); iOS keeps no chip (T21 U13).
+    test(
+      'unknown on Android: deviceStatusUnknown instead of a volume chip',
+      () {
+        final r = _eval(
+          status: deviceStatusMsg(alarmVolumePct: null, alarmMuted: null),
+        );
+        expect(_kinds(r), [
+          ReadinessChipKind.locationWhileInUse,
+          ReadinessChipKind.battery,
+          ReadinessChipKind.deviceStatusUnknown,
+        ]);
+      },
+    );
 
     test('muted with unknown percent still warns', () {
       final r = _eval(
@@ -286,7 +296,11 @@ void main() {
       final r = _eval(
         permissions: androidPermissions(precise: PermissionStateMsg.denied),
       );
-      expect(_kinds(r), [ReadinessChipKind.locationApproximate]);
+      // T21 §12 (O6): Android without a device status adds "not checked".
+      expect(_kinds(r), [
+        ReadinessChipKind.locationApproximate,
+        ReadinessChipKind.deviceStatusUnknown,
+      ]);
       expect(r.level, ReadinessLevel.blocked);
     });
 
@@ -346,6 +360,103 @@ void main() {
       );
       expect(r.level, ReadinessLevel.check);
       expect(r.action, ReadinessAction.openPermissions);
+    });
+  });
+
+  group('T21 §12 (O6)', () {
+    test('U12 Android, permissions fine, no device status: check', () {
+      final r = _eval();
+      expect(
+        _chip(r, ReadinessChipKind.deviceStatusUnknown),
+        const ReadinessChip(
+          ReadinessChipKind.deviceStatusUnknown,
+          ReadinessSeverity.caution,
+        ),
+      );
+      expect(r.level, ReadinessLevel.check);
+      expect(r.action, ReadinessAction.none);
+    });
+
+    test('U13 unreadable volume and filter: exactly one chip; iOS none', () {
+      final r = _eval(
+        status: deviceStatusMsg(
+          alarmVolumePct: null,
+          alarmMuted: null,
+          interruptionFilter: InterruptionFilterMsg.unknown,
+        ),
+      );
+      expect(
+        r.chips.where((c) => c.kind == ReadinessChipKind.deviceStatusUnknown),
+        hasLength(1),
+      );
+      expect(_chip(r, ReadinessChipKind.battery), isNotNull);
+
+      // Only the filter unknown.
+      final f = _eval(
+        status: deviceStatusMsg(
+          interruptionFilter: InterruptionFilterMsg.unknown,
+        ),
+      );
+      expect(_kinds(f), [
+        ReadinessChipKind.locationWhileInUse,
+        ReadinessChipKind.battery,
+        ReadinessChipKind.alarmVolume,
+        ReadinessChipKind.deviceStatusUnknown,
+      ]);
+
+      final ios = _eval(permissions: iosPermissions(), device: iosDevice());
+      expect(_chip(ios, ReadinessChipKind.deviceStatusUnknown), isNull);
+      expect(ios.level, ReadinessLevel.ready);
+      final iosStatus = _eval(
+        permissions: iosPermissions(),
+        device: iosDevice(),
+        status: deviceStatusMsg(
+          alarmVolumePct: null,
+          alarmMuted: null,
+          interruptionFilter: InterruptionFilterMsg.unknown,
+        ),
+      );
+      expect(_kinds(iosStatus), [
+        ReadinessChipKind.locationWhileInUse,
+        ReadinessChipKind.battery,
+      ]);
+      expect(iosStatus.level, ReadinessLevel.ready);
+    });
+
+    test('U14 Do Not Disturb priority', () {
+      DeviceStatusMsg dnd({bool? allows, bool muted = false}) =>
+          deviceStatusMsg(
+            alarmMuted: muted,
+            interruptionFilter: InterruptionFilterMsg.priority,
+            priorityAllowsAlarms: allows,
+          );
+
+      final unknown = _eval(status: dnd());
+      expect(
+        _chip(unknown, ReadinessChipKind.dndCheckAlarms)?.severity,
+        ReadinessSeverity.caution,
+      );
+      expect(unknown.level, ReadinessLevel.check);
+
+      final muted = _eval(status: dnd(muted: true));
+      expect(_chip(muted, ReadinessChipKind.alarmMuted), isNotNull);
+      expect(_chip(muted, ReadinessChipKind.dndCheckAlarms), isNull);
+      expect(_chip(muted, ReadinessChipKind.dndBlocksAlarms), isNull);
+
+      final allows = _eval(status: dnd(allows: true));
+      expect(_chip(allows, ReadinessChipKind.dndCheckAlarms), isNull);
+      expect(_chip(allows, ReadinessChipKind.dndBlocksAlarms), isNull);
+      expect(allows.level, ReadinessLevel.ready);
+
+      final blocks = _eval(status: dnd(allows: false));
+      expect(_chip(blocks, ReadinessChipKind.dndBlocksAlarms), isNotNull);
+      expect(_chip(blocks, ReadinessChipKind.dndCheckAlarms), isNull);
+
+      final none = _eval(
+        status: deviceStatusMsg(interruptionFilter: InterruptionFilterMsg.none),
+      );
+      expect(_chip(none, ReadinessChipKind.dndBlocksAlarms), isNotNull);
+      expect(_chip(none, ReadinessChipKind.dndCheckAlarms), isNull);
     });
   });
 }
