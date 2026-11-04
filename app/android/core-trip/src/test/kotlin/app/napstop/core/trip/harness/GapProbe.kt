@@ -7,13 +7,15 @@ import app.napstop.core.trip.LocationFix
 import app.napstop.core.trip.Step
 import app.napstop.core.trip.TripPhase
 import app.napstop.core.trip.chordProjection
+import app.napstop.core.trip.distanceM
 import app.napstop.core.trip.isGapFix
 
 /**
  * U116 / U117 (T10.5 round 3, 3b): the GPS-gap chord seen from outside the engine. For a Step on a [LocationFix] that moved
  * `last`: whether it is a gap fix, the chord parameter u and distance, `dChord` (only for 0 < u < 1, as in `chordClosest`), and
  * whether the round-3c `notCloser` term of the overshoot rule holds on the state after the Step (before any alarm, minD <
- * nearRadius, dSmooth − minD ≥ overshootOpenM, stop in progress or last3[2] ≥ last3[0]).
+ * nearRadius, dSmooth − minD ≥ overshootOpenM, stop in progress or last3[2] ≥ last3[0]). [dFixM]: raw distance of the new fix
+ * to the destination (U116 a2, T11.3: `d_f − dChord ≥ overshootOpenM`).
  */
 internal class GapProbe(
     val atMs: Long,
@@ -23,6 +25,7 @@ internal class GapProbe(
     val chordM: Double?,
     val dChord: Double?,
     val standingTerm: Boolean,
+    val dFixM: Double,
 ) {
     companion object {
         fun of(s0: EngineState, input: LocationFix, s1: Step): GapProbe? {
@@ -33,7 +36,8 @@ internal class GapProbe(
             val gap = s0.rejects.isEmpty() && isGapFix(s0.phase, s0.alarm.atMs != null, s0.gps, l, f, s0.params, s0.policyIntervalAtLastFixS, s0.policy)
             val ch = chordProjection(l.lat, l.lng, f.lat, f.lng, s0.config)
             val dChord = if (gap && ch != null && ch.u > 0.0 && ch.u < 1.0) ch.distM else null
-            return GapProbe(input.atMs, recovered, gap, ch?.u, ch?.distM, dChord, standingTerm(s0, s1))
+            val dFix = distanceM(f.lat, f.lng, s0.config.destLat, s0.config.destLng)
+            return GapProbe(input.atMs, recovered, gap, ch?.u, ch?.distM, dChord, standingTerm(s0, s1), dFix)
         }
 
         /** Round-3c `notCloser` term of the overshoot rule, evaluated with the phase/alarm before the Step and minD/dSmooth after. */

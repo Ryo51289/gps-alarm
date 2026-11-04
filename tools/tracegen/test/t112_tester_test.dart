@@ -284,17 +284,18 @@ String? _profileError(String id, void Function(_J profile) f) {
 void main() {
   // ------------------------------------------------------------ TG57
   group('TG57 legacy GPX unchanged (T11.2 §7)', () {
-    test('exactly 15 legacy + 1 new GPX, 32 fixture files + README', () {
+    test('15 legacy + T11.2 + T11.3 GPX, 34 fixture files + README', () {
       final names = {
         for (final f in fixturesDir.listSync().whereType<File>())
           f.uri.pathSegments.last,
       };
       expect(names, {
         'README.md',
-        for (final id in [..._legacyIds, _off2k]) ...[
-          '$id.gpx',
-          '$id.expect.json',
-        ],
+        for (final id in [
+          ..._legacyIds,
+          _off2k,
+          'coach_gb_caugie_gappass',
+        ]) ...['$id.gpx', '$id.expect.json'],
       });
     });
 

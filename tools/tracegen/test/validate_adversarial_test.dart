@@ -1078,7 +1078,7 @@ void main() {
       // Unchanged data: ok.
       final (okCode, okOut, _) = await _cli(['check']);
       expect(okCode, 0);
-      expect(okOut, contains('ok: 32 fixture file(s) up to date'));
+      expect(okOut, contains('ok: 34 fixture file(s) up to date'));
     });
   });
 
@@ -1886,7 +1886,7 @@ void _tg48() {
     }
 
     test(
-      'one run over all 16 pairs reports every error of every file',
+      'one run over all 17 pairs reports every error of every file',
       () async {
         final dir = Directory('${root.path}/all')..createSync();
         for (final e in fixturesDir.listSync().whereType<File>()) {
@@ -1894,7 +1894,7 @@ void _tg48() {
         }
         final (okCode, okOut, _) = await _cli(['validate', '--dir', dir.path]);
         expect(okCode, 0);
-        expect(okOut.trim(), 'ok: 16 fixture pair(s) valid');
+        expect(okOut.trim(), 'ok: 17 fixture pair(s) valid');
 
         File('${dir.path}/coach_md_tb.expect.json').writeAsStringSync(
           _mutate(md.text, (j) {

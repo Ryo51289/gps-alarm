@@ -1,0 +1,416 @@
+{
+  "schemaVersion": 1,
+  "generator": {
+    "name": "tracegen",
+    "version": "1.3.0"
+  },
+  "trace": {
+    "id": "coach_gb_caugie_gappass",
+    "title": "Xe khách Giáp Bát → Cầu Giẽ: kẹt xe tới Thường Tín rồi lên cao tốc, mất GPS 16 phút, qua đích lúc mất GPS",
+    "vehicle": "coach",
+    "gpx": "coach_gb_caugie_gappass.gpx",
+    "seed": 5301,
+    "noiseSeed": 5301,
+    "startTime": "2026-03-14T05:00:00Z",
+    "sampleIntervalS": 5,
+    "durationS": 4355,
+    "sampleCount": 680
+  },
+  "destination": {
+    "id": "nut_giao_cau_gie",
+    "name": "Nút giao Cầu Giẽ",
+    "lat": 20.7035676,
+    "lng": 105.9195379
+  },
+  "truth": {
+    "routeLengthM": 59030,
+    "destinationRouteM": 31840,
+    "arrivalT": 2790,
+    "stops": [],
+    "gpsGaps": [
+      {
+        "fromT": 2020,
+        "toT": 2980
+      }
+    ],
+    "outliers": [],
+    "overshoot": {
+      "closestT": 2785,
+      "closestM": 13,
+      "t": 2830
+    }
+  },
+  "milestones": {
+    "distance": [
+      {
+        "thresholdM": 200,
+        "routeT": 2780,
+        "straightT": 2780
+      },
+      {
+        "thresholdM": 500,
+        "routeT": 2765,
+        "straightT": 2765
+      },
+      {
+        "thresholdM": 1000,
+        "routeT": 2745,
+        "straightT": 2745
+      },
+      {
+        "thresholdM": 2000,
+        "routeT": 2705,
+        "straightT": 2705
+      },
+      {
+        "thresholdM": 3000,
+        "routeT": 2660,
+        "straightT": 2660
+      },
+      {
+        "thresholdM": 5000,
+        "routeT": 2575,
+        "straightT": 2575
+      },
+      {
+        "thresholdM": 10000,
+        "routeT": 2365,
+        "straightT": 2365
+      },
+      {
+        "thresholdM": 25000,
+        "routeT": 1000,
+        "straightT": 995
+      }
+    ],
+    "time": [
+      {
+        "beforeArrivalMin": 5,
+        "t": 2490
+      },
+      {
+        "beforeArrivalMin": 10,
+        "t": 2190
+      },
+      {
+        "beforeArrivalMin": 15,
+        "t": 1890
+      },
+      {
+        "beforeArrivalMin": 20,
+        "t": 1590
+      },
+      {
+        "beforeArrivalMin": 30,
+        "t": 990
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "distance_1000",
+      "status": "final",
+      "testIds": [
+        "TR40"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false
+      },
+      "expect": [
+        {
+          "event": "gpsRecovered",
+          "notBefore": 2980,
+          "notAfter": 2980,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Mất GPS"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3/3b TR40: qua đích trong lúc mất GPS, báo đầu tiên ngay sau khi có lại GPS"
+        },
+        {
+          "event": "alarm",
+          "reason": "OVERSHOOT",
+          "ringNow": true,
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3b TR40: dây cung hạ minD, quá trạm khi đi xa dần (3 mẫu tăng, > 10 km/h); cấm TIMEOUT"
+        },
+        {
+          "event": "overshoot",
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3b TR40: PRD §4 Quá trạm"
+        }
+      ],
+      "forbid": [],
+      "forbidMatch": [
+        {
+          "event": "alarm",
+          "reason": "TIMEOUT"
+        }
+      ]
+    },
+    {
+      "id": "time_15",
+      "status": "final",
+      "testIds": [
+        "TR40"
+      ],
+      "config": {
+        "mode": "time",
+        "thresholdMin": 15,
+        "preAlert": false
+      },
+      "expect": [
+        {
+          "event": "gpsRecovered",
+          "notBefore": 2980,
+          "notAfter": 2980,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Mất GPS"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3/3b TR40: qua đích trong lúc mất GPS, báo đầu tiên ngay sau khi có lại GPS"
+        },
+        {
+          "event": "alarm",
+          "reason": "TIME",
+          "ringNow": true,
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3b U114 (d) TR40: ETA từ fix đầu sau khoảng mất đã dưới 15 phút nên lý do là chế độ (TIME), không phải OVERSHOOT"
+        },
+        {
+          "event": "overshoot",
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3b TR40: dây cung hạ minD, quá trạm khi báo còn kêu chỉ phát Overshoot (màn 8)"
+        }
+      ],
+      "forbid": [],
+      "forbidMatch": [
+        {
+          "event": "alarm",
+          "reason": "TIMEOUT"
+        }
+      ]
+    },
+    {
+      "id": "smart",
+      "status": "final",
+      "testIds": [
+        "TR40"
+      ],
+      "config": {
+        "mode": "smart",
+        "preAlert": false
+      },
+      "expect": [
+        {
+          "event": "gpsRecovered",
+          "notBefore": 2980,
+          "notAfter": 2980,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            }
+          },
+          "ref": "PRD §4 Mất GPS"
+        },
+        {
+          "event": "alarm",
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3/3b TR40: qua đích trong lúc mất GPS, báo đầu tiên ngay sau khi có lại GPS"
+        },
+        {
+          "event": "alarm",
+          "reason": "OVERSHOOT",
+          "ringNow": true,
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3b TR40: dây cung hạ minD, quá trạm khi đi xa dần (3 mẫu tăng, > 10 km/h); cấm TIMEOUT"
+        },
+        {
+          "event": "overshoot",
+          "notBefore": 2980,
+          "notAfter": 3005,
+          "window": {
+            "notBefore": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "gpsGap[0].end",
+              "offsetS": 25
+            }
+          },
+          "ref": "T10.5 vòng 3b TR40: PRD §4 Quá trạm"
+        }
+      ],
+      "forbid": [],
+      "forbidMatch": [
+        {
+          "event": "alarm",
+          "reason": "TIMEOUT"
+        }
+      ]
+    },
+    {
+      "id": "summary_unknown",
+      "status": "final",
+      "testIds": [
+        "TR27"
+      ],
+      "config": {
+        "mode": "distance",
+        "thresholdM": 1000,
+        "preAlert": false,
+        "vehicleHint": "unknown",
+        "actions": [
+          {
+            "at": {
+              "t": 4355,
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "action": "stop"
+          }
+        ]
+      },
+      "expect": [
+        {
+          "event": "tripEnded",
+          "notBefore": 4355,
+          "notAfter": 4355,
+          "window": {
+            "notBefore": {
+              "anchor": "end",
+              "offsetS": 0
+            },
+            "notAfter": {
+              "anchor": "end",
+              "offsetS": 0
+            }
+          },
+          "ref": "T10 TR27: PRD §4 Lịch sử (phương tiện)"
+        }
+      ],
+      "expectSummary": {
+        "vehicleGuess": "UNKNOWN"
+      },
+      "forbid": []
+    }
+  ]
+}

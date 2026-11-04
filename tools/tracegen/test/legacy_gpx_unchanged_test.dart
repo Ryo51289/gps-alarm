@@ -67,11 +67,15 @@ void main() {
   for (final (id, size, hash) in t11) {
     check('TG49', 'T11', id, size, hash);
   }
+  // T11.3 (tester): the TR40 trace, pinned from its first `generate` so that
+  // a later task (T11.4 adds TR41/TR42) cannot rewrite it silently.
+  check('T11.3', 'T11.3', 'coach_gb_caugie_gappass', 120837, 0xd62e8e21);
 
-  // Traces added after T11.1 (no pinned hash: fixtures_up_to_date_test
-  // covers them; T11.2 TG55 checks that the 2 km trackpoints equal
-  // coach_gb_phuly_offroute).
-  const added = {'coach_gb_phuly_offroute_2k'};
+  // Traces added after T11.1 (no pinned hash for the 2 km trace:
+  // fixtures_up_to_date_test covers it; T11.2 TG55 checks that its
+  // trackpoints equal coach_gb_phuly_offroute). T11.3: TR40 trace (pinned
+  // above).
+  const added = {'coach_gb_phuly_offroute_2k', 'coach_gb_caugie_gappass'};
 
   test('TG49 the table covers every profile and every committed GPX', () {
     final golden = {

@@ -538,7 +538,28 @@ final Map<String, (List<String>, List<String>)> golden = {
     ],
   ),
   'coach_gb_phuly_offroute_2k/summary_unknown': (['TR27'], summary('UNKNOWN')),
+  // ---- coach_gb_caugie_gappass (T11.3, TR40: T10.5 round 3 §8, round 3b
+  // window g.end + 25; TIME 15 rings for its own reason per U114 (d))
+  'coach_gb_caugie_gappass/distance_1000': (
+    ['TR40'],
+    _tr40('D1000', 'OVERSHOOT'),
+  ),
+  'coach_gb_caugie_gappass/time_15': (['TR40'], _tr40('T15', 'TIME')),
+  'coach_gb_caugie_gappass/smart': (['TR40'], _tr40('S', 'OVERSHOOT')),
+  'coach_gb_caugie_gappass/summary_unknown': (['TR27'], summary('UNKNOWN')),
 };
+
+/// T11.3 TR40: GPS returns after the vehicle passed the destination inside
+/// the gap; first alarm (with [reason], ringNow) and `overshoot` within
+/// [g.end, g.end + 25]; TIMEOUT forbidden.
+List<String> _tr40(String mode, String reason) => [
+  '$mode nopa',
+  'E gpsRecovered [gpsGap[0].end,gpsGap[0].end]',
+  'E alarm [gpsGap[0].end,gpsGap[0].end+25]',
+  'E alarm/$reason/ringNow=true [gpsGap[0].end,gpsGap[0].end+25]',
+  'E overshoot [gpsGap[0].end,gpsGap[0].end+25]',
+  '!m alarm/TIMEOUT',
+];
 
 void main() {
   final ids = ProfileRepository(dataDir).profileIds();
@@ -555,11 +576,14 @@ void main() {
   };
 
   group('TG31 trace coverage (T10 TR ↔ T11 cases)', () {
-    test('16 profiles, 60 cases, exactly the §5.4/§5.5 case list', () {
-      expect(ids, hasLength(16));
-      expect(golden, hasLength(60));
-      expect(cases.keys.toSet(), golden.keys.toSet());
-    });
+    test(
+      '17 profiles, 64 cases, exactly the §5.4/§5.5 (+ T11.3 TR40) case list',
+      () {
+        expect(ids, hasLength(17));
+        expect(golden, hasLength(64));
+        expect(cases.keys.toSet(), golden.keys.toSet());
+      },
+    );
 
     test('every case is final with non-empty testIds', () {
       for (final MapEntry(:key, :value) in cases.entries) {
@@ -575,35 +599,41 @@ void main() {
       }
     });
 
-    test('every TR01–TR35, TR37 and TR38 is covered, TR36 has no case', () {
-      final covered = <String, List<String>>{};
-      for (final MapEntry(:key, :value) in cases.entries) {
-        for (final tr in (value['testIds']! as List).cast<String>()) {
-          (covered[tr] ??= []).add(key);
+    test(
+      'every TR01–TR35, TR37, TR38 and TR40 is covered, TR36 has no case',
+      () {
+        final covered = <String, List<String>>{};
+        for (final MapEntry(:key, :value) in cases.entries) {
+          for (final tr in (value['testIds']! as List).cast<String>()) {
+            (covered[tr] ??= []).add(key);
+          }
         }
-      }
-      final all = [
-        for (var i = 1; i <= 35; i++) 'TR${i.toString().padLeft(2, '0')}',
-        'TR37',
-        'TR38',
-      ];
-      expect(covered.keys.toSet(), all.toSet());
-      expect(covered.containsKey('TR36'), isFalse);
-      // Multiplicities fixed by §5.4: TR03, TR04, TR12 have two cases;
-      // TR27 one per profile; TR37 seven (T11.1 §5.8); every other TR
-      // exactly one.
-      for (final tr in all) {
-        final n = switch (tr) {
-          'TR03' || 'TR04' || 'TR12' => 2,
-          'TR27' => 16,
-          'TR37' => 7,
-          _ => 1,
-        };
-        expect(covered[tr], hasLength(n), reason: '$tr: ${covered[tr]}');
-      }
-    });
+        final all = [
+          for (var i = 1; i <= 35; i++) 'TR${i.toString().padLeft(2, '0')}',
+          'TR37',
+          'TR38',
+          'TR40',
+        ];
+        expect(covered.keys.toSet(), all.toSet());
+        expect(covered.containsKey('TR36'), isFalse);
+        // Multiplicities fixed by §5.4: TR03, TR04, TR12 have two cases;
+        // TR27 one per profile; TR37 seven (T11.1 §5.8); TR40 three (T11.3:
+        // DISTANCE 1000, TIME 15, SMART); every other TR
+        // exactly one.
+        for (final tr in all) {
+          final n = switch (tr) {
+            'TR03' || 'TR04' || 'TR12' => 2,
+            'TR27' => 17,
+            'TR40' => 3,
+            'TR37' => 7,
+            _ => 1,
+          };
+          expect(covered[tr], hasLength(n), reason: '$tr: ${covered[tr]}');
+        }
+      },
+    );
 
-    test('TR27 summary_unknown exists in all 16 profiles', () {
+    test('TR27 summary_unknown exists in all 17 profiles', () {
       for (final id in ids) {
         final c = cases['$id/summary_unknown'];
         expect(c, isNotNull, reason: id);

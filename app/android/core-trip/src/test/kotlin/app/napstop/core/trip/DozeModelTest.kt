@@ -20,6 +20,30 @@ import java.util.concurrent.Callable
  * OS fallback (whichever is earlier). Compared with the normal `all` run of the same case. Check only, not in the P05 manifest.
  */
 class DozeModelTest {
+    private companion object {
+        /**
+         * T11.3 (T11 §1b): the selected case set, sorted. Compared by name, not by count, so a new fixture that changes the
+         * set names the cases that came in / went out (T11.3 added the 4 `coach_gb_caugie_gappass` cases: 11 → 15).
+         */
+        val TR39_CASES = listOf(
+            "coach_dn_langco_neardest/distance_1000_neardest",
+            "coach_dn_langco_neardest/summary_unknown",
+            "coach_dn_langco_shortgap/distance_1000_shortgap",
+            "coach_dn_langco_shortgap/summary_unknown",
+            "coach_dn_langco_tunnel/distance_1000_gps_lost",
+            "coach_dn_langco_tunnel/summary_unknown",
+            "coach_gb_caugie_gappass/distance_1000",
+            "coach_gb_caugie_gappass/smart",
+            "coach_gb_caugie_gappass/summary_unknown",
+            "coach_gb_caugie_gappass/time_15",
+            "train_hn_dh_midgap/distance_1000_midgap",
+            "train_hn_dh_midgap/summary_unknown",
+            "train_hn_dh_stopgap/distance_1000",
+            "train_hn_dh_stopgap/distance_1000_killsweep",
+            "train_hn_dh_stopgap/summary_unknown",
+        ).sorted()
+    }
+
     private class Row(val name: String, val fails: List<String>, val md: String)
 
     private fun firstLost(r: RunResult): GpsLost? = r.records.asSequence().flatMap { it.events }.filterIsInstance<GpsLost>().firstOrNull()
@@ -81,7 +105,10 @@ class DozeModelTest {
             ref.trace.gpsGapCount > 0 && m != null && m.config.kill == null && m.config.relaunch == null &&
                 m.config.osDismissOffsetS == null && !m.allowFallbackFirst && "all" in m.samplingModes
         }
-        assertEquals(11, refs.size) { "TR39 case set changed: ${refs.map { it.name }}" }
+        val names = refs.map { it.name }.sorted()
+        assertEquals(TR39_CASES, names) {
+            "TR39 case set changed: extra ${names - TR39_CASES.toSet()}, missing ${TR39_CASES - names.toSet()}"
+        }
         val rows = refs.map { ref -> Suite.pool.submit(Callable { check(ref) }) }.map { it.get() }.sortedBy { it.name }
         val md = StringBuilder("### TR39 Doze model (T10.4 §7.3, T10.5 §6, mode all, no 9-minute Doze limit)\n\n")
         md.append("| case | gpsLost normal (s) | gpsLost Doze (s) | first alarm normal (t) | first alarm Doze (s) | wake Ticks off grid | wake Ticks in GPS gaps | result |\n")

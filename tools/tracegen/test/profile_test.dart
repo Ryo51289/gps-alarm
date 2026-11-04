@@ -39,7 +39,7 @@ Future<(Profile, Route)> loadMutated({
 
 void main() {
   group('ProfileRepository (TC19)', () {
-    test('lists the sixteen profiles in id order', () {
+    test('lists the seventeen profiles in id order', () {
       expect(ProfileRepository(dataDir).profileIds(), [
         'bus_hn_brt01',
         'bus_hn_brt01_noisy',
@@ -48,6 +48,7 @@ void main() {
         'coach_dn_langco_neardest',
         'coach_dn_langco_shortgap',
         'coach_dn_langco_tunnel',
+        'coach_gb_caugie_gappass',
         'coach_gb_phuly_offroute',
         'coach_gb_phuly_offroute_2k',
         'coach_gb_phuly_overshoot',

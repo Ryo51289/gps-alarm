@@ -40,17 +40,20 @@ void main() {
   _J truthOf(String id) => fixtures[id]!['truth']! as _J;
 
   group('TG56 fixtures after T11.2', () {
-    test('16 traces at generator.version 1.3.0, 60 final cases', () {
-      expect(ids, hasLength(16));
-      expect(ids, contains(off2k));
-      for (final MapEntry(key: id, value: j) in fixtures.entries) {
-        expect((j['generator']! as _J)['version'], '1.3.0', reason: id);
-      }
-      expect(all, hasLength(60));
-      for (final MapEntry(:key, :value) in all.entries) {
-        expect(value['status'], 'final', reason: key);
-      }
-    });
+    test(
+      '17 traces (T11.3: + TR40) at generator.version 1.3.0, 64 final cases',
+      () {
+        expect(ids, hasLength(17));
+        expect(ids, contains(off2k));
+        for (final MapEntry(key: id, value: j) in fixtures.entries) {
+          expect((j['generator']! as _J)['version'], '1.3.0', reason: id);
+        }
+        expect(all, hasLength(64));
+        for (final MapEntry(:key, :value) in all.entries) {
+          expect(value['status'], 'final', reason: key);
+        }
+      },
+    );
 
     test('coach_md_tb/time_15: preAlert [A − 2700, A − 1740], TIME kept', () {
       const md = 'coach_md_tb';

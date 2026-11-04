@@ -42,7 +42,7 @@ void main() {
       final r = await run(['list']);
       expect(r.exitCode, 0);
       final lines = r.out.trim().split('\n');
-      expect(lines, hasLength(16));
+      expect(lines, hasLength(17)); // T11.3: + coach_gb_caugie_gappass
       expect(lines.first, 'bus_hn_brt01\tbus\tbus_hn_brt01');
       expect(lines.last, 'train_longstop_nospd\ttrain\trail_dl_dh');
     });
@@ -66,14 +66,14 @@ void main() {
       final tmp = await tempDir();
       final gen = await run(['generate', '--all', '--out', tmp.path]);
       expect(gen.exitCode, 0, reason: gen.err);
-      expect(fileNames(tmp), hasLength(32));
+      expect(fileNames(tmp), hasLength(34));
 
       final ok = await run(['check', '--out', tmp.path]);
       expect(ok.exitCode, 0, reason: ok.err);
 
       final valid = await run(['validate', '--dir', tmp.path]);
       expect(valid.exitCode, 0, reason: valid.err);
-      expect(valid.out, contains('16 fixture pair(s) valid'));
+      expect(valid.out, contains('17 fixture pair(s) valid'));
 
       // Flip one byte on line 20 of a GPX file.
       final gpx = File('${tmp.path}/coach_md_tb.gpx');

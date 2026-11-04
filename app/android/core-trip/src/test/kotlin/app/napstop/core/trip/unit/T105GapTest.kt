@@ -29,6 +29,7 @@ import app.napstop.core.trip.chordClosest
 import app.napstop.core.trip.chordProjection
 import app.napstop.core.trip.distanceM
 import app.napstop.core.trip.harness.Suite
+import app.napstop.core.trip.harness.caseSetup
 import app.napstop.core.trip.lostAfterS
 import app.napstop.core.trip.support.DEST
 import app.napstop.core.trip.support.LatLng
@@ -723,19 +724,63 @@ class T105GapTest {
 
     private fun probes() = Suite.outcomes.values.flatMap { o -> o.gapProbes.map { o to it } }
 
+    /**
+     * U116 (a), redefined in T11.3 (T10 "T11.3 — quyết định designer (phần chạm T10)" §1). A trace is TR40 when one of its cases
+     * carries testId `TR40` in expect.json. (a1) non-TR40 traces: no probe with `dChord`. (a2) TR40 traces: every main run has
+     * exactly one, at the first accepted fix after `gpsGaps[0]`, with 0 < u < 1, dChord < nearRadius of the case and
+     * d_f − dChord ≥ overshootOpenM; on the `all` run at `g.end` with dChord 483.5 ± 0.5 m and u 0.797 ± 0.001. (a3) ≥ 6 traces.
+     */
     @Test
-    fun `U116 a the GPS-gap chord never goes through a fixture destination (u outside 0 to 1 at every GpsRecovered Step)`() {
+    fun `U116 a the GPS-gap chord goes through a fixture destination only on TR40 traces`() {
+        val tracesById = Suite.traces.associateBy { it.id }
+        val tr40 = Suite.traces.filter { t -> t.cases.any { "TR40" in it.testIds } }.map { it.id }.toSet()
         val probes = probes()
         val traces = probes.map { it.first.key.traceId }.toSortedSet()
         val lines = probes.joinToString("\n") { (o, g) ->
             "${o.key.run} t=${(g.atMs - o.startMs) / 1000.0} recovered=${g.recovered} gapFix=${g.gapFix} u=${g.u} chord=${g.chordM} " +
-                "dChord=${g.dChord} standingTerm=${g.standingTerm}"
+                "dChord=${g.dChord} dFix=${g.dFixM} standingTerm=${g.standingTerm} tr40=${o.key.traceId in tr40}"
         }
-        File(outDir, "u116-gap.txt").writeText("traces=$traces probes=${probes.size}\n$lines\n")
+        File(outDir, "u116-gap.txt").writeText("traces=$traces probes=${probes.size} tr40=$tr40\n$lines\n")
         assertTrue(probes.any { it.second.recovered }, "no GpsRecovered Step on the fixtures?")
-        assertTrue(traces.size >= 5, "traces with probes: $traces")
-        val hit = probes.filter { it.second.dChord != null }
-        assertTrue(hit.isEmpty()) { "chord through the destination on fixtures: ${hit.take(10).map { it.first.key.run }}" }
+        assertTrue(traces.size >= 6, "(a3) traces with probes: $traces")
+        assertTrue(tr40.isNotEmpty(), "(a2) no fixture case carries testId TR40")
+
+        // (a1)
+        val stray = probes.filter { it.second.dChord != null && it.first.key.traceId !in tr40 }
+        assertTrue(stray.isEmpty()) { "(a1) chord through the destination on a non-TR40 trace: ${stray.take(10).map { it.first.key.run }}" }
+
+        // (a2)
+        val bad = ArrayList<String>()
+        val tr40Runs = Suite.outcomes.values.filter { it.key.traceId in tr40 && it.transcriptSha != null }
+        for (o in tr40Runs) {
+            val trace = tracesById.getValue(o.key.traceId)
+            val model = trace.cases.first { it.id == o.key.caseId }.model!!
+            val (cfg, p) = caseSetup(trace, model, emptyMap())
+            val nearRadius = maxOf(p.overshootNearMinM, if (cfg.mode == AlarmMode.DISTANCE) cfg.distanceThresholdM ?: 0 else 0)
+            val gEndMs = o.startMs + 1000L * trace.gpsGaps.first().second
+            val hits = o.gapProbes.filter { it.dChord != null }
+            val run = o.key.run
+            if (hits.size != 1) {
+                bad += "$run: ${hits.size} chord probes (want 1)"
+                continue
+            }
+            val h = hits.single()
+            val t = (h.atMs - o.startMs) / 1000.0
+            val firstAfter = o.gapProbes.filter { it.atMs >= gEndMs && (it.recovered || it.gapFix) }.minByOrNull { it.atMs }
+            if (h.atMs < gEndMs || firstAfter !== h) bad += "$run: chord probe at t=$t is not the first accepted fix after g.end"
+            val u = h.u!!
+            val dChord = h.dChord!!
+            if (!(u > 0.0 && u < 1.0)) bad += "$run: u=$u"
+            if (!(dChord < nearRadius)) bad += "$run: dChord=$dChord >= nearRadius $nearRadius"
+            if (!(h.dFixM - dChord >= p.overshootOpenM)) bad += "$run: d_f ${h.dFixM} − dChord $dChord < overshootOpenM ${p.overshootOpenM}"
+            if (!o.key.policy) {
+                if (h.atMs != gEndMs) bad += "$run: chord probe at t=$t, want g.end ${trace.gpsGaps.first().second}"
+                if (dChord !in 483.0..484.0) bad += "$run: dChord=$dChord, want 483.5 ± 0.5"
+                if (u !in 0.796..0.798) bad += "$run: u=$u, want 0.797 ± 0.001"
+            }
+        }
+        assertTrue(tr40Runs.isNotEmpty(), "(a2) no main run on the TR40 traces $tr40")
+        assertTrue(bad.isEmpty()) { "(a2) TR40 chord: ${bad.take(20)}" }
     }
 
     @Test

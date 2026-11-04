@@ -500,6 +500,33 @@ void main() {
       test('$id: alarm/preAlert windows close by arrival', () {
         final o = oracle(id);
         for (final c in (o.fixture['cases']! as List).cast<_Case>()) {
+          // T11.3 TR40 (T10.5 round 3/3b): the vehicle passes the destination
+          // while GPS is lost, so the first alarm can only come once the GPS
+          // returns (window anchored on gpsGap[0].end). Exempt only when the
+          // arrival really lies inside that gap.
+          if ((c['testIds']! as List).contains('TR40')) {
+            final gap = ((o.fixture['truth']! as _Case)['gpsGaps']! as List)
+                .cast<_Case>()
+                .single;
+            expect(o.arrivalT, greaterThan(gap['fromT']! as int));
+            expect(o.arrivalT, lessThan(gap['toT']! as int));
+            for (final e in expectOf(c)) {
+              final w = e['window']! as _Case;
+              for (final edge in ['notBefore', 'notAfter']) {
+                expect(
+                  (w[edge]! as _Case)['anchor'],
+                  'gpsGap[0].end',
+                  reason: '${c['id']} ${_desc(e)} $edge',
+                );
+              }
+              expect(
+                e['notAfter']! as int,
+                lessThanOrEqualTo((gap['toT']! as int) + 25),
+                reason: '${c['id']} ${_desc(e)} closes by g.end + 25',
+              );
+            }
+            continue;
+          }
           for (final e in expectOf(c)) {
             final event = e['event'];
             if (event == 'preAlert' ||

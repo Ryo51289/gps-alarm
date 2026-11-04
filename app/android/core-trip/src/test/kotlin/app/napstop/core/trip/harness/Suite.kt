@@ -34,7 +34,7 @@ internal class CaseRef(val trace: TraceModel, val entry: CaseEntry) {
     val name: String get() = "${trace.id}/${entry.id}"
 }
 
-/** Shared, lazily computed results of all main runs (295 after T10.3) (+ I8/I9/P06), computed in a fixed pool, stored by key. */
+/** Shared, lazily computed results of all main runs (303 after T11.3) (+ I8/I9/P06), computed in a fixed pool, stored by key. */
 internal object Suite {
     val fixturesDir = File(System.getProperty("napstop.fixturesDir") ?: "../../../fixtures/traces")
     val p05Dir = File(System.getProperty("napstop.p05Dir") ?: "../../../fixtures/p05")
