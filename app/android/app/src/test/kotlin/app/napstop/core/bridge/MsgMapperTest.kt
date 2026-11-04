@@ -132,4 +132,17 @@ class MsgMapperTest {
             assertEquals(c, MsgMapper.config(MsgMapper.meta(c)))
         }
     }
+
+    /** T18 SM30: the simulation goes into the meta and is echoed back; a real trip has none. */
+    @Test
+    fun sm30_simulationIntoTheMetaAndBack() {
+        val c = BridgeTestData.config(mode = AlarmModeMsg.DISTANCE, distanceThresholdM = 1000)
+        val meta = MsgMapper.meta(c, SimulationMsg("train_hn_dh", 60.0))
+        assertEquals(app.napstop.core.trip.runtime.sim.SimSpec("train_hn_dh", 60.0), meta.simulation)
+        assertEquals(SimulationMsg("train_hn_dh", 60.0), MsgMapper.simulation(meta))
+        assertEquals(c, MsgMapper.config(meta))
+        val real = MsgMapper.meta(c)
+        assertEquals(null, real.simulation)
+        assertEquals(null, MsgMapper.simulation(real))
+    }
 }

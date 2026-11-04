@@ -77,4 +77,6 @@ data class PlanInput(
     val canScheduleExact: Boolean,
     val nearWakeUsesAlarmClock: Boolean = RuntimeConstants.NEAR_WAKE_USES_ALARM_CLOCK,
     val preRingPersistBudgetMs: Long = 300,
+    /** Trip clock speed at this Step (T18 §3); 1.0 for a real trip. */
+    val speed: Double = 1.0,
 )

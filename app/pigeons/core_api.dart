@@ -143,7 +143,10 @@ class TripConfigMsg {
   String? engineParamsJson;
 }
 
-/// Simulation mode (T18). T14 stub accepts only `stub/<scenario>` (§5).
+/// Simulation mode (T18): a bundled trace played on the real runtime.
+/// `traceAsset`: trace id in `assets/sim/catalog.json`
+/// (`^[a-z0-9]+(_[a-z0-9]+)*$`, never a path); `speedFactor` 1..600, UI
+/// 1/10/60 (T18).
 class SimulationMsg {
   SimulationMsg({required this.traceAsset, required this.speedFactor});
 

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:napstop/core/bridge/core_bridge.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
 
 import 'bridge_samples.dart';
 
@@ -80,11 +81,14 @@ void main() {
       sampleConfig(),
       destLat: 17.47,
       destLng: 106.6,
-      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60),
+      simulation: SimulationMsg(
+        traceAsset: SimTraces.trainHnDh,
+        speedFactor: 60,
+      ),
     );
     expect(
       calls.last.last,
-      SimulationMsg(traceAsset: 'stub/normal', speedFactor: 60),
+      SimulationMsg(traceAsset: 'train_hn_dh', speedFactor: 60),
     );
   });
 
@@ -514,24 +518,5 @@ void main() {
         ),
       );
     });
-  });
-
-  test('StubTraces match the Android stub scenarios', () {
-    expect(
-      [
-        StubTraces.normal,
-        StubTraces.gpsLost,
-        StubTraces.lowBattery,
-        StubTraces.overshoot,
-        StubTraces.noFix,
-      ],
-      [
-        'stub/normal',
-        'stub/gps_lost',
-        'stub/low_battery',
-        'stub/overshoot',
-        'stub/no_fix',
-      ],
-    );
   });
 }

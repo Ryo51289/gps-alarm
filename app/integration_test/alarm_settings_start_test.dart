@@ -1,6 +1,6 @@
 // T25 I01, I02: screen 3 starts a trip through the real platform channels
-// (Android stub of T14), on an emulator or device, dev flavor. Forces the vi
-// locale. Unlock the screen first:
+// (real runtime; I02 a simulated trip, T18), on an emulator or device, dev
+// flavor, location granted. Forces the vi locale. Unlock the screen first:
 //   flutter test integration_test/alarm_settings_start_test.dart -d <device-id>
 import 'dart:async';
 
@@ -17,7 +17,10 @@ import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/home/presentation/home_screen.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
 import 'package:napstop/main.dart' as app;
+
+import 'support/sim_expectations.dart';
 
 const TripDraft _dongHoi = TripDraft(
   destination: TripDestination(
@@ -98,19 +101,28 @@ void main() {
     await bridge.stopTrip(config.tripId);
   });
 
-  testWidgets('I02 time 30 already in the alarm zone: rings at once', (
+  testWidgets('I02 simulated bus at 60x, time 30: rings within 30 s', (
     tester,
   ) async {
     final bridge = await _launch(tester);
     final received = <TripUpdateMsg>[];
     final sub = bridge.updates.listen(received.add);
     addTearDown(sub.cancel);
+    final bus = (await loadCatalog()).byId(SimTraces.busHnBrt01)!;
     await _openScreen3(
       tester,
       AlarmSettingsArgs(
-        draft: _dongHoi,
+        draft: TripDraft(
+          destination: TripDestination(
+            name: bus.destination.name!,
+            lat: bus.destination.lat,
+            lng: bus.destination.lng,
+            kind: DestinationKind.bus,
+          ),
+          source: DestinationSource.station,
+        ),
         simulation: SimulationMsg(
-          traceAsset: StubTraces.normal,
+          traceAsset: SimTraces.busHnBrt01,
           speedFactor: 60,
         ),
       ),
@@ -121,12 +133,13 @@ void main() {
     await _tap(tester, find.text('Bắt đầu theo dõi'));
     final started = DateTime.now();
     AlarmMsg? alarm;
+    // ETA <= 30 min about 515 s into the trace: ~9 s real at 60x.
     while (alarm == null &&
-        DateTime.now().difference(started) < const Duration(seconds: 3)) {
+        DateTime.now().difference(started) < const Duration(seconds: 30)) {
       await tester.pump(const Duration(milliseconds: 100));
       alarm = received.whereType<AlarmMsg>().firstOrNull;
     }
-    expect(alarm, isNotNull, reason: 'AlarmMsg within 3 s');
+    expect(alarm, isNotNull, reason: 'AlarmMsg within 30 s');
     expect(alarm!.reason, AlarmReasonMsg.time);
     expect(alarm.ringNow, isTrue);
     final trip = await bridge.currentTrip();

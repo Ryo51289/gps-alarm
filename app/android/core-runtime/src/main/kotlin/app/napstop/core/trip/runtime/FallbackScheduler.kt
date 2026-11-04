@@ -34,6 +34,8 @@ data class FallbackLedger(
     val endedTripIds: List<String> = emptyList(),
     /** "Interrupted" already alerted in this HEADLESS period (any process); cleared when the FGS is back / trip ends. */
     val interruptedAlerted: Boolean = false,
+    /** T18 D9: [activeTripId] is a simulated trip (no OS alarm; ended, never restored, when the snapshot is lost). */
+    val activeSimulated: Boolean = false,
 ) {
     companion object {
         val EMPTY = FallbackLedger(1, null, 1L, null, null, null)

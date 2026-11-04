@@ -100,6 +100,7 @@ flutter test --dart-define=NAPSTOP_EXPECT_FLAVOR=dev  # giống CI; prod: --flav
 cd tools/tracegen && dart pub get
 dart run bin/tracegen.dart generate --profile train_hn_dh   # hoặc --all
 dart run bin/tracegen.dart check && dart test               # fixture commit phải khớp generator
+dart run bin/tracegen.dart bundle-sim                      # T18: chép 6 GPX gốc + catalog.json vào app/assets/sim (check --sim-out kiểm lệch)
 ```
 
 CI: `.github/workflows/ci.yml`, 3 job `dart`, `android`, `tracegen` (chi tiết: `app/README.md` mục CI).

@@ -26,6 +26,8 @@ data class NoticeTemplates(
     val snoozed: String,
     /** notif_destination_unknown */
     val destinationUnknown: String,
+    /** notif_tracking_sim_title (T18): "Chuyến giả lập tới %1$s" */
+    val simTitle: String = title,
 )
 
 /** Text of the ongoing notification (spec T15 §5.10). Pure; same rounding as the Dart `formatDistanceShort` (T22/T23). */
@@ -58,10 +60,11 @@ object NoticeFormatter {
             etaS = view.etaS?.let { minutes(it) * 60 },
             isEstimated = view.isEstimated,
             snoozeUntilMs = view.snoozeUntilMs,
+            simulated = meta.simulation != null,
         )
 
-    fun title(destinationName: String?, t: NoticeTemplates): String =
-        t.title.fmt(destinationName?.takeIf { it.isNotBlank() } ?: t.destinationUnknown)
+    fun title(destinationName: String?, t: NoticeTemplates, simulated: Boolean = false): String =
+        (if (simulated) t.simTitle else t.title).fmt(destinationName?.takeIf { it.isNotBlank() } ?: t.destinationUnknown)
 
     fun body(n: TrackingNotice, t: NoticeTemplates, locale: Locale, formatTime: (Long) -> String): String =
         when (n.phase) {

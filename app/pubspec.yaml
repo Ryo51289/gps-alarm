@@ -73,6 +73,9 @@ flutter:
     - assets/stations.json
     # Screen 9 battery guides per brand (T21 §6.3); texts are ARB keys.
     - assets/battery_guides.json
+    # T18: simulation traces (byte copies of fixtures/traces) + catalog.json,
+    # built by `tools/tracegen: dart run bin/tracegen.dart bundle-sim`.
+    - assets/sim/
     # Be Vietnam Pro license, shown on the license page (T20).
     - assets/fonts/BeVietnamPro/OFL.txt
   # Be Vietnam Pro (T20), see assets/fonts/BeVietnamPro/README.md.

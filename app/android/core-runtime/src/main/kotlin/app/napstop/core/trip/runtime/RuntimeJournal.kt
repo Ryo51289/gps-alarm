@@ -34,6 +34,10 @@ interface RuntimeJournal {
                 "idle" to setOf("deep", "light"),
                 "mode" to setOf("from", "to"),
                 "restore" to setOf("cause", "status"),
+                // T18: trace id + speed only (no coordinates, no destination).
+                "sim" to setOf("trace", "speed"),
+                "sim_speed" to setOf("to"),
+                "sim_end" to setOf("cause"),
             )
     }
 }

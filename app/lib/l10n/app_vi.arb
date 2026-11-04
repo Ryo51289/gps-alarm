@@ -1483,6 +1483,15 @@
       }
     }
   },
+  "notifTrackingSimTitle": "Chuyến giả lập tới {destination}",
+  "@notifTrackingSimTitle": {
+    "description": "Native ongoing notification title of a simulated (demo) trip; keep in sync with strings.xml",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
   "notifTrackingPublic": "NapStop đang theo dõi chuyến đi",
   "@notifTrackingPublic": {
     "description": "Ongoing notification on the lock screen (no destination name). Native notification (T15 §8), keep in sync with res/values/strings.xml."

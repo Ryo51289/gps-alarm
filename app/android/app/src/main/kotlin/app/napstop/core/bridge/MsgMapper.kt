@@ -28,6 +28,7 @@ import app.napstop.core.trip.UserActionKind
 import app.napstop.core.trip.VehicleKind
 import app.napstop.core.trip.runtime.FinishedRecord
 import app.napstop.core.trip.runtime.TripMeta
+import app.napstop.core.trip.runtime.sim.SimSpec
 
 /** Engine / runtime types ↔ Pigeon messages (T14 §3.3, spec T15 L34). Pure. */
 object MsgMapper {
@@ -155,8 +156,11 @@ object MsgMapper {
             vehicleGuess = vehicle(r.vehicleGuess),
         )
 
-    /** TripConfigMsg → coordinate-free runtime meta (validated by TripConfigValidator before). */
-    fun meta(c: TripConfigMsg): TripMeta =
+    /**
+     * TripConfigMsg (+ simulation, T18) → coordinate-free runtime meta (validated by TripConfigValidator before).
+     * `simulation.traceAsset` is a trace id of assets/sim/catalog.json; the runtime checks it.
+     */
+    fun meta(c: TripConfigMsg, simulation: SimulationMsg? = null): TripMeta =
         TripMeta(
             tripId = c.tripId,
             destinationName = c.destinationName,
@@ -187,7 +191,11 @@ object MsgMapper {
                     dismissMethod = c.alarm.dismissMethod.name.lowercase(),
                 ),
             engineParamsJson = c.engineParamsJson,
+            simulation = simulation?.let { SimSpec(it.traceAsset, it.speedFactor) },
         )
+
+    /** The simulation of a trip as startTrip received it (T18 §8); null for a real trip. */
+    fun simulation(m: TripMeta): SimulationMsg? = m.simulation?.let { SimulationMsg(it.traceId, it.speedFactor) }
 
     /** Inverse of [meta]: what currentTrip() echoes (T14 review M4: exactly what startTrip received). */
     fun config(m: TripMeta): TripConfigMsg =

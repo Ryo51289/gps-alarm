@@ -306,6 +306,7 @@
   "notifChannelTracking": "Trip tracking",
   "notifChannelTripAlerts": "Trip alerts",
   "notifTrackingTitle": "Tracking to {destination}",
+  "notifTrackingSimTitle": "Simulated trip to {destination}",
   "notifTrackingPublic": "NapStop is tracking your trip",
   "notifTrackingAcquiring": "Finding your location…",
   "notifTrackingDistanceEta": "{distance} to go · about {minutes} min",

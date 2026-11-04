@@ -1,5 +1,6 @@
 // Sample Pigeon messages for the bridge tests (T14 D01-D08). Not a test file.
 import 'package:napstop/core/bridge/core_api.g.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
 
 AlarmSettingsMsg sampleAlarm() => AlarmSettingsMsg(
   soundId: 'default',
@@ -25,7 +26,7 @@ TripConfigMsg sampleConfig({bool nulls = false, String tripId = 't1'}) =>
     );
 
 SimulationMsg sampleSimulation() =>
-    SimulationMsg(traceAsset: 'stub/normal', speedFactor: 60);
+    SimulationMsg(traceAsset: SimTraces.trainHnDh, speedFactor: 60);
 
 TripStateMsg sampleState({bool nulls = false}) => TripStateMsg(
   tripId: 't1',

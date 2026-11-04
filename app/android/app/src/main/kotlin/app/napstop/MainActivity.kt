@@ -7,6 +7,7 @@ import app.napstop.core.alarm.SoundPreviewPlayer
 import app.napstop.core.bridge.BridgeRegistrar
 import app.napstop.core.trip.host.AppVisibilityTracker
 import app.napstop.core.trip.host.RuntimeHost
+import app.napstop.core.trip.host.SimAssetsPlugin
 import app.napstop.core.trip.host.TripNotifications
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -17,6 +18,8 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        // T18 §8: asset lookup of the bundled simulation traces.
+        flutterEngine.plugins.add(SimAssetsPlugin())
         // T21: the real PermissionHostApi needs the activity (dialogs, settings pages).
         bridge = BridgeRegistrar.register(flutterEngine.dartExecutor.binaryMessenger, this)
     }

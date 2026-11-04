@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "traces": [
+    {
+      "id": "train_hn_dh",
+      "gpx": "train_hn_dh.gpx",
+      "vehicle": "train",
+      "sampleIntervalS": 5,
+      "durationS": 33905,
+      "arrivalT": 33790,
+      "destination": {
+        "id": "ga_dong_hoi",
+        "name": "Ga Đồng Hới",
+        "lat": 17.4689199,
+        "lng": 106.5997285
+      }
+    },
+    {
+      "id": "coach_md_tb",
+      "gpx": "coach_md_tb.gpx",
+      "vehicle": "coach",
+      "sampleIntervalS": 5,
+      "durationS": 7425,
+      "arrivalT": 7310,
+      "destination": {
+        "id": "bx_thai_binh",
+        "name": "Bến xe khách Trung tâm Thái Bình",
+        "lat": 20.4490118,
+        "lng": 106.3344734
+      }
+    },
+    {
+      "id": "bus_hn_brt01",
+      "gpx": "bus_hn_brt01.gpx",
+      "vehicle": "bus",
+      "sampleIntervalS": 5,
+      "durationS": 2370,
+      "arrivalT": 2315,
+      "destination": {
+        "id": "brt_yen_nghia",
+        "name": "Nhà chờ BRT Yên Nghĩa",
+        "lat": 20.9495996,
+        "lng": 105.7476229
+      }
+    },
+    {
+      "id": "coach_dn_langco_tunnel",
+      "gpx": "coach_dn_langco_tunnel.gpx",
+      "vehicle": "coach",
+      "sampleIntervalS": 5,
+      "durationS": 2040,
+      "arrivalT": 1925,
+      "destination": {
+        "id": "lang_co_center",
+        "name": "Lăng Cô (trung tâm, QL1)",
+        "lat": 16.256,
+        "lng": 108.07
+      }
+    },
+    {
+      "id": "coach_gb_phuly_overshoot",
+      "gpx": "coach_gb_phuly_overshoot.gpx",
+      "vehicle": "coach",
+      "sampleIntervalS": 5,
+      "durationS": 3240,
+      "arrivalT": 2425,
+      "destination": {
+        "id": "bx_phu_ly",
+        "name": "Bến xe Trung tâm Phủ Lý",
+        "lat": 20.538442,
+        "lng": 105.9448818
+      }
+    },
+    {
+      "id": "bus_hn_brt01_noisy",
+      "gpx": "bus_hn_brt01_noisy.gpx",
+      "vehicle": "bus",
+      "sampleIntervalS": 5,
+      "durationS": 2370,
+      "arrivalT": 2315,
+      "destination": {
+        "id": "brt_yen_nghia",
+        "name": "Nhà chờ BRT Yên Nghĩa",
+        "lat": 20.9495996,
+        "lng": 105.7476229
+      }
+    }
+  ]
+}

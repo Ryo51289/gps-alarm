@@ -44,12 +44,15 @@ class World(
     ledgerIo: kotlinx.coroutines.CoroutineDispatcher? = null,
     /** T16 AT1–AT6: the alarm port the runtime uses instead of [alarm] (SimRing: real AlarmControllerCore + ring machine). */
     ringPort: ((World) -> app.napstop.core.alarm.AlarmPort)? = null,
+    /** T18: bundled traces (default: fixtures/traces) and the simulation wake lock. */
+    val traces: FakeTraceStore = FakeTraceStore(),
+    val keepAwake: FakeKeepAwake = FakeKeepAwake(),
 ) {
     val time = FakeTime(wallBase = startWall, elapsedBase = elapsedBase, virtual = { scope.testScheduler.currentTime })
     val scheduler: FakeScheduler = scheduler ?: FakeScheduler(log, time)
     val alarm: FakeAlarmPort = alarm ?: FakeAlarmPort(log, time)
     val location = FakeLocationSource(log)
-    val tracking = FakeTracking(log)
+    val tracking = FakeTracking(log).also { t -> t.wallNow = { time.wallMs() } }
     val notifier = FakeNotifier()
     val visibility = FakeVisibility(true)
     val env = FakeEnv()
@@ -74,7 +77,11 @@ class World(
 
     val runtime: TripRuntime =
         TripRuntime(
-            ports = RuntimePorts(time, location, tracking, this.scheduler, ringPort?.invoke(this) ?: this.alarm, notifier, store, visibility, env, journal),
+            ports =
+                RuntimePorts(
+                    time, location, tracking, this.scheduler, ringPort?.invoke(this) ?: this.alarm, notifier, store, visibility, env, journal,
+                    traces = traces, keepAwake = keepAwake,
+                ),
             scope = processScope,
             actorDispatcher = dispatcher,
             io = io ?: dispatcher,

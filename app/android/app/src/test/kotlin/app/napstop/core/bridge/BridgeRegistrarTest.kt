@@ -1,11 +1,17 @@
 package app.napstop.core.bridge
 
 import io.flutter.plugin.common.BinaryMessenger
+import java.nio.file.Files
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import io.flutter.plugin.common.MethodCall
 import java.nio.ByteBuffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Listener ownership across Flutter engines (review T14 M1), through the real Pigeon channels. */
@@ -169,4 +175,38 @@ class BridgeRegistrarTest {
         assertEquals(emptyList<Any?>(), engineA.updates())
         assertEquals(listOf(snoozed(3)), engineB.updates())
     }
+
+    /** T18 SM31: the backend is the real one (no composite), a stub id is simulation-unavailable, stub leftovers go. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun sm31_theBackendIsRealAndStubIdsAreUnavailable() =
+        runTest {
+            val fakes = RuntimeFakes(this)
+            val backend = BridgeRegistrar.createBackend(fakes.runtime) {}
+            assertTrue(backend is RealTripBackend)
+            val start =
+                async {
+                    runCatching {
+                        backend.startTrip(BridgeTestData.config(), 16.0, 108.0, SimulationMsg("stub/normal", 60.0))
+                    }
+                }
+            runCurrent()
+            val e = start.await().exceptionOrNull() as FlutterError
+            assertEquals(BridgeErrors.SIMULATION_UNAVAILABLE, e.code)
+            assertEquals("TraceIdInvalid", e.message)
+            assertNull(backend.currentTrip())
+
+            val noBackup = Files.createTempDirectory("napstop_nobackup").toFile()
+            try {
+                val stub = java.io.File(noBackup, BridgeRegistrar.STUB_LEFTOVER_DIR).apply { mkdirs() }
+                java.io.File(stub, "active.properties").writeText("x")
+                java.io.File(noBackup, "napstop_trip").mkdirs()
+                assertTrue(BridgeRegistrar.deleteStubLeftovers(noBackup))
+                assertTrue(!stub.exists())
+                assertTrue("other directories are kept", java.io.File(noBackup, "napstop_trip").exists())
+                assertTrue("nothing to delete: still true", BridgeRegistrar.deleteStubLeftovers(noBackup))
+            } finally {
+                noBackup.deleteRecursively()
+            }
+        }
 }

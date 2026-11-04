@@ -33,7 +33,12 @@ import app.napstop.core.trip.runtime.TripNotice
 import app.napstop.core.trip.runtime.TripNotifier
 import app.napstop.core.trip.runtime.TripRuntime
 import app.napstop.core.trip.runtime.WakeMechanism
+import app.napstop.core.trip.runtime.KeepAwake
+import app.napstop.core.trip.runtime.TraceStore
+import java.io.ByteArrayInputStream
+import java.io.File
 import java.io.IOException
+import java.io.InputStream
 
 /** Ordered log shared by fakes, so tests can check the order of platform calls across ports. */
 class OpLog {
@@ -112,6 +117,10 @@ class FakeTracking(private val log: OpLog? = null) : TrackingController {
     var throwOnStart: Exception? = null
     val starts = ArrayList<Pair<String, StartReason>>()
     val notices = ArrayList<TrackingNotice>()
+
+    /** T18 SM15b: wall time of each notice update (set by World). */
+    var wallNow: (() -> Long)? = null
+    val noticeWallMs = ArrayList<Long>()
     var stops = 0
     override var isForeground: Boolean = false
 
@@ -126,6 +135,7 @@ class FakeTracking(private val log: OpLog? = null) : TrackingController {
 
     override fun updateTrackingNotification(content: TrackingNotice) {
         notices += content
+        wallNow?.let { noticeWallMs += it() }
     }
 
     override fun stop() {
@@ -480,5 +490,39 @@ class RecordingJournal : RuntimeJournal {
 
     override fun log(tripMs: Long?, wallMs: Long, ev: String, fields: Map<String, Any?>) {
         lines += Line(tripMs, wallMs, ev, fields)
+    }
+}
+
+/**
+ * T18: trace store over fixtures/traces (system property napstop.fixturesDir). [bytes] replaces a trace (broken GPX
+ * tests); [allowed] non-null = only those ids exist (the app bundles six).
+ */
+class FakeTraceStore(private val dir: File? = System.getProperty("napstop.fixturesDir")?.let(::File), var allowed: Set<String>? = null) : TraceStore {
+    val bytes = HashMap<String, ByteArray>()
+    val opened = ArrayList<String>()
+
+    override fun open(traceId: String): InputStream? {
+        opened += traceId
+        bytes[traceId]?.let { return ByteArrayInputStream(it) }
+        if (allowed?.contains(traceId) == false) return null
+        val f = File(dir ?: return null, "$traceId.gpx")
+        return if (f.isFile) f.inputStream() else null
+    }
+}
+
+/** T18: records hold / release of the simulation wake lock. */
+class FakeKeepAwake : KeepAwake {
+    val holds = ArrayList<Long>()
+    var releases = 0
+    var held = false
+
+    override fun hold(capMs: Long) {
+        holds += capMs
+        held = true
+    }
+
+    override fun release() {
+        releases++
+        held = false
     }
 }

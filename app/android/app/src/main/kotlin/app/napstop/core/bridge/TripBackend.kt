@@ -1,8 +1,8 @@
 package app.napstop.core.bridge
 
 /**
- * Trip side of the bridge (spec T14 §5.1). T14 ships StubTripBackend; T15 replaces it
- * with the real engine + foreground service in BridgeRegistrar.
+ * Trip side of the bridge (spec T14 §5.1). The app uses [RealTripBackend] on the trip
+ * runtime for real and simulated trips (T15, T18 D13); the T14 stub is a test double in src/test.
  *
  * Stream contract (§2): per engine Step one TripStateUpdateMsg, then the Step's events
  * in T10 §2.3 order; attaching a listener replays the latest state, never old events;

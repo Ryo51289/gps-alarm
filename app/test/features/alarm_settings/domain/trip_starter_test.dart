@@ -11,6 +11,7 @@ import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/features/alarm_settings/domain/trip_starter.dart';
 import 'package:napstop/features/onboarding/domain/start_check.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
 
 import '../../../helpers/fake_core_bridge.dart';
 import '../../../helpers/trip_fixtures.dart';
@@ -131,7 +132,10 @@ void main() {
 
     test('simulation is passed through and marks the row', () async {
       final s = _Setup();
-      final sim = SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60);
+      final sim = SimulationMsg(
+        traceAsset: SimTraces.busHnBrt01,
+        speedFactor: 60,
+      );
       expect(await s.start(simulation: sim), isA<StartSucceeded>());
       expect(s.bridge.startTripCalls.single.simulation, same(sim));
       expect(s.trips.rows[_id]!.simulated, isTrue);

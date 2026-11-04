@@ -607,7 +607,10 @@ data class TripConfigMsg (
 }
 
 /**
- * Simulation mode (T18). T14 stub accepts only `stub/<scenario>` (§5).
+ * Simulation mode (T18): a bundled trace played on the real runtime.
+ * `traceAsset`: trace id in `assets/sim/catalog.json`
+ * (`^[a-z0-9]+(_[a-z0-9]+)*$`, never a path); `speedFactor` 1..600, UI
+ * 1/10/60 (T18).
  *
  * Generated class from Pigeon that represents data sent in messages.
  */

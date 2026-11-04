@@ -11,16 +11,12 @@ import app.napstop.core.bridge.permission.BackgroundCheckScheduler
 import app.napstop.core.bridge.permission.PermissionHostApiImpl
 import app.napstop.core.bridge.permission.SettingsLauncher
 import app.napstop.core.bridge.permission.SharedPrefsPermissionFlags
-import app.napstop.core.bridge.stub.StubStore
-import app.napstop.core.bridge.stub.StubTripBackend
 import app.napstop.core.trip.host.RuntimeHost
+import app.napstop.core.trip.runtime.TripRuntime
 import io.flutter.plugin.common.BinaryMessenger
 import java.io.File
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.plus
 
 /**
  * Attaches the Pigeon APIs to a Flutter engine and detaches them when the engine is
@@ -34,7 +30,7 @@ object BridgeRegistrar {
     @Volatile
     private var tripBackend: TripBackend? = null
 
-    /** Process-wide backend (T15: CompositeTripBackend = real runtime + the T14 stub for "stub/" simulations). */
+    /** Process-wide backend: the real trip runtime, for real and simulated trips (T18 D13). */
     fun backend(context: Context): TripBackend =
         tripBackend ?: synchronized(this) {
             tripBackend ?: createBackend(context.applicationContext).also { tripBackend = it }
@@ -103,23 +99,28 @@ object BridgeRegistrar {
         )
 
     private fun createBackend(appContext: Context): TripBackend {
-        val stub =
-            StubTripBackend(
-                store = StubStore(File(appContext.noBackupFilesDir, StubStore.DIR_NAME)),
-                clock = System::currentTimeMillis,
-                // Last line of defence (review T14 M3): the backend catches its own failures,
-                // but nothing launched here may crash the app. Class name only, never messages.
-                scope =
-                    MainScope() +
-                        CoroutineExceptionHandler { _, e -> Log.e(TAG, "trip backend: ${e.javaClass.simpleName}") },
-                io = Dispatchers.IO,
-            )
         // T15: the real trip runtime; loading the snapshot starts as soon as the app opens (spec §5.8).
         val host = RuntimeHost.get(appContext)
         host.scope.launch { host.runtime.ensureLoaded() }
-        val real = RealTripBackend(host.runtime, ListenerHub { Log.w(TAG, it) })
-        return CompositeTripBackend(real, stub)
+        // T18 D13: the T14 stub is gone; its files of an older install are removed once (best effort).
+        host.scope.launch(Dispatchers.IO) { deleteStubLeftovers(appContext.noBackupFilesDir) }
+        return createBackend(host.runtime) { Log.w(TAG, it) }
     }
+
+    /** The backend on [runtime] (JVM tests pass a runtime on fakes, SM31). */
+    internal fun createBackend(runtime: TripRuntime, warn: (String) -> Unit): TripBackend = RealTripBackend(runtime, ListenerHub(warn))
+
+    /** Directory of the T14 stub backend (removed in T18) under noBackupFilesDir. */
+    internal const val STUB_LEFTOVER_DIR = "napstop_stub"
+
+    /** Deletes what the T14/T15 stub backend left in [noBackupDir]; true when nothing is left. Never throws. */
+    internal fun deleteStubLeftovers(noBackupDir: File): Boolean =
+        try {
+            val dir = File(noBackupDir, STUB_LEFTOVER_DIR)
+            !dir.exists() || dir.deleteRecursively()
+        } catch (e: Exception) {
+            false
+        }
 
     class Registration internal constructor(
         private val messenger: BinaryMessenger,

@@ -19,6 +19,7 @@ import 'package:napstop/features/alarm_settings/domain/trip_starter.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/equal_chip_row.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/start_bar.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 import '../../../helpers/app_harness.dart';
@@ -642,7 +643,10 @@ void main() {
   });
 
   testWidgets('W17 simulation: banner, passed to startTrip', (tester) async {
-    final sim = SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60);
+    final sim = SimulationMsg(
+      traceAsset: SimTraces.busHnBrt01,
+      speedFactor: 60,
+    );
     final h = await pumpAlarmSettings(
       tester,
       extra: AlarmSettingsArgs(draft: kDraftTrain, simulation: sim),

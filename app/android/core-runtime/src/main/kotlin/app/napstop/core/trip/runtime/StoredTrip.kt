@@ -8,6 +8,7 @@ import app.napstop.core.trip.EngineState
 import app.napstop.core.trip.TripEngine
 import app.napstop.core.trip.TripOutcome
 import app.napstop.core.trip.VehicleKind
+import app.napstop.core.trip.runtime.sim.SimSpec
 import java.util.Properties
 
 /** Coordinate-free copy of TripConfigMsg (survives process death; also ActiveTripMsg.config). */
@@ -21,10 +22,12 @@ data class TripMeta(
     val vehicleHint: VehicleKind,
     val alarm: RingSettings,
     val engineParamsJson: String?,
+    /** T18: null = real trip; else the bundled trace and speed it plays. */
+    val simulation: SimSpec? = null,
 ) {
     override fun toString(): String =
         "TripMeta(tripId=$tripId, mode=$mode, distanceThresholdM=$distanceThresholdM, timeThresholdMin=$timeThresholdMin, " +
-            "preAlertEnabled=$preAlertEnabled, vehicleHint=$vehicleHint, destination=<redacted>)"
+            "preAlertEnabled=$preAlertEnabled, vehicleHint=$vehicleHint, simulated=${simulation != null}, destination=<redacted>)"
 }
 
 /** active_trip.properties (spec T15 §5.7). [engine] holds the destination and ≤ 3 fixes: never logged. */
@@ -79,6 +82,8 @@ object RuntimeCodec {
         p["anchor.wallMs"] = t.anchor.wallMs.toString()
         p["anchor.elapsedMs"] = t.anchor.elapsedMs.toString()
         p.putOpt("anchor.bootCount", t.anchor.bootCount)
+        // T18: only a simulated trip before its first alarm runs at another speed; real trips keep the T15 keys.
+        if (t.anchor.speed != 1.0) p["anchor.speed"] = t.anchor.speed.toString()
         p["savedAtWallMs"] = t.savedAtWallMs.toString()
         p["engine"] = TripEngine.encodeSnapshot(t.engine)
         return p
@@ -91,7 +96,7 @@ object RuntimeCodec {
         return StoredTrip(
             runtimeVersion = version,
             meta = decodeMeta(p),
-            anchor = ClockAnchor(p.long("anchor.wallMs"), p.long("anchor.elapsedMs"), p.optInt("anchor.bootCount")),
+            anchor = ClockAnchor(p.long("anchor.wallMs"), p.long("anchor.elapsedMs"), p.optInt("anchor.bootCount"), p.speed("anchor.speed")),
             engine = TripEngine.decodeSnapshot(p.req("engine")),
             savedAtWallMs = p.long("savedAtWallMs"),
         )
@@ -107,6 +112,10 @@ object RuntimeCodec {
         p[prefix + "vehicleHint"] = m.vehicleHint.name
         encodeSettings(p, m.alarm, prefix + "alarm.")
         p.putOpt(prefix + "engineParamsJson", m.engineParamsJson)
+        m.simulation?.let { sim ->
+            p[prefix + "sim.traceId"] = sim.traceId
+            p[prefix + "sim.speedFactor"] = sim.speedFactor.toString()
+        }
     }
 
     fun decodeMeta(p: Properties, prefix: String = "meta."): TripMeta =
@@ -120,6 +129,12 @@ object RuntimeCodec {
             vehicleHint = p.enumOf(prefix + "vehicleHint", VehicleKind.entries),
             alarm = decodeSettings(p, prefix + "alarm."),
             engineParamsJson = p.getProperty(prefix + "engineParamsJson"),
+            simulation =
+                if (p.getProperty(prefix + "sim.traceId") == null && p.getProperty(prefix + "sim.speedFactor") == null) {
+                    null
+                } else {
+                    SimSpec(p.req(prefix + "sim.traceId"), p.speed(prefix + "sim.speedFactor", required = true))
+                },
         )
 
     private fun encodeSettings(p: Properties, s: RingSettings, prefix: String) {
@@ -182,6 +197,7 @@ object RuntimeCodec {
         }
         if (l.endedTripIds.isNotEmpty()) p["endedTripIds"] = l.endedTripIds.joinToString(",")
         if (l.interruptedAlerted) p["interruptedAlerted"] = "true"
+        if (l.activeSimulated) p["activeSimulated"] = "true"
         return p
     }
 
@@ -207,6 +223,7 @@ object RuntimeCodec {
             lastFired = fired,
             endedTripIds = p.getProperty("endedTripIds")?.split(',')?.filter { it.isNotEmpty() } ?: emptyList(),
             interruptedAlerted = p.getProperty("interruptedAlerted") == "true",
+            activeSimulated = p.getProperty("activeSimulated") == "true",
         )
     }
 
@@ -283,6 +300,14 @@ object RuntimeCodec {
 
     private fun Properties.optInt(key: String): Int? =
         getProperty(key)?.let { it.toIntOrNull() ?: throw StoreFormatException("$key invalid") }
+
+    /** Absent (and not [required]) = 1.0; must be finite and > 0. */
+    private fun Properties.speed(key: String, required: Boolean = false): Double {
+        val raw = getProperty(key) ?: if (required) throw StoreFormatException("$key missing") else return 1.0
+        val v = raw.toDoubleOrNull() ?: throw StoreFormatException("$key invalid")
+        if (!v.isFinite() || v <= 0.0) throw StoreFormatException("$key invalid")
+        return v
+    }
 
     private fun Properties.bool(key: String): Boolean =
         when (req(key)) {

@@ -1,8 +1,11 @@
-// Restore probe of the real trip runtime: LM6 of T15 (docs/test-protocols/T15.md).
+// Restore probe of the real trip runtime: compare with LM6 of T15
+// (docs/test-protocols/T15.md). Since T18 a simulated trip is never restored
+// after a process death (T18 D9), so the probe starts a REAL trip: grant
+// location first and give the emulator a position (adb emu geo fix).
 //
 // Manual probe for T14.1 (protocol: docs/test-protocols/T14.1.md, P02): a
 // 16 384-code-unit engineParamsJson survives a real process death byte for
-// byte through the Android stub snapshot. Not a test file: build it as the
+// byte through the runtime snapshot. Not a test file: build it as the
 // app's entry point, then kill/relaunch the process with adb and read logcat.
 //
 //   flutter build apk --debug -t integration_test/manual/engine_params_restore_probe.dart
@@ -12,7 +15,7 @@
 //   adb shell am start -n app.napstop.dev/app.napstop.MainActivity
 //   adb logcat -d -s flutter | grep NAPSTOP_T141
 //
-// First launch with no trip: starts a stub trip carrying the value. Next
+// First launch with no trip: starts a real trip carrying the value. Next
 // launch: compares currentTrip().config.engineParamsJson with the value it
 // rebuilds deterministically, logs match + length only (never the value),
 // then stops the trip and acks it.
@@ -66,8 +69,6 @@ Future<void> main() async {
       ),
       destLat: 16.8163,
       destLng: 107.1003,
-      // Since T15 a start without `simulation` is a real trip (T15 D14).
-      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 1),
     );
     _log('started $tripId length=${expected.length}');
     return;

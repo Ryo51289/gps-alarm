@@ -8,6 +8,7 @@ import 'package:args/args.dart';
 import 'package:tracegen/src/generator.dart';
 import 'package:tracegen/src/paths.dart';
 import 'package:tracegen/src/profile.dart';
+import 'package:tracegen/src/sim_bundle.dart';
 import 'package:tracegen/src/validate.dart';
 
 /// Exit code: success.
@@ -24,6 +25,7 @@ const int kExitData = 65;
 
 const String _defaultOut = '../../fixtures/traces';
 const String _defaultData = 'data';
+const String _defaultSimOut = '../../app/assets/sim';
 
 ArgParser _buildParser() {
   final parser = ArgParser()
@@ -44,6 +46,14 @@ ArgParser _buildParser() {
       'check',
       ArgParser()
         ..addOption('out', defaultsTo: _defaultOut)
+        ..addOption('data', defaultsTo: _defaultData)
+        ..addOption('sim-out', defaultsTo: _defaultSimOut),
+    )
+    ..addCommand(
+      'bundle-sim',
+      ArgParser()
+        ..addOption('fixtures', defaultsTo: _defaultOut)
+        ..addOption('out', defaultsTo: _defaultSimOut)
         ..addOption('data', defaultsTo: _defaultData),
     )
     ..addCommand('validate', ArgParser()..addOption('dir'));
@@ -55,10 +65,12 @@ String _usage(ArgParser parser) =>
 Usage (run from tools/tracegen):
   dart run bin/tracegen.dart list [--data <dir>]
   dart run bin/tracegen.dart generate (--profile <id> ... | --all) [--out <dir>] [--data <dir>]
-  dart run bin/tracegen.dart check [--out <dir>] [--data <dir>]
+  dart run bin/tracegen.dart check [--out <dir>] [--data <dir>] [--sim-out <dir>]
+  dart run bin/tracegen.dart bundle-sim [--fixtures <dir>] [--out <dir>] [--data <dir>]
   dart run bin/tracegen.dart validate (--dir <dir> | <file> ...)
 
-Defaults: --data $_defaultData, --out $_defaultOut
+Defaults: --data $_defaultData, --out $_defaultOut (bundle-sim: --fixtures
+$_defaultOut, --out $_defaultSimOut), --sim-out $_defaultSimOut
 
 ${parser.usage}''';
 
@@ -113,6 +125,8 @@ Future<int> runCli(
         return await _generate(command, parser, out, err, resolve);
       case 'check':
         return _check(command, out, err, resolve);
+      case 'bundle-sim':
+        return await _bundleSim(command, out, resolve);
       case 'validate':
         return _validate(command, parser, out, err, resolve);
     }
@@ -224,15 +238,112 @@ int _check(
       }
     }
   }
-  if (problems.isEmpty) {
-    out.writeln('ok: ${expected.length} fixture file(s) up to date');
+  final simProblems = _checkSim(command, dir, resolve);
+  if (problems.isEmpty && simProblems.isEmpty) {
+    out
+      ..writeln('ok: ${expected.length} fixture file(s) up to date')
+      ..writeln(
+        'ok: simulation bundle ${command.option('sim-out')} up to date',
+      );
     return kExitOk;
   }
   problems.forEach(err.writeln);
-  err.writeln(
-    'fixtures are out of date; run: dart run bin/tracegen.dart generate --all',
-  );
+  simProblems.forEach(err.writeln);
+  if (problems.isNotEmpty) {
+    err.writeln(
+      'fixtures are out of date; run: dart run bin/tracegen.dart generate --all',
+    );
+  }
+  if (simProblems.isNotEmpty) {
+    err.writeln(
+      'simulation bundle is out of date; run: dart run bin/tracegen.dart '
+      'bundle-sim',
+    );
+  }
   return kExitFailed;
+}
+
+/// T18 §7: the bundled simulation traces (`--sim-out`) are byte-identical to
+/// `bundle-sim` run on the fixtures in [fixtures]; missing / extra files too.
+List<String> _checkSim(
+  ArgResults command,
+  Directory fixtures,
+  String Function(String) resolve,
+) {
+  final simArg = command.option('sim-out')!;
+  final simDir = Directory(resolve(simArg));
+  final Map<String, List<int>> bundle;
+  try {
+    bundle = _simBundle(command.option('data')!, fixtures, resolve);
+  } on ProfileException catch (e) {
+    return ['sim bundle: $e'];
+  }
+  final problems = <String>[];
+  for (final MapEntry(key: name, value: bytes) in bundle.entries) {
+    final f = File('${simDir.path}/$name');
+    if (!f.existsSync()) {
+      problems.add('missing: $simArg/$name');
+      continue;
+    }
+    final line = firstDifferentLine(f.readAsBytesSync(), bytes);
+    if (line != null) {
+      problems.add('differs: $simArg/$name (first difference at line $line)');
+    }
+  }
+  if (simDir.existsSync()) {
+    final names = <String>[
+      for (final e in simDir.listSync())
+        if (e is File) fileNameOf(e.path),
+    ]..sort();
+    for (final name in names) {
+      if (!bundle.containsKey(name)) {
+        problems.add('unexpected: $simArg/$name (not in the sim bundle)');
+      }
+    }
+  }
+  return problems;
+}
+
+Map<String, List<int>> _simBundle(
+  String dataArg,
+  Directory fixtures,
+  String Function(String) resolve,
+) {
+  final list = File('${resolve(dataArg)}/$kSimBundleListFile');
+  if (!list.existsSync()) {
+    throw const ProfileException(kSimBundleListFile, 'file not found');
+  }
+  final ids = parseSimBundleIds(list.readAsStringSync());
+  return buildSimBundle(ids, (name) {
+    final f = File('${fixtures.path}/$name');
+    return f.existsSync() ? f.readAsBytesSync() : null;
+  });
+}
+
+/// T18 §7: copies the listed fixture GPX files (byte for byte) and writes
+/// `catalog.json`; other files in `--out` are deleted.
+Future<int> _bundleSim(
+  ArgResults command,
+  IOSink out,
+  String Function(String) resolve,
+) async {
+  final fixtures = Directory(resolve(command.option('fixtures')!));
+  // Build everything first so a missing fixture writes nothing.
+  final bundle = _simBundle(command.option('data')!, fixtures, resolve);
+  final outArg = command.option('out')!;
+  final dir = Directory(resolve(outArg));
+  await dir.create(recursive: true);
+  for (final e in dir.listSync()) {
+    if (e is File && !bundle.containsKey(fileNameOf(e.path))) {
+      await e.delete();
+      out.writeln('deleted $outArg/${fileNameOf(e.path)}');
+    }
+  }
+  for (final MapEntry(key: name, value: bytes) in bundle.entries) {
+    await File('${dir.path}/$name').writeAsBytes(bytes, flush: true);
+    out.writeln('wrote $outArg/$name (${bytes.length} bytes)');
+  }
+  return kExitOk;
 }
 
 int _validate(

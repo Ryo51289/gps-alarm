@@ -51,6 +51,7 @@ class TripNotifications(context: Context) : TripNotifier {
             alarming = ctx.getString(R.string.notif_tracking_alarming),
             snoozed = ctx.getString(R.string.notif_tracking_snoozed),
             destinationUnknown = ctx.getString(R.string.notif_destination_unknown),
+            simTitle = ctx.getString(R.string.notif_tracking_sim_title),
         )
 
     fun locale(): Locale = ctx.resources.configuration.locales[0] ?: Locale.getDefault()
@@ -59,7 +60,7 @@ class TripNotifications(context: Context) : TripNotifier {
     fun tracking(content: TrackingNotice?): Notification {
         ensureChannels()
         val t = templates()
-        val title = content?.let { NoticeFormatter.title(it.destinationName, t) } ?: ctx.getString(R.string.notif_tracking_public)
+        val title = content?.let { NoticeFormatter.title(it.destinationName, t, it.simulated) } ?: ctx.getString(R.string.notif_tracking_public)
         val body =
             content?.let { NoticeFormatter.body(it, t, locale()) { ms -> DateFormat.getTimeFormat(ctx).format(Date(ms)) } }
                 ?: t.acquiring

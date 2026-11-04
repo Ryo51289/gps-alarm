@@ -117,5 +117,5 @@ object EffectPlanner {
         )
 
     /** TripClock.toTrip with the Step's clock reading (pure). */
-    private fun toTrip(wallMs: Long, p: PlanInput): Long = p.nowTripMs - maxOf(0L, p.nowWallMs - wallMs)
+    private fun toTrip(wallMs: Long, p: PlanInput): Long = p.nowTripMs - ClockMath.up(maxOf(0L, p.nowWallMs - wallMs), p.speed)
 }

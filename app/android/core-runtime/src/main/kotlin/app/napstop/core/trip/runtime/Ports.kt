@@ -32,9 +32,12 @@ data class RawFix(
     val speedMps: Float?,
     /** Location.getElapsedRealtimeNanos() */
     val elapsedRealtimeNanos: Long,
+    /** T18 D4: trip time of a simulated sample (exact fixAtMs whatever the delivery delay); FLP: always null. */
+    val simFixAtMs: Long? = null,
 ) {
     override fun toString(): String =
-        "RawFix(accuracyM=$accuracyM, speedMps=$speedMps, elapsedRealtimeNanos=$elapsedRealtimeNanos, position=<redacted>)"
+        "RawFix(accuracyM=$accuracyM, speedMps=$speedMps, elapsedRealtimeNanos=$elapsedRealtimeNanos, simFixAtMs=$simFixAtMs, " +
+            "position=<redacted>)"
 }
 
 enum class FlpPriority { HIGH_ACCURACY, BALANCED_POWER_ACCURACY }
@@ -204,14 +207,44 @@ data class TrackingNotice(
     val distanceM: Int?,
     val etaS: Int?,
     val isEstimated: Boolean,
+    /** Trip clock in the plan; the runtime turns it into wall time for a simulated trip before posting (T18 §3). */
     val snoozeUntilMs: Long?,
+    /** T18 §8: title "Chuyến giả lập tới …". */
+    val simulated: Boolean = false,
 ) {
     override fun toString(): String =
         "TrackingNotice(tripId=$tripId, phase=$phase, etaS=$etaS, isEstimated=$isEstimated, snoozeUntilMs=$snoozeUntilMs, " +
-            "distance=<redacted>, destination=<redacted>)"
+            "simulated=$simulated, distance=<redacted>, destination=<redacted>)"
 }
 
 enum class RingEventKind { DISMISSED, SNOOZED, SILENCED, FALLBACK_RINGING }
 
 /** T16 → T15 (broadcast `app.napstop.action.RING_EVENT`, §4.4). */
 data class RingEvent(val tripId: String, val kind: RingEventKind, val atWallMs: Long)
+
+/** Bundled simulation traces (T18 D10, D11): `assets/sim/<id>.gpx` on Android. */
+fun interface TraceStore {
+    /** Blocking (IO). null = no such trace. */
+    fun open(traceId: String): java.io.InputStream?
+
+    companion object {
+        val NONE = TraceStore { null }
+    }
+}
+
+/** Keeps the CPU awake while a simulated trip runs (T18 D8): its timers are coroutines, no FLP wakes the CPU. */
+interface KeepAwake {
+    /** Acquire, released by itself after [capMs] at the latest. */
+    fun hold(capMs: Long)
+
+    fun release()
+
+    companion object {
+        val NoOp: KeepAwake =
+            object : KeepAwake {
+                override fun hold(capMs: Long) = Unit
+
+                override fun release() = Unit
+            }
+    }
+}

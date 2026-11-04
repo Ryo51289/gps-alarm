@@ -8,19 +8,27 @@ object FixMapper {
      * [nowTripMs] = trip clock at delivery, [nowElapsedNanos] = elapsed realtime at delivery. Returns null when the
      * platform gave no usable accuracy (absent, ≤ 0 or not finite); the caller counts it as `droppedPlatform`.
      * Negative or non-finite speeds are passed through: the engine treats them as null.
+     * A simulated fix (T18 D4) carries its trip time: fixAtMs = min(simFixAtMs, now).
      */
     fun map(raw: RawFix, nowTripMs: Long, nowElapsedNanos: Long): LocationFix? {
         val acc = raw.accuracyM ?: return null
         if (!acc.isFinite() || acc <= 0f) return null
         return LocationFix(
             atMs = nowTripMs,
-            fixAtMs = nowTripMs - ageMs(raw, nowElapsedNanos),
+            fixAtMs = raw.simFixAtMs?.let { minOf(it, nowTripMs) } ?: (nowTripMs - ageMs(raw, nowElapsedNanos)),
             lat = raw.lat,
             lng = raw.lng,
             accuracyM = acc.toDouble(),
             speedMps = raw.speedMps?.toDouble(),
         )
     }
+
+    /**
+     * Trip time of the Step of [raw] (T18 D4, §3 `handleFix`): a simulated sample is stamped with its own trip time,
+     * clamped to [engineNowMs, clockNowMs] (never before the last Step, never in the future); FLP: [clockNowMs].
+     */
+    fun stepAtMs(raw: RawFix, engineNowMs: Long, clockNowMs: Long): Long =
+        raw.simFixAtMs?.let { maxOf(engineNowMs, minOf(it, clockNowMs)) } ?: clockNowMs
 
     fun ageMs(raw: RawFix, nowElapsedNanos: Long): Long = maxOf(0L, (nowElapsedNanos - raw.elapsedRealtimeNanos) / 1_000_000L)
 }

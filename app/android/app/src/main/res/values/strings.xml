@@ -11,6 +11,8 @@
     <string name="notif_channel_trip_alerts">Cảnh báo chuyến đi</string>
     <!-- notifTrackingTitle -->
     <string name="notif_tracking_title">Đang theo dõi tới %1$s</string>
+    <!-- notifTrackingSimTitle (T18) -->
+    <string name="notif_tracking_sim_title">Chuyến giả lập tới %1$s</string>
     <!-- notifTrackingPublic -->
     <string name="notif_tracking_public">NapStop đang theo dõi chuyến đi</string>
     <!-- notifTrackingAcquiring -->

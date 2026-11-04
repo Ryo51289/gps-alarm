@@ -106,8 +106,8 @@ flutter test --tags golden                           # chỉ chạy golden
 
 | Nền tảng | File sinh | Viết tay |
 |---|---|---|
-| Dart | `lib/core/bridge/core_api.g.dart` | `core_bridge.dart` (`CoreBridge`, `StubTraces`), `bridge_exception.dart` |
-| Android | `android/app/src/main/kotlin/app/napstop/core/bridge/CoreApi.g.kt` | `BridgeRegistrar`, `BridgeGuard`, `TripHostApiImpl`, `TripConfigValidator`, `stub/`, `permission/` (`PermissionHostApi` thật, T21) |
+| Dart | `lib/core/bridge/core_api.g.dart` | `core_bridge.dart` (`CoreBridge`), `bridge_exception.dart` |
+| Android | `android/app/src/main/kotlin/app/napstop/core/bridge/CoreApi.g.kt` | `BridgeRegistrar`, `BridgeGuard`, `TripHostApiImpl`, `TripConfigValidator`, `permission/` (`PermissionHostApi` thật, T21) |
 | iOS | `ios/Runner/Bridge/CoreApi.g.swift` | `CoreBridgeStub.swift` (trạng thái trong bộ nhớ, chờ T17) |
 
 ```bash
@@ -122,20 +122,10 @@ dart format lib/core/bridge/core_api.g.dart
   `test/core/bridge/bridge_source_scan_test.dart` chặn.
 - Dart dùng `CoreBridge` (một stream `updates` dùng chung; ai nghe sau cũng nhận ngay `TripStateUpdateMsg` gần nhất,
   không nhận lại sự kiện cũ; lỗi native → `BridgeException` với `BridgeErrorCode`).
-- Android: chuyến **thật** (`startTrip` không có `simulation`) chạy trên trip runtime của T15 (mục dưới). `simulation`
-  có `traceAsset` bắt đầu bằng `stub/` vẫn chạy **stub có kịch bản** của T14 (`CompositeTripBackend`); `simulation` khác
-  trả `simulation-unavailable` tới T18. Stub (`StubTripBackend`, snapshot ở `noBackupFilesDir/napstop_stub`, nên
-  `currentTrip()` vẫn đọc được sau khi process chết). Chọn kịch bản qua `SimulationMsg.traceAsset`:
-
-  | `traceAsset` (`StubTraces.*`) | Diễn biến (thời gian ảo, chia cho `speedFactor` ra thời gian thật) |
-  |---|---|
-  | `stub/normal` | có fix sau 5 s, nhắc nhẹ, báo chính (SMART ≈ 738 s → 12,3 s thật ở 60×) |
-  | `stub/gps_lost` | mất GPS từ 60 s tới 240 s |
-  | `stub/low_battery` | pin 30 % giảm dần, cảnh báo pin ở 30 s (màn 7) |
-  | `stub/overshoot` | chạy quá đích, `OvershootMsg` khi đã qua ≥ 1 km |
-  | `stub/no_fix` | không bao giờ có fix: `GpsLostMsg(neverAcquired)` ở 120 s, báo `timeout` ở 4 giờ |
-
-  Stub chỉ tick khi Dart đang nghe `updates`. (Trước T15, `startTrip` không có `simulation` = `stub/normal` ở 1×.)
+- Android: mọi chuyến chạy trên trip runtime của T15 (mục dưới). Từ T18 (mục "Chế độ giả lập"), `simulation` =
+  (`traceAsset` = id trace trong `assets/sim/catalog.json`, `SimTraces.*`; `speedFactor` 1..600) chạy **giả lập trên
+  runtime thật**; `stub/…`, đường dẫn, id không có → `simulation-unavailable`. Stub T14 (`StubTripBackend`…) chỉ còn
+  là test double trong `android/app/src/test`.
   Quyền: `PermissionHostApi` trả cố định (thật ở T21), `deviceInfo()` đọc thật; `AlarmHostApi` không phát âm (T16).
 - Test: Dart `flutter test test/core/bridge`; Kotlin `cd android && ./gradlew :app:testDevDebugUnitTest`; tích hợp I01
   trên emulator/máy Android (API 26+):
@@ -162,7 +152,7 @@ coroutine), singleton theo process; `:app` chỉ nối cổng với Android:
 | `trip/host/Receivers.kt` | `WakeAlarmReceiver`, `FallbackAlarmReceiver`, `BootReceiver` (`BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`), `RingEventReceiver`, `TripActionReceiver` |
 | `trip/host/TripNotifications` | kênh `napstop_tracking` (thường trực, nút "Dừng theo dõi"), `napstop_trip_alerts` (chưa có GPS, gián đoạn…) |
 | `alarm/AlarmController` | `AlarmPort` thật (T16, mục dưới) |
-| `bridge/RealTripBackend`, `CompositeTripBackend`, `ListenerHub`, `MsgMapper` | Pigeon ↔ runtime (Pigeon không đổi) |
+| `bridge/RealTripBackend`, `ListenerHub`, `MsgMapper` | Pigeon ↔ runtime (Pigeon không đổi) |
 
 Lưu trữ: `noBackupFilesDir/napstop_trip/` (`active_trip.properties`, `fallback_ledger.properties`,
 `ring_config.properties`, `finished/`) — luôn bị loại khỏi Auto Backup và chuyển máy. Chuỗi thông báo ở
@@ -224,6 +214,22 @@ adb shell am broadcast $R --es cmd preview_test --es sound bell --ef volume 0.5 
 adb exec-out run-as app.napstop.dev cat no_backup/napstop_ring/journal_ring.ndjson     # journal của :ring
 adb shell pidof app.napstop.dev:ring                                      # pid process chuông
 ```
+
+## Chế độ giả lập (T18)
+
+- Trace đóng gói: `assets/sim/<id>.gpx` (bản sao từng byte của `fixtures/traces`, 6 trace gốc T02) + `catalog.json`,
+  sinh bằng `cd ../tools/tracegen && dart run bin/tracegen.dart bundle-sim` (danh sách ở `data/sim_bundle.json`);
+  `tracegen check` (CI job `tracegen`) bắt lệch. Đổi fixture trong danh sách → chạy lại `bundle-sim`, commit cả hai.
+- Dart: `SimTraces` (id), `SimTraceCatalog` (`lib/features/simulation`). Native (`:core-runtime`): đồng hồ chuyến có hệ
+  số tốc độ (`TripClock.rebase`), `SimulatedLocationSource` (SAX `TraceGpx`), hẹn giờ trong process
+  (`SimAlarmScheduler` qua `RoutingAlarmScheduler`): **không đặt báo của OS**; về 1× từ lần báo đầu; không pin thật.
+  Bắt đầu như chuyến thật (cần quyền vị trí, app hiển thị, FGS `location`); process chết → lần nạp sau kết thúc chuyến
+  (STOP_TRIP, có trong `pendingFinishedTrips`), không kêu.
+- Wakelock `napstop:sim` (trần 110 phút) giữ CPU khi tắt màn hình. Doze bỏ qua wakelock: demo dài nên cắm sạc hoặc để
+  màn hình sáng (T18 R1).
+- Tích hợp (emulator API 34+, đã `adb shell pm grant app.napstop.dev android.permission.ACCESS_FINE_LOCATION`,
+  `adb shell svc power stayon true`): `flutter test integration_test/t18_simulation_test.dart -d <id>` (SI01 tàu
+  HN → Đồng Hới 60× ≈ 9,5 phút).
 
 ## Khung app (T22)
 

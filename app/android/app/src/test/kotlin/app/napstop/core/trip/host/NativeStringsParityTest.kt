@@ -18,6 +18,8 @@ class NativeStringsParityTest {
             "notifChannelTracking" to "notif_channel_tracking",
             "notifChannelTripAlerts" to "notif_channel_trip_alerts",
             "notifTrackingTitle" to "notif_tracking_title",
+            // T18 SM33.
+            "notifTrackingSimTitle" to "notif_tracking_sim_title",
             "notifTrackingPublic" to "notif_tracking_public",
             "notifTrackingAcquiring" to "notif_tracking_acquiring",
             "notifTrackingDistanceEta" to "notif_tracking_distance_eta",

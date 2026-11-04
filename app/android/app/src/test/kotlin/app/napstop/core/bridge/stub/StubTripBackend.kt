@@ -26,7 +26,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Scripted trip backend for UI work before T15 (spec T14 §5.2). One trip at a time,
+ * Test double since T18 (D13): the scripted trip backend of T14 (spec T14 §5.2), kept in src/test for the
+ * channel tests of T14/T14.1; not in the APK. One trip at a time,
  * snapshot via [store] so currentTrip() works after process death, ended trips queued
  * until acked (D12). Never receives or stores coordinates.
  *

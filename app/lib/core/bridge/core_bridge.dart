@@ -176,13 +176,3 @@ class CoreBridge {
     }
   }
 }
-
-/// Stub scenarios for UI work before T15/T18 (Android stub only), passed as
-/// `SimulationMsg.traceAsset`.
-abstract final class StubTraces {
-  static const normal = 'stub/normal';
-  static const gpsLost = 'stub/gps_lost';
-  static const lowBattery = 'stub/low_battery';
-  static const overshoot = 'stub/overshoot';
-  static const noFix = 'stub/no_fix';
-}

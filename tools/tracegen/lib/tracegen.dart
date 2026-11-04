@@ -15,4 +15,5 @@ export 'src/paths.dart';
 export 'src/profile.dart';
 export 'src/rng.dart';
 export 'src/sensor.dart';
+export 'src/sim_bundle.dart';
 export 'src/validate.dart';

@@ -1,7 +1,7 @@
 // Tester additions for T14.1 over the real platform channels (Android
 // emulator/device, flavor dev): V11 on `engineParamsJson` checked by the
-// native validator, the value kept verbatim by the stub, and a live
-// PermissionHostApi.deviceStatus() read.
+// native validator, the value kept verbatim by the runtime (a simulated trip
+// since T18), and a live PermissionHostApi.deviceStatus() read.
 //
 //   flutter test integration_test/bridge_t14_1_test.dart -d <device-id>
 //
@@ -17,6 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:napstop/core/bridge/core_bridge.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
 
 const _filter = String.fromEnvironment('T141_FILTER');
 const _battery = String.fromEnvironment('T141_BATTERY');
@@ -110,13 +111,16 @@ void main() {
     // 16 384 code units: accepted and handed back verbatim.
     final params = _awkwardJson(_max);
     final tripId = _id('v11ok');
-    // Since T15 a start without `simulation` is a real trip; this test only
-    // checks the value is handed back verbatim, so it uses the stub.
+    // This test only checks the value is handed back verbatim: a simulated
+    // trip (T18, bundled bus trace at 60x) on the real runtime.
     await bridge.startTrip(
       _config(tripId, engineParamsJson: params),
       destLat: 16.8163,
       destLng: 107.1003,
-      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60),
+      simulation: SimulationMsg(
+        traceAsset: SimTraces.busHnBrt01,
+        speedFactor: 60,
+      ),
     );
     final active = await bridge.currentTrip();
     expect(active, isNotNull);
@@ -153,7 +157,10 @@ void main() {
       _config(emojiTrip, engineParamsJson: emoji),
       destLat: 16.8163,
       destLng: 107.1003,
-      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60),
+      simulation: SimulationMsg(
+        traceAsset: SimTraces.busHnBrt01,
+        speedFactor: 60,
+      ),
     );
     expect((await bridge.currentTrip())!.config.engineParamsJson, emoji);
     await bridge.stopTrip(emojiTrip);

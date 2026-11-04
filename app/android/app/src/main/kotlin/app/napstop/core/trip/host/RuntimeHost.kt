@@ -8,12 +8,12 @@ import app.napstop.core.location.AndroidDeviceEnv
 import app.napstop.core.location.AndroidTimeSource
 import app.napstop.core.location.AndroidTrackingController
 import app.napstop.core.location.FusedLocationSource
-import app.napstop.core.location.SwitchableLocationSource
 import app.napstop.core.trip.runtime.RingEvent
 import app.napstop.core.trip.runtime.RingEventKind
 import app.napstop.core.trip.runtime.RuntimeConstants
 import app.napstop.core.trip.runtime.RuntimeJournal
 import app.napstop.core.trip.runtime.RuntimePorts
+import app.napstop.core.trip.runtime.SwitchableLocationSource
 import app.napstop.core.trip.runtime.TripRuntime
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -76,6 +76,9 @@ object RuntimeHost {
                         visibility = AppVisibilityTracker,
                         env = AndroidDeviceEnv(ctx),
                         journal = journal,
+                        // T18: bundled traces (Flutter assets) and the CPU kept awake while a simulation runs.
+                        traces = FlutterAssetTraceStore(ctx),
+                        keepAwake = WakeLockKeepAwake(ctx),
                     ),
                 scope = scope,
                 actorDispatcher = Dispatchers.Default.limitedParallelism(1),

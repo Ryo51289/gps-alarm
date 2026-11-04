@@ -5,6 +5,7 @@
     <string name="notif_channel_tracking">Trip tracking</string>
     <string name="notif_channel_trip_alerts">Trip alerts</string>
     <string name="notif_tracking_title">Tracking to %1$s</string>
+    <string name="notif_tracking_sim_title">Simulated trip to %1$s</string>
     <string name="notif_tracking_public">NapStop is tracking your trip</string>
     <string name="notif_tracking_acquiring">Finding your location…</string>
     <string name="notif_tracking_distance_eta">%1$s to go · about %2$s min</string>

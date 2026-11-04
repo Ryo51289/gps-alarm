@@ -25,6 +25,14 @@ import app.napstop.core.trip.TripPhase
 import app.napstop.core.trip.TripView
 import app.napstop.core.trip.UserAction
 import app.napstop.core.trip.UserActionKind
+import app.napstop.core.trip.runtime.sim.RoutingAlarmScheduler
+import app.napstop.core.trip.runtime.sim.SimAlarmScheduler
+import app.napstop.core.trip.runtime.sim.SimTrace
+import app.napstop.core.trip.runtime.sim.SimTraceIds
+import app.napstop.core.trip.runtime.sim.SimulatedLocationSource
+import app.napstop.core.trip.runtime.sim.TraceFormatException
+import app.napstop.core.trip.runtime.sim.TraceGpx
+import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
@@ -60,6 +68,9 @@ object StartCodes {
     const val PERMISSION_MISSING = "permission-missing"
     const val NOT_FOREGROUND = "not-foreground"
     const val START_FAILED = "start-failed"
+
+    /** T18 §11: the simulation trace cannot be used (bad id, missing, invalid, too slow to read). */
+    const val SIMULATION_UNAVAILABLE = "simulation-unavailable"
 }
 
 /** What a fallback alarm receiver did (journal, tests L24–L27). */
@@ -96,6 +107,10 @@ class RuntimePorts(
     val visibility: AppVisibility,
     val env: DeviceEnv,
     val journal: RuntimeJournal = RuntimeJournal.NoOp,
+    /** T18: bundled simulation traces. */
+    val traces: TraceStore = TraceStore.NONE,
+    /** T18 D8: CPU kept awake while a simulated trip runs. */
+    val keepAwake: KeepAwake = KeepAwake.NoOp,
 )
 
 /**
@@ -126,7 +141,12 @@ class TripRuntime(
     /** Running trip, actor-confined. */
     private class Active(val meta: TripMeta, val clock: TripClock, var engine: EngineState, var view: TripView) {
         var scheduledWakeAtMs: Long? = null
+
+        /** T18: the simulation of a simulated trip (set at commit). */
+        var sim: SimSession? = null
     }
+
+    private class SimSession(val traceId: String, val source: SimulatedLocationSource)
 
     private class PendingStart(val tripId: String) {
         val result = CompletableDeferred<ForegroundResult>()
@@ -144,7 +164,25 @@ class TripRuntime(
     @Volatile
     private var pendingStart: PendingStart? = null
 
-    private val fallbacks = FallbackScheduler(ports.scheduler, warn)
+    /**
+     * T18 §5: in-process timers of a simulated trip, calling the same entry points as the receivers; [router] is the
+     * scheduler of the whole runtime (OS alarms for a real trip, these timers for a simulated one).
+     */
+    private val simScheduler =
+        SimAlarmScheduler(
+            scope, actorDispatcher, ports.time, constants.simPollMaxMs,
+            onWake = { at, wall -> onWake(at, wall) },
+            onFallback = { tripId, slot, gen, target, kind -> onFallbackFired(tripId, slot, gen, target, kind) },
+            warn = warn,
+        )
+    private val router = RoutingAlarmScheduler(ports.scheduler, simScheduler)
+
+    /** Tests (SM13, SM18): the in-process timers of the simulated trip. */
+    internal val simTimers: SimAlarmScheduler get() = simScheduler
+
+    /** T18 §4: the runtime's own switch over [RuntimePorts.location], where the simulated source is attached. */
+    private val runtimeLocation = SwitchableLocationSource(ports.location)
+    private val fallbacks = FallbackScheduler(router, warn)
     private val writer =
         SnapshotWriter(scope, io, ports.store, constants.snapshotRetryMs, ports.time::wallMs, warn) { ok, ms ->
             journal("persist", mapOf("ok" to ok, "ms" to ms))
@@ -253,13 +291,23 @@ class TripRuntime(
             // One bounded attempt (not the receiver loop): a trip started after it supersedes what is on disk (R2-1).
             call { loadIfNeeded(RestoreCause.PROCESS_START) }
             if (liveTripId != null) return StartOutcome.Rejected(StartCodes.TRIP_ACTIVE)
+            val sim = meta.simulation
+            if (sim != null && !SimTraceIds.valid(sim.traceId)) return StartOutcome.Rejected(StartCodes.SIMULATION_UNAVAILABLE, "TraceIdInvalid")
             val a = ports.env.locationAccess()
             val missing = ArrayList<String>()
             if (!a.fineGranted && !a.coarseGranted) missing += "location" else if (!a.fineGranted) missing += "precise"
             if (!a.servicesEnabled) missing += "locationServices"
             if (missing.isNotEmpty()) return StartOutcome.Rejected(StartCodes.PERMISSION_MISSING, null, missing)
-            if (!a.playServicesAvailable) return StartOutcome.Rejected(StartCodes.START_FAILED, "PlayServicesUnavailable")
+            // A simulated trip does not use FLP (T18 D6).
+            if (sim == null && !a.playServicesAvailable) return StartOutcome.Rejected(StartCodes.START_FAILED, "PlayServicesUnavailable")
             if (!ports.visibility.isVisible()) return StartOutcome.Rejected(StartCodes.NOT_FOREGROUND)
+            var trace: SimTrace? = null
+            if (sim != null) {
+                when (val r = loadTrace(sim.traceId)) {
+                    is TraceLoad.Ok -> trace = r.trace
+                    is TraceLoad.Failed -> return StartOutcome.Rejected(StartCodes.SIMULATION_UNAVAILABLE, r.code)
+                }
+            }
             val params = EngineParamsFactory.fromOverrides(meta.engineParamsJson)
             val clock = TripClock(TripClock.anchorNow(ports.time), ports.time)
             val config =
@@ -291,7 +339,7 @@ class TripRuntime(
             }
             // From here the trip exists. Nothing was committed or scheduled before the FGS was up (§5.1).
             try {
-                call { commitStart(meta, clock, step0) }
+                call { commitStart(meta, clock, step0, trace) }
             } catch (e: Exception) {
                 stopTrackingQuietly()
                 throw e
@@ -396,7 +444,7 @@ class TripRuntime(
             val a = running?.takeIf { it.meta.tripId == tripId }
 
             suspend fun skip(action: FallbackFireAction, journalAction: String): FallbackFireAction {
-                safely("fallback cancel") { ports.scheduler.cancelFallback(slot) }
+                safely("fallback cancel") { router.cancelFallback(slot) }
                 if (rec != null) saveLedger(ledger.copy(current = ledger.current.takeUnless { it == rec }, stale = ledger.stale.takeUnless { it == rec }))
                 journal("fb_fire", mapOf("slot" to slot, "gen" to generation, "at" to targetAtMs, "lateMs" to null, "action" to journalAction, "kind" to k.name))
                 return action
@@ -569,7 +617,7 @@ class TripRuntime(
             "mode=${modeFlow.value} trip=${a?.meta?.tripId} phase=${a?.engine?.phase} gps=${a?.engine?.gps} " +
                 "tier=${a?.engine?.policy?.tier} fb=${a?.engine?.fallback?.targetAtMs} fbStatus=${a?.engine?.fallback?.status} " +
                 "wake=${a?.scheduledWakeAtMs} slot=${ledger.current?.slot} gen=${ledger.current?.generation} " +
-                "spec=${currentSpec?.intervalMs} dropped=$droppedPlatformFixes"
+                "spec=${currentSpec?.intervalMs} dropped=$droppedPlatformFixes sim=${a?.sim?.let { "${it.traceId}@${a.clock.speed}" }}"
         }
 
     private companion object {
@@ -658,7 +706,7 @@ class TripRuntime(
             return LoadOutcome.TIMEOUT
         }
         loaded = true
-        safely("restore retry cancel") { ports.scheduler.cancelRestoreRetry() }
+        safely("restore retry cancel") { router.cancelRestoreRetry() }
         val failure = read.exceptionOrNull()
         if (failure != null) warn("snapshot read failed (${failure.javaClass.simpleName})")
         val stored = read.getOrNull()
@@ -674,6 +722,10 @@ class TripRuntime(
             }
             ledger = fallbacks.cancelAll(ledger.copy(activeTripId = null, endedTripIds = ended(stored.meta.tripId)), ::saveLedger)
             ioCall("ring config delete", io) { ports.store.deleteRingConfig() }
+            return LoadOutcome.NO_TRIP
+        }
+        if (stored.meta.simulation != null) {
+            endStoredSimulation(stored, cause)
             return LoadOutcome.NO_TRIP
         }
         var effective = cause
@@ -721,6 +773,32 @@ class TripRuntime(
         if (modeFlow.value == TrackingMode.TRACKING_FGS) applyCurrentSampling(a)
         drainFeedback()
         return LoadOutcome.LOADED
+    }
+
+    /**
+     * T18 D9: a simulated trip never outlives its process (its source and timers were in it). End it with STOP_TRIP on
+     * the stored state: the record goes to pendingFinished, everything is cleaned, nothing rings, no "Interrupted".
+     */
+    private suspend fun endStoredSimulation(stored: StoredTrip, cause: RestoreCause) {
+        val tripId = stored.meta.tripId
+        val step = TripEngine.reduce(stored.engine, UserAction(stored.engine.nowMs, UserActionKind.STOP_TRIP))
+        val record = FinishedRecordBuilder.fromEnded(step.state)
+        if (record != null) {
+            if (!finishFiles(record)) memoryFinished += record
+        } else {
+            withTimeoutOrNull(constants.ioBudgetMs) { safely("snapshot delete") { writer.exclusive { ports.store.deleteActive() } } }
+        }
+        ledger =
+            fallbacks.cancelAll(
+                ledger.copy(activeTripId = null, activeSimulated = false, endedTripIds = ended(tripId), interruptedAlerted = false),
+                ::saveLedger,
+            )
+        ioCall("ring config delete", io) { ports.store.deleteRingConfig() }
+        safely("ring stop") { ports.alarm.stopRinging(tripId, StopCause.TRIP_ENDED) }
+        safely("alarm clear") { ports.alarm.clearTrip(tripId) }
+        safely("notice") { ports.notifier.clearAll(tripId) }
+        if (safeIsForeground()) stopTrackingQuietly()
+        journal("sim_end", mapOf("cause" to cause.name))
     }
 
     /**
@@ -785,7 +863,7 @@ class TripRuntime(
             if (cur.kind != SlotKind.GUARD) saveLedger(ledger.copy(current = cur.copy(kind = SlotKind.GUARD)))
             return
         }
-        val target = a.clock.now() + (atWall - nowWall)
+        val target = a.clock.futureWallToTrip(atWall)
         val res = fallbacks.schedule(ledger, a.meta.tripId, target, atWall, nowWall, SlotKind.GUARD, ::saveLedger)
         ledger = res.ledger
         journal("fb_set", mapOf("slot" to res.ledger.current?.slot, "gen" to res.ledger.current?.generation, "at" to target, "ok" to res.ok, "kind" to "GUARD"))
@@ -799,6 +877,8 @@ class TripRuntime(
         val l = ledger
         val tripId = l.activeTripId ?: return
         if (tripId in l.endedTripIds) return
+        // T18 D5: never an OS alarm for a simulated trip.
+        if (l.activeSimulated) return
         val cur = l.current ?: return
         if (cur.kind == SlotKind.SAFETY) return
         val nowWall = ports.time.wallMs()
@@ -820,15 +900,15 @@ class TripRuntime(
             val inMs = constants.restoreRetryDelaysMs.getOrElse(attempt) { constants.restoreRetryEveryMs }
             val exact =
                 try {
-                    ports.scheduler.canScheduleExact()
+                    router.canScheduleExact()
                 } catch (e: Exception) {
                     false
                 }
-            safely("restore retry") { ports.scheduler.setRestoreRetry(ports.time.elapsedMs() + inMs, attempt, cause, sinceWallMs, exact) }
+            safely("restore retry") { router.setRestoreRetry(ports.time.elapsedMs() + inMs, attempt, cause, sinceWallMs, exact) }
             journal("restore_retry", mapOf("attempt" to attempt, "inMs" to inMs, "cause" to cause.name))
         }
         val tripId = ledger.activeTripId
-        if (ledgerRead && tripId != null && tripId !in ledger.endedTripIds && (!ledger.interruptedAlerted || giveUp)) {
+        if (ledgerRead && tripId != null && tripId !in ledger.endedTripIds && !ledger.activeSimulated && (!ledger.interruptedAlerted || giveUp)) {
             safely("notice") { ports.notifier.show(tripId, TripNotice.Interrupted, null, true) }
             if (!ledger.interruptedAlerted) saveLedger(ledger.copy(interruptedAlerted = true))
         }
@@ -840,6 +920,11 @@ class TripRuntime(
      */
     private suspend fun handleOrphan() {
         val tripId = ledger.activeTripId ?: return
+        if (ledger.activeSimulated) {
+            // T18 D9: a simulated trip whose snapshot is gone: it is over, quietly.
+            saveLedger(ledger.copy(activeTripId = null, activeSimulated = false, endedTripIds = ended(tripId), interruptedAlerted = false))
+            return
+        }
         if (tripId in ledger.endedTripIds) {
             saveLedger(ledger.copy(activeTripId = null))
             return
@@ -975,7 +1060,7 @@ class TripRuntime(
 
     // =================================================================== start / resume
 
-    private suspend fun commitStart(meta: TripMeta, clock: TripClock, step0: Step) {
+    private suspend fun commitStart(meta: TripMeta, clock: TripClock, step0: Step, trace: SimTrace?) {
         val a = Active(meta, clock, step0.state, step0.view)
         // The user started a new trip: from now on memory is the truth (review T15 R2-1). If the first load timed out,
         // a trip still on disk is superseded: its alarms are cancelled below and its id goes to endedTripIds.
@@ -983,7 +1068,7 @@ class TripRuntime(
         ledgerRead = true
         pendingSnapshotRead = null // a late read of an older trip is never used (R2-1)
         pendingLedgerRead = null
-        safely("restore retry cancel") { ports.scheduler.cancelRestoreRetry() }
+        safely("restore retry cancel") { router.cancelRestoreRetry() }
         val superseded = ledger.activeTripId?.takeIf { it != meta.tripId }
         active = a
         liveTripId = meta.tripId
@@ -1002,10 +1087,23 @@ class TripRuntime(
         ledger = fallbacks.cancelAll(ledger, ::saveLedger)
         var endedIds = ledger.endedTripIds - meta.tripId // R2-2: a reused id is not "ended" any more
         if (superseded != null) endedIds = (endedIds - superseded + superseded).takeLast(ENDED_KEPT)
+        val sim = meta.simulation
+        if (trace != null && sim != null) {
+            // T18 D2: trace t 0 = now; from here the trip clock runs at the simulation speed.
+            clock.rebase(sim.speedFactor)
+            val source =
+                SimulatedLocationSource(trace.samples, clock.now(), clock.timeline, ports.time, scope, actorDispatcher, constants.simPollMaxMs, warn)
+            a.sim = SimSession(trace.id, source)
+            runtimeLocation.setOverride(source)
+            simScheduler.timeline = clock.timeline
+            router.simulated = true
+            safely("keep awake") { ports.keepAwake.hold(constants.simWakelockCapMs) }
+            journal("sim", mapOf("trace" to trace.id, "speed" to sim.speedFactor))
+        }
         saveLedger(
             ledger.copy(
                 activeTripId = meta.tripId, current = null, stale = null, lastFired = null, endedTripIds = endedIds,
-                interruptedAlerted = false,
+                interruptedAlerted = false, activeSimulated = a.sim != null,
             ),
         )
         applyStep(a, step0, prev = null, persistBudgetMs = constants.startPersistBudgetMs)
@@ -1013,9 +1111,37 @@ class TripRuntime(
         drainFeedback()
     }
 
+    private sealed interface TraceLoad {
+        class Ok(val trace: SimTrace) : TraceLoad
+
+        class Failed(val code: String) : TraceLoad
+    }
+
+    /** T18 §6: read + parse the bundled trace on [io] within simTraceLoadBudgetMs; failures name the rule only. */
+    private suspend fun loadTrace(traceId: String): TraceLoad {
+        val d = scope.async(io) { runCatching { ports.traces.open(traceId)?.use { TraceGpx.parse(it) } } }
+        val r = withTimeoutOrNull(constants.simTraceLoadBudgetMs) { d.await() }
+        if (r == null) {
+            d.cancel()
+            return TraceLoad.Failed("TraceLoadTimeout")
+        }
+        val samples =
+            r.getOrElse { e ->
+                if (e is CancellationException) throw e
+                // TraceFormatException, IOException, or anything else the parser throws: not usable.
+                warn("trace load failed (${e.javaClass.simpleName})")
+                return TraceLoad.Failed("TraceInvalid")
+            } ?: return TraceLoad.Failed("TraceNotFound")
+        return try {
+            TraceLoad.Ok(SimTrace(traceId, samples))
+        } catch (e: IllegalArgumentException) {
+            TraceLoad.Failed("TraceInvalid")
+        }
+    }
+
     private suspend fun submitLastKnown() {
         try {
-            ports.location.lastKnown()?.let { onRawFix(it) }
+            runtimeLocation.lastKnown()?.let { onRawFix(it) }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -1108,7 +1234,11 @@ class TripRuntime(
     private suspend fun handleFix(raw: RawFix) {
         val a = active ?: return
         if (debugDropFixes) return
-        val now = a.clock.now()
+        val clockNow = a.clock.now()
+        // T18 (implementation notes): a simulated sample is stamped with its own trip time when no Step came after it, so
+        // the Step does not depend on the delivery delay (≤ 0.6 s of trip time per real ms at 600×): same events at
+        // every speed. Never before the engine's last Step.
+        val now = FixMapper.stepAtMs(raw, a.engine.nowMs, clockNow)
         val nanos = ports.time.elapsedNanos()
         val fix = FixMapper.map(raw, now, nanos)
         journal(
@@ -1124,6 +1254,8 @@ class TripRuntime(
 
     /** §5.12: battery and location availability, sent only when they change. */
     private suspend fun pollEnv(a: Active) {
+        // T18 D7: no real battery / location state goes into a simulated trip.
+        if (a.meta.simulation != null) return
         val battery =
             try {
                 ports.env.battery()
@@ -1164,13 +1296,20 @@ class TripRuntime(
     ) {
         a.engine = step.state
         a.view = step.view
+        if (a.sim != null && a.clock.speed != RuntimeConstants.SIM_SPEED_AFTER_ALARM &&
+            step.view.phase != TripPhase.ACQUIRING && step.view.phase != TripPhase.TRACKING
+        ) {
+            // T18 D3: from the first alarm on, the simulated trip runs at 1x (the effects of this Step already do).
+            a.clock.rebase(RuntimeConstants.SIM_SPEED_AFTER_ALARM)
+            journal("sim_speed", mapOf("to" to RuntimeConstants.SIM_SPEED_AFTER_ALARM))
+        }
         val nowWall = ports.time.wallMs()
         val nowTrip = a.clock.now()
         val ringNow = step.events.any { it is Alarm && it.ringNow }
         val facts = if (ringNow) factsOf(a.meta.tripId) else RingFacts.NONE
         val canExact =
             try {
-                ports.scheduler.canScheduleExact()
+                router.canScheduleExact()
             } catch (e: Exception) {
                 false
             }
@@ -1178,7 +1317,7 @@ class TripRuntime(
             EffectPlanner.plan(
                 PlanInput(
                     prev, step, a.meta, modeFlow.value, facts, a.scheduledWakeAtMs, step.state.params, nowWall, nowTrip,
-                    canExact, constants.nearWakeUsesAlarmClock, constants.preRingPersistBudgetMs,
+                    canExact, constants.nearWakeUsesAlarmClock, constants.preRingPersistBudgetMs, a.clock.speed,
                 ),
             )
         if (ports.journal.enabled) {
@@ -1264,13 +1403,13 @@ class TripRuntime(
                 ledger = fallbacks.cancelAll(ledger, ::saveLedger)
             }
             is Effect.ScheduleWake -> {
-                ports.scheduler.setWake(a.clock.toElapsed(fx.wakeAtMs), fx.mechanism, a.clock.toWall(fx.wakeAtMs), fx.wakeAtMs)
+                router.setWake(a.clock.toElapsed(fx.wakeAtMs), fx.mechanism, a.clock.toWall(fx.wakeAtMs), fx.wakeAtMs)
                 a.scheduledWakeAtMs = fx.wakeAtMs
                 journal("wake_set", mapOf("at" to fx.wakeAtMs, "mech" to fx.mechanism.name))
             }
             Effect.CancelWake -> {
                 a.scheduledWakeAtMs = null
-                ports.scheduler.cancelWake()
+                router.cancelWake()
             }
             is Effect.Notice -> {
                 fx.show?.let { ports.notifier.show(tripId, it, a.meta.destinationName) }
@@ -1316,11 +1455,22 @@ class TripRuntime(
         }
     }
 
-    private fun updateTracking(a: Active, content: TrackingNotice, nowWall: Long) {
+    private fun updateTracking(a: Active, notice: TrackingNotice, nowWall: Long) {
         if (modeFlow.value != TrackingMode.TRACKING_FGS) return
+        val sim = a.meta.simulation
+        // T18 section 3: the snooze time is shown in wall time; a simulated trip may update the notice more often (>= 1 s apart).
+        val snoozeUntil = notice.snoozeUntilMs
+        val content = if (sim != null && snoozeUntil != null) notice.copy(snoozeUntilMs = a.clock.toWall(snoozeUntil)) else notice
+        // Current speed (review T18 #4): back at 1× after the first alarm (D3), the throttle is the real trip's again.
+        val minInterval =
+            if (sim == null) {
+                constants.notifMinIntervalMs
+            } else {
+                maxOf(constants.simNotifMinIntervalFloorMs, (constants.notifMinIntervalMs / a.clock.speed).toLong())
+            }
         val last = lastNotice
         if (content == last) return
-        if (last != null && last.phase == content.phase && nowWall - lastNoticeWallMs < constants.notifMinIntervalMs) return
+        if (last != null && last.phase == content.phase && nowWall - lastNoticeWallMs < minInterval) return
         ports.tracking.updateTrackingNotification(content)
         lastNotice = content
         lastNoticeWallMs = nowWall
@@ -1338,7 +1488,7 @@ class TripRuntime(
         val effective = debugSpecOverride ?: spec
         if (effective == currentSpec) return
         try {
-            ports.location.request(effective) { raw, processed -> onRawFix(raw, processed) }
+            runtimeLocation.request(effective) { raw, processed -> onRawFix(raw, processed) }
             currentSpec = effective
         } catch (e: SecurityException) {
             warn("location request refused (SecurityException)")
@@ -1361,7 +1511,7 @@ class TripRuntime(
     private fun stopLocation() {
         if (currentSpec == null) return
         currentSpec = null
-        safely("location stop") { ports.location.stop() }
+        safely("location stop") { runtimeLocation.stop() }
     }
 
     /** T10 §2.6: Tick at min(wakeAtMs, last Step + AWAKE_TICK_MAX_MS) while the CPU is awake and the FGS runs (I14). */
@@ -1371,7 +1521,7 @@ class TripRuntime(
         if (modeFlow.value != TrackingMode.TRACKING_FGS) return
         val now = a.clock.now()
         val target = minOf(a.view.wakeAtMs ?: Long.MAX_VALUE, now + max)
-        val d = maxOf(0L, target - now)
+        val d = a.clock.realDelayMs(target)
         tickJob =
             scope.launch(actorDispatcher) {
                 delay(d)
@@ -1394,9 +1544,15 @@ class TripRuntime(
             writer.submit(stored(a, nowWall))
         }
         ioCall("ring config delete", io) { ports.store.deleteRingConfig() }
-        saveLedger(ledger.copy(activeTripId = null, current = null, stale = null, endedTripIds = ended(a.meta.tripId), interruptedAlerted = false))
+        saveLedger(
+            ledger.copy(
+                activeTripId = null, current = null, stale = null, endedTripIds = ended(a.meta.tripId), interruptedAlerted = false,
+                activeSimulated = false,
+            ),
+        )
         safely("alarm clear") { ports.alarm.clearTrip(a.meta.tripId) }
         stopLocation()
+        a.sim?.let { endSimulation(it) }
         tickJob?.cancel()
         tickJob = null
         stopTrackingQuietly()
@@ -1412,6 +1568,16 @@ class TripRuntime(
         interruptedJob = null
         interruptedShown = false
         setMode(TrackingMode.IDLE)
+    }
+
+    /** T18 section 6: detach the simulated source and timers, back to the OS scheduler, release the CPU. */
+    private fun endSimulation(s: SimSession) {
+        s.source.cancel()
+        runtimeLocation.setOverride(null)
+        router.simulated = false
+        simScheduler.cancelAll()
+        simScheduler.timeline = null
+        safely("keep awake release") { ports.keepAwake.release() }
     }
 
     private suspend fun retryMemoryFinished() {

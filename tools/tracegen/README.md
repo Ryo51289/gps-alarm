@@ -18,7 +18,8 @@ dart pub get
 dart run bin/tracegen.dart list                                  # <id> <vehicle> <route>
 dart run bin/tracegen.dart generate --profile train_hn_dh        # mặc định --out ../../fixtures/traces
 dart run bin/tracegen.dart generate --all
-dart run bin/tracegen.dart check                                 # so byte fixture đã commit với generator
+dart run bin/tracegen.dart check                                 # so byte fixture đã commit với generator (+ app/assets/sim)
+dart run bin/tracegen.dart bundle-sim                            # T18: chép trace giả lập vào ../../app/assets/sim
 dart run bin/tracegen.dart validate --dir ../../fixtures/traces  # kiểm cấu trúc GPX + expect
 dart format --output=none --set-exit-if-changed . && dart analyze --fatal-infos && dart test
 ```
@@ -27,9 +28,17 @@ dart format --output=none --set-exit-if-changed . && dart analyze --fatal-infos 
 |---|---|---|
 | `list` | `--data <dir>` (mặc định `data`) | 0; dữ liệu lỗi 65 |
 | `generate` | `--profile <id>` (lặp được) hoặc `--all`; `--out <dir>`; `--data <dir>` | 0; profile không có 64; dữ liệu lỗi 65 |
-| `check` | `--out <dir>`, `--data <dir>` | 0 khớp hết; 1 có file khác/thiếu/thừa |
+| `check` | `--out <dir>`, `--data <dir>`, `--sim-out <dir>` (mặc định `../../app/assets/sim`) | 0 khớp hết; 1 có file khác/thiếu/thừa (fixture hoặc bộ trace giả lập) |
+| `bundle-sim` | `--fixtures <dir>` (mặc định `../../fixtures/traces`), `--out <dir>` (mặc định `../../app/assets/sim`), `--data <dir>` | 0; fixture thiếu / `sim_bundle.json` lỗi 65 |
 | `validate` | `--dir <dir>` hoặc danh sách file | 0 hợp lệ; 1 có lỗi |
 | sai cú pháp / không lệnh | | 64 (`--help`: 0) |
+
+## Bộ trace giả lập (T18)
+
+`data/sim_bundle.json` (`{"ids": [...]}`) liệt kê trace đóng gói vào app (chế độ giả lập, `docs/specs/T18.md` §7).
+`bundle-sim` chép từng `<id>.gpx` (từng byte) và viết `catalog.json` (`schemaVersion` 1; `id`, `gpx`, `vehicle`,
+`sampleIntervalS`, `durationS`, `arrivalT`, `destination` lấy từ `expect.json`), xoá file lạ trong `--out`. `check`
+so `--sim-out` với kết quả đó. Đổi fixture có trong danh sách → `generate` rồi `bundle-sim`, commit cả hai.
 
 ## Thêm hoặc sửa trace
 

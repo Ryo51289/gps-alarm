@@ -15,10 +15,9 @@ class RealTripBackend(private val runtime: TripRuntime, private val hub: Listene
         runtime.addListener(RuntimeListener { tripId, view, choice, events -> hub.publish(MsgMapper.updates(tripId, view, choice, events)) })
     }
 
+    /** T18: a simulation runs on the same runtime (bundled trace, trip clock with a speed factor). */
     override suspend fun startTrip(config: TripConfigMsg, destLat: Double, destLng: Double, simulation: SimulationMsg?) {
-        // CompositeTripBackend routes simulations elsewhere; a real trip never has one.
-        if (simulation != null) throw FlutterError(BridgeErrors.SIMULATION_UNAVAILABLE, "simulation not supported yet", null)
-        when (val r = runtime.start(MsgMapper.meta(config), destLat, destLng)) {
+        when (val r = runtime.start(MsgMapper.meta(config, simulation), destLat, destLng)) {
             StartOutcome.Started -> Unit
             is StartOutcome.Rejected -> throw FlutterError(r.code, r.message, r.details)
         }
@@ -28,7 +27,11 @@ class RealTripBackend(private val runtime: TripRuntime, private val hub: Listene
 
     override suspend fun currentTrip(): ActiveTripMsg? {
         val (meta, view) = runtime.current() ?: return null
-        return ActiveTripMsg(config = MsgMapper.config(meta), state = MsgMapper.state(view, runtime.batteryChoice()), simulation = null)
+        return ActiveTripMsg(
+            config = MsgMapper.config(meta),
+            state = MsgMapper.state(view, runtime.batteryChoice()),
+            simulation = MsgMapper.simulation(meta),
+        )
     }
 
     override suspend fun setBatteryChoice(tripId: String, choice: BatteryChoiceMsg) = runtime.userAction(tripId, MsgMapper.batteryAction(choice))
@@ -47,6 +50,6 @@ class RealTripBackend(private val runtime: TripRuntime, private val hub: Listene
         return handle
     }
 
-    /** True while a real trip runs in this process. */
+    /** True while a trip (real or simulated) runs in this process. */
     suspend fun hasActive(): Boolean = runtime.current() != null
 }

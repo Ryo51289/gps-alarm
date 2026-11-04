@@ -1,11 +1,17 @@
-// I01 (spec T14): Dart <-> Android stub over the real platform channels.
-// Run on an Android emulator/device (API 26+), flavor dev:
+// I01 (spec T14): Dart <-> Android over the real platform channels. Since
+// T18 (SI04) a simulated trip on the real runtime (bus_hn_brt01 at 600x)
+// replaces the T14 stub. Android emulator/device (API 26+), flavor dev, with
+// location granted (adb shell pm grant app.napstop.dev
+// android.permission.ACCESS_FINE_LOCATION):
 //   flutter test integration_test/bridge_smoke_test.dart -d <device-id>
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:napstop/core/bridge/core_bridge.dart';
+import 'package:napstop/features/simulation/domain/sim_trace.dart';
+
+import 'support/sim_expectations.dart';
 
 /// Polls [received] (from index [from]) until an item matches [test].
 Future<T> _waitFor<T extends TripUpdateMsg>(
@@ -29,7 +35,7 @@ Future<T> _waitFor<T extends TripUpdateMsg>(
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('I01 stub trip end to end', (tester) async {
+  testWidgets('I01 simulated trip end to end', (tester) async {
     final bridge = CoreBridge();
 
     // Clean slate (a previous run may have left a trip or records).
@@ -54,28 +60,9 @@ void main() {
     addTearDown(sub.cancel);
 
     final tripId = 'i01-${DateTime.now().millisecondsSinceEpoch}';
-    final config = TripConfigMsg(
-      tripId: tripId,
-      destinationName: 'Ga Đông Hà',
-      mode: AlarmModeMsg.smart,
-      preAlertEnabled: true,
-      vehicleHint: VehicleKindMsg.train,
-      alarm: AlarmSettingsMsg(
-        soundId: 'default',
-        volume: 0.8,
-        rampUp: true,
-        vibration: VibrationMsg.medium,
-        flash: false,
-        preferHeadphones: false,
-        dismissMethod: DismissMethodMsg.swipe,
-      ),
-    );
-    await bridge.startTrip(
-      config,
-      destLat: 16.8163,
-      destLng: 107.1003,
-      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60),
-    );
+    final trace = (await loadCatalog()).byId(SimTraces.busHnBrt01)!;
+    final config = simConfig(tripId, trace);
+    await startSim(bridge, config, trace, 600);
 
     // Second start is refused.
     await expectLater(
@@ -90,27 +77,26 @@ void main() {
     );
 
     final alarm = await _waitFor<AlarmMsg>(received, from: 0);
-    expect(alarm.reason, AlarmReasonMsg.smartTime);
+    expect(alarm.reason, AlarmReasonMsg.distance);
     expect(alarm.tripId, tripId);
+    expect(alarm.ringNow, isTrue);
     expect(alarm.snoozeAllowed, isTrue);
 
     final current = await bridge.currentTrip();
     expect(current, isNotNull);
-    expect(current!.config.destinationName, 'Ga Đông Hà');
+    expect(current!.config.destinationName, trace.destination.name);
     expect(current.config, config);
+    expect(
+      current.simulation,
+      SimulationMsg(traceAsset: SimTraces.busHnBrt01, speedFactor: 600),
+    );
     expect(current.state.phase, TripPhaseMsg.alarming);
 
-    var mark = received.length;
-    await bridge.snooze(tripId);
-    await _waitFor<SnoozedMsg>(received, from: mark);
-    final again = await _waitFor<AlarmMsg>(received, from: mark);
-    expect(again.reason, AlarmReasonMsg.snoozeEnd);
-
-    mark = received.length;
+    final mark = received.length;
     await bridge.dismiss(tripId);
     final ended = await _waitFor<TripEndedMsg>(received, from: mark);
     expect(ended.trip.tripId, tripId);
-    expect(ended.trip.outcome, TripOutcomeMsg.snoozed);
+    expect(ended.trip.outcome, TripOutcomeMsg.onTime);
     expect(ended.trip.endReason, EndReasonMsg.dismissed);
 
     final pending = await bridge.pendingFinishedTrips();
@@ -119,7 +105,7 @@ void main() {
     expect(await bridge.pendingFinishedTrips(), isEmpty);
     expect(await bridge.currentTrip(), isNull);
 
-    // Unknown scenario.
+    // A path is not a trace id.
     await expectLater(
       bridge.startTrip(
         config,

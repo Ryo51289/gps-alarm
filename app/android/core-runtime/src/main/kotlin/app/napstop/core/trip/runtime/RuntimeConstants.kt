@@ -37,6 +37,14 @@ data class RuntimeConstants(
     val restoreRetryEveryMs: Long = 300_000,
     /** B3: give up after this long (then "Interrupted" once if the ledger names a trip). */
     val restoreRetryMaxMs: Long = 86_400_000,
+    /** T18 §10: read + parse the largest bundled GPX on a slow phone; inside the 15 s of T25 with the FGS wait. */
+    val simTraceLoadBudgetMs: Long = 3_000,
+    /** T18 §10: a simulation timer re-reads the trip clock at least this often (a rebase takes effect soon). */
+    val simPollMaxMs: Long = 250,
+    /** T18 D8: wake lock cap of a simulated trip, under the 2 h / 24 h of Android vitals [A-VIT]. */
+    val simWakelockCapMs: Long = 6_600_000,
+    /** T18 §3: ongoing notification of a simulated trip at most once per second. */
+    val simNotifMinIntervalFloorMs: Long = 1_000,
 ) {
     companion object {
         /** D6 (PO 03/11/2026): RK17 accepts the fallback alarm; the setAlarmClock branch for c3 stays behind this flag. */
@@ -51,5 +59,8 @@ data class RuntimeConstants(
 
         /** Same value as the engine's internal `WAKE_GUARD_MS` (core-trip WakePlanner.kt, T10.4). Keep in sync. */
         const val WAKE_GUARD_MS = 1_000L
+
+        /** T18 D3: speed of a simulated trip once the engine left ACQUIRING / TRACKING (PRD §4 user-perceived times). */
+        const val SIM_SPEED_AFTER_ALARM = 1.0
     }
 }

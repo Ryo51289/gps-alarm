@@ -1,0 +1,10 @@
+{
+  "ids": [
+    "train_hn_dh",
+    "coach_md_tb",
+    "bus_hn_brt01",
+    "coach_dn_langco_tunnel",
+    "coach_gb_phuly_overshoot",
+    "bus_hn_brt01_noisy"
+  ]
+}
