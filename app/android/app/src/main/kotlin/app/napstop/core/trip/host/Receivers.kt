@@ -113,8 +113,8 @@ class BootReceiver : BroadcastReceiver() {
 }
 
 /**
- * RING_EVENT from T16 (cross-process, explicit component, §4.4) or from the interim alarm notification actions.
- * The interim port records the user's action (pendingDismiss) before the runtime gets it, as T16 must.
+ * RING_EVENT from `:ring` (T16, cross-process, explicit component, §4.4). `:ring` wrote the ring book (pendingDismiss,
+ * snoozedAt, silencedAt) before sending it; the controller's cached view of the book is dropped first.
  */
 class RingEventReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -122,9 +122,8 @@ class RingEventReceiver : BroadcastReceiver() {
         val tripId = intent.getStringExtra(EXTRA_TRIP_ID)?.takeIf { TRIP_ID.matches(it) } ?: return
         val kind = intent.getStringExtra(EXTRA_KIND)?.let { k -> RingEventKind.entries.firstOrNull { it.name == k } } ?: return
         val at = intent.getLongExtra(EXTRA_AT_WALL_MS, System.currentTimeMillis())
-        val interim = intent.getBooleanExtra(EXTRA_INTERIM, false)
         runAsync(context, "ring event") { host ->
-            if (interim) host.alarm.onNotificationEvent(tripId, kind, at)
+            host.alarm.onRingEvent(tripId)
             host.runtime.ensureLoaded()
             host.runtime.onRingEvent(RingEvent(tripId, kind, at))
         }
@@ -135,7 +134,6 @@ class RingEventReceiver : BroadcastReceiver() {
         const val EXTRA_TRIP_ID = "tripId"
         const val EXTRA_KIND = "kind"
         const val EXTRA_AT_WALL_MS = "atWallMs"
-        const val EXTRA_INTERIM = "interim"
     }
 }
 

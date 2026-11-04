@@ -9,8 +9,6 @@
     <string name="notif_channel_tracking">Theo dõi chuyến đi</string>
     <!-- notifChannelTripAlerts -->
     <string name="notif_channel_trip_alerts">Cảnh báo chuyến đi</string>
-    <!-- notifChannelAlarmInterim (T15 interim alarm, removed by T16) -->
-    <string name="notif_channel_alarm_interim">Báo thức (tạm thời)</string>
     <!-- notifTrackingTitle -->
     <string name="notif_tracking_title">Đang theo dõi tới %1$s</string>
     <!-- notifTrackingPublic -->
@@ -41,14 +39,73 @@
     <string name="gps_services_off">Định vị đang tắt — bật lại để báo đúng lúc</string>
     <!-- fallbackScheduleFailed -->
     <string name="fallback_schedule_failed">Chưa đặt được báo thức dự phòng. Mở Cài đặt để cấp quyền.</string>
-    <!-- notifAlarmInterimTitle -->
-    <string name="notif_alarm_interim_title">Sắp tới %1$s</string>
     <!-- alarmReasonFallback -->
     <string name="alarm_reason_fallback">Báo thức dự phòng — có thể sắp tới %1$s. Mở ứng dụng để xem còn bao xa</string>
-    <!-- notifActionDismiss -->
-    <string name="notif_action_dismiss">Tắt</string>
     <!-- notifActionSnooze -->
     <string name="notif_action_snooze">Báo lại</string>
     <!-- notifDestinationUnknown -->
     <string name="notif_destination_unknown">nơi đến</string>
+    <!-- T16 §9: native alarm copy (AlarmActivity, alarm / backup / pre-alert notifications). -->
+    <!-- notifChannelAlarm -->
+    <string name="notif_channel_alarm">Báo thức</string>
+    <!-- notifChannelAlarmBackup -->
+    <string name="notif_channel_alarm_backup">Báo thức (dự phòng)</string>
+    <!-- notifChannelPreAlert -->
+    <string name="notif_channel_prealert">Nhắc nhẹ trước khi tới</string>
+    <!-- notifAlarmTitle -->
+    <string name="notif_alarm_title">Sắp tới %1$s</string>
+    <!-- notifAlarmPublic -->
+    <string name="notif_alarm_public">NapStop đang báo thức</string>
+    <!-- alarmReasonDistance -->
+    <string name="alarm_reason_distance">Còn khoảng %1$s tới %2$s</string>
+    <!-- alarmReasonTime -->
+    <string name="alarm_reason_time">Còn khoảng %1$s phút tới %2$s</string>
+    <!-- alarmReasonGpsLost -->
+    <string name="alarm_reason_gps_lost">Mất tín hiệu vị trí — có thể sắp tới %1$s. Mở ứng dụng để xem còn bao xa</string>
+    <!-- alarmReasonLowBattery -->
+    <string name="alarm_reason_low_battery">Pin còn %1$s%% — báo sớm để bạn không lỡ trạm</string>
+    <!-- alarmReasonPassedClosest -->
+    <string name="alarm_reason_passed_closest">Đang ở gần %1$s nhất — xe bắt đầu đi xa dần</string>
+    <!-- alarmReasonOvershoot -->
+    <string name="alarm_reason_overshoot">Có thể bạn đã đi quá %1$s</string>
+    <!-- alarmReasonSnoozeEnd -->
+    <string name="alarm_reason_snooze_end">Hết giờ báo lại — sắp tới %1$s</string>
+    <!-- alarmReasonTimeout -->
+    <string name="alarm_reason_timeout">Chuyến đi lâu hơn dự kiến — kiểm tra đã tới %1$s chưa</string>
+    <!-- alarmReasonFallbackMissed -->
+    <string name="alarm_reason_fallback_missed">Báo thức bị gián đoạn — kiểm tra đã tới %1$s chưa</string>
+    <!-- preAlertBody -->
+    <string name="prealert_body">Sắp tới %1$s — còn khoảng %2$s phút</string>
+    <!-- preAlertBodyDistance -->
+    <string name="prealert_body_distance">Sắp tới %1$s — còn khoảng %2$s</string>
+    <!-- alarmOverlineArriving -->
+    <string name="alarm_overline_arriving">Sắp tới nơi</string>
+    <!-- alarmOverlineOvershoot -->
+    <string name="alarm_overline_overshoot">Đã qua điểm đến</string>
+    <!-- alarmOvershootPast -->
+    <string name="alarm_overshoot_past">Đã qua %1$s</string>
+    <!-- alarmRouteBack -->
+    <string name="alarm_route_back">Xem đường quay lại</string>
+    <!-- alarmSwipeHint -->
+    <string name="alarm_swipe_hint">Vuốt hết thanh để tắt</string>
+    <!-- alarmShakeHint -->
+    <string name="alarm_shake_hint">Lắc mạnh máy để tắt</string>
+    <!-- alarmShakeProgressA11y -->
+    <string name="alarm_shake_progress_a11y">Đã lắc được %1$s%%</string>
+    <!-- alarmMathHint -->
+    <string name="alarm_math_hint">Giải phép tính để tắt</string>
+    <!-- alarmMathWrong -->
+    <string name="alarm_math_wrong">Chưa đúng, thử lại</string>
+    <!-- alarmMathConfirm -->
+    <string name="alarm_math_confirm">Xong</string>
+    <!-- alarmMathDelete -->
+    <string name="alarm_math_delete">Xoá</string>
+    <!-- alarmStopA11y -->
+    <string name="alarm_stop_a11y">Tắt báo thức</string>
+    <!-- alarmSnoozeMinutes -->
+    <string name="alarm_snooze_minutes">Báo lại sau %1$s phút</string>
+    <!-- alarmSnoozeSeconds -->
+    <string name="alarm_snooze_seconds">Báo lại sau %1$s giây</string>
+    <!-- alarmHeadphonesUnplugged -->
+    <string name="alarm_headphones_unplugged">Đã rút tai nghe — chuyển sang rung</string>
 </resources>

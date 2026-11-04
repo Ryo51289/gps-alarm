@@ -4,7 +4,16 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import app.napstop.core.alarm.AlarmConstantsHolder
+import app.napstop.core.alarm.PreAlertRequest
+import app.napstop.core.alarm.RingIntents
+import app.napstop.core.alarm.RingRequest
 import app.napstop.core.alarm.RingSettings
+import app.napstop.core.alarm.RingSource
+import app.napstop.core.alarm.SoundPreviewPlayer
+import app.napstop.core.alarm.StopCause
+import app.napstop.core.bridge.AlarmHostApiImpl
+import app.napstop.core.trip.AlarmReason
 import app.napstop.core.trip.AccuracyLevel
 import app.napstop.core.trip.AlarmMode
 import app.napstop.core.trip.EngineParams
@@ -16,8 +25,10 @@ import app.napstop.core.trip.runtime.RuntimeListener
 import app.napstop.core.trip.runtime.StartOutcome
 import app.napstop.core.trip.runtime.TripMeta
 import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 /**
@@ -31,6 +42,11 @@ import org.json.JSONObject
  * replay_stop, force_tier sparse|medium|dense|off (--es value), gps_drop on|off, snapshot_fail on|off, ring_fail on|off,
  * slow_read <ms> (persisted, 0 clears; disk reads sleep that long, e.g. to test a reboot on a slow disk), listener_throw on|off,
  * fb_test (--ei leadS 10 --ei cancelDelayS 0), journal_clear, dump. Results go to logcat tag NapStopDebug (no coordinates).
+ *
+ * T16 (alarm, outside any trip; default --es tripId debug-ring): ring_test [--es source engine|fallback --es reason <AlarmReason>
+ * --ei distanceM --ei etaS --es dismiss swipe|shake|math --ef volume --ez ramp --es vibration --ez flash --ez headphones
+ * --ez snooze --es sound <id>], ring_stop, ring_facts, ring_max_override --ei seconds N (0 = off), prealert_test
+ * [--ez byDistance], ring_overshoot --ei pastM, preview_test --es sound <id> --ef volume <0..1>, preview_stop.
  */
 class DebugCommandReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -107,6 +123,8 @@ class DebugCommandReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            "ring_test", "ring_stop", "ring_facts", "ring_max_override", "prealert_test", "ring_overshoot", "preview_test", "preview_stop" ->
+                ringCommand(context, host, cmd, intent)
             else -> Log.w(TAG, "unknown cmd")
         }
     }
@@ -186,6 +204,90 @@ class DebugCommandReceiver : BroadcastReceiver() {
             delay(120_000)
             host.runtime.debugArmFallbackTest(null)
             Log.i(TAG, "fb_test $tripId: done")
+        }
+    }
+
+    /** T16 debug commands (spec T16 file list): the real AlarmController, outside any trip. */
+    private fun ringCommand(context: Context, host: RuntimeHost.Host, cmd: String, intent: Intent) {
+        val tripId = intent.getStringExtra("tripId")?.takeIf { RingIntents.validTripId(it) != null } ?: "debug-ring"
+        val pending = goAsync()
+        host.scope.launch(Dispatchers.IO) {
+            try {
+                when (cmd) {
+                    "ring_test" -> {
+                        val reason = intent.getStringExtra("reason")?.let { r -> AlarmReason.entries.firstOrNull { it.name == r } } ?: AlarmReason.DISTANCE
+                        val settings =
+                            RingSettings(
+                                soundId = intent.getStringExtra("sound") ?: "default",
+                                volume = if (intent.hasExtra("volume")) intent.getFloatExtra("volume", 1f).toDouble() else 1.0,
+                                rampUp = intent.getBooleanExtra("ramp", true),
+                                vibration = intent.getStringExtra("vibration") ?: "medium",
+                                flash = intent.getBooleanExtra("flash", false),
+                                preferHeadphones = intent.getBooleanExtra("headphones", false),
+                                dismissMethod = intent.getStringExtra("dismiss") ?: "swipe",
+                            )
+                        val req =
+                            RingRequest(
+                                tripId = tripId,
+                                source = if (intent.getStringExtra("source") == "fallback") RingSource.FALLBACK else RingSource.ENGINE,
+                                reason = reason,
+                                snoozeAllowed = intent.getBooleanExtra("snooze", true),
+                                distanceM = if (intent.hasExtra("distanceM")) intent.getIntExtra("distanceM", 0) else 1000,
+                                etaS = if (intent.hasExtra("etaS")) intent.getIntExtra("etaS", 0) else 300,
+                                batteryPct = 15,
+                                destinationName = "Ga thử",
+                                settings = settings,
+                                atWallMs = System.currentTimeMillis(),
+                            )
+                        try {
+                            if (req.source == RingSource.FALLBACK) host.alarm.ringFallback(req) else host.alarm.ringNow(req)
+                            Log.i(TAG, "ring_test $tripId: requested")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "ring_test $tripId failed (${e.javaClass.simpleName})")
+                        }
+                    }
+                    "ring_stop" -> {
+                        host.alarm.stopRinging(tripId, StopCause.TRIP_ENDED)
+                        host.alarm.clearTrip(tripId)
+                        Log.i(TAG, "ring_stop $tripId")
+                    }
+                    "ring_facts" -> Log.i(TAG, "ring_facts $tripId: ${host.alarm.ringFacts(tripId)}")
+                    "ring_max_override" -> {
+                        val f = AlarmConstantsHolder.overrideFile(context)
+                        val sec = intent.getIntExtra("seconds", 0)
+                        if (sec > 0) {
+                            f.parentFile?.mkdirs()
+                            f.writeText(sec.toString())
+                        } else {
+                            f.delete()
+                        }
+                        Log.i(TAG, "ring_max_override $sec s (next ring session / app start)")
+                    }
+                    "prealert_test" -> {
+                        host.alarm.preAlert(PreAlertRequest(tripId, intent.getIntExtra("distanceM", 3000), 600, "Ga thử", intent.getBooleanExtra("byDistance", false)))
+                        Log.i(TAG, "prealert_test $tripId")
+                    }
+                    "ring_overshoot" -> {
+                        host.alarm.overshoot(tripId, intent.getIntExtra("pastM", 1200))
+                        Log.i(TAG, "ring_overshoot $tripId")
+                    }
+                    "preview_test", "preview_stop" -> {
+                        val api = AlarmHostApiImpl(SoundPreviewPlayer.get(context), ringActive = host.alarm::ringActive)
+                        withContext(Dispatchers.Main) {
+                            if (cmd == "preview_test") {
+                                api.previewSound(intent.getStringExtra("sound") ?: "default", intent.getFloatExtra("volume", 1f).toDouble())
+                            } else {
+                                api.stopPreview()
+                            }
+                        }
+                        Log.i(TAG, cmd)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "$cmd failed (${e.javaClass.simpleName})")
+            } finally {
+                pending.finish()
+            }
         }
     }
 

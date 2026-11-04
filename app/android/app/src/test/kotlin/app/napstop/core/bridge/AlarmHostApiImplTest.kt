@@ -1,0 +1,94 @@
+package app.napstop.core.bridge
+
+import app.napstop.core.alarm.SoundPreview
+import io.flutter.plugin.common.BinaryMessenger
+import java.nio.ByteBuffer
+import kotlin.coroutines.cancellation.CancellationException
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** T16 AA1 (errors over the real Pigeon channel), AA3 (preview rules). */
+class AlarmHostApiImplTest {
+    private class FakePreview : SoundPreview {
+        val plays = ArrayList<Triple<String, Float, Long>>()
+        var stops = 0
+        var throwOnPlay: Throwable? = null
+
+        override fun play(soundId: String, volume: Float, maxMs: Long) {
+            throwOnPlay?.let { throw it }
+            plays += Triple(soundId, volume, maxMs)
+        }
+
+        override fun stop() {
+            stops++
+        }
+    }
+
+    private class FakeEngine : BinaryMessenger {
+        val handlers = mutableMapOf<String, BinaryMessenger.BinaryMessageHandler>()
+
+        override fun send(channel: String, message: ByteBuffer?) = Unit
+
+        override fun send(channel: String, message: ByteBuffer?, callback: BinaryMessenger.BinaryReply?) = Unit
+
+        override fun setMessageHandler(channel: String, handler: BinaryMessenger.BinaryMessageHandler?) {
+            if (handler == null) handlers.remove(channel) else handlers[channel] = handler
+        }
+
+        fun call(method: String, args: List<Any?>?): List<Any?>? {
+            val message = args?.let { AlarmHostApi.codec.encodeMessage(it)!!.apply { rewind() } }
+            var reply: List<Any?>? = null
+            handlers.getValue("dev.flutter.pigeon.napstop.AlarmHostApi.$method").onMessage(message) { bytes ->
+                @Suppress("UNCHECKED_CAST")
+                reply = AlarmHostApi.codec.decodeMessage(bytes!!.duplicate().apply { rewind() }) as List<Any?>
+            }
+            return reply
+        }
+    }
+
+    @Test
+    fun aa1_errorsAreInternalWithTheClassNameOnly() {
+        val p = FakePreview().apply { throwOnPlay = IllegalStateException("Ga Đồng Hới 21.0") }
+        val api = AlarmHostApiImpl(p, ringActive = { false })
+        val e = runCatching { api.previewSound("bell", 0.5) }.exceptionOrNull() as FlutterError
+        assertEquals("internal", e.code)
+        assertEquals("IllegalStateException", e.message)
+        p.throwOnPlay = CancellationException("x")
+        val c = runCatching { api.previewSound("bell", 0.5) }.exceptionOrNull() as FlutterError
+        assertEquals("internal", c.code)
+        assertEquals("CancellationException", c.message)
+
+        // Through the generated handler and codec.
+        val engine = FakeEngine()
+        AlarmHostApi.setUp(engine, AlarmHostApiImpl(FakePreview().apply { throwOnPlay = IllegalStateException("Ga Đồng Hới 21.0") }, { false }))
+        val reply = engine.call("previewSound", listOf("bell", 0.5))!!
+        val text = reply.toString()
+        assertEquals(listOf("internal", "IllegalStateException", null), reply)
+        for (bad in listOf("Stacktrace", "21.0", "Ga", "Cause")) assertFalse(text, text.contains(bad))
+        assertEquals(listOf(null), engine.call("stopPreview", null))
+    }
+
+    @Test
+    fun aa3_previewRules() {
+        val p = FakePreview()
+        var ringing = true
+        val api = AlarmHostApiImpl(p, ringActive = { ringing }, previewMaxMs = 10_000)
+        api.previewSound("bell", 0.5)
+        assertTrue("no preview over a ring", p.plays.isEmpty())
+        ringing = false
+        api.previewSound("bell", Double.NaN)
+        assertEquals(Triple("bell", 1.0f, 10_000L), p.plays.last())
+        api.previewSound("beep", -1.0)
+        assertEquals(1, p.stops) // −1 → 0 → stop
+        api.previewSound("beep", 2.0)
+        assertEquals(1.0f, p.plays.last().second)
+        api.previewSound("../x", 0.3)
+        assertEquals("horn", p.plays.last().first)
+        api.previewSound("bell", 0.0)
+        assertEquals(2, p.stops)
+        api.stopPreview()
+        assertEquals(3, p.stops)
+    }
+}

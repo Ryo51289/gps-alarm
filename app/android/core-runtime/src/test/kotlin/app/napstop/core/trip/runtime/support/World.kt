@@ -42,6 +42,8 @@ class World(
     io: kotlinx.coroutines.CoroutineDispatcher? = null,
     /** Ledger lane; default = the runtime's own (serial view of [io]). L46 holds it separately. */
     ledgerIo: kotlinx.coroutines.CoroutineDispatcher? = null,
+    /** T16 AT1–AT6: the alarm port the runtime uses instead of [alarm] (SimRing: real AlarmControllerCore + ring machine). */
+    ringPort: ((World) -> app.napstop.core.alarm.AlarmPort)? = null,
 ) {
     val time = FakeTime(wallBase = startWall, elapsedBase = elapsedBase, virtual = { scope.testScheduler.currentTime })
     val scheduler: FakeScheduler = scheduler ?: FakeScheduler(log, time)
@@ -59,10 +61,21 @@ class World(
     var checkSlots = false
     private val dispatcher = StandardTestDispatcher(scope.testScheduler)
 
+    /** T16 AT4: this "process"; [kill] cancels everything the runtime runs (actor, timers), as a process death. */
+    private val processJob = kotlinx.coroutines.SupervisorJob(scope.backgroundScope.coroutineContext[kotlinx.coroutines.Job])
+
+    /** Coroutines of this process (runtime, and the main-process side of SimRing). */
+    val processScope = kotlinx.coroutines.CoroutineScope(scope.backgroundScope.coroutineContext + processJob)
+
+    fun kill() = processJob.cancel()
+
+    /** T16 AT6: told true before / false after the fake OS delivers an alarm to a receiver (FGS start exemption). */
+    var deliveryHook: ((Boolean) -> Unit)? = null
+
     val runtime: TripRuntime =
         TripRuntime(
-            ports = RuntimePorts(time, location, tracking, this.scheduler, this.alarm, notifier, store, visibility, env, journal),
-            scope = scope.backgroundScope,
+            ports = RuntimePorts(time, location, tracking, this.scheduler, ringPort?.invoke(this) ?: this.alarm, notifier, store, visibility, env, journal),
+            scope = processScope,
             actorDispatcher = dispatcher,
             io = io ?: dispatcher,
             main = dispatcher,
@@ -110,7 +123,9 @@ class World(
         val f = scheduler.nextFallback()
         if (f != null && f.triggerWallMs <= time.wallMs()) {
             scheduler.slots.remove(f.slot)
+            deliveryHook?.invoke(true)
             now { runtime.onFallbackFired(f.tripId, f.slot, f.generation, f.targetAtMs, f.kind) }
+            deliveryHook?.invoke(false)
             any = true
         }
         val w = scheduler.wakeDeliveryElapsed()
@@ -118,7 +133,9 @@ class World(
             val wk = scheduler.wake!!
             scheduler.consumeWake(elapsed)
             beforeWake?.invoke()
+            deliveryHook?.invoke(true)
             now { runtime.onWake(wk.wakeAtMs.takeIf { it >= 0 }, wk.triggerWallMs.takeIf { wk.wakeAtMs >= 0 }) }
+            deliveryHook?.invoke(false)
             any = true
         }
         val rr = scheduler.restoreRetry

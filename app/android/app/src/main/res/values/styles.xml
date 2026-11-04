@@ -15,4 +15,14 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- T16: native alarm screen (screens 5 and 8 while ringing), process :ring. Dark, no
+         action bar, dark status / navigation bars (T20 theme `alarm`). -->
+    <style name="NapStopAlarmTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/alarm_bg</item>
+        <item name="android:colorBackground">@color/alarm_bg</item>
+        <item name="android:statusBarColor">@color/alarm_bg</item>
+        <item name="android:navigationBarColor">@color/alarm_bg</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">@color/alarm_accent</item>
+    </style>
 </resources>

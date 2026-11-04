@@ -15,7 +15,7 @@ object RuntimeDebugFlags {
     @Volatile
     var snapshotFail = false
 
-    /** `ring_fail on`: InterimAlarmPort.ringNow throws (protocol LM7, ring guard). */
+    /** `ring_fail on`: AlarmController.ringNow throws (protocol LM7, ring guard). */
     @Volatile
     var ringFail = false
 }

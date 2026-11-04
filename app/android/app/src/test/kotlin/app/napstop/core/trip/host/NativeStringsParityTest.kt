@@ -17,7 +17,6 @@ class NativeStringsParityTest {
         listOf(
             "notifChannelTracking" to "notif_channel_tracking",
             "notifChannelTripAlerts" to "notif_channel_trip_alerts",
-            "notifChannelAlarmInterim" to "notif_channel_alarm_interim",
             "notifTrackingTitle" to "notif_tracking_title",
             "notifTrackingPublic" to "notif_tracking_public",
             "notifTrackingAcquiring" to "notif_tracking_acquiring",
@@ -33,11 +32,41 @@ class NativeStringsParityTest {
             "gpsPermissionRevoked" to "gps_permission_revoked",
             "gpsServicesOff" to "gps_services_off",
             "fallbackScheduleFailed" to "fallback_schedule_failed",
-            "notifAlarmInterimTitle" to "notif_alarm_interim_title",
             "alarmReasonFallback" to "alarm_reason_fallback",
-            "notifActionDismiss" to "notif_action_dismiss",
             "notifActionSnooze" to "notif_action_snooze",
             "notifDestinationUnknown" to "notif_destination_unknown",
+            // T16 §9 (AA2): native alarm copy.
+            "notifChannelAlarm" to "notif_channel_alarm",
+            "notifChannelAlarmBackup" to "notif_channel_alarm_backup",
+            "notifChannelPreAlert" to "notif_channel_prealert",
+            "notifAlarmTitle" to "notif_alarm_title",
+            "notifAlarmPublic" to "notif_alarm_public",
+            "alarmReasonDistance" to "alarm_reason_distance",
+            "alarmReasonTime" to "alarm_reason_time",
+            "alarmReasonGpsLost" to "alarm_reason_gps_lost",
+            "alarmReasonLowBattery" to "alarm_reason_low_battery",
+            "alarmReasonPassedClosest" to "alarm_reason_passed_closest",
+            "alarmReasonOvershoot" to "alarm_reason_overshoot",
+            "alarmReasonSnoozeEnd" to "alarm_reason_snooze_end",
+            "alarmReasonTimeout" to "alarm_reason_timeout",
+            "alarmReasonFallbackMissed" to "alarm_reason_fallback_missed",
+            "preAlertBody" to "prealert_body",
+            "preAlertBodyDistance" to "prealert_body_distance",
+            "alarmOverlineArriving" to "alarm_overline_arriving",
+            "alarmOverlineOvershoot" to "alarm_overline_overshoot",
+            "alarmOvershootPast" to "alarm_overshoot_past",
+            "alarmRouteBack" to "alarm_route_back",
+            "alarmSwipeHint" to "alarm_swipe_hint",
+            "alarmShakeHint" to "alarm_shake_hint",
+            "alarmShakeProgressA11y" to "alarm_shake_progress_a11y",
+            "alarmMathHint" to "alarm_math_hint",
+            "alarmMathWrong" to "alarm_math_wrong",
+            "alarmMathConfirm" to "alarm_math_confirm",
+            "alarmMathDelete" to "alarm_math_delete",
+            "alarmStopA11y" to "alarm_stop_a11y",
+            "alarmSnoozeMinutes" to "alarm_snooze_minutes",
+            "alarmSnoozeSeconds" to "alarm_snooze_seconds",
+            "alarmHeadphonesUnplugged" to "alarm_headphones_unplugged",
         )
 
     private val l10nDir = File(System.getProperty("napstop.l10nDir") ?: "../../lib/l10n")
@@ -54,10 +83,43 @@ class NativeStringsParityTest {
         }
     }
 
-    /** `{name}` → `%n$s` in order of appearance. */
+    /** `{name}` → `%n$s` in order of appearance; with placeholders a literal `%` is `%%` (Android format string). */
     private fun toAndroid(arb: String): String {
         var n = 0
-        return Regex("\\{[A-Za-z]+\\}").replace(arb) { "%${++n}\$s" }
+        val ph = Regex("\\{[A-Za-z]+\\}")
+        val escaped = if (ph.containsMatchIn(arb)) arb.replace("%", "%%") else arb
+        return ph.replace(escaped) { "%${++n}\$s" }
+    }
+
+    /** T16 AA2: the interim alarm of T15 is gone on both sides. */
+    @Test
+    fun aa2_removedKeysAreGoneOnBothSides() {
+        val removed =
+            listOf(
+                "notifChannelAlarmInterim" to "notif_channel_alarm_interim",
+                "notifAlarmInterimTitle" to "notif_alarm_interim_title",
+                "notifActionDismiss" to "notif_action_dismiss",
+            )
+        for ((arbFile, dir) in listOf("app_vi.arb" to "values", "app_en.arb" to "values-en")) {
+            val a = arb(arbFile)
+            val s = strings(dir)
+            for ((key, res) in removed) {
+                assertTrue("$arbFile still has $key", !a.has(key) && !a.has("@$key"))
+                assertTrue("$dir still has $res", !s.containsKey(res))
+            }
+        }
+    }
+
+    /** T16: the placeholder order the native code passes (CopyKeys.PLACEHOLDERS) is the order in both ARB files. */
+    @Test
+    fun aa2_placeholderOrderMatchesCopyKeys() {
+        for (arbFile in listOf("app_vi.arb", "app_en.arb")) {
+            val a = arb(arbFile)
+            for ((key, order) in app.napstop.core.alarm.CopyKeys.PLACEHOLDERS) {
+                val names = Regex("\\{([A-Za-z]+)\\}").findAll(a.getString(key)).map { it.groupValues[1] }.toList()
+                assertEquals("$arbFile $key", order, names)
+            }
+        }
     }
 
     @Test

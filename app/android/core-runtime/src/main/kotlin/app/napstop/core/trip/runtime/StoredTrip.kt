@@ -49,9 +49,15 @@ data class RingConfig(
     val settings: RingSettings,
     val snoozeCount: Int,
     val maxSnoozes: Int,
+    /** T16 §11: label / length of "Báo lại" (params.snoozeS); files written before T16 have none → 60. */
+    val snoozeS: Int = DEFAULT_SNOOZE_S,
 ) {
     override fun toString(): String =
-        "RingConfig(tripId=$tripId, snoozeCount=$snoozeCount, maxSnoozes=$maxSnoozes, destination=<redacted>)"
+        "RingConfig(tripId=$tripId, snoozeCount=$snoozeCount, maxSnoozes=$maxSnoozes, snoozeS=$snoozeS, destination=<redacted>)"
+
+    companion object {
+        const val DEFAULT_SNOOZE_S = 60
+    }
 }
 
 /** Thrown by [RuntimeCodec] decoders; the message names the key or rule only, never a value. */
@@ -145,6 +151,7 @@ object RuntimeCodec {
         encodeSettings(p, c.settings, "alarm.")
         p["snoozeCount"] = c.snoozeCount.toString()
         p["maxSnoozes"] = c.maxSnoozes.toString()
+        p["snoozeS"] = c.snoozeS.toString()
         return p
     }
 
@@ -156,6 +163,7 @@ object RuntimeCodec {
             settings = decodeSettings(p, "alarm."),
             snoozeCount = p.int("snoozeCount"),
             maxSnoozes = p.int("maxSnoozes"),
+            snoozeS = p.getProperty("snoozeS")?.toIntOrNull()?.takeIf { it > 0 } ?: RingConfig.DEFAULT_SNOOZE_S,
         )
     }
 

@@ -5,6 +5,7 @@ import app.napstop.core.alarm.RingRequest
 import app.napstop.core.alarm.RingSource
 import app.napstop.core.alarm.StopCause
 import app.napstop.core.trip.Alarm
+import app.napstop.core.trip.AlarmMode
 import app.napstop.core.trip.FallbackAlarmChanged
 import app.napstop.core.trip.FallbackCause
 import app.napstop.core.trip.FallbackFired
@@ -44,7 +45,8 @@ object EffectPlanner {
         for (e in step.events) {
             when (e) {
                 is Snoozed -> fx += Effect.StopRinging(StopCause.SNOOZED)
-                is PreAlert -> fx += Effect.PreAlertFx(PreAlertRequest(p.meta.tripId, e.distanceM, e.etaS, p.meta.destinationName))
+                is PreAlert ->
+                    fx += Effect.PreAlertFx(PreAlertRequest(p.meta.tripId, e.distanceM, e.etaS, p.meta.destinationName, byDistance = p.meta.mode == AlarmMode.DISTANCE))
                 is Overshoot -> fx += Effect.OvershootFx(e.pastM)
                 is SamplingPolicyChanged ->
                     if (p.mode == TrackingMode.TRACKING_FGS) fx += Effect.ApplySampling(FlpMapper.spec(e.policy, p.params))

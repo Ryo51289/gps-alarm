@@ -487,6 +487,15 @@ class TripRuntime(
                     RingEventKind.FALLBACK_RINGING -> FallbackFired(now, a.clock.toTrip(e.atWallMs))
                 }
             process(input)
+            val b = active
+            if (e.kind == RingEventKind.SNOOZED && b === a && (b.view.phase == TripPhase.ALARMING || b.view.phase == TripPhase.OVERSHOT) &&
+                b.view.alarmRinging && !factsOf(b.meta.tripId).ringingNow
+            ) {
+                // T16 §11: the engine ignored the snooze (no snooze left / overshoot) but the ring has stopped: tell it, so the
+                // view is right and an overshoot can ring again; the pending snooze of the ring book is handled (G1).
+                safely("ring stop") { ports.alarm.stopRinging(b.meta.tripId, StopCause.SNOOZED) }
+                process(AlarmSilenced(b.clock.now(), b.clock.now()))
+            }
         }
 
     /** MainActivity visible (D11): a HEADLESS trip goes back to the foreground service. */
@@ -985,7 +994,9 @@ class TripRuntime(
         lastAvailability = AvailabilityCause.AVAILABLE
         setMode(TrackingMode.TRACKING_FGS)
         ioCall("ring config write", io) {
-            ports.store.writeRingConfig(RingConfig(meta.tripId, meta.destinationName, meta.alarm, 0, step0.state.params.maxSnoozes))
+            ports.store.writeRingConfig(
+                RingConfig(meta.tripId, meta.destinationName, meta.alarm, 0, step0.state.params.maxSnoozes, step0.state.params.snoozeS),
+            )
         }?.onFailure { e -> warn("ring config write failed (${e.javaClass.simpleName})") }
         // Both slots, always: if the ledger could not be read (slow disk), a superseded trip's alarms are unknown.
         ledger = fallbacks.cancelAll(ledger, ::saveLedger)
@@ -1269,7 +1280,9 @@ class TripRuntime(
             is Effect.Tracking -> updateTracking(a, fx.content, c.nowWall)
             is Effect.UpdateRingConfig ->
                 ioCall("ring config write", io) {
-                    ports.store.writeRingConfig(RingConfig(tripId, a.meta.destinationName, a.meta.alarm, fx.snoozeCount, a.engine.params.maxSnoozes))
+                    ports.store.writeRingConfig(
+                        RingConfig(tripId, a.meta.destinationName, a.meta.alarm, fx.snoozeCount, a.engine.params.maxSnoozes, a.engine.params.snoozeS),
+                    )
                 }?.getOrThrow()
             Effect.Persist -> {
                 val budget = c.persistBudgetMs

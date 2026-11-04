@@ -20,6 +20,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- T16 D2: AlarmRingService (process :ring) runs as systemExempted on API 34+ when the app
+         may schedule exact alarms (USE_EXACT_ALARM), else mediaPlayback. No CAMERA: the torch
+         needs none (setTorchMode). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <!-- T29 §7 + CD1: no advertising id, no Privacy Sandbox ad APIs. firebase_analytics
          (play-services-measurement) would merge these permissions; the app has no ads. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
@@ -93,6 +98,30 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
+        <!-- T16 §10: the alarm. Sound, vibration, flash and the alarm screen live in process
+             :ring, apart from the location service and Flutter (T10 RK14). Nothing exported. -->
+        <service
+            android:name=".core.alarm.ring.AlarmRingService"
+            android:process=":ring"
+            android:exported="false"
+            android:foregroundServiceType="systemExempted|mediaPlayback"/>
+        <activity
+            android:name=".core.alarm.ring.AlarmActivity"
+            android:process=":ring"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.alarm"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/NapStopAlarmTheme"/>
+        <receiver
+            android:name=".core.alarm.ring.RingCommandReceiver"
+            android:process=":ring"
+            android:exported="false"/>
+        <receiver
+            android:name=".core.alarm.BackupRingReceiver"
+            android:exported="false"/>
         <!-- Maps SDK + Places key of the flavor, from secrets.properties (T23 D3).
              "DEFAULT_API_KEY" when none: the app then shows no map. -->
         <meta-data

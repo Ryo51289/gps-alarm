@@ -3,7 +3,7 @@ package app.napstop.core.trip.host
 import android.content.Context
 import android.util.Log
 import app.napstop.BuildConfig
-import app.napstop.core.alarm.InterimAlarmPort
+import app.napstop.core.alarm.AlarmController
 import app.napstop.core.location.AndroidDeviceEnv
 import app.napstop.core.location.AndroidTimeSource
 import app.napstop.core.location.AndroidTrackingController
@@ -33,7 +33,7 @@ object RuntimeHost {
     class Host internal constructor(
         val runtime: TripRuntime,
         val notifications: TripNotifications,
-        @Suppress("DEPRECATION") val alarm: InterimAlarmPort,
+        val alarm: AlarmController,
         val location: SwitchableLocationSource,
         val scope: CoroutineScope,
         val constants: RuntimeConstants,
@@ -46,7 +46,6 @@ object RuntimeHost {
     fun get(context: Context): Host = host ?: synchronized(this) { host ?: create(context.applicationContext).also { host = it } }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    @Suppress("DEPRECATION")
     private fun create(ctx: Context): Host {
         val warn: (String) -> Unit = { Log.w(TAG, it) }
         val scope =
@@ -58,10 +57,11 @@ object RuntimeHost {
         val location = SwitchableLocationSource(FusedLocationSource(ctx, constants.stepWakelockMs))
         val journal = debugJournal(ctx)
         lateinit var runtime: TripRuntime
+        // T16: the real alarm (ring service in process :ring). A ring lost for good → SILENCED to the runtime.
         val alarm =
-            InterimAlarmPort(ctx, scope, notifications) { tripId, at ->
+            AlarmController(ctx, scope, onRingLost = { tripId, at ->
                 scope.launch { runtime.onRingEvent(RingEvent(tripId, RingEventKind.SILENCED, at)) }
-            }
+            })
         runtime =
             TripRuntime(
                 ports =

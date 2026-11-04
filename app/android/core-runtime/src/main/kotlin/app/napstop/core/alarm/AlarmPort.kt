@@ -2,7 +2,7 @@ package app.napstop.core.alarm
 
 import app.napstop.core.trip.AlarmReason
 
-// T15 ↔ T16 boundary (spec T15 §3, §4.2). T15 ships InterimAlarmPort in :app; T16 replaces it.
+// T15 ↔ T16 boundary (spec T15 §3, §4.2). Implemented by T16 AlarmController (:app) over AlarmControllerCore.
 
 enum class RingSource { ENGINE, FALLBACK }
 
@@ -40,8 +40,16 @@ data class RingRequest(
             "batteryPct=$batteryPct, atWallMs=$atWallMs, distance=<redacted>, destination=<redacted>)"
 }
 
-data class PreAlertRequest(val tripId: String, val distanceM: Int, val etaS: Int?, val destinationName: String?) {
-    override fun toString(): String = "PreAlertRequest(tripId=$tripId, etaS=$etaS, distance=<redacted>, destination=<redacted>)"
+data class PreAlertRequest(
+    val tripId: String,
+    val distanceM: Int,
+    val etaS: Int?,
+    val destinationName: String?,
+    /** T16: mode == DISTANCE → distance copy (T10 §10 preAlertBodyDistance); otherwise minutes. */
+    val byDistance: Boolean = false,
+) {
+    override fun toString(): String =
+        "PreAlertRequest(tripId=$tripId, etaS=$etaS, byDistance=$byDistance, distance=<redacted>, destination=<redacted>)"
 }
 
 /**
@@ -50,7 +58,10 @@ data class PreAlertRequest(val tripId: String, val distanceM: Int, val etaS: Int
  * while it starts); otherwise a ring-guard slot could ring a second time.
  */
 data class RingFacts(
-    /** MUST reflect reality (T16: liveness of :ring, e.g. heartbeat). */
+    /**
+     * MUST reflect reality. T16: `ringingNow` = heartbeat of `:ring` fresh (≤ 6 s), or backup notification showing, or a
+     * ring requested ≤ 3 s ago in this process.
+     */
     val ringingNow: Boolean,
     val ringingSource: RingSource?,
     val ringStartedAtWallMs: Long?,

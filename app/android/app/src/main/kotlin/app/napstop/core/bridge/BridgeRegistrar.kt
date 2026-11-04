@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import app.napstop.core.alarm.SoundPreviewPlayer
 import app.napstop.core.bridge.permission.ActivityPermissionPrompter
 import app.napstop.core.bridge.permission.AndroidPermissionSources
 import app.napstop.core.bridge.permission.BackgroundCheckScheduler
@@ -60,7 +61,10 @@ object BridgeRegistrar {
                 backgroundChecks = BackgroundCheckScheduler(appContext),
                 warn = { Log.w(TAG, it) },
             )
-        return register(messenger, backend(appContext), permissionApi = permissionApi, prompter = prompter)
+        // T16 §4.7: real sound preview; never over a ring that is on.
+        val host = RuntimeHost.get(appContext)
+        val alarmApi = AlarmHostApiImpl(SoundPreviewPlayer.get(appContext), ringActive = host.alarm::ringActive)
+        return register(messenger, backend(appContext), permissionApi = permissionApi, prompter = prompter, alarmApi = alarmApi)
     }
 
     /**
@@ -75,11 +79,12 @@ object BridgeRegistrar {
         distances: suspend (List<Double>, Long) -> List<Double>? = { _, _ -> null },
         permissionApi: PermissionHostApi? = null,
         prompter: ActivityPermissionPrompter? = null,
+        alarmApi: AlarmHostApi? = null,
         deviceStatus: () -> DeviceStatusMsg = { PermissionHostApiStub.UNKNOWN_DEVICE_STATUS },
     ): Registration {
         TripHostApi.setUp(messenger, TripHostApiImpl(backend))
         PermissionHostApi.setUp(messenger, permissionApi ?: PermissionHostApiStub(deviceStatus, mapsConfig, distances))
-        AlarmHostApi.setUp(messenger, AlarmHostApiStub())
+        AlarmHostApi.setUp(messenger, alarmApi ?: AlarmHostApiImpl(NoSoundPreview, ringActive = { false }))
         val updates = TripUpdatesHandler(backend)
         val eventChannel = TripUpdatesStreamHandler.register(messenger, updates)
         return Registration(messenger, eventChannel, updates, prompter)

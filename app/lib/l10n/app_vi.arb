@@ -1474,10 +1474,6 @@
   "@notifChannelTripAlerts": {
     "description": "Android notification channel name: trip warnings (no GPS, interrupted...). Native notification (T15 §8), keep in sync with res/values/strings.xml."
   },
-  "notifChannelAlarmInterim": "Báo thức (tạm thời)",
-  "@notifChannelAlarmInterim": {
-    "description": "Android notification channel name of the interim T15 alarm (removed by T16). Native notification (T15 §8), keep in sync with res/values/strings.xml."
-  },
   "notifTrackingTitle": "Đang theo dõi tới {destination}",
   "@notifTrackingTitle": {
     "description": "Ongoing notification title. Native notification (T15 §8), keep in sync with res/values/strings.xml.",
@@ -1566,15 +1562,6 @@
   "@fallbackScheduleFailed": {
     "description": "High-priority notification: the backup alarm could not be set (T10 §10). Native notification (T15 §8), keep in sync with res/values/strings.xml."
   },
-  "notifAlarmInterimTitle": "Sắp tới {destination}",
-  "@notifAlarmInterimTitle": {
-    "description": "Interim alarm notification title (T15, replaced by T16). Native notification (T15 §8), keep in sync with res/values/strings.xml.",
-    "placeholders": {
-      "destination": {
-        "type": "String"
-      }
-    }
-  },
   "alarmReasonFallback": "Báo thức dự phòng — có thể sắp tới {destination}. Mở ứng dụng để xem còn bao xa",
   "@alarmReasonFallback": {
     "description": "Alarm text when the backup alarm rang (T10.2). Native notification (T15 §8), keep in sync with res/values/strings.xml.",
@@ -1584,10 +1571,6 @@
       }
     }
   },
-  "notifActionDismiss": "Tắt",
-  "@notifActionDismiss": {
-    "description": "Interim alarm notification button: dismiss. Native notification (T15 §8), keep in sync with res/values/strings.xml."
-  },
   "notifActionSnooze": "Báo lại",
   "@notifActionSnooze": {
     "description": "Interim alarm notification button: snooze. Native notification (T15 §8), keep in sync with res/values/strings.xml."
@@ -1595,5 +1578,221 @@
   "notifDestinationUnknown": "nơi đến",
   "@notifDestinationUnknown": {
     "description": "Used for {destination} when the destination name is unknown. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifChannelAlarm": "Báo thức",
+  "@notifChannelAlarm": {
+    "description": "Android notification channel name: the ringing alarm (silent channel, the ring service plays the sound). Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "notifChannelAlarmBackup": "Báo thức (dự phòng)",
+  "@notifChannelAlarmBackup": {
+    "description": "Android notification channel name: backup alarm notification when the ring service cannot start. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "notifChannelPreAlert": "Nhắc nhẹ trước khi tới",
+  "@notifChannelPreAlert": {
+    "description": "Android notification channel name: the light pre-alert before arrival. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "notifAlarmTitle": "Sắp tới {destination}",
+  "@notifAlarmTitle": {
+    "description": "Alarm notification title; also the alarm text when no distance / minutes are known. Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "notifAlarmPublic": "NapStop đang báo thức",
+  "@notifAlarmPublic": {
+    "description": "Alarm notification on the lock screen (no destination name). Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmReasonDistance": "Còn khoảng {distance} tới {destination}",
+  "@alarmReasonDistance": {
+    "description": "Alarm text, reason distance (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonTime": "Còn khoảng {minutes} phút tới {destination}",
+  "@alarmReasonTime": {
+    "description": "Alarm text, reason time (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      },
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonGpsLost": "Mất tín hiệu vị trí — có thể sắp tới {destination}. Mở ứng dụng để xem còn bao xa",
+  "@alarmReasonGpsLost": {
+    "description": "Alarm text, reason GPS lost (T10.6 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonLowBattery": "Pin còn {percent}% — báo sớm để bạn không lỡ trạm",
+  "@alarmReasonLowBattery": {
+    "description": "Alarm text, reason low battery (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonPassedClosest": "Đang ở gần {destination} nhất — xe bắt đầu đi xa dần",
+  "@alarmReasonPassedClosest": {
+    "description": "Alarm text, reason passed the closest point (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonOvershoot": "Có thể bạn đã đi quá {destination}",
+  "@alarmReasonOvershoot": {
+    "description": "Alarm text / screen 8 title, reason overshoot (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonSnoozeEnd": "Hết giờ báo lại — sắp tới {destination}",
+  "@alarmReasonSnoozeEnd": {
+    "description": "Alarm text, end of snooze (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonTimeout": "Chuyến đi lâu hơn dự kiến — kiểm tra đã tới {destination} chưa",
+  "@alarmReasonTimeout": {
+    "description": "Alarm text, trip timeout (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonFallbackMissed": "Báo thức bị gián đoạn — kiểm tra đã tới {destination} chưa",
+  "@alarmReasonFallbackMissed": {
+    "description": "Alarm text, missed backup alarm (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "preAlertBody": "Sắp tới {destination} — còn khoảng {minutes} phút",
+  "@preAlertBody": {
+    "description": "Pre-alert notification, time / smart mode (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "preAlertBodyDistance": "Sắp tới {destination} — còn khoảng {distance}",
+  "@preAlertBodyDistance": {
+    "description": "Pre-alert notification, distance mode (T10 §10). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmOverlineArriving": "Sắp tới nơi",
+  "@alarmOverlineArriving": {
+    "description": "Alarm screen overline (screen 5). Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmOverlineOvershoot": "Đã qua điểm đến",
+  "@alarmOverlineOvershoot": {
+    "description": "Alarm screen overline (screen 8, overshoot). Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmOvershootPast": "Đã qua {distance}",
+  "@alarmOvershootPast": {
+    "description": "Screen 8: how far past the destination. Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmRouteBack": "Xem đường quay lại",
+  "@alarmRouteBack": {
+    "description": "Screen 8 button: stop the alarm and open the route back. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmSwipeHint": "Vuốt hết thanh để tắt",
+  "@alarmSwipeHint": {
+    "description": "Alarm screen: swipe to stop. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmShakeHint": "Lắc mạnh máy để tắt",
+  "@alarmShakeHint": {
+    "description": "Alarm screen: shake to stop. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmShakeProgressA11y": "Đã lắc được {percent}%",
+  "@alarmShakeProgressA11y": {
+    "description": "Alarm screen, TalkBack: shake progress. Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmMathHint": "Giải phép tính để tắt",
+  "@alarmMathHint": {
+    "description": "Alarm screen: solve the sum to stop. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmMathWrong": "Chưa đúng, thử lại",
+  "@alarmMathWrong": {
+    "description": "Alarm screen: wrong answer. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmMathConfirm": "Xong",
+  "@alarmMathConfirm": {
+    "description": "Alarm screen keypad: confirm. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmMathDelete": "Xoá",
+  "@alarmMathDelete": {
+    "description": "Alarm screen keypad: delete a digit. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmStopA11y": "Tắt báo thức",
+  "@alarmStopA11y": {
+    "description": "Alarm screen, TalkBack action: stop the alarm. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "alarmSnoozeMinutes": "Báo lại sau {minutes} phút",
+  "@alarmSnoozeMinutes": {
+    "description": "Alarm screen snooze button (whole minutes). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmSnoozeSeconds": "Báo lại sau {seconds} giây",
+  "@alarmSnoozeSeconds": {
+    "description": "Alarm screen snooze button (seconds). Native alarm (T16), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmHeadphonesUnplugged": "Đã rút tai nghe — chuyển sang rung",
+  "@alarmHeadphonesUnplugged": {
+    "description": "Alarm screen banner: headphones unplugged. Native alarm (T16), keep in sync with res/values/strings.xml."
   }
 }

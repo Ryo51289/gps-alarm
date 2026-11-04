@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- T20 theme `alarm` tokens for the native alarm screen (T16 §5.8). Contrast on #0F1115:
+     white, #C9CCD3, #FF9F43, #FF8A8A all >= 4.5:1 (T20 §2). -->
+<resources>
+    <color name="alarm_bg">#0F1115</color>
+    <color name="alarm_accent">#FF9F43</color>
+    <color name="alarm_overshoot">#FF6B6B</color>
+    <color name="alarm_overline_overshoot">#FF8A8A</color>
+    <color name="alarm_text">#FFFFFF</color>
+    <color name="alarm_text_secondary">#C9CCD3</color>
+    <color name="alarm_track">#262A33</color>
+    <color name="alarm_outline">#3A3F4B</color>
+</resources>

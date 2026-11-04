@@ -20,6 +20,19 @@ object BridgeGuard {
             throw internalError(e)
         }
 
+    /**
+     * For host methods that are not `@async` (T16 §4.7, review T21 #6): nothing passes through except [FlutterError] —
+     * a [CancellationException] too becomes `internal` instead of reaching Pigeon's wrapError.
+     */
+    inline fun <T> callSync(block: () -> T): T =
+        try {
+            block()
+        } catch (e: FlutterError) {
+            throw e
+        } catch (e: Throwable) {
+            throw internalError(e)
+        }
+
     /** `internal` with the simple class name, or "Throwable" for anonymous classes. Never the message. */
     fun internalError(e: Throwable): FlutterError =
         FlutterError(BridgeErrors.INTERNAL, e.javaClass.simpleName.ifEmpty { "Throwable" }, null)

@@ -161,7 +161,7 @@ coroutine), singleton theo process; `:app` chỉ nối cổng với Android:
 | `trip/host/AndroidAlarmScheduler` | `wakeAtMs` = `setExactAndAllowWhileIdle(ELAPSED_REALTIME_WAKEUP)`; báo dự phòng = `setAlarmClock`, 2 khe A/B (đặt mới trước, huỷ cũ sau) |
 | `trip/host/Receivers.kt` | `WakeAlarmReceiver`, `FallbackAlarmReceiver`, `BootReceiver` (`BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`), `RingEventReceiver`, `TripActionReceiver` |
 | `trip/host/TripNotifications` | kênh `napstop_tracking` (thường trực, nút "Dừng theo dõi"), `napstop_trip_alerts` (chưa có GPS, gián đoạn…) |
-| `alarm/InterimAlarmPort` | báo thức **tạm** (thông báo `FLAG_INSISTENT`, kênh `napstop_alarm_interim`) tới khi T16 thay |
+| `alarm/AlarmController` | `AlarmPort` thật (T16, mục dưới) |
 | `bridge/RealTripBackend`, `CompositeTripBackend`, `ListenerHub`, `MsgMapper` | Pigeon ↔ runtime (Pigeon không đổi) |
 
 Lưu trữ: `noBackupFilesDir/napstop_trip/` (`active_trip.properties`, `fallback_ledger.properties`,
@@ -194,6 +194,36 @@ cd android && ./gradlew :core-runtime:analyzeJournal -Pjournal=$PWD/../journal.n
 ```
 
 Giao thức đo trên máy (LM1–LM8): `docs/test-protocols/T15.md`.
+
+## Báo thức Android (T16)
+
+Spec: `docs/specs/T16.md`. Âm, rung, flash và màn báo thức chạy ở **process `:ring`** (`AlarmRingService` FGS
+`systemExempted`/`mediaPlayback`, `AlarmActivity` trên màn khoá, `RingCommandReceiver`), tách khỏi Flutter và FGS
+`location`: process chính chết vẫn kêu (T10 RK14). Process chính chỉ có `AlarmController` (= `AlarmControllerCore` thuần trong
+`:core-runtime` + transport Android + watchdog) và hai thông báo phụ (dự phòng `napstop_alarm_backup`, nhắc nhẹ `napstop_prealert`).
+Sổ chuông `noBackupFilesDir/napstop_ring/<tripId>.properties` (khoá `FileLock` chéo process) là nguồn sự thật "đang kêu".
+Âm báo: `res/raw/alarm_{horn,bell,beep}.wav`, sinh bằng `python3 ../tools/alarm_sounds/generate.py` (CC0, `docs/third_party/alarm_sounds.md`).
+
+```bash
+cd android && ./gradlew :core-runtime:test --tests "app.napstop.core.alarm.*" --tests "*T16*"   # A01–A43, AT1, AT3 (JVM)
+cd android && ./gradlew :app:testDevDebugUnitTest                         # AA1–AA5
+cd android && ./gradlew :app:connectedDevDebugAndroidTest                 # AI01–AI07 (UI Automator, cần emulator/máy)
+```
+
+**Lệnh debug (cùng receiver ở trên, chuyến giả `debug-ring` nếu không ghi `--es tripId`):**
+
+```bash
+adb shell am broadcast $R --es cmd ring_test --es dismiss swipe --ef volume 0.5 --ez ramp true --es vibration medium --ez snooze true
+adb shell am broadcast $R --es cmd ring_test --es source fallback --es dismiss math      # shake|math|swipe; --ez headphones true; --ez flash true
+adb shell am broadcast $R --es cmd ring_overshoot --ei pastM 1200
+adb shell am broadcast $R --es cmd ring_facts                             # RingFacts ra logcat
+adb shell am broadcast $R --es cmd ring_stop
+adb shell am broadcast $R --es cmd ring_max_override --ei seconds 30      # 0 = bỏ; áp cho phiên chuông / lần mở app sau
+adb shell am broadcast $R --es cmd prealert_test --ez byDistance true
+adb shell am broadcast $R --es cmd preview_test --es sound bell --ef volume 0.5 ; adb shell am broadcast $R --es cmd preview_stop
+adb exec-out run-as app.napstop.dev cat no_backup/napstop_ring/journal_ring.ndjson     # journal của :ring
+adb shell pidof app.napstop.dev:ring                                      # pid process chuông
+```
 
 ## Khung app (T22)
 

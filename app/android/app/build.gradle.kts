@@ -42,6 +42,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // T16 AI01–AI07 (UI Automator, emulator / device): ./gradlew :app:connectedDevDebugAndroidTest
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // Default flavor is "dev" (pubspec `default-flavor`). App name per flavor
@@ -98,6 +100,13 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // T15 L33: real org.json for reading the ARB files (android.jar only has stubs in unit tests).
     testImplementation("org.json:json:20260814")
+    // T16 instrumentation. Not the latest (runner 1.7.0 / rules 1.7.0 / ext-junit 1.3.0 / uiautomator 2.4.0, Google Maven
+    // 2026-11-04): Flutter's integration_test plugin puts espresso 3.3 + rules 1.2 (→ runner / monitor 1.3.0) on the app
+    // runtime classpath, and AGP's consistent resolution pins the androidTest classpath to those versions. No ext-junit:
+    // androidx.test:core 1.3 has activities without android:exported (manifest merge fails at target 36); plain JUnit 4.
+    androidTestImplementation("androidx.test:runner:1.3.0")
+    androidTestImplementation("androidx.test:rules:1.2.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.2.0")
 }
 
 flutter {
