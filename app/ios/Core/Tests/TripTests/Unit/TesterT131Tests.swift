@@ -915,14 +915,31 @@ struct TesterT131Tests {
     /// Designer note #3 of the T12.1 report, fixed by T10.5 (urgent later shift, §4.10): before T10.5 the fix 29 s before F inside
     /// the quiet window (seed 26, DOZE_WITH_FIXES) left the OS fallback to ring first at 11 698.544 s while the engine predicted
     /// 13 685.193 s. Flipped: the fallback is moved later at that fix, so the first alarm no longer comes from the fallback.
-    @Test("T131 seed 26 (= T121 note #3, flipped by T10.5): the fix 29 s before F moves the fallback later; first alarm not from the fallback")
+    /// T10.6 (T13.3): with the "long loss" rule W on (defaults) this trip no longer reaches that fix: W makes `predicted` (and the
+    /// fallback that follows it) earlier during the long loss, the process is dead when the OS fallback fires and the first alarm is
+    /// `restore RANG FALLBACK` (D4 path, no violation), with no urgent later shift. Measured per rule: only `gpsLostLongS = 0` brings
+    /// the T10.5 sequence back (`passedClosestSlowRiseM = 0` or `lostSpeedGuardUpdates = 0` alone change nothing). The whole
+    /// `withfix` fuzz (seeds 1–700, incl. 26) is byte-identical to Kotlin T12.3 (`u111-doze-withfix.txt`, `u126-longloss.txt`), so this
+    /// is the T10.6 behaviour, not a Swift/Kotlin difference. The T10.5 pin is kept with W off.
+    @Test("T131 seed 26 (= T121 note #3, flipped by T10.5): the fix 29 s before F moves the fallback later (W off); with T10.6 the OS fallback rings while dead")
     func seed26EarlyFallback() throws {
-        let st = FuzzStats()
-        try Self.dozeTrip(26, .withFixes, okP: 0.85, killP: 0.4, battery: true, st)
-        #expect(st.violations.isEmpty, "\(st.violations)")
-        #expect(st.firstBy.keys.allSatisfy { !$0.hasPrefix("fallback") }, "\(st.firstBy)")
-        #expect(st.fbAfterInfo.isEmpty, "\(st.fbAfterInfo)")
-        #expect(st.urgentShifts >= 1, "urgent later shifts \(st.urgentShifts)")
+        // T10.5 sequence, W off.
+        let off = FuzzStats()
+        try Self.dozeTrip(26, .withFixes, okP: 0.85, killP: 0.4, battery: true, off, params: KW.params(#"{"gpsLostLongS": 0}"#))
+        #expect(off.violations.isEmpty, "\(off.violations)")
+        #expect(off.firstBy.keys.allSatisfy { !$0.hasPrefix("fallback") }, "\(off.firstBy)")
+        #expect(off.fbAfterInfo.isEmpty, "\(off.fbAfterInfo)")
+        #expect(off.urgentShifts >= 1, "urgent later shifts \(off.urgentShifts)")
+        // T10.6 defaults: no violation, no fallback-first while alive; the first alarm comes from the OS fallback while the process
+        // is dead (restore RANG).
+        let on = FuzzStats()
+        try Self.dozeTrip(26, .withFixes, okP: 0.85, killP: 0.4, battery: true, on)
+        #expect(on.violations.isEmpty, "\(on.violations)")
+        #expect(on.firstBy.keys.allSatisfy { !$0.hasPrefix("fallback") }, "\(on.firstBy)")
+        #expect(on.fbAfterInfo.isEmpty, "\(on.fbAfterInfo)")
+        #expect(on.firstBy == ["restore RANG FALLBACK": 1], "\(on.firstBy)")
+        Report.shared.write("unit/t131-seed26.txt", "W off: first=\(FuzzStats.map(off.firstBy)) urgent=\(off.urgentShifts)\n"
+                            + "T10.6: first=\(FuzzStats.map(on.firstBy)) urgent=\(on.urgentShifts)\n")
     }
 
     /// U126 (T10.6 (1)(2)(4), statistics): the four Doze fuzzes of U111 with T10.6 off and on (defaults). Gate: no violation and an

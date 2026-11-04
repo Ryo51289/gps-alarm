@@ -574,7 +574,7 @@ struct T106Tests {
 
     @Test("U124 passAnchorD is written right after minDChord, round-trips, a missing key reads nil and a wrong type fails")
     func u124() throws {
-        let anchors: [Double?] = [nil, 1_304.25, 0.1, 5e-324]
+        let anchors: [Double?] = [nil, 1_304.25, 0.1, Double.leastNonzeroMagnitude]
         for anchor in anchors {
             var st = KW.trackingState()
             st.minD = 1234.5
