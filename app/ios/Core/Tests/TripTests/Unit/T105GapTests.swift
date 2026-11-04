@@ -751,20 +751,70 @@ struct T105GapTests {
 
     // MARK: - U116 a, U117 (fixture main runs)
 
-    @Test("U116 a the GPS-gap chord never goes through a fixture destination (u outside 0 to 1 at every GpsRecovered Step)")
+    /// U116 (a), redefined in T11.3 (T10 "T11.3 — quyết định designer (phần chạm T10)" §1; Kotlin `T105GapTest`). A trace is TR40
+    /// when one of its cases carries testId `TR40` in expect.json. (a1) non-TR40 traces: no probe with `dChord`. (a2) TR40 traces:
+    /// every main run has exactly one, at the first accepted fix after `gpsGaps[0]`, with 0 < u < 1, dChord < nearRadius of the
+    /// case and d_f − dChord ≥ overshootOpenM; on the `all` run at `g.end` with dChord 483.5 ± 0.5 m and u 0.797 ± 0.001.
+    /// (a3) ≥ 6 traces.
+    @Test("U116 a the GPS-gap chord goes through a fixture destination only on TR40 traces")
     func u116a() async {
         let outs = await FixtureMainRuns.all.value
+        let tr40 = Set(CaseCatalog.refs.filter { $0.testIds.contains("TR40") }.map(\.traceId))
         let probes = outs.flatMap { o in o.gapProbes.map { (o, $0) } }
         let traces = Set(probes.map { $0.0.traceId }).sorted()
         let lines = probes.map { (o, g) in
             "\(o.run) t=\(Self.kd(Double(g.atMs - o.startMs) / 1000.0)) recovered=\(g.recovered) gapFix=\(g.gapFix) u=\(KW.kdOpt(g.u)) "
-                + "chord=\(KW.kdOpt(g.chordM)) dChord=\(KW.kdOpt(g.dChord)) standingTerm=\(g.standingTerm)"
+                + "chord=\(KW.kdOpt(g.chordM)) dChord=\(KW.kdOpt(g.dChord)) dFix=\(Self.kd(g.dFixM)) standingTerm=\(g.standingTerm) "
+                + "tr40=\(tr40.contains(o.traceId))"
         }.joined(separator: "\n")
-        Report.shared.write("unit/u116-gap.txt", "traces=\(KW.klist(traces)) probes=\(probes.count)\n\(lines)\n")
+        Report.shared.write("unit/u116-gap.txt",
+                            "traces=\(KW.klist(traces)) probes=\(probes.count) tr40=\(KW.klist(tr40.sorted()))\n\(lines)\n")
         #expect(probes.contains { $0.1.recovered }, "no GpsRecovered Step on the fixtures?")
-        #expect(traces.count >= 5, "traces with probes: \(traces)")
-        let hit = probes.filter { $0.1.dChord != nil }
-        #expect(hit.isEmpty, "chord through the destination on fixtures: \(hit.prefix(10).map { $0.0.run })")
+        #expect(traces.count >= 6, "(a3) traces with probes: \(traces)")
+        #expect(!tr40.isEmpty, "(a2) no fixture case carries testId TR40")
+
+        // (a1)
+        let stray = probes.filter { $0.1.dChord != nil && !tr40.contains($0.0.traceId) }
+        #expect(stray.isEmpty, "(a1) chord through the destination on a non-TR40 trace: \(stray.prefix(10).map { $0.0.run })")
+
+        // (a2)
+        var bad: [String] = []
+        let tr40Runs = outs.filter { tr40.contains($0.traceId) }
+        for o in tr40Runs {
+            guard let g = o.gpsGaps.first else {
+                bad.append("\(o.run): TR40 trace without truth.gpsGaps")
+                continue
+            }
+            let gEndMs = o.startMs + 1000 * Int64(g.toT)
+            let hits = o.gapProbes.indices.filter { o.gapProbes[$0].dChord != nil }
+            guard hits.count == 1, let hi = hits.first else {
+                bad.append("\(o.run): \(hits.count) chord probes (want 1)")
+                continue
+            }
+            let h = o.gapProbes[hi]
+            let t = Self.kd(Double(h.atMs - o.startMs) / 1000.0)
+            // First (by atMs, then order) accepted fix after g.end that recovered GPS or was a gap fix (Kotlin `minByOrNull`).
+            var firstAfter: Int? = nil
+            for (i, p) in o.gapProbes.enumerated() where p.atMs >= gEndMs && (p.recovered || p.gapFix) {
+                if let f = firstAfter, o.gapProbes[f].atMs <= p.atMs { continue }
+                firstAfter = i
+            }
+            if h.atMs < gEndMs || firstAfter != hi { bad.append("\(o.run): chord probe at t=\(t) is not the first accepted fix after g.end") }
+            let u = h.u ?? .nan
+            let dChord = h.dChord ?? .nan
+            if !(u > 0.0 && u < 1.0) { bad.append("\(o.run): u=\(Self.kd(u))") }
+            if !(dChord < Double(o.nearRadiusM)) { bad.append("\(o.run): dChord=\(Self.kd(dChord)) >= nearRadius \(o.nearRadiusM)") }
+            if !(h.dFixM - dChord >= Double(o.overshootOpenM)) {
+                bad.append("\(o.run): d_f \(Self.kd(h.dFixM)) − dChord \(Self.kd(dChord)) < overshootOpenM \(o.overshootOpenM)")
+            }
+            if !o.isPolicy {
+                if h.atMs != gEndMs { bad.append("\(o.run): chord probe at t=\(t), want g.end \(g.toT)") }
+                if !(dChord >= 483.0 && dChord <= 484.0) { bad.append("\(o.run): dChord=\(Self.kd(dChord)), want 483.5 ± 0.5") }
+                if !(u >= 0.796 && u <= 0.798) { bad.append("\(o.run): u=\(Self.kd(u)), want 0.797 ± 0.001") }
+            }
+        }
+        #expect(!tr40Runs.isEmpty, "(a2) no main run on the TR40 traces \(tr40.sorted())")
+        #expect(bad.isEmpty, "(a2) TR40 chord: \(bad.prefix(20))")
     }
 
     @Test("U117 the notCloser term of the overshoot rule never holds on a fixture run without an earlier GPS-gap chord")

@@ -213,7 +213,7 @@ jobs:
           flutter build apk --config-only
           test -x android/gradlew
 
-      # T12: pure-JVM Trip Engine module + fixture harness (295 runs, P05 manifest). Budget <= 5 min.
+      # T12: pure-JVM Trip Engine module + fixture harness (303 runs, P05 manifest). Budget <= 5 min.
       - name: Trip Engine tests (JVM, T12)
         working-directory: app/android
         run: ./gradlew :core-trip:test

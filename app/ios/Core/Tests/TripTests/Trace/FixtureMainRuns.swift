@@ -1,12 +1,18 @@
 import Foundation
 @testable import Trip
 
-/// One main run of the fixture harness (295, like Kotlin `Suite.outcomes`) with the T10.5 diagnostics: the urgent later shifts
-/// (I4 exception, T10.5 §6) and the GPS-gap chord probes (U116, U117).
+/// One main run of the fixture harness (303 after T11.3, like Kotlin `Suite.outcomes`) with the T10.5 diagnostics: the urgent
+/// later shifts (I4 exception, T10.5 §6) and the GPS-gap chord probes (U116, U117).
 struct MainRunOutcome: Sendable {
     let run: String
     let traceId: String
     let startMs: Int64
+    /// U116 a2 (T11.3): sampling mode is `policy*`, `truth.gpsGaps` of the trace, nearRadius and overshootOpenM of the case
+    /// (Kotlin `caseSetup`).
+    let isPolicy: Bool
+    let gpsGaps: [(fromT: Int, toT: Int)]
+    let nearRadiusM: Int
+    let overshootOpenM: Int
     let urgentShifts: [Checks.UrgentShift]
     let gapProbes: [GapProbe]
     /// T10.6 C29.
@@ -30,7 +36,9 @@ enum FixtureMainRuns {
                 g.addTask {
                     var r = Runner(trace: t, spec: spec, mode: m, options: RunOptions(probes: false))
                     r.runAll()
-                    return MainRunOutcome(run: r.run, traceId: t.file.traceId, startMs: r.startMs,
+                    let nearRadius = max(r.params.overshootNearMinM, r.config.mode == .distance ? (r.config.distanceThresholdM ?? 0) : 0)
+                    return MainRunOutcome(run: r.run, traceId: t.file.traceId, startMs: r.startMs, isPolicy: r.isPolicy,
+                                          gpsGaps: t.file.gpsGaps, nearRadiusM: nearRadius, overshootOpenM: r.params.overshootOpenM,
                                           urgentShifts: Checks.urgentShifts(r.records, r.params), gapProbes: r.gapProbes,
                                           t106: r.t106)
                 }

@@ -8,6 +8,26 @@ import Testing
 /// manifest (like TR36). Same as T12 `DozeModelTest`.
 @Suite("DozeModelTests")
 struct DozeModelTests {
+    /// T11.3 (T11 §1b): the selected case set, sorted. Compared by name, not by count, so a new fixture that changes the set
+    /// names the cases that came in / went out (T11.3 added the 4 `coach_gb_caugie_gappass` cases: 11 → 15). Kotlin `TR39_CASES`.
+    static let tr39Cases: [String] = [
+        "coach_dn_langco_neardest/distance_1000_neardest",
+        "coach_dn_langco_neardest/summary_unknown",
+        "coach_dn_langco_shortgap/distance_1000_shortgap",
+        "coach_dn_langco_shortgap/summary_unknown",
+        "coach_dn_langco_tunnel/distance_1000_gps_lost",
+        "coach_dn_langco_tunnel/summary_unknown",
+        "coach_gb_caugie_gappass/distance_1000",
+        "coach_gb_caugie_gappass/smart",
+        "coach_gb_caugie_gappass/summary_unknown",
+        "coach_gb_caugie_gappass/time_15",
+        "train_hn_dh_midgap/distance_1000_midgap",
+        "train_hn_dh_midgap/summary_unknown",
+        "train_hn_dh_stopgap/distance_1000",
+        "train_hn_dh_stopgap/distance_1000_killsweep",
+        "train_hn_dh_stopgap/summary_unknown",
+    ].sorted()
+
     struct Row: Sendable {
         let name: String
         let fails: [String]
@@ -88,7 +108,10 @@ struct DozeModelTests {
                   !spec.allowFallbackFirst, (spec.samplingModes ?? ["all", "policy"]).contains("all") else { continue }
             jobs.append((trace, spec))
         }
-        #expect(jobs.count == 11, "TR39 case set changed: \(jobs.map { "\($0.0.file.traceId)/\($0.1.id)" })")
+        let names = jobs.map { "\($0.0.file.traceId)/\($0.1.id)" }.sorted()
+        let extra = names.filter { !Self.tr39Cases.contains($0) }
+        let missing = Self.tr39Cases.filter { !names.contains($0) }
+        #expect(names == Self.tr39Cases, "TR39 case set changed: extra \(KW.klist(extra)), missing \(KW.klist(missing))")
         let rows: [Row] = await withTaskGroup(of: Row.self) { g in
             for (t, s) in jobs { g.addTask { Self.check(t, s) } }
             var out: [Row] = []

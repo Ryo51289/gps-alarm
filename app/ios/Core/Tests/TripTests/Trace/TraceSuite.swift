@@ -102,17 +102,17 @@ func runCase(_ trace: LoadedTrace, _ spec: CaseSpec) async -> [ModeResult] {
 
 @Suite("TraceSuite")
 struct TraceSuite {
-    @Test("Fixture directory loads (16 traces, 60 cases, 295 runs after T11.2)")
+    @Test("Fixture directory loads (17 traces, 64 cases, 303 runs after T11.3)")
     func catalogLoads() throws {
         #expect(LoadedTrace.all.count == CaseCatalog.traceCount)
-        #expect(CaseCatalog.traceCount == 16)
-        #expect(CaseCatalog.refs.count == 60)
+        #expect(CaseCatalog.traceCount == 17)
+        #expect(CaseCatalog.refs.count == 64)
         var runs = 0
         for ref in CaseCatalog.refs {
             let (t, spec) = try CaseCatalog.load(ref)
             runs += CaseCatalog.modes(spec, interval: t.file.intervalS).count
         }
-        #expect(runs == 295)
+        #expect(runs == P05.expectedRuns)
     }
 
     @Test("TR01–TR35, TR37, TR38 · P01 P02 P03 P04 P06 P07 · fixture case", arguments: CaseCatalog.refs)

@@ -39,7 +39,7 @@ The script runs `swift test -c release --enable-testable-imports --scratch-path 
 | `NAPSTOP_CONFIG` | `release` (default) or `debug` |
 | `NAPSTOP_FIXTURES_DIR` | `fixtures/traces` (default: found from `#filePath`) |
 | `NAPSTOP_REPORT_DIR` | reports (`killsweep/summary.md`, `killsweep.json`, `trace/summary.md`, `p05-mismatch/`); default `$NAPSTOP_SCRATCH/napstop-report` in the script, `<package>/.build/napstop-report` otherwise |
-| `NAPSTOP_P05_DUMP` | write all 295 transcripts (`<run, "/"→"__">.jsonl`) to this directory; never `fixtures/p05` |
+| `NAPSTOP_P05_DUMP` | write all 303 transcripts (`<run, "/"→"__">.jsonl`) to this directory; never `fixtures/p05` |
 | `NAPSTOP_P05_DIAG=1` | with the dump, also write `<run>.diag.jsonl` (Doubles as raw-bit hex, T12 §9.5) |
 | `NAPSTOP_T106_OFF=true` | check only (T10 "T10.6" §8, Kotlin `-Pnapstop.t106Off=true`): every harness run gets `{gpsLostLongS: 0, passedClosestSlowRiseM: 0}` under its overrides; P05 must then match the pre-T10.6 manifest |
 
@@ -62,6 +62,6 @@ Warnings check: `swift build --build-tests -Xswiftc -warnings-as-errors` (`--ena
 
 ## P05
 
-`P05ManifestTests` generates the 295 transcripts, compares the run set, line counts and SHA-256 with
+`P05ManifestTests` generates the 303 transcripts, compares the run set, line counts and SHA-256 with
 `fixtures/p05/manifest.json` (written by Kotlin, T12) and the 3 samples byte for byte. Mismatching runs are written to
 `<reportDir>/p05-mismatch/`. To hunt a difference: `app/ios/Core/scripts/p05-diff.sh [run …]` (Git Bash).
