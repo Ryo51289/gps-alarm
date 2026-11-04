@@ -483,8 +483,7 @@ struct T105GapTests {
         #expect(Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0, stopNorth: 2_000.0, params: off) == nil, "b p")
         #expect(Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0, params: off) == nil, "b p2")
         Report.shared.write("unit/u123-a.txt", "o \(o.map { String($0.0) } ?? "null") s, p \(pp.map { String($0.0) } ?? "null") s, "
-                            + "p2 \(p2.map { String($0.0) } ?? "null") s (hand 1720 / 2210 / 2210)
-")
+                            + "p2 \(p2.map { String($0.0) } ?? "null") s (hand 1720 / 2210 / 2210)\n")
     }
 
     @Test("U114 q r s u parked after the gap with poor fixes, repeated or alternating coordinates, or crawling away rings OVERSHOOT at the 3rd fix")
