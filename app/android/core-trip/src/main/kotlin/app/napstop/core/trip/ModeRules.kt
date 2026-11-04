@@ -37,7 +37,10 @@ internal fun alarmReason(w: StepWork, e: Estimate?): AlarmReason? {
         val m = modeReason(e, w.cfg, w.slow, p)
         if (w.gps == GpsStatus.LOST) {
             val eta = e.etaS
-            if (m != null || (eta != null && eta < p.gpsLostAlarmEtaS.toDouble())) return AlarmReason.GPS_LOST
+            // T10.6 (1)+(4), C25: "long loss" W, an "or" term.
+            val lostLong = e.lostLongAtS
+            val longLost = lostLong != null && e.elapsedS >= lostLong
+            if (m != null || (eta != null && eta < p.gpsLostAlarmEtaS.toDouble()) || longLost) return AlarmReason.GPS_LOST
         } else if (m != null) {
             return m
         }
@@ -82,7 +85,9 @@ internal fun predictedAlarmAt(w: StepWork, e: Estimate?): Predicted {
     val atDist = { x: Double -> if (e.cvDr > 0.0) now + TMath.floorMs(TMath.max(0.0, e.dNow - x) / e.cvDr) else null }
     val atTime = { s: Int -> e.etaS?.let { now + TMath.floorMs(TMath.max(0.0, it - s.toDouble())) } }
     val modeAt = modeAtWith(w.cfg, w.slow, p, atDist, atTime)
-    val lostAt = if (w.gps == GpsStatus.LOST) atTime(p.gpsLostAlarmEtaS) else null
+    // T10.6: lostLongAt depends only on the last fix, dSmooth, cvDr and params, so it is fixed between two fixes (wake-up basis).
+    val lostLongAt = e.lostLongAtS?.let { w.last!!.fixAtMs + TMath.floorMs(it) }
+    val lostAt = if (w.gps == GpsStatus.LOST) TMath.minOrNull(atTime(p.gpsLostAlarmEtaS), lostLongAt) else null
     val noBattery = TMath.minOrNull(modeAt, lostAt, deadlineAt)
     val battery = batteryAt(w)
     // T10.5: GPS OK and stopped means dNow = dSmooth (§4.4), so modeAt = now + constant slides with now: not a wake-up basis.

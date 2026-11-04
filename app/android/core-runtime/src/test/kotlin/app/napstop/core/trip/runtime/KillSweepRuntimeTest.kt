@@ -82,6 +82,7 @@ class KillSweepRuntimeTest {
         val p = EngineParams() // the L30 cases carry no params
         val tolMs = (p.fallbackLagS + p.samplingDenseIntervalS) * 1000L + RuntimeConstants.WAKE_GUARD_MS
         val where = "${trace.traceId}/${c.id}"
+        val arrivalMs = trace.gpx.startMs + trace.arrivalT * 1000L
         // (sticky)
         val sticky = captures.map { killRun(trace, c, meta, it.copyFresh(), sticky = true) }
         val pairs = LinkedHashMap<String, Int>()
@@ -113,7 +114,10 @@ class KillSweepRuntimeTest {
                 .append("pairs=").append(pairs).append(" maxEarlyS=").append(maxEarlyS)
                 .append(" | headless: reasons=").append(headless.groupingBy { it.alarm?.reason?.name }.eachCount())
                 .append(" maxAfterBaseS=").append(headless.maxOf { (it.alarm!!.atMs - base.atMs) / 1000 })
-                .append(" maxOverArmedFbS=").append(headlessMaxOverFbMs / 1000).append('\n')
+                .append(" maxOverArmedFbS=").append(headlessMaxOverFbMs / 1000)
+                // T12.3 (T10.6 §9): earliest first alarm before the true arrival (s; negative = after it).
+                .append(" earliestBeforeArrivalS sticky=").append(sticky.maxOf { arrivalMs - it.alarm!!.atMs } / 1000)
+                .append(" headless=").append(headless.maxOf { arrivalMs - it.alarm!!.atMs } / 1000).append('\n')
         }
     }
 

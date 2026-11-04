@@ -48,6 +48,7 @@ class SnapshotCodecTest {
         return trackingState(p = p, d = rng.nextDouble() * 100000).copy(
             nowMs = S + rng.nextInt(100_000_000), last = fix(), stopAnchor = if (rng.nextBoolean()) fix() else null,
             recent = List(rng.nextInt(4)) { fix() }, rejects = List(rng.nextInt(4)) { fix() }, dSmooth = d(), dStartM = d(), minD = d(), minDChord = i % 2 == 0,
+            passAnchorD = if (i % 3 == 1) null else d(), // T10.6 (U124): null and numbers interleaved
             last3 = List(rng.nextInt(4)) { d() }, ground = if (rng.nextBoolean()) d() else null, closing = d(), movingTimeS = d(),
             movingSamples = rng.nextInt(1000), movingDistM = d(), stopStartMs = if (rng.nextBoolean()) S + 5 else null, slow = rng.nextBoolean(),
             cvGuard = List(guardSizes[i % 4]) { d() }, policy = policy(SamplingTier.entries[rng.nextInt(3)]), gps = GpsStatus.entries[rng.nextInt(3)],
@@ -80,8 +81,12 @@ class SnapshotCodecTest {
         val xs = listOf(0.1, 1.0 / 3, 2.0 / 3 * 1e-300, 123456.789, 5e-324, 1.7976931348623157e308, -0.0, 1e23)
         val s = trackingState().copy(cvGuard = xs, last3 = xs.take(3), dSmooth = xs[2], ground = xs[4], closing = xs[5], movingDistM = xs[6])
         for (chord in listOf(false, true)) { // T10.5 round 3e: minDChord both values
-            val sc = s.copy(minDChord = chord)
-            assertBitEqual(sc, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sc)))
+            // T10.6 (U124): passAnchorD null and every awkward double.
+            for (anchor in listOf<Double?>(null) + xs) {
+                val sc = s.copy(minDChord = chord, passAnchorD = anchor)
+                assertBitEqual(sc, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sc)))
+                assertEquals(anchor?.let { bits(it) }, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sc)).passAnchorD?.let { bits(it) })
+            }
         }
     }
 

@@ -30,12 +30,15 @@ class LostSpeedGuardTest {
         return e
     }
 
+    /** T10.6 §6: U90 and U91 lose GPS >= gpsLostLongS before the alarm; they check the T10.1 guard, so the "long loss" rule W is off. */
+    private fun noLong(json: String = "{}"): EngineParams = params(json.replaceFirst("{", "{\"gpsLostLongS\": 0" + if (json == "{}") "" else ", "))
+
     private fun alarmTick(e: EngineDriver, from: Int, every: Int = 60): Pair<Int, Step> =
         e.ticksUntil(from, 40_000, every) { s -> s.events.any { it is Alarm } } ?: error("no alarm")
 
     @Test
     fun `U90 braking sample before GPS loss, guard lifts closing speed, override 0 is the old behaviour`() {
-        val e = driver()
+        val e = driver(noLong())
         assertEquals(7.875, e.state.ground!!, 1e-9)
         assertEquals(11.583333333333334, e.state.closing!!, 1e-6)
         val est = estimateOf(e.state)
@@ -62,11 +65,11 @@ class LostSpeedGuardTest {
         }
         assertEquals(AlarmReason.GPS_LOST, e.tick(7200).events.filterIsInstance<Alarm>().single().reason)
 
-        val old = driver(params("{\"fallbackEarlyFrac\": 0.1, \"fallbackEarlyMaxS\": 1800, \"fallbackHintSpeedFactor\": 0}"))
+        val old = driver(noLong("{\"fallbackEarlyFrac\": 0.1, \"fallbackEarlyMaxS\": 1800, \"fallbackHintSpeedFactor\": 0}"))
         val o1440 = old.ticksUntil(960, 1440, 60) { it.events.any { e2 -> e2 is GpsLost } }!!.second
         assertEquals(old.startMs + 6_687_000, o1440.events.filterIsInstance<FallbackAlarmChanged>().single().fallbackAtMs)
 
-        val z = driver(params("{\"lostSpeedGuardUpdates\": 0}"))
+        val z = driver(noLong("{\"lostSpeedGuardUpdates\": 0}"))
         assertTrue(z.state.cvGuard.isEmpty())
         val z1440 = z.ticksUntil(960, 1440, 60) { it.events.any { e2 -> e2 is GpsLost } }!!
         assertEquals(1440, z1440.first)
@@ -82,7 +85,7 @@ class LostSpeedGuardTest {
 
     @Test
     fun `U91 restart sample after a station stop, N = 2, 1, 0`() {
-        val e = driver(fixes = u91Fixes)
+        val e = driver(noLong(), u91Fixes)
         assertEquals(listOf(12.0, 7.875), e.state.cvGuard.map { Math.round(it * 1e9) / 1e9 })
         assertEquals(6.421875, e.state.ground!!, 1e-9)
         assertEquals(8.06875, e.state.closing!!, 1e-6)
@@ -91,8 +94,8 @@ class LostSpeedGuardTest {
         assertEquals(1980, lost.first)
         assertEquals(7680, alarmTick(e, 2040).first)
         assertEquals(AlarmReason.GPS_LOST, e.view.alarmReason)
-        assertEquals(11_580, alarmTick(driver(params("{\"lostSpeedGuardUpdates\": 1}"), u91Fixes), 1500).first)
-        assertEquals(14_160, alarmTick(driver(params("{\"lostSpeedGuardUpdates\": 0}"), u91Fixes), 1500).first)
+        assertEquals(11_580, alarmTick(driver(noLong("{\"lostSpeedGuardUpdates\": 1}"), u91Fixes), 1500).first)
+        assertEquals(14_160, alarmTick(driver(noLong("{\"lostSpeedGuardUpdates\": 0}"), u91Fixes), 1500).first)
     }
 
     private fun transcript(e: EngineDriver) = e.steps.map { it.events to it.view.copy(tripId = "") }

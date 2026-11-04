@@ -33,6 +33,8 @@ tasks.test {
     systemProperty("napstop.testSrcDir", projectDir.resolve("src/test/kotlin").absolutePath)
     systemProperty("napstop.outDir", layout.buildDirectory.dir("napstop").get().asFile.absolutePath)
     systemProperty("napstop.updateP05", providers.gradleProperty("napstop.updateP05").getOrElse("false"))
+    // T10.6 C29: check-only flag, inserts {gpsLostLongS: 0, passedClosestSlowRiseM: 0} into every harness run (P05 "off = T12.2").
+    systemProperty("napstop.t106Off", providers.gradleProperty("napstop.t106Off").getOrElse("false"))
     systemProperty("napstop.dumpTranscripts", providers.gradleProperty("napstop.dumpTranscripts").getOrElse("false"))
     inputs.dir(fixturesDir).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.dir(p05Dir).withPathSensitivity(PathSensitivity.RELATIVE)

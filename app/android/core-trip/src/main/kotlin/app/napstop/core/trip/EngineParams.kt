@@ -1,6 +1,6 @@
 package app.napstop.core.trip
 
-// Generated once from the T10 §5 table (83 parameters, table order). PARAM_SPECS is the single source of
+// Generated once from the T10 §5 table (86 parameters after T10.6, table order). PARAM_SPECS is the single source of
 // names, types, defaults and ranges; EngineParams fields follow the same order.
 
 /** Engine parameters of T10 §5. Fixed for a trip and stored in the snapshot. */
@@ -47,6 +47,8 @@ data class EngineParams(
     val acquireTimeoutS: Int = 120,
     val lostErrFrac: Double = 0.25,
     val lostSpeedGuardUpdates: Int = 2,
+    val gpsLostLongS: Int = 1800,
+    val gpsLostLongHintFactor: Double = 1.0,
     val overshootNearMinM: Int = 1000,
     val overshootOpenM: Int = 1000,
     val overshootMinSpeedKmh: Int = 10,
@@ -54,6 +56,7 @@ data class EngineParams(
     val passedClosestReachFactor: Double = 2.0,
     val passedClosestOpenMinM: Int = 500,
     val passedClosestOpenFrac: Double = 0.5,
+    val passedClosestSlowRiseM: Int = 300,
     val arrivedRadiusM: Int = 300,
     val snoozeS: Int = 60,
     val maxSnoozes: Int = 1,
@@ -143,6 +146,8 @@ internal val PARAM_SPECS: List<ParamSpec> = listOf(
     ParamSpec("acquireTimeoutS", true, 120.0, 30.0, 600.0, { it.acquireTimeoutS.toDouble() }),
     ParamSpec("lostErrFrac", false, 0.25, 0.0, 1.0, { it.lostErrFrac }),
     ParamSpec("lostSpeedGuardUpdates", true, 2.0, 0.0, 5.0, { it.lostSpeedGuardUpdates.toDouble() }),
+    ParamSpec("gpsLostLongS", true, 1800.0, 0.0, 21600.0, { it.gpsLostLongS.toDouble() }),
+    ParamSpec("gpsLostLongHintFactor", false, 1.0, 0.0, 2.0, { it.gpsLostLongHintFactor }),
     ParamSpec("overshootNearMinM", true, 1000.0, 300.0, 3000.0, { it.overshootNearMinM.toDouble() }),
     ParamSpec("overshootOpenM", true, 1000.0, 300.0, 3000.0, { it.overshootOpenM.toDouble() }),
     ParamSpec("overshootMinSpeedKmh", true, 10.0, 3.0, 30.0, { it.overshootMinSpeedKmh.toDouble() }),
@@ -150,6 +155,7 @@ internal val PARAM_SPECS: List<ParamSpec> = listOf(
     ParamSpec("passedClosestReachFactor", false, 2.0, 1.0, 4.0, { it.passedClosestReachFactor }),
     ParamSpec("passedClosestOpenMinM", true, 500.0, 200.0, 3000.0, { it.passedClosestOpenMinM.toDouble() }),
     ParamSpec("passedClosestOpenFrac", false, 0.5, 0.2, 2.0, { it.passedClosestOpenFrac }),
+    ParamSpec("passedClosestSlowRiseM", true, 300.0, 0.0, 3000.0, { it.passedClosestSlowRiseM.toDouble() }),
     ParamSpec("arrivedRadiusM", true, 300.0, 50.0, 1000.0, { it.arrivedRadiusM.toDouble() }),
     ParamSpec("snoozeS", true, 60.0, 30.0, 600.0, { it.snoozeS.toDouble() }),
     ParamSpec("maxSnoozes", true, 1.0, 0.0, 3.0, { it.maxSnoozes.toDouble() }),
@@ -235,6 +241,8 @@ internal fun engineParamsOf(values: Map<String, Double>): EngineParams {
         acquireTimeoutS = i("acquireTimeoutS"),
         lostErrFrac = d("lostErrFrac"),
         lostSpeedGuardUpdates = i("lostSpeedGuardUpdates"),
+        gpsLostLongS = i("gpsLostLongS"),
+        gpsLostLongHintFactor = d("gpsLostLongHintFactor"),
         overshootNearMinM = i("overshootNearMinM"),
         overshootOpenM = i("overshootOpenM"),
         overshootMinSpeedKmh = i("overshootMinSpeedKmh"),
@@ -242,6 +250,7 @@ internal fun engineParamsOf(values: Map<String, Double>): EngineParams {
         passedClosestReachFactor = d("passedClosestReachFactor"),
         passedClosestOpenMinM = i("passedClosestOpenMinM"),
         passedClosestOpenFrac = d("passedClosestOpenFrac"),
+        passedClosestSlowRiseM = i("passedClosestSlowRiseM"),
         arrivedRadiusM = i("arrivedRadiusM"),
         snoozeS = i("snoozeS"),
         maxSnoozes = i("maxSnoozes"),

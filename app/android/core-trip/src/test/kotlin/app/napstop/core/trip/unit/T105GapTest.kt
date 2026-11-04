@@ -397,12 +397,21 @@ class T105GapTest {
         assertEquals(app.napstop.core.trip.EndReason.ALARM_UNANSWERED, te.endReason)
     }
 
-    /** The reviewer's RvStandTest runner (no GPS gap): passing an off-route destination slowly, then standing 1.6 km north. */
-    private fun stand(config: TripConfig, east: Double, v: Double, stopNorth: Double = 1_600.0): Pair<Int, Step>? {
+    /**
+     * The reviewer's RvStandTest runner (no GPS gap): passing an off-route destination slowly, then standing 1.6 km north.
+     * T10.6: [params] (default: the T10 §5 defaults).
+     */
+    private fun stand(
+        config: TripConfig,
+        east: Double,
+        v: Double,
+        stopNorth: Double = 1_600.0,
+        params: EngineParams = EngineParams(),
+    ): Pair<Int, Step>? {
         val p0 = TestGeo.jitter(TestGeo.pointOnMeridian(DEST, 3_000.0), east, 0.0)
         val d0 = distanceM(p0.lat, p0.lng, DEST.lat, DEST.lng)
         val l = FixRec(S, p0.lat, p0.lng, 8.0, d0, null)
-        var st = trackingState(config, d = d0, ground = v, closing = v * 0.95, now = S, lastFixAt = S)
+        var st = trackingState(config, p = params, d = d0, ground = v, closing = v * 0.95, now = S, lastFixAt = S)
         st = st.copy(last = l, recent = listOf(l), dSmooth = d0, minD = d0, last3 = listOf(d0), dStartM = d0 + 5_000.0)
         var y = 3_000.0
         var t = 0
@@ -413,21 +422,42 @@ class T105GapTest {
             val p = TestGeo.jitter(TestGeo.pointOnMeridian(DEST, y), east, 0.0)
             val s = TripEngine.reduce(st, LocationFix(S + t * 1000L, S + t * 1000L, p.lat, p.lng, 8.0, if (moving) v else 0.0))
             st = s.state
+            assertTrue(!st.minDChord, "no GPS gap: minDChord stays false")
             if (s.events.any { it is Alarm }) return t to s
         }
         return null
     }
 
+    /**
+     * U123 (a) (T10.6 (3), flipped from U114 o, p, p2): a slow pass (< 10 km/h) of an off-route destination without a GPS gap rings
+     * PASSED_CLOSEST from the slow-vehicle net (designer by hand: o 1 720 s, p 2 210 s, p2 2 210 s, ± 5 s), never OVERSHOOT.
+     * U123 (b): passedClosestSlowRiseM = 0 is the T12.2 rule (silent for 2 h).
+     */
     @Test
-    fun `U114 o p p2 a slow pass of an off-route destination without a GPS gap is the T12_1 rule (known bug, waiting for T10_6)`() {
-        // Round 3e: normal tracking (no GPS-gap chord, minDChord false) is the T12.1 rule; the round-3c/3d net for a slow pass
-        // (o 1 810 s, p 2 325 s) is gone. Silent for 2 h (TIMEOUT later): lỗi đã biết, chờ T10.6 (PO 03/11).
+    fun `U123 a b a slow pass of an off-route destination rings PASSED_CLOSEST from the slow-vehicle net, off is silent (U114 o p p2)`() {
+        fun check(tag: String, r: Pair<Int, Step>?, hand: Int) {
+            assertNotNull(r, "$tag: silent")
+            val a = r!!.second.events.filterIsInstance<Alarm>().single()
+            assertEquals(AlarmReason.PASSED_CLOSEST, a.reason, tag)
+            assertTrue(a.ringNow, tag)
+            assertTrue(r.second.events.none { it is Overshoot }, "$tag: Overshoot")
+            assertTrue(kotlin.math.abs(r.first - hand) <= 5, "$tag: at ${r.first} s, hand $hand s")
+        }
         // (o) TIME 5, 2.5 m/s, destination 600 m off the route (RvStandTest).
-        assertNull(stand(cfg(AlarmMode.TIME, thrMin = 5), 600.0, 2.5), "o: lỗi đã biết, chờ T10.6 (PO 03/11)")
+        val o = stand(cfg(AlarmMode.TIME, thrMin = 5), 600.0, 2.5)
+        check("o", o, U123_O)
         // (p) DISTANCE 500, 2 m/s, destination 800 m off the route, standing 2 km north (1 354 m past the nearest point).
-        assertNull(stand(cfg(AlarmMode.DISTANCE, thr = 500), 800.0, 2.0, stopNorth = 2_000.0), "p: lỗi đã biết, chờ T10.6 (PO 03/11)")
+        val pp = stand(cfg(AlarmMode.DISTANCE, thr = 500), 800.0, 2.0, stopNorth = 2_000.0)
+        check("p", pp, U123_P)
         // (p2) the RvStandTest geometry (standing 1.6 km north, 989 m past the nearest point 800 m off the route).
-        assertNull(stand(cfg(AlarmMode.DISTANCE, thr = 500), 800.0, 2.0), "p2: lỗi đã biết, chờ T10.6 (PO 03/11)")
+        val p2 = stand(cfg(AlarmMode.DISTANCE, thr = 500), 800.0, 2.0)
+        check("p2", p2, U123_P2)
+        // (b) the net off: the T12.2 rule, silent for 2 h.
+        val off = EngineParams(passedClosestSlowRiseM = 0)
+        assertNull(stand(cfg(AlarmMode.TIME, thrMin = 5), 600.0, 2.5, params = off), "b o")
+        assertNull(stand(cfg(AlarmMode.DISTANCE, thr = 500), 800.0, 2.0, stopNorth = 2_000.0, params = off), "b p")
+        assertNull(stand(cfg(AlarmMode.DISTANCE, thr = 500), 800.0, 2.0, params = off), "b p2")
+        File(outDir, "u123-a.txt").writeText("o ${o!!.first} s, p ${pp!!.first} s, p2 ${p2!!.first} s (hand 1720 / 2210 / 2210)\n")
     }
 
     @Test
@@ -729,5 +759,10 @@ class T105GapTest {
     private companion object {
         /** u114-gap.txt (all U114 sequences, any test order). */
         val LOG = StringBuffer()
+
+        /** U123 (a): measured (T12.3), within ± 5 s of the designer's hand values 1 720 / 2 210 / 2 210 s. */
+        const val U123_O = 1720
+        const val U123_P = 2210
+        const val U123_P2 = 2210
     }
 }

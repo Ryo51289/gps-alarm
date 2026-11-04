@@ -56,6 +56,13 @@ internal class RunOpts(
     val dozeModel: Boolean = false,
 )
 
+/** T10.6 C29 counters of one run: Steps with a `preV` lift, GPS_LOST alarms due to W alone, PASSED_CLOSEST alarms from slowAway. */
+internal class T106Counters {
+    var preVLiftSteps = 0
+    val longLostAlarms = ArrayList<String>()
+    val slowAwayAlarms = ArrayList<String>()
+}
+
 /** Identity of one run: `<traceId>/<caseId>/<mode>`, mode = all | policy | policy-jNN. */
 internal data class RunKey(val traceId: String, val caseId: String, val mode: String, val policy: Boolean, val j: Int) {
     val run: String get() = "$traceId/$caseId/$mode"
@@ -79,6 +86,8 @@ internal class RunResult(
     val dozeWakeTicks: Int = 0,
     /** U116, U117 (T10.5 round 3, 3b): GPS-gap chord probes of the fixes that recovered GPS, were gap fixes or met the standing term. */
     val gapProbes: List<GapProbe> = emptyList(),
+    /** T10.6 C29. */
+    val t106: T106Counters = T106Counters(),
 )
 
 internal fun eventName(e: TripEvent): String = when (e) {
@@ -114,6 +123,7 @@ internal fun caseSetup(trace: TraceModel, case: CaseModel, overrides: Map<String
     val cfg = TripConfig("${trace.id}/${case.id}", trace.destLat, trace.destLng, mode, c.thresholdM, c.thresholdMin, c.preAlert, hint)
     val merged = LinkedHashMap<String, JsonValue>()
     c.params?.fields?.let { merged.putAll(it) }
+    if (Suite.t106Off) merged.putAll(Suite.T106_OFF)
     merged.putAll(overrides)
     val parse = EngineParamsFactory.parseOverrides(MiniJson.write(JObject(merged)))
     if (parse.malformed || parse.rejected.isNotEmpty()) throw ConfigError("params rejected: ${parse.rejected}")
@@ -154,6 +164,7 @@ internal class CaseRun private constructor(
     private val queue = ArrayDeque<EngineInput>()
     private var dozeWakeTicks = 0
     private val gapProbes = ArrayList<GapProbe>()
+    private val t106 = T106Counters()
 
     companion object {
         fun create(trace: TraceModel, case: CaseModel, key: RunKey, opts: RunOpts = RunOpts()): CaseRun {
@@ -203,7 +214,7 @@ internal class CaseRun private constructor(
 
     fun result(): RunResult = RunResult(
         key, startMs, params, records, fbOsAfterTick, predAfterTick, firstAlarmT, firstEventT, relaunchT,
-        os.osFallbackFiredT, case.config.kill?.t, violations, forks, dozeWakeTicks, gapProbes,
+        os.osFallbackFiredT, case.config.kill?.t, violations, forks, dozeWakeTicks, gapProbes, t106,
     )
 
     /** Copy of the harness state at the end of the current tick (records empty). */
@@ -437,10 +448,28 @@ internal class CaseRun private constructor(
         }
     }
 
+    /** T10.6 C29: counters on the state after the Step. */
+    private fun t106Probe(t: Int, step: Step) {
+        val s = step.state
+        val e = app.napstop.core.trip.estimate(app.napstop.core.trip.StepWork(s))
+        if (e != null && s.gps == GpsStatus.LOST && e.lift && !e.established && s.cvGuard.isEmpty()) t106.preVLiftSteps++
+        for (ev in step.events) {
+            if (ev !is Alarm) continue
+            if (ev.reason == app.napstop.core.trip.AlarmReason.GPS_LOST && app.napstop.core.trip.support.lostAlarmInfo(s).longLostOnly) {
+                val parts = app.napstop.core.trip.support.lostLongParts(s)
+                t106.longLostAlarms += "t=$t elapsedS=${e?.elapsedS} thS=${parts?.first} earlyS=${parts?.second}"
+            }
+            if (ev.reason == app.napstop.core.trip.AlarmReason.PASSED_CLOSEST && !app.napstop.core.trip.isFast(app.napstop.core.trip.StepWork(s))) {
+                t106.slowAwayAlarms += "t=$t"
+            }
+        }
+    }
+
     private fun record(t: Int, x: EngineInput?, inJson: String, step: Step, info: RestoreInfo? = null) {
         records += StepRecord(t, x, inJson, step.events, step.view, info, if (Transcript.diagEnabled) Transcript.diag(step) else null)
         Checks.finiteStateViolation(step.state)?.let { violations += "$it at ${where(t)}" }
         if (opts.probes) probe(t, step)
+        t106Probe(t, step)
         for (e in step.events) {
             val n = eventName(e)
             if (!firstEventT.containsKey(n)) firstEventT[n] = t

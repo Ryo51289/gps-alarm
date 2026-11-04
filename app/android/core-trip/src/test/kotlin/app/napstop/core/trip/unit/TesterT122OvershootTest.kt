@@ -89,9 +89,10 @@ class TesterT122OvershootTest {
         path: Path,
         horizonMs: Long,
         forcedIntervalMs: Long?,
+        params: EngineParams = p,
         fix: (Long, Step) -> LocationFix?,
     ): Outcome {
-        var step: Step = TripEngine.start(config, p, S)
+        var step: Step = TripEngine.start(config, params, S)
         var nextFix = S + 1_000L
         var n = 0
         while (step.events.none { it is Alarm } && step.state.nowMs < horizonMs && ++n < 200_000) {
@@ -139,6 +140,7 @@ class TesterT122OvershootTest {
         outliers: Int,
         interval: Long?,
         dropFirst: Boolean = false,
+        params: EngineParams = p,
     ): Outcome {
         val path = Path(-20_000.0, 0.0)
         val tJam = S + ((20_000.0 + jamY) / 12.0 * 1000).toLong()
@@ -148,7 +150,7 @@ class TesterT122OvershootTest {
         val r = Rng(jamY.toLong() * 31 + delta.toLong())
         val outAt = tJam + 300_000L
         var outLeft = outliers
-        return drive(config, path, S + 6 * 3_600_000L, interval) { t, _ ->
+        return drive(config, path, S + 6 * 3_600_000L, interval, params) { t, _ ->
             val y = path.yAt(t)
             val spd = if (doppler) abs(path.vAt(t)) else null
             if (t >= outAt && outLeft > 0) {
@@ -166,20 +168,27 @@ class TesterT122OvershootTest {
     fun `T122 O1 stuck in traffic before the destination with an outlier fix - wrong-wording OVERSHOOT count`() {
         val out = StringBuilder()
         val wrong = ArrayList<String>()
+        val changed = ArrayList<String>()
         var runs = 0
         for ((name, config) in modes) for (jamY in listOf(-1_200.0, -1_500.0, -1_900.0, -2_500.0)) {
             for (crawl in listOf(0.0, 0.3)) for (doppler in listOf(true, false)) for (delta in listOf(1_100.0, 1_500.0, 2_000.0)) {
                 for (outliers in listOf(0, 1, 2)) for (interval in listOf<Long?>(null, 30_000L, 180_000L)) {
                     val o = jam(config, jamY, crawl, doppler, delta, outliers, interval)
+                    // U125: run by run the same as T12.2 (T10.6 off).
+                    val off = jam(config, jamY, crawl, doppler, delta, outliers, interval, params = T106_OFF)
                     runs++
                     val line = "$name jamY=${jamY.toInt()} crawl=$crawl doppler=$doppler delta=${delta.toInt()} outliers=$outliers " +
                         "interval=${interval?.div(1000) ?: "policy"}: ${o.alarm?.reason} at y=${o.y.toInt()} d=${o.d.toInt()}"
                     out.append(line).append('\n')
                     if (o.wrong) wrong += line
+                    if (off.wrong != o.wrong) changed += line
                 }
             }
         }
-        File(outDir, "t122-o1-jam-outlier.txt").writeText("runs=$runs wrongWording=${wrong.size}\n${wrong.joinToString("\n")}\n\nall:\n$out")
+        File(outDir, "t122-o1-jam-outlier.txt").writeText(
+            "runs=$runs wrongWording=${wrong.size} changedVsT10_6Off=${changed.size}\n${wrong.joinToString("\n")}\n\nall:\n$out",
+        )
+        assertTrue(changed.isEmpty()) { "U125: O1 wrong-wording runs differ from T12.2: ${changed.take(5)}" }
         // Without outliers the rule must never fire before the destination.
         assertTrue(wrong.none { it.contains("outliers=0") }) { wrong.filter { it.contains("outliers=0") }.take(5).joinToString("\n") }
         assertEquals(PINNED_O1, wrong.size)
@@ -194,20 +203,27 @@ class TesterT122OvershootTest {
     fun `T122 O1c stuck before the destination, first outlier dropped by the platform instead of rejected - wrong-wording count`() {
         val out = StringBuilder()
         val wrong = ArrayList<String>()
+        val changed = ArrayList<String>()
         var runs = 0
         for ((name, config) in modes) for (jamY in listOf(-1_200.0, -1_500.0, -1_900.0, -2_500.0)) {
             for (crawl in listOf(0.0, 0.3)) for (doppler in listOf(true, false)) for (delta in listOf(1_100.0, 1_500.0, 2_000.0)) {
                 for (outliers in listOf(2, 3)) for (interval in listOf<Long?>(null, 30_000L, 180_000L)) {
                     val o = jam(config, jamY, crawl, doppler, delta, outliers, interval, dropFirst = true)
+                    // U125: run by run the same as T12.2 (T10.6 off).
+                    val off = jam(config, jamY, crawl, doppler, delta, outliers, interval, dropFirst = true, params = T106_OFF)
                     runs++
                     val line = "$name jamY=${jamY.toInt()} crawl=$crawl doppler=$doppler delta=${delta.toInt()} outliers=$outliers(first dropped) " +
                         "interval=${interval?.div(1000) ?: "policy"}: ${o.alarm?.reason} at y=${o.y.toInt()} d=${o.d.toInt()}"
                     out.append(line).append('\n')
                     if (o.wrong) wrong += line
+                    if (off.wrong != o.wrong) changed += line
                 }
             }
         }
-        File(outDir, "t122-o1c-dropped-outlier.txt").writeText("runs=$runs wrongWording=${wrong.size}\n${wrong.joinToString("\n")}\n\nall:\n$out")
+        File(outDir, "t122-o1c-dropped-outlier.txt").writeText(
+            "runs=$runs wrongWording=${wrong.size} changedVsT10_6Off=${changed.size}\n${wrong.joinToString("\n")}\n\nall:\n$out",
+        )
+        assertTrue(changed.isEmpty()) { "U125: O1c wrong-wording runs differ from T12.2: ${changed.take(5)}" }
         assertEquals(PINNED_O1C, wrong.size)
     }
 
@@ -290,6 +306,7 @@ class TesterT122OvershootTest {
         val byCause = sortedMapOf<String, Int>()
         val firsts = sortedMapOf<String, Int>()
         val lateAfterPass = ArrayList<Double>()
+        val timeoutGood = ArrayList<String>()
         var runs = 0
         for (seed in 1L..3_000L) {
             val r = Rng(seed)
@@ -318,6 +335,12 @@ class TesterT122OvershootTest {
             runs++
             val k = "${o.alarm?.reason}"
             firsts[k] = (firsts[k] ?: 0) + 1
+            if (o.alarm?.reason == AlarmReason.TIMEOUT) {
+                // U125 (after T12.3, D4 / RK22 c): a TIMEOUT only without good fixes (acc > speedSampleMaxAccM).
+                if (acc <= p.speedSampleMaxAccM) timeoutGood += "seed=$seed $name acc=$acc"
+                out.append("TIMEOUT seed=$seed $name v=${"%.1f".format(v)} offset=${offset.toInt()} acc=${acc.toInt()} forced=$forced ")
+                    .append("drop=${"%.2f".format(drop)} noDoppler=$noDoppler outliers=$outliers at y=${o.y.toInt()} d=${o.d.toInt()} steps=${o.steps}\n")
+            }
             if (o.y > 0) lateAfterPass += o.y / v
             if (o.wrong) {
                 val cause = if (outliers > 0) "with outliers" else if (forced != null) "sparse, no outlier" else "policy, no outlier"
@@ -328,11 +351,12 @@ class TesterT122OvershootTest {
         }
         val l = lateAfterPass.sorted()
         File(outDir, "t122-o2-approach.txt").writeText(
-            "runs=$runs firstAlarm=$firsts wrongWording=$byCause\n" +
+            "runs=$runs firstAlarm=$firsts wrongWording=$byCause TIMEOUT=${firsts["TIMEOUT"] ?: 0} (U125: only runs with acc > speedSampleMaxAccM)\n" +
                 "rang after the closest point (s after it): n ${l.size}${if (l.isEmpty()) "" else ", p50 ${l[l.size / 2].toInt()}, p90 ${l[(l.size * 9) / 10].toInt()}, max ${l.last().toInt()}"}\n$out",
         )
         assertTrue(byCause.keys.all { it == "with outliers" }) { "wrong wording without an outlier: $byCause\n$out" }
         assertEquals(PINNED_O2, byCause["with outliers"] ?: 0)
+        assertTrue(timeoutGood.isEmpty()) { "U125: O2 TIMEOUT with acc <= speedSampleMaxAccM: $timeoutGood" }
     }
 
     // ================================================================ O3: covered station before the destination, alternating sources
@@ -369,10 +393,17 @@ class TesterT122OvershootTest {
 
     // ================================================================ O4: slow crawl away after the pass, vehicle reversing before it
 
+    /**
+     * U125 (T10.6 (3), flipped from the tester's `T122 O4`): (i) off-route pass then a slow crawl away (the slow-vehicle net now rings
+     * PASSED_CLOSEST except at 0.5 m/s: silentCrawl 8 → 2), (ii) reversing 1.5 km at 5 / 12 m/s before the destination (18
+     * wrong-wording PASSED_CLOSEST from the `fast` term, RK10, unchanged), (iii) the same reversing at 1.5 / 2.5 m/s: wrong-wording
+     * PASSED_CLOSEST from the slow-vehicle net (RK22 a), recorded (designer: about 18, report above 30).
+     */
     @Test
-    fun `T122 O4 slow crawl away after an off-route pass and a vehicle reversing before the destination`() {
+    fun `U125 O4 slow crawl away after an off-route pass and a vehicle reversing before the destination`() {
         val out = StringBuilder()
         var wrongReverse = 0
+        var wrongSlowReverse = 0
         var silentCrawl = 0
         for ((name, config) in modes) {
             // (i) off-route destination 600 m from the road, slow pass then crawl away at 0.5–2 m/s for 2 h.
@@ -384,8 +415,8 @@ class TesterT122OvershootTest {
                 if (o.alarm == null) silentCrawl++
                 out.append("crawl $name offset=600 v=$crawl: ${o.alarm?.reason} at y=${o.y.toInt()} d=${o.d.toInt()} (${(o.y + 3_000.0) / crawl / 60} min)\n")
             }
-            // (ii) approach to R before the destination, reverse 1.5 km, then forward again to the destination.
-            for (rr in listOf(700.0, 900.0, 1_500.0)) for (vRev in listOf(5.0, 12.0)) {
+            // (ii) approach to R before the destination, reverse 1.5 km, then forward again; (iii) the same reversing slowly.
+            for (rr in listOf(700.0, 900.0, 1_500.0)) for (vRev in listOf(5.0, 12.0, 1.5, 2.5)) {
                 val path = Path(-15_000.0, 0.0)
                 val t1 = S + ((15_000.0 - rr) / 12.0 * 1000).toLong()
                 path.segs += S to 12.0
@@ -393,11 +424,16 @@ class TesterT122OvershootTest {
                 path.segs += (t1 + (1_500.0 / vRev * 1000).toLong()) to 12.0
                 val r = Rng(rr.toLong() + vRev.toLong())
                 val o = drive(config, path, S + 3 * 3_600_000L, null) { t, _ -> fixAt(t, path.yAt(t) + r.dbl(-8.0, 8.0), r.dbl(-8.0, 8.0), 10.0, abs(path.vAt(t))) }
-                if (o.wrong) wrongReverse++
-                out.append("reverse $name R=${rr.toInt()} vRev=$vRev: ${o.alarm?.reason} at y=${o.y.toInt()} d=${o.d.toInt()}${if (o.wrong) "  <- wrong wording" else ""}\n")
+                val slow = vRev < 5.0
+                if (o.wrong) {
+                    if (slow) wrongSlowReverse++ else wrongReverse++
+                }
+                out.append("reverse${if (slow) " (iii)" else ""} $name R=${rr.toInt()} vRev=$vRev: ${o.alarm?.reason} at y=${o.y.toInt()} d=${o.d.toInt()}${if (o.wrong) "  <- wrong wording" else ""}\n")
             }
         }
-        File(outDir, "t122-o4-crawl-reverse.txt").writeText("silentCrawl=$silentCrawl wrongReverse=$wrongReverse\n$out")
+        File(outDir, "t122-o4-crawl-reverse.txt").writeText(
+            "silentCrawl=$silentCrawl wrongReverse=$wrongReverse wrongSlowReverse(iii)=$wrongSlowReverse\n$out",
+        )
         assertEquals(PINNED_O4, "silentCrawl=$silentCrawl wrongReverse=$wrongReverse")
     }
 
@@ -459,13 +495,20 @@ class TesterT122OvershootTest {
             return out to reanchor
         }
         val (steps, re) = run(jumps = true)
+        // T10.6 (3): the slow-vehicle net rings PASSED_CLOSEST on the crawl away (designer: about 1 400 m); still no OVERSHOOT.
+        val firstAe = steps.flatMap { it.events }.filterIsInstance<Alarm>().firstOrNull()
+        assertEquals(AlarmReason.PASSED_CLOSEST, firstAe?.reason, "ae first alarm")
         assertTrue(re != null && !re.state.minDChord && kotlin.math.abs(re.state.minD!! - 600.0) <= 1.0, "ae REANCHOR: flag ${re?.state?.minDChord} minD ${re?.state?.minD}")
         assertTrue(steps.flatMap { it.events }.none { it is Alarm && it.reason == AlarmReason.OVERSHOOT }, "ae: OVERSHOOT after a REANCHOR")
         assertTrue(steps.dropWhile { it !== re }.none { it.state.minDChord }, "ae: flag set again after the REANCHOR")
         val (control, _) = run(jumps = false)
         val ca = control.flatMap { it.events }.filterIsInstance<Alarm>().firstOrNull()
         assertEquals(AlarmReason.OVERSHOOT, ca?.reason, "ae control (chord flag kept)")
-        File(outDir, "u114-ae.txt").writeText("ae: reanchor minD=${re!!.state.minD} flag=${re.state.minDChord}; first alarm ${steps.flatMap { it.events }.filterIsInstance<Alarm>().firstOrNull()?.reason}; control ${ca?.reason}\n")
+        val aeStep = steps.first { st -> st.events.any { it is Alarm } }
+        File(outDir, "u114-ae.txt").writeText(
+            "ae: reanchor minD=${re!!.state.minD} flag=${re.state.minDChord}; first alarm ${firstAe?.reason} at " +
+                "${(aeStep.state.nowMs - n) / 1000} s after the chord fix, dSmooth ${aeStep.state.dSmooth?.toInt()} m; control ${ca?.reason}\n",
+        )
     }
 
     /**
@@ -506,7 +549,11 @@ class TesterT122OvershootTest {
         const val PINNED_O1 = 14 // = HEAD (T12.1), run-by-run (T12.2 round 8); vòng 3c/3d had 54 (R2-1), vòng 3e 25
         const val PINNED_O2 = 0
         const val PINNED_O3 = 0
-        const val PINNED_O4 = "silentCrawl=8 wrongReverse=18" // = HEAD (crawl: T10.6 known; reverse: PASSED_CLOSEST, RK10)
+        // T10.6 (U125): crawl 8 → 2 (0.5 m/s is not yet 300 m past the anchor in 2 h); reverse: PASSED_CLOSEST from `fast`, RK10.
+        const val PINNED_O4 = "silentCrawl=2 wrongReverse=18"
+
+        /** T10.6 off (C29): the T12.2 behaviour, for the run-by-run U125 comparisons. */
+        val T106_OFF = EngineParams(gpsLostLongS = 0, passedClosestSlowRiseM = 0)
         const val PINNED_O1C = 43 // T10.5 vòng 3f, RK20 c: measured in T12.2 round 8 (2 304 runs)
         const val PINNED_O1B = 0 // = HEAD (vòng 3c/3d: 44, R2-1)
         const val PINNED_O1_REPRO = "DISTANCE ringNow=true at d=480 m (y=-480)" // = HEAD (vòng 3c/3d: OVERSHOOT at 1 900 m, R2-1)

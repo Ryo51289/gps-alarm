@@ -19,6 +19,7 @@ internal class StepWork(s: EngineState) {
     var dStartM: Double? = s.dStartM
     var minD: Double? = s.minD
     var minDChord: Boolean = s.minDChord
+    var passAnchorD: Double? = s.passAnchorD
     var last3: List<Double> = s.last3
     var ground: Double? = s.ground
     var closing: Double? = s.closing
@@ -59,7 +60,7 @@ internal class StepWork(s: EngineState) {
     fun toState(): EngineState = EngineState(
         snapshotVersion = 1, params = p, config = cfg, nowMs = now, startedAtMs = startedAtMs, phase = phase, gps = gps,
         locationCause = locationCause, last = last, stopAnchor = stopAnchor, recent = recent, rejects = rejects,
-        dSmooth = dSmooth, dStartM = dStartM, minD = minD, minDChord = minDChord, last3 = last3, ground = ground, closing = closing,
+        dSmooth = dSmooth, dStartM = dStartM, minD = minD, minDChord = minDChord, passAnchorD = passAnchorD, last3 = last3, ground = ground, closing = closing,
         movingTimeS = movingTimeS, movingSamples = movingSamples, movingDistM = movingDistM, stopStartMs = stopStartMs,
         slow = slow, cvGuard = cvGuard, policy = policy, policyIntervalAtLastFixS = policyIntervalAtLastFixS,
         gpsLostAtMs = gpsLostAtMs, lostEmittedBeforeFirstFix = lostEmittedBeforeFirstFix, preAlertArmed = preAlertArmed,
@@ -138,6 +139,7 @@ internal fun initialState(config: TripConfig, params: EngineParams, nowMs: Long)
     snapshotVersion = 1, params = params, config = config, nowMs = nowMs, startedAtMs = nowMs,
     phase = TripPhase.ACQUIRING, gps = GpsStatus.NO_FIX_YET, locationCause = AvailabilityCause.AVAILABLE,
     last = null, stopAnchor = null, recent = emptyList(), rejects = emptyList(), dSmooth = null, dStartM = null, minD = null,
+    passAnchorD = null,
     last3 = emptyList(), ground = null, closing = null, movingTimeS = 0.0, movingSamples = 0, movingDistM = 0.0,
     stopStartMs = null, slow = false, cvGuard = emptyList(), policy = null, policyIntervalAtLastFixS = 0, gpsLostAtMs = null,
     lostEmittedBeforeFirstFix = false, preAlertArmed = false, preAlertFired = false, arrivedFired = false,
@@ -412,6 +414,8 @@ private fun runSteps3to9(w: StepWork) {
         w.overshootPastM = past
         w.events += Overshoot(w.now, past)
     }
+    // 8. T10.6 (3), C27: slow-vehicle passed-closest mark, on every Step with an accepted fix (ACCEPT/REANCHOR), in every phase.
+    if (w.fixAccepted) updatePassAnchor(w, e)
     // 8. Alarm reason / pre-alert.
     if ((w.phase == TripPhase.ACQUIRING || w.phase == TripPhase.TRACKING) && w.alarm.atMs == null) {
         if (w.firstFix && e != null) w.preAlertArmed = !inZone(e, w.cfg, p)

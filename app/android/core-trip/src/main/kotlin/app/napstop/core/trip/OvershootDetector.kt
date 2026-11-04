@@ -100,17 +100,55 @@ private fun passedRadiusM(w: StepWork, e: Estimate): Double {
     return TMath.max(p.passedClosestMinRadiusM.toDouble(), p.passedClosestReachFactor * reachM)
 }
 
+private fun openNeedM(p: EngineParams, minD: Double): Double = TMath.max(p.passedClosestOpenMinM.toDouble(), p.passedClosestOpenFrac * minD)
+
 internal fun isPassedClosest(w: StepWork, e: Estimate): Boolean {
     val p = w.p
     val minD = w.minD ?: return false
     val ds = w.dSmooth ?: return false
     val dStart = w.dStartM ?: return false
     val passedRadius = passedRadiusM(w, e)
-    val openNeedM = TMath.max(p.passedClosestOpenMinM.toDouble(), p.passedClosestOpenFrac * minD)
+    val openNeedM = openNeedM(p, minD)
     return (w.phase == TripPhase.ACQUIRING || w.phase == TripPhase.TRACKING) && w.alarm.atMs == null &&
         w.gps == GpsStatus.OK && minD < passedRadius &&
         dStart - minD >= p.passedClosestOpenMinM.toDouble() &&
-        ds - minD >= openNeedM && increasing(w.last3) && isFast(w)
+        ds - minD >= openNeedM && increasing(w.last3) && (isFast(w) || slowAway(w))
+}
+
+/**
+ * T10.6 (3), C27: on every Step with an accepted fix (ACCEPT/REANCHOR), after step 7 and before alarmReason, in every phase.
+ * The mark is the smoothed distance measured once the gap to minD is already open, from good (GNSS) fixes only, going down only;
+ * it is cleared whenever the geometric terms of passedClosest stop holding.
+ */
+internal fun updatePassAnchor(w: StepWork, e: Estimate?) {
+    val p = w.p
+    val minD = w.minD
+    val ds = w.dSmooth
+    val dStart = w.dStartM
+    val f = w.last
+    val passOpen = p.passedClosestSlowRiseM > 0 && e != null && minD != null && ds != null && dStart != null && f != null &&
+        (w.phase == TripPhase.ACQUIRING || w.phase == TripPhase.TRACKING) && w.alarm.atMs == null &&
+        w.gps == GpsStatus.OK && minD < passedRadiusM(w, e) &&
+        dStart - minD >= p.passedClosestOpenMinM.toDouble() && ds - minD >= openNeedM(p, minD)
+    if (!passOpen) {
+        w.passAnchorD = null
+        return
+    }
+    if (!isGoodFix(w)) return
+    val a = w.passAnchorD
+    w.passAnchorD = if (a == null) ds else TMath.min(a, ds!!)
+}
+
+private fun isGoodFix(w: StepWork): Boolean {
+    val f = w.last ?: return false
+    return f.accM <= w.p.speedSampleMaxAccM
+}
+
+/** T10.6 (3), C27: two smoothed distances in a row at least passedClosestSlowRiseM above the mark (read after the update). */
+internal fun slowAway(w: StepWork): Boolean {
+    val a = w.passAnchorD ?: return false
+    val l3 = w.last3
+    return isGoodFix(w) && l3.size == 3 && l3[1] - a >= w.p.passedClosestSlowRiseM.toDouble()
 }
 
 internal fun isArrived(w: StepWork): Boolean {

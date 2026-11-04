@@ -26,6 +26,8 @@ internal class RunOutcome(
     val startMs: Long = 0,
     /** U116 (T10.5 round 3): GPS-gap chord probes of the run. */
     val gapProbes: List<GapProbe> = emptyList(),
+    /** T10.6 C29 counters of the run. */
+    val t106: T106Counters = T106Counters(),
 )
 
 internal class CaseRef(val trace: TraceModel, val entry: CaseEntry) {
@@ -39,6 +41,13 @@ internal object Suite {
     val outDir = File(System.getProperty("napstop.outDir") ?: "build/napstop")
     val updateP05 = System.getProperty("napstop.updateP05") == "true"
     val dumpTranscripts = System.getProperty("napstop.dumpTranscripts") == "true"
+
+    /** T10.6 C29 (check only, §8 step 2): every harness run gets [T106_OFF] under its own overrides. */
+    val t106Off = System.getProperty("napstop.t106Off") == "true"
+    val T106_OFF: Map<String, app.napstop.core.trip.JsonValue> = mapOf(
+        "gpsLostLongS" to app.napstop.core.trip.JNumber("0"),
+        "passedClosestSlowRiseM" to app.napstop.core.trip.JNumber("0"),
+    )
     const val SHIFT_P06_MS = 86_400_000L
 
     val SAMPLE_RUNS = listOf(
@@ -105,6 +114,7 @@ internal object Suite {
         }
         urgentShiftReport(m.values)
         gapReport(m.values)
+        t106Report(m.values)
         return m
     }
 
@@ -127,6 +137,20 @@ internal object Suite {
                 .append(if (dc.isEmpty()) "-" else f(dc.min())).append(" | ").append(list.count { it.second.standingTerm }).append(" |\n")
         }
         Reports.section("gap chord", md.toString())
+    }
+
+    /** T10.6 C29: preVLiftSteps, longLostAlarms, slowAwayAlarms over all main runs (`all` + every `policy` phase). */
+    private fun t106Report(outs: Collection<RunOutcome>) {
+        val md = StringBuilder("### T10.6 counters (C29), all main runs\n\n")
+        md.append("preVLiftSteps: ").append(outs.sumOf { it.t106.preVLiftSteps }).append(", longLostAlarms: ")
+            .append(outs.sumOf { it.t106.longLostAlarms.size }).append(", slowAwayAlarms: ").append(outs.sumOf { it.t106.slowAwayAlarms.size }).append("\n\n")
+        for (o in outs.sortedBy { it.key.run }) {
+            val c = o.t106
+            if (c.preVLiftSteps == 0 && c.longLostAlarms.isEmpty() && c.slowAwayAlarms.isEmpty()) continue
+            md.append("- ").append(o.key.run).append(": preVLiftSteps ").append(c.preVLiftSteps)
+                .append(", longLost ").append(c.longLostAlarms).append(", slowAway ").append(c.slowAwayAlarms).append('\n')
+        }
+        Reports.section("t106 counters", md.toString())
     }
 
     private fun urgentShiftReport(outs: Collection<RunOutcome>) {
@@ -182,7 +206,7 @@ internal object Suite {
             val keep = dumpTranscripts || key.run in SAMPLE_RUNS
             RunOutcome(
                 key, fails, Transcript.sha256(text), Transcript.lineCount(text), if (keep) text else null, firstAlarm, ks, i8, i9, p06,
-                Checks.urgentShifts(main), main.startMs, main.gapProbes,
+                Checks.urgentShifts(main), main.startMs, main.gapProbes, main.t106,
             )
         } catch (e: ConfigError) {
             RunOutcome(key, listOf("config error: ${e.message} (${key.run} j=${key.j})"), null, 0, null, null, null, null, null, null)

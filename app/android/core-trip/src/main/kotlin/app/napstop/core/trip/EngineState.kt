@@ -79,6 +79,8 @@ data class EngineState(
     val minD: Double?,
     /** T10.5 round 3e: minD comes from a GPS-gap chord (not from an observed fix); gates the `notCloser` overshoot term. */
     val minDChord: Boolean = false,
+    /** T10.6 (C27, C28): distance mark of the slow-vehicle passed-closest net, set only once already past the closest point. */
+    val passAnchorD: Double? = null,
     val last3: List<Double>,
     val ground: Double?,
     val closing: Double?,

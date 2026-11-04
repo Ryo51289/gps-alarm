@@ -19,6 +19,7 @@ import app.napstop.core.trip.support.cfg
 import app.napstop.core.trip.support.driverFrom
 import app.napstop.core.trip.support.est
 import app.napstop.core.trip.support.estimateOf
+import app.napstop.core.trip.support.params
 import app.napstop.core.trip.support.trackingState
 import app.napstop.core.trip.support.work
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -103,7 +104,12 @@ class GpsMonitorTest {
 
     @Test
     fun `U71 lost while stopped keeps dead reckoning, prediction stays constant, alarm at tick 3660`() {
-        val s = trackingState(cfg(), d = 60_000.0, ground = 15.0, closing = 12.5, inStop = true, tier = SamplingTier.SPARSE, cvGuard = listOf(12.5, 12.5))
+        // T10.6 §6 (not in the designer's list, see T12.md T12.3 notes): GPS lost 2 280 s before the alarm; this test checks dead
+        // reckoning while stopped, not the "long loss" rule W (with W on the alarm is GPS_LOST at tick 2820, U119-U121).
+        val s = trackingState(
+            cfg(), p = params("{\"gpsLostLongS\": 0}"), d = 60_000.0, ground = 15.0, closing = 12.5, inStop = true,
+            tier = SamplingTier.SPARSE, cvGuard = listOf(12.5, 12.5),
+        )
         val e = driverFrom(s)
         var lostAt: Int? = null
         var pred: Long? = null

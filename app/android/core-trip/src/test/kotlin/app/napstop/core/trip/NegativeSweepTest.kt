@@ -19,7 +19,8 @@ class NegativeSweepTest {
     fun `TR36 TR30 phase sweep without the lost-GPS speed guard fails at least one phase`() {
         val (trace, case) = case("train_hn_dh_stopgap", "distance_1000")
         val keys = Suite.keysOf(trace, case).filter { it.policy }
-        val opts = RunOpts(paramOverrides = mapOf("lostSpeedGuardUpdates" to JNumber("0")), probes = false)
+        // T10.6 C29: W off too, otherwise the "long loss" rule rescues the failing phases and the negative check means nothing.
+        val opts = RunOpts(paramOverrides = mapOf("lostSpeedGuardUpdates" to JNumber("0"), "gpsLostLongS" to JNumber("0")), probes = false)
         val results = keys.map { k ->
             Suite.pool.submit(
                 Callable {
@@ -34,7 +35,7 @@ class NegativeSweepTest {
             )
         }.map { it.get() }
         val failed = results.filter { !it.second }
-        val md = StringBuilder("### TR36 (lostSpeedGuardUpdates = 0, 36 phases)\n\nFailing phases: ${failed.size}/${results.size}\n\n")
+        val md = StringBuilder("### TR36 (lostSpeedGuardUpdates = 0, gpsLostLongS = 0, 36 phases)\n\nFailing phases: ${failed.size}/${results.size}\n\n")
         md.append("| j | TR30 expectation | first alarm |\n|---|---|---|\n")
         for ((j, ok, a) in results) md.append("| $j | ${if (ok) "pass" else "FAIL"} | $a |\n")
         Reports.section("negative TR36", md.toString())

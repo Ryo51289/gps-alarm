@@ -26,6 +26,7 @@ import app.napstop.core.trip.support.EngineDriver
 import app.napstop.core.trip.support.S
 import app.napstop.core.trip.support.cfg
 import app.napstop.core.trip.support.driverFrom
+import app.napstop.core.trip.support.params
 import app.napstop.core.trip.support.trackingState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -39,8 +40,14 @@ import java.io.File
  */
 class WakeGuardT104Test {
     /** Tester's repro base: TRACKING, established, DISTANCE 1000, closing 12.5 m/s (k 1.2), one fix at S, tier SPARSE, field 5. */
-    private fun lostTrip(t0S: Int): EngineDriver =
-        driverFrom(trackingState(d = 1000.0 + 12.5 * t0S, tier = SamplingTier.SPARSE, policyAtFix = 5))
+    private fun lostTrip(t0S: Int, p: EngineParams = EngineParams()): EngineDriver =
+        driverFrom(trackingState(p = p, d = 1000.0 + 12.5 * t0S, tier = SamplingTier.SPARSE, policyAtFix = 5))
+
+    /**
+     * T10.6 §6: U99 and U100 lose GPS >= gpsLostLongS before the alarm and check the T10.4 wake-up mechanism, not the "long loss"
+     * rule W (U119–U121), so they keep their numbers with W off.
+     */
+    private val noLongLoss = params("{\"gpsLostLongS\": 0}")
 
     private fun assertI13(s: Step, tag: String) {
         val w = s.view.wakeAtMs
@@ -80,7 +87,7 @@ class WakeGuardT104Test {
 
     @Test
     fun `U99 GAP-1 a Tick exactly at predicted keeps a wake-up and the next one rings GPS_LOST`() {
-        val e = lostTrip(3610) // etaS = 3 710 − t
+        val e = lostTrip(3610, noLongLoss) // etaS = 3 710 − t
         val s10 = e.tick(10)
         assertEquals(SamplingTier.MEDIUM, s10.view.samplingPolicy!!.tier)
         assertTrue(s10.events.none { it is GpsLost })
@@ -103,7 +110,7 @@ class WakeGuardT104Test {
         assertTrue(alarm.ringNow)
         assertEquals(FallbackAlarmChanged(S + 2_511_000, null, FallbackCause.SUPERSEDED), ring.events.filterIsInstance<FallbackAlarmChanged>().single())
         // (b) Same wake-ups up to the c8 Step, then a Tick exactly at P.
-        val b = lostTrip(3610)
+        val b = lostTrip(3610, noLongLoss)
         b.tick(10)
         for (w in listOf(540_000L, 1_611_000L, 1_911_000L, 2_450_000L)) b.tickMs(S + w)
         val atP = b.tickMs(S + 2_510_000)
@@ -116,7 +123,7 @@ class WakeGuardT104Test {
 
     @Test
     fun `U100 GAP-2 a policy shortened in the Step keeps c2 and Tick(now) silent`() {
-        val e = lostTrip(3700) // etaS = 3 800 − t
+        val e = lostTrip(3700, noLongLoss) // etaS = 3 800 − t
         val s = e.tick(100)
         assertEquals(SamplingTier.MEDIUM, s.view.samplingPolicy!!.tier)
         assertEquals(GpsStatus.OK, s.view.gps)
@@ -130,7 +137,7 @@ class WakeGuardT104Test {
         assertEquals(S + 2_600_000, wakes[0].second.view.predictedAlarmAtMs)
         assertEquals(AlarmReason.GPS_LOST, wakes.last().second.events.filterIsInstance<Alarm>().single().reason) // before: 2 800 000
         // (b) Ticks every 5 s.
-        val f = lostTrip(3700)
+        val f = lostTrip(3700, noLongLoss)
         var lostT = -1
         var alarmT = -1
         var t = 0

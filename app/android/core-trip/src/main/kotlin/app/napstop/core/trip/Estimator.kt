@@ -17,6 +17,8 @@ internal data class Estimate(
     val errM: Double,
     val etaMinS: Double?,
     val etaMaxS: Double?,
+    /** T10.6 (C25): "long loss" mark, seconds after last.fixAtMs; null unless gps == LOST and gpsLostLongS > 0. Not in the view. */
+    val lostLongAtS: Double? = null,
 )
 
 internal fun expectedSpeedKmh(h: VehicleKind, p: EngineParams): Int = when (h) {
@@ -45,11 +47,17 @@ internal fun estimate(w: StepWork): Estimate? {
         p.routeFactorMax
     }
     val closingV = v / k
+    // T10.6 (2), C26: before `established` cvGuard is always empty; while LOST the measured ground speed lifts the hint speed.
+    val preV = if (p.lostSpeedGuardUpdates > 0 && !established && ground != null) ground / p.routeFactorPrior else null
     var guardV: Double? = null
-    if (w.gps == GpsStatus.LOST && w.cvGuard.isNotEmpty()) {
-        var m = w.cvGuard[0]
-        for (i in 1 until w.cvGuard.size) m = TMath.max(m, w.cvGuard[i])
-        guardV = m
+    if (w.gps == GpsStatus.LOST) {
+        if (w.cvGuard.isNotEmpty()) {
+            var m = w.cvGuard[0]
+            for (i in 1 until w.cvGuard.size) m = TMath.max(m, w.cvGuard[i])
+            guardV = m
+        } else {
+            guardV = preV
+        }
     }
     val lift = guardV != null && guardV > closingV
     val vDr = if (lift) guardV!! * k else v
@@ -63,7 +71,28 @@ internal fun estimate(w: StepWork): Estimate? {
     val frac = p.etaUncertaintyFrac
     val etaMinS = if (etaS == null) null else TMath.max(0.0, (dNow - errM) * k / vDr) * (1.0 - frac) + pen
     val etaMaxS = if (etaS == null) null else ((dNow + errM) * k / vDr) * (1.0 + frac) + pen
-    return Estimate(established, v, k, closingV, guardV, lift, vDr, cvDr, elapsedS, dNow, etaS, errM, etaMinS, etaMaxS)
+    return Estimate(
+        established, v, k, closingV, guardV, lift, vDr, cvDr, elapsedS, dNow, etaS, errM, etaMinS, etaMaxS,
+        lostLongAtSOf(w, dSmooth, cvDr),
+    )
+}
+
+/** T10.6 (1)+(4), C25: the "long loss" mark W of §4.5 for the Step's estimate [e] (U119). */
+internal fun lostLongAtS(w: StepWork, e: Estimate): Double? = w.dSmooth?.let { lostLongAtSOf(w, it, e.cvDr) }
+
+/**
+ * C25: not later than the D4 fallback of a process killed right after the last fix. Dead reckoning restarts from the last fix
+ * (dSmooth / cvH, not dNow / cvH) so the mark is fixed between two fixes and never slides with now.
+ */
+private fun lostLongAtSOf(w: StepWork, dSmooth: Double, cvDr: Double): Double? {
+    val p = w.p
+    if (p.gpsLostLongS == 0 || w.gps != GpsStatus.LOST) return null
+    val cvHintL = p.gpsLostLongHintFactor * expectedSpeedMps(w.cfg.vehicleHint, p) / p.routeFactorPrior
+    val cvH = TMath.max(cvDr, cvHintL)
+    if (!(cvH > 0.0)) return null
+    val thS = dSmooth / cvH + p.etaStopPenaltyS.toDouble() - p.gpsLostAlarmEtaS.toDouble()
+    val earlyS = TMath.min(p.fallbackEarlyMaxS.toDouble(), p.fallbackEarlyFrac * TMath.max(0.0, thS - p.fallbackNearS.toDouble()))
+    return TMath.max(p.gpsLostLongS.toDouble(), thS - earlyS)
 }
 
 /** `slow` (SMART), updated on every Step with an accepted fix (§4.4). */

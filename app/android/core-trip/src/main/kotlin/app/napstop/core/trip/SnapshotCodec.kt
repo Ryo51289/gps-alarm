@@ -23,6 +23,7 @@ internal object SnapshotCodec {
         "dStartM" to dbl(s.dStartM),
         "minD" to dbl(s.minD),
         "minDChord" to jBool(s.minDChord),
+        "passAnchorD" to dbl(s.passAnchorD),
         "last3" to JArray(s.last3.map { jDbl(it) }),
         "ground" to dbl(s.ground),
         "closing" to dbl(s.closing),
@@ -136,6 +137,7 @@ internal object SnapshotCodec {
             dStartM = r.doubleOrNull("dStartM"),
             minD = r.doubleOrNull("minD"),
             minDChord = r.boolOrFalse("minDChord"),
+            passAnchorD = r.doubleOrNullIfMissing("passAnchorD"),
             last3 = r.array("last3").mapIndexed { i, v -> dblValue(v, "last3[$i]") },
             ground = r.doubleOrNull("ground"),
             closing = r.doubleOrNull("closing"),
@@ -255,6 +257,9 @@ internal object SnapshotCodec {
 
         /** T10.5 round 3e, named exception to C20: a missing key reads as false; a present key must be a bool. */
         fun boolOrFalse(k: String): Boolean = if (o[k] == null) false else bool(k)
+
+        /** T10.6 (C28), second named exception to C20: a missing key reads as null; a present key must be null or a finite number. */
+        fun doubleOrNullIfMissing(k: String): Double? = if (o[k] == null) null else doubleOrNull(k)
 
         fun string(k: String): String = (req(k) as? JString)?.value ?: bad(prefix + k)
 

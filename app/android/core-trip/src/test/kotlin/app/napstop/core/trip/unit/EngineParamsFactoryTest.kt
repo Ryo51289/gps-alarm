@@ -85,7 +85,7 @@ class EngineParamsFactoryTest {
     }
 
     @Test
-    fun `U67 r PARAM_SPECS has the 83 rows of T10 section 5`() {
+    fun `U67 r PARAM_SPECS has the 86 rows of T10 section 5 (T10_6 adds 3)`() {
         // Handwritten copy of the T10 §5 table: name type default min max.
         val table = """
             fixMaxAgeS I 60 10 300|accAbsMaxM D 100 20 500|accRelMax D 0.05 0 0.2|accHardMaxM D 2000 200 5000|maxPlausibleSpeedMps D 55 30 100
@@ -97,9 +97,10 @@ class EngineParamsFactoryTest {
             smartTargetS I 600 300 1200|smartFloorM I 1000 500 3000|smartSlowSpeedKmh I 15 5 30|smartSlowHysteresisKmh I 2 0 10
             shortDistanceWarnS I 240 60 600|preAlertLeadS I 1800 600 3600|preAlertDistanceFactor I 5 2 10|preAlertMinDistanceM I 3000 1000 10000
             preAlertMinGapS I 300 0 900|gpsLostMinS I 60 20 300|gpsLostIntervalFactor I 3 2 5|gpsLostAlarmEtaS I 1200 300 3600
-            acquireTimeoutS I 120 30 600|lostErrFrac D 0.25 0 1|lostSpeedGuardUpdates I 2 0 5|overshootNearMinM I 1000 300 3000
+            acquireTimeoutS I 120 30 600|lostErrFrac D 0.25 0 1|lostSpeedGuardUpdates I 2 0 5|gpsLostLongS I 1800 0 21600|gpsLostLongHintFactor D 1 0 2
+            overshootNearMinM I 1000 300 3000
             overshootOpenM I 1000 300 3000|overshootMinSpeedKmh I 10 3 30|passedClosestMinRadiusM I 3000 1000 10000|passedClosestReachFactor D 2 1 4
-            passedClosestOpenMinM I 500 200 3000|passedClosestOpenFrac D 0.5 0.2 2|arrivedRadiusM I 300 50 1000|snoozeS I 60 30 600|maxSnoozes I 1 0 3
+            passedClosestOpenMinM I 500 200 3000|passedClosestOpenFrac D 0.5 0.2 2|passedClosestSlowRiseM I 300 0 3000|arrivedRadiusM I 300 50 1000|snoozeS I 60 30 600|maxSnoozes I 1 0 3
             alarmMaxActiveS I 3600 600 14400|maxTripMinS I 14400 3600 259200|maxTripCapS I 172800 3600 259200|lowBatteryAlarmPct I 5 2 20
             lowBatteryEarlierPct I 15 5 40|batteryPriorDrainPctPerH D 2 0.5 10|batteryMinRatePctPerH D 0.5 0.1 5|batteryMinRateWindowS I 1200 300 7200
             batteryReserveAfterAlarmS I 900 0 3600|denseEnterS I 900 300 1800|mediumEnterS I 3600 1200 7200|tierHysteresisFactor D 1.25 1 2
@@ -109,8 +110,8 @@ class EngineParamsFactoryTest {
             fallbackNearSlackS I 60 10 300|fallbackMinLeadS I 10 5 60|fallbackQuietBeforeS I 30 30 120|fallbackMinShiftS I 30 10 300
             fallbackMinIntervalS I 60 10 300|fallbackRetryS I 60 10 300|vehicleBusMaxAvgKmh I 30 10 50
         """.trimIndent().replace("\n", "|").split("|").map { it.trim().split(" ") }
-        assertEquals(83, table.size)
-        assertEquals(83, PARAM_SPECS.size)
+        assertEquals(86, table.size)
+        assertEquals(86, PARAM_SPECS.size)
         for ((i, row) in table.withIndex()) {
             val s = PARAM_SPECS[i]
             assertEquals(row[0], s.name)
@@ -131,5 +132,24 @@ class EngineParamsFactoryTest {
         assertEquals(0.25, parse("{\"fallbackEarlyFrac\": 0.55}").params.fallbackEarlyFrac)
         assertEquals(7200, parse("{\"fallbackEarlyMaxS\": 7200}").params.fallbackEarlyMaxS)
         assertEquals(3600, parse("{\"fallbackEarlyMaxS\": 7201}").params.fallbackEarlyMaxS)
+    }
+
+    @Test
+    fun `U97 c T10_6 parameters ranges, 0 turns each rule off`() {
+        assertEquals(1800, def.gpsLostLongS)
+        assertEquals(1.0, def.gpsLostLongHintFactor)
+        assertEquals(300, def.passedClosestSlowRiseM)
+        assertEquals(0, parse("{\"gpsLostLongS\": 0}").params.gpsLostLongS)
+        assertEquals(21600, parse("{\"gpsLostLongS\": 21600}").params.gpsLostLongS)
+        for (v in listOf("21601", "-1", "1800.5", "true")) assertEquals(1800, parse("{\"gpsLostLongS\": $v}").params.gpsLostLongS, v)
+        assertEquals(0.0, parse("{\"gpsLostLongHintFactor\": 0}").params.gpsLostLongHintFactor)
+        assertEquals(2.0, parse("{\"gpsLostLongHintFactor\": 2}").params.gpsLostLongHintFactor)
+        for (v in listOf("2.01", "-0.1")) assertEquals(1.0, parse("{\"gpsLostLongHintFactor\": $v}").params.gpsLostLongHintFactor, v)
+        assertEquals(0, parse("{\"passedClosestSlowRiseM\": 0}").params.passedClosestSlowRiseM)
+        assertEquals(3000, parse("{\"passedClosestSlowRiseM\": 3000}").params.passedClosestSlowRiseM)
+        assertEquals(300, parse("{\"passedClosestSlowRiseM\": 3001}").params.passedClosestSlowRiseM)
+        // No cross-field group: each key is accepted alone, whatever the others are.
+        val q = EngineParamsFactory.parseOverrides("{\"gpsLostLongS\": 0, \"gpsLostLongHintFactor\": 0, \"passedClosestSlowRiseM\": 0}")
+        assertTrue(q.rejected.isEmpty())
     }
 }

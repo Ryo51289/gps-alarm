@@ -36,6 +36,7 @@ import app.napstop.core.trip.support.S
 import app.napstop.core.trip.support.TestGeo
 import app.napstop.core.trip.support.cfg
 import app.napstop.core.trip.support.driverFrom
+import app.napstop.core.trip.support.params
 import app.napstop.core.trip.support.trackingState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -112,7 +113,8 @@ class TesterT121Test {
     private fun lostDoze(config: TripConfig, eta0: Double, ground: Double, closing: Double, slow: Boolean): DozeRun {
         val cvDr = closing // k = ground/closing, vDr = ground → etaS = dNow/closing + 20
         val d = (eta0 - 20.0) * cvDr
-        val st = trackingState(config, d = d, ground = ground, closing = closing, slow = slow)
+        // T10.6 §6: U107 loses GPS >= gpsLostLongS before the alarm and checks the A10 pre-alert rule, so W is off (U120 d: W on).
+        val st = trackingState(config, p = params("{\"gpsLostLongS\": 0}"), d = d, ground = ground, closing = closing, slow = slow)
         val e = driverFrom(st)
         val lost = e.tickMs(S + lostAfterS(st.params, st.policyIntervalAtLastFixS, st.policy) * 1000L)
         assertTrue(lost.events.any { it is GpsLost })
@@ -424,12 +426,24 @@ class TesterT121Test {
         val gapLines = ArrayList<String>()
         val believedStopMoving = ArrayList<String>()
 
+        /** U126 (T10.6): first alarms due to the "long loss" term W alone; true seconds to the destination at them (< 0: after). */
+        var longLostAlarms = 0
+        val longLostRemainingS = ArrayList<Double>()
+
+        /** U126: per-seed lines for the seeds of the review (55, 433, 787). */
+        val seedLines = ArrayList<String>()
+
+        /** U126 (after T12.3, D5): DISTANCE cases late > 1 800 s, (late, line). */
+        val lateLines = ArrayList<Pair<Double, String>>()
+        var lastFirstKey = ""
+
         fun v(kind: String, where: String) {
             violations[kind] = (violations[kind] ?: 0) + 1
             if (kind !in firstViolation) firstViolation[kind] = where
         }
 
         fun first(k: String) {
+            lastFirstKey = k
             firstBy[k] = (firstBy[k] ?: 0) + 1
         }
     }
@@ -449,7 +463,16 @@ class TesterT121Test {
      * FallbackAlarmChanged(at ≠ null), ok with probability [okP]. Optional kill: the process dies at a random time and restarts
      * after a random delay, or when the OS fallback fires (restore RANG); some restarts are PENDING / MISSING / UNKNOWN.
      */
-    private fun dozeTrip(seed: Long, variant: Variant, okP: Double, killP: Double, battery: Boolean, st: FuzzStats, trace: StringBuilder? = null) {
+    private fun dozeTrip(
+        seed: Long,
+        variant: Variant,
+        okP: Double,
+        killP: Double,
+        battery: Boolean,
+        st: FuzzStats,
+        trace: StringBuilder? = null,
+        params: EngineParams = EngineParams(),
+    ) {
         val r = Rng(seed * 7919 + variant.ordinal)
         val mode = AlarmMode.entries[r.int(3)]
         val config = TripConfig(
@@ -459,7 +482,7 @@ class TesterT121Test {
             r.chance(0.7), VehicleKind.entries[r.int(4)],
         )
         val truth = Truth(r, r.dbl(3_000.0, 600_000.0))
-        val p = EngineParams()
+        val p = params
         var step = TripEngine.start(config, p, S)
         val tripTag = "seed=$seed $variant mode=$mode thr=${config.distanceThresholdM}/${config.timeThresholdMin} d0=${truth.d0.toInt()}"
         // Doze begins at dozeAt (relative s); fixes are never delivered in [gapA, gapB) (tunnel / lost GPS).
@@ -485,6 +508,10 @@ class TesterT121Test {
         val prevWakeTicks = ArrayDeque<Long>()
         val deadline = { s: EngineState -> s.startedAtMs + s.maxTripDurationS * 1000L + s.params.fallbackLagS * 1000L }
         var everDead = false
+        // U126 classes: states after every Step (DISTANCE trips) and the harness death intervals [kill, restart).
+        val states = ArrayList<EngineState>()
+        if (mode == AlarmMode.DISTANCE) states += step.state
+        val deadIntervals = ArrayList<Pair<Long, Long>>()
 
         fun inGap(tMs: Long): Boolean {
             val ts = (tMs - S) / 1000.0
@@ -492,6 +519,7 @@ class TesterT121Test {
         }
 
         fun check(prev: Step, s: Step, label: String) {
+            if (mode == AlarmMode.DISTANCE) states += s.state
             st.steps++
             val where = "$tripTag t=${(s.state.nowMs - S) / 1000.0} after $label"
             Checks.finiteStateViolation(s.state)?.let { st.v("finite", "$where: $it") }
@@ -578,6 +606,7 @@ class TesterT121Test {
                         else -> RestoreInfo(FallbackRestoreStatus.PENDING)
                     }
                 }
+                deadIntervals += t to restartAt
                 killAt = if (r.chance(0.3)) restartAt + (r.dbl(60.0, 7_200.0) * 1000.0).toLong() else null
                 val snap = TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s0))
                 step = TripEngine.restore(snap, restartAt, info)
@@ -588,6 +617,7 @@ class TesterT121Test {
                 if (!rang && step.events.any { it is Alarm }) {
                     rang = true
                     st.first("restore ${info.status} " + step.events.filterIsInstance<Alarm>().single().reason)
+                    noteU126(st, seed, tripTag, config, truth, restartAt, step)
                 }
             } else {
                 val viaFb = fb != null && t == fb.coerceAtLeast(now) && (wake == null || fb < wake)
@@ -649,6 +679,7 @@ class TesterT121Test {
                 if (!rang && step.events.any { it is Alarm }) {
                     rang = true
                     val a = step.events.filterIsInstance<Alarm>().single()
+                    noteU126(st, seed, tripTag, config, truth, t, step)
                     if (viaFb) {
                         // Engine-first: a fallback planned after the last new information (pure dead reckoning since then)
                         // must never beat the engine's own wake-up alarm.
@@ -714,6 +745,14 @@ class TesterT121Test {
                             var hi = (t - S) / 1000.0
                             repeat(60) { val m = (lo + hi) / 2; if (truth.dAt(m) > thr) lo = m else hi = m }
                             val cross = S + (hi * 1000).toLong()
+                            val lateS = (t - cross) / 1000.0
+                            if (lateS > 1_800.0) {
+                                st.lateLines += lateS to app.napstop.core.trip.support.lateCaseLine(
+                                    tripTag, config.vehicleHint, lateS, st.lastFirstKey,
+                                    deadIntervals.any { cross >= it.first && cross < it.second }, cross, thr,
+                                    states.lastOrNull { it.nowMs <= cross },
+                                ) { ms -> truth.dAt((ms - S) / 1000.0) }
+                            }
                             st.lateCases += ((t - cross) / 1000.0) to
                                 "$tripTag late ${(t - cross) / 1000.0} s reason ${a.reason} gapAtCross=${inGap(cross)} dozeAt=${dozeAtS.toInt()} s " +
                                 "cross=${(cross - S) / 1000} s everDead=$everDead fixesInDozeP=${if (withFixInDoze) fixInDozeP else 0.0} " +
@@ -744,15 +783,62 @@ class TesterT121Test {
         st.trips++
     }
 
+    /** U126: true time of arrival (dAt <= 0), s from S; null when not within 200 000 s. */
+    private fun arrivalS(truth: Truth): Double? {
+        if (truth.dAt(200_000.0) > 0.0) return null
+        var lo = 0.0
+        var hi = 200_000.0
+        repeat(60) { val m = (lo + hi) / 2; if (truth.dAt(m) > 0.0) lo = m else hi = m }
+        return hi
+    }
+
+    /** U126 (T10.6): statistics of the first alarm of a trip ([t] its time, [step] the Step that raised it). */
+    private fun noteU126(st: FuzzStats, seed: Long, tripTag: String, config: TripConfig, truth: Truth, t: Long, step: Step) {
+        val a = step.events.filterIsInstance<Alarm>().single()
+        val ts = (t - S) / 1000.0
+        val arr = arrivalS(truth)
+        val info = if (a.reason == AlarmReason.GPS_LOST) app.napstop.core.trip.support.lostAlarmInfo(step.state) else null
+        if (info?.longLostOnly == true) {
+            st.longLostAlarms++
+            if (arr != null) st.longLostRemainingS += arr - ts
+        }
+        if (seed in U126_SEEDS) {
+            val thr = config.distanceThresholdM
+            var lateTxt = "-"
+            if (config.mode == AlarmMode.DISTANCE && thr != null) {
+                var lo = 0.0
+                var hi = 200_000.0
+                if (truth.dAt(hi) <= thr) {
+                    repeat(60) { val m = (lo + hi) / 2; if (truth.dAt(m) > thr) lo = m else hi = m }
+                    lateTxt = String.format(java.util.Locale.ROOT, "%.0f", ts - hi)
+                }
+            }
+            val e = app.napstop.core.trip.estimate(app.napstop.core.trip.StepWork(step.state))
+            st.seedLines += "$tripTag hint=${config.vehicleHint}: ${a.reason} at ${ts.toInt()} s; vs DISTANCE crossing $lateTxt s (+ late); " +
+                "true remaining ${arr?.let { (it - ts).toInt() }} s; cvDr ${e?.cvDr?.let { String.format(java.util.Locale.ROOT, "%.2f", it) }}; " +
+                "preV ${info?.preV ?: false}; W alone ${info?.longLostOnly ?: false}"
+        }
+    }
+
     private fun infoStep(t: Long, s0: EngineState, step: Step): InfoStep {
         val f = s0.fallback.targetAtMs
         val moved = f != null && step.events.any { it is FallbackAlarmChanged && (it.fallbackAtMs ?: Long.MIN_VALUE) > f }
         return InfoStep(t, f, s0.fallback.status, step.view.predictedAlarmAtMs, moved)
     }
 
-    private fun runDozeFuzz(name: String, seeds: LongRange, variant: Variant, okP: Double, killP: Double, battery: Boolean): FuzzStats {
+    private fun runDozeFuzz(
+        name: String,
+        seeds: LongRange,
+        variant: Variant,
+        okP: Double,
+        killP: Double,
+        battery: Boolean,
+        params: EngineParams = EngineParams(),
+        write: Boolean = true,
+    ): FuzzStats {
         val st = FuzzStats()
-        for (seed in seeds) dozeTrip(seed, variant, okP, killP, battery, st)
+        for (seed in seeds) dozeTrip(seed, variant, okP, killP, battery, st, params = params)
+        if (!write) return st
         val late = st.lateVsTruth.sorted()
         val lateTxt = if (late.isEmpty()) "-" else "min ${late.first().toInt()} m, p05 ${late[late.size / 20].toInt()} m, median ${late[late.size / 2].toInt()} m, " +
             "rang after passing the threshold: ${late.count { it < 0 }}/${late.size}"
@@ -805,5 +891,48 @@ class TesterT121Test {
     fun `U111 d Doze fuzz no fix in Doze with battery, failures and kills - invariants and liveness`() {
         val st = runDozeFuzz("nofix-mixed", 701L..1400L, Variant.DOZE_NO_FIX, okP = 0.85, killP = 0.4, battery = true)
         assertTrue(st.violations.isEmpty()) { "violations ${st.violations} first ${st.firstViolation}" }
+    }
+
+    /**
+     * U126 (T10.6 (1)(2)(4), statistics): the four Doze fuzzes of U111 with T10.6 off (T12.2) and on (defaults). Gate: no violation
+     * and an alarm on every trip with T10.6 on (as U111). Written to u126-longloss.txt: DISTANCE lateness vs truth T12.2 → T10.6,
+     * first alarms due to W alone and the true time left to the destination at them, the review seeds 55, 433 (withfix), 787
+     * (nofix-mixed).
+     */
+    @Test
+    fun `U126 a Doze fuzz lateness T12_2 vs T10_6, long-loss alarms and the review seeds`() {
+        val runs = listOf(
+            Triple("nofix-ok", 1L..700L, listOf(Variant.DOZE_NO_FIX, 1.0, 0.0, false)),
+            Triple("fromstart", 1L..700L, listOf(Variant.DOZE_FROM_START, 0.85, 0.5, true)),
+            Triple("withfix", 1L..700L, listOf(Variant.DOZE_WITH_FIXES, 0.85, 0.4, true)),
+            Triple("nofix-mixed", 701L..1400L, listOf(Variant.DOZE_NO_FIX, 0.85, 0.4, true)),
+        )
+        val out = StringBuilder("# U126 (T10.6) Doze fuzz of U111: off (gpsLostLongS 0, passedClosestSlowRiseM 0; preV on) -> T10.6 (defaults)\n")
+        val bad = ArrayList<String>()
+        for ((name, seeds, cfgs) in runs) {
+            val (variant, okP, killP, battery) = cfgs
+            val off = runDozeFuzz(name, seeds, variant as Variant, okP as Double, killP as Double, battery as Boolean, app.napstop.core.trip.support.T106_OFF_PARAMS, write = false)
+            val on = runDozeFuzz(name, seeds, variant, okP, killP, battery, write = false)
+            if (on.violations.isNotEmpty()) bad += "$name: ${on.violations} ${on.firstViolation}"
+            val lateOff = off.lateCases.map { it.first }
+            val lateOn = on.lateCases.map { it.first }
+            out.append("\n## $name\n")
+                .append("DISTANCE late vs truth (s, rang after the threshold): off ${app.napstop.core.trip.support.quantiles(lateOff)} -> T10.6 ${app.napstop.core.trip.support.quantiles(lateOn)}\n")
+                .append("late > 1800 s: off ${lateOff.count { it > 1_800.0 }} -> T10.6 ${lateOn.count { it > 1_800.0 }}\n")
+            for ((_, l) in on.lateLines.sortedByDescending { it.first }) out.append(l).append('\n')
+            out
+                .append("first alarms due to W alone: ${on.longLostAlarms}; true time left at them (s): ${app.napstop.core.trip.support.quantiles(on.longLostRemainingS)}; ")
+                .append("after arrival: ${on.longLostRemainingS.count { it < 0.0 }}\n")
+                .append("firstAlarm off ${off.firstBy}\nfirstAlarm T10.6 ${on.firstBy}\n")
+            for (l in off.seedLines) out.append("seed off ").append(l).append('\n')
+            for (l in on.seedLines) out.append("seed T10.6 ").append(l).append('\n')
+        }
+        File(outDir, "u126-longloss.txt").writeText(out.toString())
+        assertTrue(bad.isEmpty()) { bad.joinToString("\n") }
+    }
+
+    private companion object {
+        /** U126: the seeds of review T12.2 round 2. */
+        val U126_SEEDS = setOf(55L, 433L, 787L)
     }
 }
