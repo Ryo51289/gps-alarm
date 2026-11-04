@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -224,6 +225,7 @@ class TesterT123Test {
      * seed 433 (withfix) before the 1 km crossing, withfix / nofix-mixed 0 DISTANCE cases late > 1 800 s, no `class=?` line in any
      * fuzz nor in e1/e2. Runs U126 a / b (about 30 s) and reads their files.
      */
+    @Tag("slow")
     @Test
     fun `T123 g U126 numeric thresholds of T10_6 section 9 hold`() {
         TesterT121Test().`U126 a Doze fuzz lateness T12_2 vs T10_6, long-loss alarms and the review seeds`()

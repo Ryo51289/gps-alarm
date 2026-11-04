@@ -46,6 +46,7 @@ import app.napstop.core.trip.support.cfg
 import app.napstop.core.trip.support.trackingState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.math.sqrt
@@ -515,6 +516,7 @@ class TesterT132ParityTest {
         out.append("end ${step.view.phase} ${step.view.outcome} alarm=${step.state.alarm.reason}\n")
     }
 
+    @Tag("slow")
     @Test
     fun `T132P parity fuzz 2000 random trips (chords at destLat != 0, outliers, wake-ups, restores) per-Step transcript`() {
         val out = StringBuilder()

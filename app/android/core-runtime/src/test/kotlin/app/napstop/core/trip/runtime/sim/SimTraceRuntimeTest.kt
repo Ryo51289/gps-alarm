@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 
@@ -87,6 +88,7 @@ class SimTraceRuntimeTest {
         return out!!
     }
 
+    @Tag("slow")
     @TestFactory
     fun sm19_bundledTracesAtThreeSpeedsGiveTheSameEvents(): List<DynamicTest> =
         ExpectReader.BASE_TRACES.flatMap { id ->

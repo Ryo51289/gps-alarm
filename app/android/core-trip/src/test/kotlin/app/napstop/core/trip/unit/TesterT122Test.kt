@@ -42,6 +42,7 @@ import app.napstop.core.trip.support.cfg
 import app.napstop.core.trip.support.trackingState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.math.abs
@@ -1155,6 +1156,7 @@ class TesterT122Test {
         st.add(sim)
     }
 
+    @Tag("slow")
     @Test
     fun `T122 e fuzz urgent later shift path - no double ring, one alarm, I1-I7 I10-I14 at every Step, emissions equal fallbackTarget`() {
         val e1 = FuzzStats()
@@ -1173,6 +1175,7 @@ class TesterT122Test {
      * wrong-wording OVERSHOOT / PASSED_CLOSEST. Written to u126-longloss-t122.txt (DISTANCE lateness vs the threshold crossing,
      * first alarms due to W alone and the true time left at them).
      */
+    @Tag("slow")
     @Test
     fun `U126 b e1 e2 fuzz lateness T12_2 vs T10_6 and long-loss alarms`() {
         val off = app.napstop.core.trip.support.T106_OFF_PARAMS

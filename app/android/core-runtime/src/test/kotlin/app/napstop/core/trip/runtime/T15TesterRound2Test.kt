@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 
 /**
@@ -371,6 +372,7 @@ class T15TesterRound2Test {
         }
     }
 
+    @Tag("slow")
     @Test
     fun startTripWithSlowRead2500AnswersWithin15s() {
         val fast = startOnSlowDisk(2_500, 100)

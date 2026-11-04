@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -318,6 +319,7 @@ class TesterT12Test {
         return step.state
     }
 
+    @Tag("slow")
     @Test
     fun `U105 a fuzz 1000 seeded trips keep the safety invariants, I13 and I14 at every Step`() {
         val f = Findings()

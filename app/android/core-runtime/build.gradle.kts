@@ -27,12 +27,20 @@ dependencies {
 val repoRoot = rootProject.projectDir.resolve("../..").canonicalFile
 val fixturesDir = repoRoot.resolve("fixtures/traces")
 
+// T01.1: -Pnapstop.quick=true skips @Tag("slow") (dev loop only). No flag / any other value = full suite (CI, tester).
+val quickTests = providers.gradleProperty("napstop.quick").orNull == "true"
+
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform { if (quickTests) excludeTags("slow") }
+    inputs.property("napstop.quick", quickTests) // quick <-> full never reuses an UP-TO-DATE result
+    if (quickTests) {
+        doFirst { logger.lifecycle("napstop.quick=true: @Tag(\"slow\") tests skipped - run the full suite before in-review") }
+    }
     maxHeapSize = "2g"
     timeout.set(Duration.ofMinutes(10))
     systemProperty("napstop.fixturesDir", fixturesDir.absolutePath)
     systemProperty("napstop.mainSrcDir", projectDir.resolve("src/main/kotlin").absolutePath)
+    systemProperty("napstop.testSrcDir", projectDir.resolve("src/test/kotlin").absolutePath)
     systemProperty("napstop.outDir", layout.buildDirectory.dir("napstop").get().asFile.absolutePath)
     providers.gradleProperty("napstop.dumpDoze").orNull?.let { systemProperty("napstop.dumpDoze", it) }
     providers.gradleProperty("napstop.dozeOnly").orNull?.let { systemProperty("napstop.dozeOnly", it) }

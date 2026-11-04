@@ -12,7 +12,7 @@ Môi trường: `[linux]` container/máy Linux · `[mac]` cần macOS + Xcode ·
 |---|---|---|---|---|---|
 | T00 | Toolchain + khung repo: cài Flutter & Android SDK, `flutter create` trong `app/` (app id `app.napstop`), lint, cấu trúc thư mục, flavor `dev`/`prod` | linux | — | done | `flutter analyze` sạch, `flutter build apk --debug` thành công |
 | T01 | CI GitHub Actions: analyze, test Dart, test Kotlin JVM, build APK debug | linux | T00 | done | Workflow xanh trên PR mẫu |
-| T01.1 | Chế độ test nhanh cho vòng lặp dev: cờ Gradle `-Pnapstop.quick=true` bỏ qua các bộ chậm (fuzz hàng nghìn chuyến, kill sweep, quét pha) ở `:core-trip`/`:core-runtime`; mặc định (không cờ) và CI vẫn chạy đủ | linux | T01 | spec-ready | PO duyệt 05/11; đo thời gian trước/sau; P05 và test ID coverage vẫn chạy ở chế độ nhanh; tài liệu lệnh trong CLAUDE.md |
+| T01.1 | Chế độ test nhanh cho vòng lặp dev: cờ Gradle `-Pnapstop.quick=true` bỏ qua các bộ chậm (fuzz hàng nghìn chuyến, kill sweep, quét pha) ở `:core-trip`/`:core-runtime`; mặc định (không cờ) và CI vẫn chạy đủ | linux | T01 | done | PO duyệt 05/11; đo thời gian trước/sau; P05 và test ID coverage vẫn chạy ở chế độ nhanh; tài liệu lệnh trong CLAUDE.md. Sau test: đủ 946 + 536 (= cũ + 2 guard), quick 940 + 497, quick/đủ ≈ 23–24 %. Mở: guard chưa bắt `@Tag(value = …)` / tên đầy đủ / `@Tags` (chỉ ảnh hưởng quick); Q09 CI chờ push; Swift quick (NAPSTOP_QUICK) đề xuất ở §8 |
 | T02 | `tools/tracegen` (Dart CLI) + 6 trace đầu: tàu HN→Đồng Hới, xe khách Mỹ Đình→Thái Bình, buýt nội thành, hầm Hải Vân (mất GPS 6 phút), quá trạm, GPS nhiễu | linux | T00 | done | GPX hợp lệ + `*.expect.json` (mốc báo kỳ vọng) cho mỗi trace |
 
 ## Phase 1 — Spikes rủi ro (Gate: Go / No-go)

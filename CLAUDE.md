@@ -42,6 +42,11 @@ solution-designer ─▶ coder ─▶ reviewer ─┬─ APPROVE ─▶ tester �
    Tối đa 3 vòng coder↔reviewer; quá 3 vòng → `blocked`, báo người dùng.
 4. `tester` → viết/chạy test, `docs/test-reports/<ID>.md`, kết luận `PASS` hoặc `FAIL`.
    FAIL → quay lại coder (kèm repro) → reviewer xem phần thay đổi → tester chạy lại.
+
+   **Test nhanh (T01.1).** `-Pnapstop.quick=true` chỉ dùng cho vòng lặp của coder. Coder phải chạy **đủ** (không cờ) ít nhất
+   một lần sau lần sửa cuối, trước khi báo `in-review`, và ghi kết quả vào Implementation notes. Reviewer chạy quick cho cả hai
+   module, cộng thêm các class bị diff chạm tới ở chế độ đủ (`--tests`, không cờ). Tester và CI luôn chạy đủ, không dùng cờ.
+   Test mới thuộc nhóm fuzz/quét/đồng hồ thật và tốn ≥ 2 s thì gắn `@Tag("slow")`, đồng thời thêm vào `SlowTagGuardTest`.
 5. PASS → orchestrator commit cục bộ (`<ID>: <tóm tắt>`), cập nhật `docs/TASKS.md` = `done`.
    **Chỉ push khi người dùng yêu cầu.**
 6. Hết mỗi Phase → dừng ở **Gate**, tóm tắt cho người dùng duyệt trước khi sang phase sau.
@@ -93,6 +98,7 @@ flutter analyze && flutter test
 flutter build apk --config-only                     # lần đầu sau khi clone: sinh gradlew + cấu hình Gradle
 cd android && ./gradlew :app:testDevDebugUnitTest   # test Kotlin app, flavor dev
 cd android && ./gradlew :core-trip:test :core-runtime:test  # Trip Engine (T12) + trip runtime Android (T15), JVM thuần
+cd android && ./gradlew :core-trip:test :core-runtime:test -Pnapstop.quick=true  # vòng lặp dev: bỏ @Tag("slow") (fuzz, kill sweep, quét tốc độ, chờ đồng hồ thật)
 flutter build apk --debug                          # flavor mặc định dev; prod: --flavor prod
 flutter test --dart-define=NAPSTOP_EXPECT_FLAVOR=dev  # giống CI; prod: --flavor prod --dart-define=...=prod
 

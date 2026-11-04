@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.assertThrows
@@ -163,6 +164,7 @@ class T18TesterSimTest {
 
     // ---------------------------------------------------------------- TS02 SM19 at other speeds
 
+    @Tag("slow")
     @TestFactory
     fun ts02_bundledTracesAtTheUiSpeed10xAndOddSpeeds(): List<DynamicTest> =
         ExpectReader.BASE_TRACES.flatMap { id ->

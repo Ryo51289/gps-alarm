@@ -23,7 +23,8 @@ nào khiến app không đánh thức người dùng đúng lúc không?"**
 4. Trace mới: thêm profile JSON trong `tools/tracegen/data/profiles/`, rồi trong `tools/tracegen` chạy
    `dart run bin/tracegen.dart generate --profile <id>` và `check`; commit cả profile lẫn fixture. Không sửa tay fixture.
    Định dạng và quy tắc đồng hồ ảo của harness: `fixtures/traces/README.md`.
-5. Chạy toàn bộ bộ test liên quan (`flutter test`, `cd app/android && ./gradlew :app:testDevDebugUnitTest`,
+5. Chạy toàn bộ bộ test liên quan, luôn ở chế độ ĐỦ (không `-Pnapstop.quick`): `./gradlew :core-trip:test :core-runtime:test`
+   khi task chạm engine/runtime, (`flutter test`, `cd app/android && ./gradlew :app:testDevDebugUnitTest`,
    `flutter test integration_test` khi có thiết bị/emulator); FAIL → tối giản thành repro (trace nhỏ nhất /
    bước ngắn nhất).
 

@@ -21,7 +21,11 @@ hiện thực **đúng spec**, gọn, dễ review, và để lại repo ở tr�
    cd app && dart format . && flutter analyze && flutter test
    cd app/android && ./gradlew :app:testDevDebugUnitTest   # clone mới: chạy `flutter build apk --config-only` trước
    cd app && flutter build apk --debug
+   cd app/android && ./gradlew :core-trip:test :core-runtime:test -Pnapstop.quick=true   # vòng lặp khi sửa (T01.1)
+   cd app/android && ./gradlew :core-trip:test :core-runtime:test                        # chạy ĐỦ một lần trước in-review
    ```
+   Chỉ dùng `-Pnapstop.quick=true` trong lúc lặp; sau lần sửa cuối phải chạy đủ (không cờ) và ghi kết quả vào notes.
+   Swift (`app/ios/Core`): chạy qua WSL `scripts/test-wsl.sh` (dùng `--filter` khi lặp, đủ một lần trước in-review).
    Task `[mac]` trên máy Windows → chỉ viết code + ghi "chưa build được, cần Mac".
    Trên Windows: lệnh chạy trong Git Bash; nếu một lệnh chỉ chạy được ở PowerShell/cmd, ghi rõ trong notes.
 5. Thêm `## Implementation notes` cuối spec: tóm tắt thay đổi, file chính, quyết định nhỏ đã tự đưa ra,

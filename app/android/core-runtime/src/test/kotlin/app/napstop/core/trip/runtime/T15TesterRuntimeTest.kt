@@ -40,6 +40,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 
 /**
@@ -312,6 +313,7 @@ class T15TesterRuntimeTest {
      * file hangs, so each bounded disk call before the ring costs ioBudgetMs. Must ring within the receiver budget (8 s)
      * — after that goAsync() is finished and the process may be frozen. Numbers in T15-tester-hung-disk.txt.
      */
+    @Tag("slow")
     @Test
     fun wholeDiskHungStillRingsWithinTheReceiverBudget() {
         val out = StringBuilder()

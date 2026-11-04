@@ -41,6 +41,7 @@ import app.napstop.core.trip.support.trackingState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.File
 
@@ -899,6 +900,7 @@ class TesterT121Test {
      * first alarms due to W alone and the true time left to the destination at them, the review seeds 55, 433 (withfix), 787
      * (nofix-mixed).
      */
+    @Tag("slow")
     @Test
     fun `U126 a Doze fuzz lateness T12_2 vs T10_6, long-loss alarms and the review seeds`() {
         val runs = listOf(

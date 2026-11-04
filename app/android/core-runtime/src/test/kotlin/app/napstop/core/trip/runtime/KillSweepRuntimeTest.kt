@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestFactory
 
 /**
@@ -46,6 +47,7 @@ class KillSweepRuntimeTest {
         val DEATH_REASONS = setOf(AlarmReason.GPS_LOST, AlarmReason.FALLBACK, AlarmReason.FALLBACK_MISSED)
     }
 
+    @Tag("slow")
     @TestFactory
     fun l31_killSweepEvery300s(): List<DynamicTest> =
         ExpectReader.BASE_TRACES.flatMap { id ->
