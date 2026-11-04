@@ -100,15 +100,16 @@ khoảng cách (tối thiểu 3 km).
 
 **Tình huống bất thường**
 - Mất GPS: ước tính vị trí theo tốc độ cuối; hiển thị sai số. Nếu ETA ước tính < 20 phút khi đang mất
-  tín hiệu → báo luôn.
+  tín hiệu → báo luôn. Nếu mất vị trí lâu (từ 30 phút), app giả định xe đi theo tốc độ thường của loại xe và báo sớm hơn
+  (tối đa thêm 1 giờ), như báo thức dự phòng khi app bị tắt. _(PO duyệt 04/11/2026, Q12 = A — T10.6.)_
 - Pin: dự báo pin còn đủ tới nơi không; không đủ → hiện màn 7. Pin ≤ 5% mà chưa tới → báo sớm, ghi rõ lý do.
   Màn 7: "Tiết kiệm tối đa" = nhân đôi chu kỳ lấy vị trí khi còn xa (lúc gần tới giữ nguyên); "Báo sớm khi 5%" =
   giữ quy tắc trên; "Báo sớm hơn" = báo khi pin ≤ 15%.
 - Quá trạm: đã vào gần đích (< max(ngưỡng, 1 km)) rồi khoảng cách tăng liên tục > 1 km với tốc độ > 10 km/h,
   mà báo thức chưa được tắt → màn 8. Nếu báo đã tự ngừng kêu mà chưa ai tắt thì kêu lại.
 - Đã qua điểm gần đích nhất (đích nằm xa tuyến đường): chưa báo mà xe đã tiến lại gần đích (gần hơn lúc bắt đầu ≥ 500 m),
-  qua điểm gần đích nhất (cách đích < 3 km, hoặc xa hơn khi ngưỡng lớn) và đang xa dần (thêm ≥ 500 m, tốc độ > 10 km/h)
-  → báo luôn.
+  qua điểm gần đích nhất (cách đích < 3 km, hoặc xa hơn khi ngưỡng lớn) và đang xa dần (thêm ≥ 500 m, tốc độ > 10 km/h;
+  xe chậm hơn thì khi đã đi xa thêm ≥ 300 m nữa) → báo luôn. _(Phần xe chậm: PO duyệt 04/11/2026 cùng Q12 = A — T10.6.)_
 
 **Theo dõi chuyến** _(cập nhật 2026-11-01 theo T19 / ADR-001)_
 - Theo dõi chỉ bắt đầu khi người dùng bấm "Bắt đầu theo dõi" lúc app đang mở (Android không cho tự bắt đầu từ nền). Thông báo
