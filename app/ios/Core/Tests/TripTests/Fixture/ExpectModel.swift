@@ -187,14 +187,16 @@ enum ExpectModel {
             }
         }
         var battery: [(Int, Int, Bool)] = []
-        for (i, b) in try (cfg["battery"].map { try arr($0, "\(cp).battery") } ?? []).enumerated() {
+        let batteryItems: [JsonValue] = try cfg["battery"].map { try arr($0, "\(cp).battery") } ?? []
+        for (i, b) in batteryItems.enumerated() {
             let bp = "\(cp).battery[\(i)]"
             let o = try obj(b, bp, ["t", "levelPct", "charging"])
             battery.append((try int(o["t"], "\(bp).t"), try int(o["levelPct"], "\(bp).levelPct"),
                             try bool(o["charging"], "\(bp).charging")))
         }
         var actions: [(At, String)] = []
-        for (i, a) in try (cfg["actions"].map { try arr($0, "\(cp).actions") } ?? []).enumerated() {
+        let actionsItems: [JsonValue] = try cfg["actions"].map { try arr($0, "\(cp).actions") } ?? []
+        for (i, a) in actionsItems.enumerated() {
             let ap = "\(cp).actions[\(i)]"
             let o = try obj(a, ap, ["at", "action"])
             actions.append((try at(o["at"], "\(ap).at"), try str(o["action"], "\(ap).action")))
@@ -237,7 +239,8 @@ enum ExpectModel {
                                      notAfter: try int(o["notAfter"], "\(ep).notAfter")))
         }
         var expectAfter: [ExpectAfterItem] = []
-        for (i, e) in try (c["expectAfter"].map { try arr($0, "\(p).expectAfter") } ?? []).enumerated() {
+        let expectAfterItems: [JsonValue] = try c["expectAfter"].map { try arr($0, "\(p).expectAfter") } ?? []
+        for (i, e) in expectAfterItems.enumerated() {
             let ep = "\(p).expectAfter[\(i)]"
             let o = try obj(e, ep, filterKeys.union(["after", "withinS", "ref"]))
             let w = try arr(o["withinS"], "\(ep).withinS")
@@ -274,12 +277,14 @@ enum ExpectModel {
         }
         let forbid = try arr(c["forbid"], "\(p).forbid").map { try str($0, "\(p).forbid[]") }
         var forbidMatch: [EventFilter] = []
-        for (i, f) in try (c["forbidMatch"].map { try arr($0, "\(p).forbidMatch") } ?? []).enumerated() {
+        let forbidMatchItems: [JsonValue] = try c["forbidMatch"].map { try arr($0, "\(p).forbidMatch") } ?? []
+        for (i, f) in forbidMatchItems.enumerated() {
             let fp = "\(p).forbidMatch[\(i)]"
             forbidMatch.append(try filter(try obj(f, fp, filterKeys), fp))
         }
         var forbidAfter: [ForbidAfterItem] = []
-        for (i, f) in try (c["forbidAfter"].map { try arr($0, "\(p).forbidAfter") } ?? []).enumerated() {
+        let forbidAfterItems: [JsonValue] = try c["forbidAfter"].map { try arr($0, "\(p).forbidAfter") } ?? []
+        for (i, f) in forbidAfterItems.enumerated() {
             let fp = "\(p).forbidAfter[\(i)]"
             let o = try obj(f, fp, filterKeys.union(["after"]))
             forbidAfter.append(ForbidAfterItem(filter: try filter(o, fp), after: try at(o["after"], "\(fp).after")))

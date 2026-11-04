@@ -15,6 +15,8 @@ struct Estimate: Sendable, Equatable {
     let errM: Double
     let etaMinS: Double?
     let etaMaxS: Double?
+    /// T10.6 (C25): "long loss" mark, seconds after last.fixAtMs; nil unless gps == LOST and gpsLostLongS > 0. Not in the view.
+    var lostLongAtS: Double? = nil
 }
 
 enum Estimator {
@@ -47,11 +49,17 @@ enum Estimator {
             k = c > 0 ? TMath.clamp(s.ground! / c, p.routeFactorMin, p.routeFactorMax) : p.routeFactorMax
         }
         let closingV = v / k
+        // T10.6 (2), C26: before `established` cvGuard is always empty; while LOST the measured ground speed lifts the hint speed.
+        let preV: Double? = p.lostSpeedGuardUpdates > 0 && !established && s.ground != nil ? s.ground! / p.routeFactorPrior : nil
         var guardV: Double? = nil
-        if s.gps == .lost && !s.cvGuard.isEmpty {
-            var m = s.cvGuard[0]
-            for x in s.cvGuard.dropFirst() { m = TMath.max(m, x) }
-            guardV = m
+        if s.gps == .lost {
+            if !s.cvGuard.isEmpty {
+                var m = s.cvGuard[0]
+                for x in s.cvGuard.dropFirst() { m = TMath.max(m, x) }
+                guardV = m
+            } else {
+                guardV = preV
+            }
         }
         let lift = guardV != nil && guardV! > closingV
         let vDr = lift ? guardV! * k : v
@@ -70,7 +78,26 @@ enum Estimator {
         }
         return Estimate(established: established, v: v, k: k, closingV: closingV, guardV: guardV, lift: lift, vDr: vDr,
                         cvDr: cvDr, elapsedS: elapsedS, dNow: dNow, etaS: etaS, errM: errM, etaMinS: etaMinS,
-                        etaMaxS: etaMaxS)
+                        etaMaxS: etaMaxS, lostLongAtS: lostLongAtSOf(s, dSmooth: dSmooth, cvDr: cvDr))
+    }
+
+    /// T10.6 (1)+(4), C25: the "long loss" mark W of §4.5 for the Step's estimate `e` (U119).
+    static func lostLongAtS(_ s: EngineState, _ e: Estimate) -> Double? {
+        guard let dSmooth = s.dSmooth else { return nil }
+        return lostLongAtSOf(s, dSmooth: dSmooth, cvDr: e.cvDr)
+    }
+
+    /// C25: not later than the D4 fallback of a process killed right after the last fix. Dead reckoning restarts from the last
+    /// fix (dSmooth / cvH, not dNow / cvH) so the mark is fixed between two fixes and never slides with now.
+    private static func lostLongAtSOf(_ s: EngineState, dSmooth: Double, cvDr: Double) -> Double? {
+        let p = s.params
+        if p.gpsLostLongS == 0 || s.gps != .lost { return nil }
+        let cvHintL = p.gpsLostLongHintFactor * expectedSpeedMps(s.config.vehicleHint, p) / p.routeFactorPrior
+        let cvH = TMath.max(cvDr, cvHintL)
+        if !(cvH > 0.0) { return nil }
+        let thS = dSmooth / cvH + Double(p.etaStopPenaltyS) - Double(p.gpsLostAlarmEtaS)
+        let earlyS = TMath.min(Double(p.fallbackEarlyMaxS), p.fallbackEarlyFrac * TMath.max(0.0, thS - Double(p.fallbackNearS)))
+        return TMath.max(Double(p.gpsLostLongS), thS - earlyS)
     }
 
     /// §4.4 `slow`, at each Step that accepted a fix.

@@ -70,8 +70,9 @@ struct TesterT132OvershootTests {
     /// Drives a trip until the first alarm or `horizonMs`; `forcedIntervalMs` nil = the policy interval; `fix` builds the fix at t
     /// (nil = dropped). Wrong wording: OVERSHOOT/PASSED_CLOSEST while y < 0 at the alarm.
     static func drive(_ config: TripConfig, _ path: Path, _ horizonMs: Int64, _ forcedIntervalMs: Int64?,
+                      params: EngineParams = TesterT132OvershootTests.p,
                       _ fix: (Int64, Step) -> LocationFix?) throws -> Outcome {
-        var step = try TripEngine.start(config: config, params: p, nowMs: S)
+        var step = try TripEngine.start(config: config, params: params, nowMs: S)
         var nextFix = S + 1_000
         var n = 0
         while step.events.alarms.isEmpty && step.state.nowMs < horizonMs {
@@ -112,7 +113,10 @@ struct TesterT132OvershootTests {
     static let pinnedO1 = 14              // = HEAD (T12.1), run-by-run (T12.2 round 8)
     static let pinnedO2 = 0
     static let pinnedO3 = 0
-    static let pinnedO4 = "silentCrawl=8 wrongReverse=18"   // = HEAD (crawl: T10.6 known; reverse: PASSED_CLOSEST, RK10)
+    // T10.6 (U125): crawl 8 → 2 (0.5 m/s is not yet 300 m past the anchor in 2 h); reverse: PASSED_CLOSEST from `fast`, RK10.
+    static let pinnedO4 = "silentCrawl=2 wrongReverse=18"
+    /// T10.6 off (C29): the T12.2 behaviour, for the run-by-run U125 comparisons.
+    static let t106Off = LongLoss.offParams
     static let pinnedO1C = 43             // T10.5 vòng 3f, RK20 c (2 304 runs)
     static let pinnedO1B = 0              // = HEAD
     static let pinnedO1Repro = "DISTANCE ringNow=true at d=480 m (y=-480)"   // = HEAD
@@ -120,7 +124,7 @@ struct TesterT132OvershootTests {
     // MARK: - O1: stuck in traffic before the destination + outlier fix(es)
 
     static func jam(_ config: TripConfig, _ jamY: Double, _ crawl: Double, _ doppler: Bool, _ delta: Double, _ outliers: Int,
-                    _ interval: Int64?, dropFirst: Bool = false) throws -> Outcome {
+                    _ interval: Int64?, dropFirst: Bool = false, params: EngineParams = TesterT132OvershootTests.p) throws -> Outcome {
         var path = Path(-20_000.0, 0.0)
         let tJam = S + KW.kl((20_000.0 + jamY) / 12.0 * 1000.0)
         path.segs.append((S, 12.0))
@@ -130,7 +134,7 @@ struct TesterT132OvershootTests {
         let outAt = tJam + 300_000
         var outLeft = outliers
         let path0 = path
-        return try drive(config, path, S + 6 * 3_600_000, interval) { t, _ in
+        return try drive(config, path, S + 6 * 3_600_000, interval, params: params) { t, _ in
             let y = path0.yAt(t)
             let spd: Double? = doppler ? path0.vAt(t).magnitude : nil
             if t >= outAt && outLeft > 0 {
@@ -144,52 +148,65 @@ struct TesterT132OvershootTests {
         }
     }
 
-    @Test("T132 O1 (= T122 O1) stuck in traffic before the destination with an outlier fix: wrong-wording OVERSHOOT count = HEAD (14)")
+    @Test("U125 O1 (= T122 O1) stuck in traffic before the destination with an outlier fix: wrong-wording OVERSHOOT count = HEAD (14), run by run = T10.6 off")
     func o1() throws {
         var out = ""
         var wrong: [String] = []
+        var changed: [String] = []
         var runs = 0
         for (name, config) in Self.modes {
             for jamY in [-1_200.0, -1_500.0, -1_900.0, -2_500.0] {
                 for crawl in [0.0, 0.3] { for doppler in [true, false] { for delta in [1_100.0, 1_500.0, 2_000.0] {
                     for outliers in [0, 1, 2] { for interval in [nil, 30_000, 180_000] as [Int64?] {
                         let o = try Self.jam(config, jamY, crawl, doppler, delta, outliers, interval)
+                        // U125: run by run the same as T12.2 (T10.6 off).
+                        let off = try Self.jam(config, jamY, crawl, doppler, delta, outliers, interval, params: Self.t106Off)
                         runs += 1
                         let line = "\(name) jamY=\(Int(jamY)) crawl=\(Self.kd(crawl)) doppler=\(doppler) delta=\(Int(delta)) outliers=\(outliers) "
                             + "interval=\(Self.iv(interval)): \(Self.reason(o.alarm)) at y=\(Self.ki(o.y)) d=\(Self.ki(o.d))"
                         out += line + "\n"
                         if o.wrong { wrong.append(line) }
+                        if off.wrong != o.wrong { changed.append(line) }
                     } }
                 } } }
             }
         }
-        Report.shared.write("unit/t122-o1-jam-outlier.txt", "runs=\(runs) wrongWording=\(wrong.count)\n\(wrong.joined(separator: "\n"))\n\nall:\n\(out)")
+        Report.shared.write("unit/t122-o1-jam-outlier.txt",
+                            "runs=\(runs) wrongWording=\(wrong.count) changedVsT10_6Off=\(changed.count)\n\(wrong.joined(separator: "\n"))\n\nall:\n\(out)")
+        #expect(changed.isEmpty, "U125: O1 wrong-wording runs differ from T12.2: \(changed.prefix(5))")
         // Without outliers the rule must never fire before the destination.
         #expect(!wrong.contains { $0.contains("outliers=0") }, "\(wrong.filter { $0.contains("outliers=0") }.prefix(5))")
         #expect(wrong.count == Self.pinnedO1)
     }
 
     /// O1c (T10.5 vòng 3f, RK20 c, recorded): the first outlier never arrives (not in `rejects`), the next one(s) are outliers.
-    @Test("T132 O1c (= T122 O1c) first outlier dropped by the platform instead of rejected: wrong-wording count (RK20 c)")
+    @Test("U125 O1c (= T122 O1c) first outlier dropped by the platform instead of rejected: wrong-wording count (RK20 c), run by run = T10.6 off")
     func o1c() throws {
         var out = ""
         var wrong: [String] = []
+        var changed: [String] = []
         var runs = 0
         for (name, config) in Self.modes {
             for jamY in [-1_200.0, -1_500.0, -1_900.0, -2_500.0] {
                 for crawl in [0.0, 0.3] { for doppler in [true, false] { for delta in [1_100.0, 1_500.0, 2_000.0] {
                     for outliers in [2, 3] { for interval in [nil, 30_000, 180_000] as [Int64?] {
                         let o = try Self.jam(config, jamY, crawl, doppler, delta, outliers, interval, dropFirst: true)
+                        // U125: run by run the same as T12.2 (T10.6 off).
+                        let off = try Self.jam(config, jamY, crawl, doppler, delta, outliers, interval, dropFirst: true,
+                                               params: Self.t106Off)
                         runs += 1
                         let line = "\(name) jamY=\(Int(jamY)) crawl=\(Self.kd(crawl)) doppler=\(doppler) delta=\(Int(delta)) "
                             + "outliers=\(outliers)(first dropped) interval=\(Self.iv(interval)): \(Self.reason(o.alarm)) at y=\(Self.ki(o.y)) d=\(Self.ki(o.d))"
                         out += line + "\n"
                         if o.wrong { wrong.append(line) }
+                        if off.wrong != o.wrong { changed.append(line) }
                     } }
                 } } }
             }
         }
-        Report.shared.write("unit/t122-o1c-dropped-outlier.txt", "runs=\(runs) wrongWording=\(wrong.count)\n\(wrong.joined(separator: "\n"))\n\nall:\n\(out)")
+        Report.shared.write("unit/t122-o1c-dropped-outlier.txt",
+                            "runs=\(runs) wrongWording=\(wrong.count) changedVsT10_6Off=\(changed.count)\n\(wrong.joined(separator: "\n"))\n\nall:\n\(out)")
+        #expect(changed.isEmpty, "U125: O1c wrong-wording runs differ from T12.2: \(changed.prefix(5))")
         #expect(wrong.count == Self.pinnedO1C)
     }
 
@@ -228,7 +245,7 @@ struct TesterT132OvershootTests {
         return (o, intervalAtOutlier)
     }
 
-    @Test("T132 O1b (= T122 O1b) stop-and-go traffic with the engine's own sampling policy and one outlier fix: 0 wrong wording")
+    @Test("U125 O1b (= T122 O1b) stop-and-go traffic with the engine's own sampling policy and one outlier fix: 0 wrong wording")
     func o1b() throws {
         var out = ""
         var wrong: [String] = []
@@ -252,7 +269,7 @@ struct TesterT132OvershootTests {
         #expect(wrong.count == Self.pinnedO1B)
     }
 
-    @Test("T132 O1 repro (= T122): stopped 1.9 km before the destination, one outlier fix at 800 m, fixes every 30 s → DISTANCE at 480 m")
+    @Test("U125 O1 repro (= T122): stopped 1.9 km before the destination, one outlier fix at 800 m, fixes every 30 s → DISTANCE at 480 m")
     func o1Repro() throws {
         let o = try Self.jam(KW.cfg(.distance, thr: 500), -1_900.0, 0.0, true, 1_100.0, 1, 30_000)
         let got = "\(Self.reason(o.alarm)) ringNow=\(o.alarm.map { String($0.ringNow) } ?? "null") at d=\(Self.ki(o.d)) m (y=\(Self.ki(o.y)))"
@@ -262,12 +279,13 @@ struct TesterT132OvershootTests {
 
     // MARK: - O2: normal approach, GPS jitter, sparse fixes (fuzz)
 
-    @Test("T132 O2 (= T122 O2) normal approach fuzz: jitter, sparse fixes, off-route destination, rare outliers; wrong wording only with outliers")
+    @Test("U125 O2 (= T122 O2) normal approach fuzz: wrong wording only with outliers, TIMEOUT only without good fixes (RK22 c)")
     func o2() throws {
         var out = ""
         var byCause: [String: Int] = [:]
         var firsts: [String: Int] = [:]
         var lateAfterPass: [Double] = []
+        var timeoutGood: [String] = []
         var runs = 0
         for seed in Int64(1)...3_000 {
             var r = Rng(seed)
@@ -300,6 +318,13 @@ struct TesterT132OvershootTests {
             runs += 1
             let k = Self.reason(o.alarm)
             firsts[k, default: 0] += 1
+            if o.alarm?.reason == .timeout {
+                // U125 (after T12.3, D4 / RK22 c): a TIMEOUT only without good fixes (acc > speedSampleMaxAccM).
+                if acc <= Self.p.speedSampleMaxAccM { timeoutGood.append("seed=\(seed) \(name) acc=\(KW.kd(acc))") }
+                out += "TIMEOUT seed=\(seed) \(name) v=\(KW.jf(v, 1)) offset=\(Self.ki(offset)) acc=\(Self.ki(acc)) "
+                    + "forced=\(forced.map(String.init) ?? "null") drop=\(KW.jf(drop, 2)) noDoppler=\(noDoppler) outliers=\(outliers) "
+                    + "at y=\(Self.ki(o.y)) d=\(Self.ki(o.d)) steps=\(o.steps)\n"
+            }
             if o.y > 0 { lateAfterPass.append(o.y / v) }
             if o.wrong {
                 let cause = outliers > 0 ? "with outliers" : (forced != nil ? "sparse, no outlier" : "policy, no outlier")
@@ -310,15 +335,17 @@ struct TesterT132OvershootTests {
         }
         let l = lateAfterPass.sorted()
         let tail = l.isEmpty ? "" : ", p50 \(Self.ki(l[l.count / 2])), p90 \(Self.ki(l[(l.count * 9) / 10])), max \(Self.ki(l.last!))"
-        Report.shared.write("unit/t122-o2-approach.txt", "runs=\(runs) firstAlarm=\(KW.kmap(firsts)) wrongWording=\(KW.kmap(byCause))\n"
+        Report.shared.write("unit/t122-o2-approach.txt", "runs=\(runs) firstAlarm=\(KW.kmap(firsts)) wrongWording=\(KW.kmap(byCause)) "
+                            + "TIMEOUT=\(firsts["TIMEOUT"] ?? 0) (U125: only runs with acc > speedSampleMaxAccM)\n"
                             + "rang after the closest point (s after it): n \(l.count)\(tail)\n\(out)")
         #expect(byCause.keys.allSatisfy { $0 == "with outliers" }, "wrong wording without an outlier: \(byCause)\n\(out)")
         #expect((byCause["with outliers"] ?? 0) == Self.pinnedO2)
+        #expect(timeoutGood.isEmpty, "U125: O2 TIMEOUT with acc <= speedSampleMaxAccM: \(timeoutGood)")
     }
 
     // MARK: - O3: covered station before the destination, alternating sources
 
-    @Test("T132 O3 (= T122 O3) stopped in a covered station before the destination, coordinates alternating between two sources")
+    @Test("U125 O3 (= T122 O3) stopped in a covered station before the destination, coordinates alternating between two sources")
     func o3() throws {
         var out = ""
         var wrong: [String] = []
@@ -357,10 +384,15 @@ struct TesterT132OvershootTests {
 
     // MARK: - O4: slow crawl away after the pass, vehicle reversing before it
 
-    @Test("T132 O4 (= T122 O4) slow crawl away after an off-route pass and a vehicle reversing before the destination")
+    /// U125 (T10.6 (3), flipped from the tester's `T122 O4`): (i) off-route pass then a slow crawl away (the slow-vehicle net now
+    /// rings PASSED_CLOSEST except at 0.5 m/s: silentCrawl 8 → 2), (ii) reversing 1.5 km at 5 / 12 m/s before the destination (18
+    /// wrong-wording PASSED_CLOSEST from the `fast` term, RK10, unchanged), (iii) the same reversing at 1.5 / 2.5 m/s: wrong-wording
+    /// PASSED_CLOSEST from the slow-vehicle net (RK22 a), recorded (designer: about 18, report above 30).
+    @Test("U125 O4 slow crawl away after an off-route pass and a vehicle reversing before the destination")
     func o4() throws {
         var out = ""
         var wrongReverse = 0
+        var wrongSlowReverse = 0
         var silentCrawl = 0
         for (name, config) in Self.modes {
             // (i) off-route destination 600 m from the road, slow pass then crawl away at 0.5–2.7 m/s for 2 h.
@@ -378,9 +410,9 @@ struct TesterT132OvershootTests {
                 out += "crawl \(name) offset=600 v=\(Self.kd(crawl)): \(Self.reason(o.alarm)) at y=\(Self.ki(o.y)) d=\(Self.ki(o.d)) "
                     + "(\(Self.kd((o.y + 3_000.0) / crawl / 60.0)) min)\n"
             }
-            // (ii) approach to R before the destination, reverse 1.5 km, then forward again to the destination.
+            // (ii) approach to R before the destination, reverse 1.5 km, then forward again; (iii) the same reversing slowly.
             for rr in [700.0, 900.0, 1_500.0] {
-                for vRev in [5.0, 12.0] {
+                for vRev in [5.0, 12.0, 1.5, 2.5] {
                     var path = Path(-15_000.0, 0.0)
                     let t1 = Self.S + KW.kl((15_000.0 - rr) / 12.0 * 1000.0)
                     path.segs.append((Self.S, 12.0))
@@ -393,13 +425,17 @@ struct TesterT132OvershootTests {
                         let ee = r.dbl(-8.0, 8.0)
                         return Self.fixAt(t, yy, ee, 10.0, path0.vAt(t).magnitude)
                     }
-                    if o.wrong { wrongReverse += 1 }
-                    out += "reverse \(name) R=\(Int(rr)) vRev=\(Self.kd(vRev)): \(Self.reason(o.alarm)) at y=\(Self.ki(o.y)) d=\(Self.ki(o.d))"
+                    let slow = vRev < 5.0
+                    if o.wrong {
+                        if slow { wrongSlowReverse += 1 } else { wrongReverse += 1 }
+                    }
+                    out += "reverse\(slow ? " (iii)" : "") \(name) R=\(Int(rr)) vRev=\(Self.kd(vRev)): \(Self.reason(o.alarm)) at y=\(Self.ki(o.y)) d=\(Self.ki(o.d))"
                         + "\(o.wrong ? "  <- wrong wording" : "")\n"
                 }
             }
         }
-        Report.shared.write("unit/t122-o4-crawl-reverse.txt", "silentCrawl=\(silentCrawl) wrongReverse=\(wrongReverse)\n\(out)")
+        Report.shared.write("unit/t122-o4-crawl-reverse.txt",
+                            "silentCrawl=\(silentCrawl) wrongReverse=\(wrongReverse) wrongSlowReverse(iii)=\(wrongSlowReverse)\n\(out)")
         #expect("silentCrawl=\(silentCrawl) wrongReverse=\(wrongReverse)" == Self.pinnedO4)
     }
 
@@ -422,7 +458,7 @@ struct TesterT132OvershootTests {
     /// U114 (ae): the chord fix sets the flag (minD ≈ 0, 3 100 m beyond); three fixes 600 m beyond are rejected as IMPLAUSIBLE and
     /// the third REANCHORs: minD = 600, flag false. The vehicle then crawls away at 2 m/s to 1 800 m and stands 2 min: no
     /// OVERSHOOT (T12.1 rule). Control without the jumps: the chord flag stays and the same crawl rings OVERSHOOT.
-    @Test("U114 ae a REANCHOR below 1 km after a chord fix clears the flag, no OVERSHOOT on a slow crawl away and stop")
+    @Test("U114 ae a REANCHOR below 1 km after a chord fix clears the flag, no OVERSHOOT on a slow crawl away (T10.6: PASSED_CLOSEST)")
     func u114ae() throws {
         let n = Self.S + 3_600_000
         func run(_ jumps: Bool) -> ([Step], Step?) {
@@ -455,6 +491,9 @@ struct TesterT132OvershootTests {
             return (out, reanchor)
         }
         let (steps, re0) = run(true)
+        // T10.6 (3): the slow-vehicle net rings PASSED_CLOSEST on the crawl away (designer: about 1 400 m); still no OVERSHOOT.
+        let firstAe = steps.flatMap(\.events).alarms.first
+        #expect(firstAe?.reason == .passedClosest, "ae first alarm")
         let re = try #require(re0)
         #expect(!re.state.minDChord && (re.state.minD! - 600.0).magnitude <= 1.0, "ae REANCHOR: flag \(re.state.minDChord) minD \(String(describing: re.state.minD))")
         #expect(!steps.flatMap(\.events).alarms.contains { $0.reason == .overshoot }, "ae: OVERSHOOT after a REANCHOR")
@@ -463,8 +502,10 @@ struct TesterT132OvershootTests {
         let (control, _) = run(false)
         let ca = control.flatMap(\.events).alarms.first
         #expect(ca?.reason == .overshoot, "ae control (chord flag kept)")
+        let aeStep = try #require(steps.first { !$0.events.alarms.isEmpty })
         Report.shared.write("unit/u114-ae.txt", "ae: reanchor minD=\(KW.kdOpt(re.state.minD)) flag=\(re.state.minDChord); first alarm "
-                            + "\(Self.reason(steps.flatMap(\.events).alarms.first)); control \(Self.reason(ca))\n")
+                            + "\(Self.reason(firstAe)) at \((aeStep.state.nowMs - n) / 1000) s after the chord fix, dSmooth "
+                            + "\(aeStep.state.dSmooth.map { String(Self.ki($0)) } ?? "null") m; control \(Self.reason(ca))\n")
     }
 
     /// U114 (af): observed minD 900 m (no chord, flag false), GPS lost, then the chord passes at 950 m > minD: minD stays 900, the

@@ -425,11 +425,13 @@ struct T105GapTests {
     }
 
     /// The reviewer's RvStandTest runner (no GPS gap): passing an off-route destination slowly, then standing `stopNorth` north.
-    static func stand(_ config: TripConfig, _ east: Double, _ v: Double, stopNorth: Double = 1_600.0) -> (Int, Step)? {
+    /// T10.6: `params` (default: the T10 §5 defaults).
+    static func stand(_ config: TripConfig, _ east: Double, _ v: Double, stopNorth: Double = 1_600.0,
+                      params: EngineParams = .defaults) -> (Int, Step)? {
         let p0 = KW.jitter(KW.pointOnMeridian(3_000.0), east, 0.0)
         let d0 = KW.distToDest(p0)
         let l = FixRec(fixAtMs: S, lat: p0.lat, lng: p0.lng, accM: 8.0, d: d0, groundSample: nil)
-        let base = KW.trackingState(config, now: S, d: d0, ground: v, closing: v * 0.95, lastFixAt: S)
+        let base = KW.trackingState(config, p: params, now: S, d: d0, ground: v, closing: v * 0.95, lastFixAt: S)
         var st = KW.withLast(base, l, dStartPlus: 5_000.0)
         var y = 3_000.0
         var t = 0
@@ -442,17 +444,46 @@ struct T105GapTests {
             let s = TripEngine.reduce(st, .locationFix(LocationFix(atMs: at, fixAtMs: at, lat: p.lat, lng: p.lng, accuracyM: 8.0,
                                                                    speedMps: moving ? v : 0.0)))
             st = s.state
+            #expect(!st.minDChord, "no GPS gap: minDChord stays false")
             if !s.events.alarms.isEmpty { return (t, s) }
         }
         return nil
     }
 
-    @Test("U114 o p p2 a slow pass of an off-route destination without a GPS gap is the T12.1 rule (known bug, waiting for T10.6)")
-    func u114op() {
-        // Round 3e: normal tracking (no GPS-gap chord, minDChord false) is the T12.1 rule; silent for 2 h (TIMEOUT later).
-        #expect(Self.stand(KW.cfg(.time, thrMin: 5), 600.0, 2.5) == nil, "o: lỗi đã biết, chờ T10.6 (PO 03/11)")
-        #expect(Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0, stopNorth: 2_000.0) == nil, "p: lỗi đã biết, chờ T10.6 (PO 03/11)")
-        #expect(Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0) == nil, "p2: lỗi đã biết, chờ T10.6 (PO 03/11)")
+    /// U123 (a): measured (Kotlin T12.3), within ± 5 s of the designer's hand values 1 720 / 2 210 / 2 210 s.
+    static let u123O = 1720
+    static let u123P = 2210
+    static let u123P2 = 2210
+
+    /// U123 (a) (T10.6 (3), flipped from U114 o, p, p2): a slow pass (< 10 km/h) of an off-route destination without a GPS gap
+    /// rings PASSED_CLOSEST from the slow-vehicle net (designer by hand: o 1 720 s, p 2 210 s, p2 2 210 s, ± 5 s), never OVERSHOOT.
+    /// U123 (b): passedClosestSlowRiseM = 0 is the T12.2 rule (silent for 2 h).
+    @Test("U123 a b a slow pass of an off-route destination rings PASSED_CLOSEST from the slow-vehicle net, off is silent (U114 o p p2)")
+    func u123ab() {
+        func check(_ tag: String, _ r: (Int, Step)?, _ hand: Int, _ pinned: Int) {
+            guard let r else { Issue.record("\(tag): silent"); return }
+            let a = r.1.events.alarms
+            #expect(a.count == 1 && a.first?.reason == .passedClosest && a.first?.ringNow == true, "\(tag): \(a)")
+            #expect(KW.overshoots(r.1.events).isEmpty, "\(tag): Overshoot")
+            #expect((r.0 - hand).magnitude <= 5, "\(tag): at \(r.0) s, hand \(hand) s")
+            #expect(r.0 == pinned, "\(tag): pinned (Kotlin T12.3)")
+        }
+        // (o) TIME 5, 2.5 m/s, destination 600 m off the route (RvStandTest).
+        let o = Self.stand(KW.cfg(.time, thrMin: 5), 600.0, 2.5)
+        check("o", o, 1720, Self.u123O)
+        // (p) DISTANCE 500, 2 m/s, destination 800 m off the route, standing 2 km north (1 354 m past the nearest point).
+        let pp = Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0, stopNorth: 2_000.0)
+        check("p", pp, 2210, Self.u123P)
+        // (p2) the RvStandTest geometry (standing 1.6 km north, 989 m past the nearest point 800 m off the route).
+        let p2 = Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0)
+        check("p2", p2, 2210, Self.u123P2)
+        // (b) the net off: the T12.2 rule, silent for 2 h.
+        let off = KW.params(#"{"passedClosestSlowRiseM": 0}"#)
+        #expect(Self.stand(KW.cfg(.time, thrMin: 5), 600.0, 2.5, params: off) == nil, "b o")
+        #expect(Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0, stopNorth: 2_000.0, params: off) == nil, "b p")
+        #expect(Self.stand(KW.cfg(.distance, thr: 500), 800.0, 2.0, params: off) == nil, "b p2")
+        Report.shared.write("unit/u123-a.txt", "o \(o.map { String($0.0) } ?? "null") s, p \(pp.map { String($0.0) } ?? "null") s, "
+                            + "p2 \(p2.map { String($0.0) } ?? "null") s (hand 1720 / 2210 / 2210)\n")
     }
 
     @Test("U114 q r s u parked after the gap with poor fixes, repeated or alternating coordinates, or crawling away rings OVERSHOOT at the 3rd fix")

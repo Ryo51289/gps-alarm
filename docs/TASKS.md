@@ -12,6 +12,7 @@ Môi trường: `[linux]` container/máy Linux · `[mac]` cần macOS + Xcode ·
 |---|---|---|---|---|---|
 | T00 | Toolchain + khung repo: cài Flutter & Android SDK, `flutter create` trong `app/` (app id `app.napstop`), lint, cấu trúc thư mục, flavor `dev`/`prod` | linux | — | done | `flutter analyze` sạch, `flutter build apk --debug` thành công |
 | T01 | CI GitHub Actions: analyze, test Dart, test Kotlin JVM, build APK debug | linux | T00 | done | Workflow xanh trên PR mẫu |
+| T01.1 | Chế độ test nhanh cho vòng lặp dev: cờ Gradle `-Pnapstop.quick=true` bỏ qua các bộ chậm (fuzz hàng nghìn chuyến, kill sweep, quét pha) ở `:core-trip`/`:core-runtime`; mặc định (không cờ) và CI vẫn chạy đủ | linux | T01 | spec | PO duyệt 05/11; đo thời gian trước/sau; P05 và test ID coverage vẫn chạy ở chế độ nhanh; tài liệu lệnh trong CLAUDE.md |
 | T02 | `tools/tracegen` (Dart CLI) + 6 trace đầu: tàu HN→Đồng Hới, xe khách Mỹ Đình→Thái Bình, buýt nội thành, hầm Hải Vân (mất GPS 6 phút), quá trạm, GPS nhiễu | linux | T00 | done | GPX hợp lệ + `*.expect.json` (mốc báo kỳ vọng) cho mỗi trace |
 
 ## Phase 1 — Spikes rủi ro (Gate: Go / No-go)
@@ -48,7 +49,7 @@ Môi trường: `[linux]` container/máy Linux · `[mac]` cần macOS + Xcode ·
 | T13 | Trip Engine Swift (Swift package thuần, `swift test` chạy được trên WSL) + test chạy cùng fixture | linux (WSL) + mac | T10, T10.2, T10.3, T11.1, T11.2, T12 (P05 manifest) | done | U01–U98, TR01–TR38, P01–P07 pass; P05 = khớp `fixtures/p05/manifest.json` của T12; được `done` khi chưa chạy macOS — bước đó chuyển sang lần chạy `ios-compile.yml` hoặc T17 |
 | T13.1 | Engine Swift theo T10.4: `wakeGuardMs` cho mốc c3/c4, `lostAfterS` không co (GAP-2), bất biến I13/I14, P08, TR39 | linux (WSL) | T10.4, T12.1 (manifest P05 mới) | done | Mục "T10.4" cuối `docs/specs/T13.md`; U99–U105; P05 khớp manifest mới của T12.1; test ghim GAP lật lại |
 | T13.2 | Engine Swift theo T10.5 (danh sách 7 việc ở T10.md mục "T10.5" §10) | linux (WSL) | T10.5, T12.2 (manifest P05 mới), T13.1 | done | U106–U116 (gồm việc 11–14 của T10.5 vòng 3); P05 khớp manifest của T12.2 |
-| T13.3 | Engine Swift theo T10.6 | linux (WSL) | T10.6, T12.3 (manifest P05 mới), T13.2 | in-review | Mục "T10.6 — việc coder T13 phải làm" cuối `docs/specs/T13.md`; P05 khớp manifest của T12.3 |
+| T13.3 | Engine Swift theo T10.6 | linux (WSL) | T10.6, T12.3 (manifest P05 mới), T13.2 | done | Mục "T10.6 — việc coder T13 phải làm" cuối `docs/specs/T13.md`; P05 khớp manifest của T12.3. Sau test (WSL, Swift 6.4.1): 248/248, P05 295/295, tắt T10.6 = T12.2 (295/295 trên manifest aa670ac^), file thống kê trùng byte Kotlin. Chờ gộp: `ios-compile` target swift trên macOS (chạy gộp trước Gate, PO 05/11) |
 | T13.4 | Swift theo T11.3: P05 303/303, TR39 15 case, U116 (a) mới, TR40 trùng Kotlin | linux (WSL) + mac | T13.3, T11.3 | todo | Mục "T11.3 — việc coder T13 phải làm" cuối `docs/specs/T13.md` |
 | T13.5 | Swift theo T10.7 (gộp vào T13.4 nếu kịp) | linux (WSL) | T10.7, T12.4, T13.4 | todo | |
 | T14 | Pigeon API (`app/pigeons/core_api.dart`) + code sinh + stub 2 nền tảng | linux | T10, T19 | done | Build cả 2 nền tảng; Dart gọi được stub; có `setBatteryChoice`, `currentTrip()` đọc từ snapshot; iOS biên dịch qua workflow `ios-compile.yml` (macOS, chạy tay); code sinh commit + CI kiểm khớp; không lớp Pigeon nào chứa toạ độ |

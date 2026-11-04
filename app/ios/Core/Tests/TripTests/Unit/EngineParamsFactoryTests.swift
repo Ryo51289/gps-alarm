@@ -68,10 +68,10 @@ struct EngineParamsFactoryTests {
         #expect(Self.p("null").malformed)
     }
 
-    @Test("U67 (r) PARAM_SPECS: 83 entries, names/kinds/defaults/ranges as T10 §5 (independent hand-written rows)")
+    @Test("U67 (r) PARAM_SPECS: 86 entries (T10.6 adds 3), names/kinds/defaults/ranges as T10 §5 (independent hand-written rows)")
     func u67r() {
         let specs = ParamTable.PARAM_SPECS
-        #expect(specs.count == 83)
+        #expect(specs.count == 86)
         let hand: [(String, ParamKind, Double, Double, Double)] = [
             ("fixMaxAgeS", .int, 60, 10, 300), ("accRelMax", .double, 0.05, 0, 0.2), ("smoothWindowS", .int, 12, 0, 60),
             ("speedEmaTauS", .int, 300, 30, 1800), ("routeFactorMax", .double, 2.0, 1.2, 4), ("expectedSpeedKmhBus", .int, 20, 5, 150),
@@ -81,13 +81,21 @@ struct EngineParamsFactoryTests {
             ("samplingDenseMinIntervalS", .int, 2, 1, 15), ("fallbackEarlyFrac", .double, 0.25, 0, 0.5),
             ("fallbackEarlyMaxS", .int, 3600, 0, 7200), ("fallbackHintSpeedFactor", .double, 1.0, 0, 2),
             ("fallbackQuietBeforeS", .int, 30, 30, 120), ("vehicleBusMaxAvgKmh", .int, 30, 10, 50),
+            ("gpsLostLongS", .int, 1800, 0, 21600), ("gpsLostLongHintFactor", .double, 1.0, 0, 2),
+            ("passedClosestSlowRiseM", .int, 300, 0, 3000),
         ]
+        // T10.6: table order (Kotlin `PARAM_SPECS`): W after lostSpeedGuardUpdates, the slow net after passedClosestOpenFrac.
+        #expect(ParamTable.index(of: "gpsLostLongS") == ParamTable.index(of: "lostSpeedGuardUpdates")! + 1)
+        #expect(ParamTable.index(of: "gpsLostLongHintFactor") == ParamTable.index(of: "lostSpeedGuardUpdates")! + 2)
+        #expect(ParamTable.index(of: "overshootNearMinM") == ParamTable.index(of: "lostSpeedGuardUpdates")! + 3)
+        #expect(ParamTable.index(of: "passedClosestSlowRiseM") == ParamTable.index(of: "passedClosestOpenFrac")! + 1)
+        #expect(ParamTable.index(of: "arrivedRadiusM") == ParamTable.index(of: "passedClosestOpenFrac")! + 2)
         for h in hand {
             guard let i = ParamTable.index(of: h.0) else { Issue.record("missing \(h.0)"); continue }
             let s = specs[i]
             #expect(s.kind == h.1 && s.defaultValue == h.2 && s.min == h.3 && s.max == h.4, "\(h.0)")
         }
-        #expect(Set(specs.map(\.name)).count == 83)
+        #expect(Set(specs.map(\.name)).count == 86)
         for (i, s) in specs.enumerated() {
             switch Self.d.value(at: i) {
             case let .int(v): #expect(s.kind == .int && Double(v) == s.defaultValue)
@@ -106,6 +114,26 @@ struct EngineParamsFactoryTests {
         #expect(Self.p(#"{"fallbackEarlyFrac": 0.55}"#).params.fallbackEarlyFrac == 0.25)
         #expect(Self.p(#"{"fallbackEarlyMaxS": 7200}"#).params.fallbackEarlyMaxS == 7200)
         #expect(Self.p(#"{"fallbackEarlyMaxS": 7201}"#).params.fallbackEarlyMaxS == 3600)
+    }
+
+    @Test("U97 (c) T10.6 parameters: ranges, 0 turns each rule off, no cross-field group")
+    func u97c() {
+        #expect(Self.d.gpsLostLongS == 1800)
+        #expect(Self.d.gpsLostLongHintFactor == 1.0)
+        #expect(Self.d.passedClosestSlowRiseM == 300)
+        #expect(Self.p(#"{"gpsLostLongS": 0}"#).params.gpsLostLongS == 0)
+        #expect(Self.p(#"{"gpsLostLongS": 21600}"#).params.gpsLostLongS == 21600)
+        for v in ["21601", "-1", "1800.5", "true"] { #expect(Self.p("{\"gpsLostLongS\": \(v)}").params.gpsLostLongS == 1800, "\(v)") }
+        #expect(Self.p(#"{"gpsLostLongHintFactor": 0}"#).params.gpsLostLongHintFactor == 0.0)
+        #expect(Self.p(#"{"gpsLostLongHintFactor": 2}"#).params.gpsLostLongHintFactor == 2.0)
+        for v in ["2.01", "-0.1"] {
+            #expect(Self.p("{\"gpsLostLongHintFactor\": \(v)}").params.gpsLostLongHintFactor == 1.0, "\(v)")
+        }
+        #expect(Self.p(#"{"passedClosestSlowRiseM": 0}"#).params.passedClosestSlowRiseM == 0)
+        #expect(Self.p(#"{"passedClosestSlowRiseM": 3000}"#).params.passedClosestSlowRiseM == 3000)
+        #expect(Self.p(#"{"passedClosestSlowRiseM": 3001}"#).params.passedClosestSlowRiseM == 300)
+        // No cross-field group: each key is accepted alone, whatever the others are.
+        #expect(Self.p(#"{"gpsLostLongS": 0, "gpsLostLongHintFactor": 0, "passedClosestSlowRiseM": 0}"#).rejected.isEmpty)
     }
 }
 

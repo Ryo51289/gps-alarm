@@ -87,7 +87,9 @@ struct GpsMonitorTests {
 
     @Test("U71 lost while stopped at 60 km (train 15 m/s, k 1.2): GpsLost at lostAfterS, predicted constant ± 1 ms, Alarm(GPS_LOST) at tick 3660")
     func u71() {
-        var d = EngineDriver()
+        // T10.6 §6 (D1): GPS lost 2 280 s before the alarm; this test checks dead reckoning while stopped, not the "long loss"
+        // rule W (with W on the alarm is GPS_LOST earlier, U119–U121), so W is off.
+        var d = EngineDriver(params: #"{"gpsLostLongS": 0}"#)
         d.drive(from: 0, d0: 61_875, v: 15, k: 1.2, count: 30)   // ends at t 145, d 60 062.5, established
         d.fix(160, d: 60_000, spd: 0)
         #expect(d.state.stopStartMs != nil && approx(d.state.dSmooth, 60_000, 1e-6))

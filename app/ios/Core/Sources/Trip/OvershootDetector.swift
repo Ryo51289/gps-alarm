@@ -95,13 +95,52 @@ enum OvershootDetector {
         return TMath.max(Double(p.passedClosestMinRadiusM), p.passedClosestReachFactor * reachM)
     }
 
+    static func openNeedM(_ p: EngineParams, _ minD: Double) -> Double {
+        TMath.max(Double(p.passedClosestOpenMinM), p.passedClosestOpenFrac * minD)
+    }
+
     static func isPassedClosest(_ s: EngineState, _ e: Estimate?) -> Bool {
         guard let e, s.phase == .acquiring || s.phase == .tracking, s.alarm.atMs == nil, s.gps == .ok,
               let minD = s.minD, let d = s.dSmooth, let dStart = s.dStartM else { return false }
         let p = s.params
         let passedRadius = passedRadiusM(s, e)
-        let openNeedM = TMath.max(Double(p.passedClosestOpenMinM), p.passedClosestOpenFrac * minD)
-        return minD < passedRadius && dStart - minD >= Double(p.passedClosestOpenMinM) && d - minD >= openNeedM
-            && increasing(s) && fast(s)
+        return minD < passedRadius && dStart - minD >= Double(p.passedClosestOpenMinM) && d - minD >= openNeedM(p, minD)
+            && increasing(s) && (fast(s) || slowAway(s))
+    }
+
+    /// T10.6 (3), C27: on every Step with an accepted fix (ACCEPT/REANCHOR), after step 7 and before alarmReason, in every phase.
+    /// The mark is the smoothed distance measured once the gap to minD is already open, from good (GNSS) fixes only, going down
+    /// only; it is cleared whenever the geometric terms of passedClosest stop holding.
+    static func updatePassAnchor(_ s: inout EngineState, _ e: Estimate?) {
+        let p = s.params
+        var passOpen = false
+        if p.passedClosestSlowRiseM > 0, let e, let minD = s.minD, let ds = s.dSmooth, let dStart = s.dStartM, s.last != nil,
+           s.phase == .acquiring || s.phase == .tracking, s.alarm.atMs == nil, s.gps == .ok {
+            passOpen = minD < passedRadiusM(s, e) && dStart - minD >= Double(p.passedClosestOpenMinM)
+                && ds - minD >= openNeedM(p, minD)
+        }
+        if !passOpen {
+            s.passAnchorD = nil
+            return
+        }
+        if !isGoodFix(s) { return }
+        let ds = s.dSmooth!
+        if let a = s.passAnchorD {
+            s.passAnchorD = TMath.min(a, ds)
+        } else {
+            s.passAnchorD = ds
+        }
+    }
+
+    static func isGoodFix(_ s: EngineState) -> Bool {
+        guard let f = s.last else { return false }
+        return f.accM <= s.params.speedSampleMaxAccM
+    }
+
+    /// T10.6 (3), C27: two smoothed distances in a row at least passedClosestSlowRiseM above the mark (read after the update).
+    static func slowAway(_ s: EngineState) -> Bool {
+        guard let a = s.passAnchorD else { return false }
+        let l3 = s.last3
+        return isGoodFix(s) && l3.count == 3 && l3[1] - a >= Double(s.params.passedClosestSlowRiseM)
     }
 }

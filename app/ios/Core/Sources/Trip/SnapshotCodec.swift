@@ -22,6 +22,7 @@ enum SnapshotCodec {
         o.append(("dStartM", optDouble(s.dStartM)))
         o.append(("minD", optDouble(s.minD)))
         o.append(("minDChord", .bool(s.minDChord)))
+        o.append(("passAnchorD", optDouble(s.passAnchorD)))
         o.append(("last3", .array(s.last3.map(double))))
         o.append(("ground", optDouble(s.ground)))
         o.append(("closing", optDouble(s.closing)))
@@ -138,6 +139,7 @@ enum SnapshotCodec {
             rejects: try r.array("rejects").map { v throws(SnapshotError) in try decodeFix(try Reader.wrap(v, "rejects")) },
             dSmooth: try r.optDouble("dSmooth"), dStartM: try r.optDouble("dStartM"), minD: try r.optDouble("minD"),
             minDChord: try r.boolOrFalse("minDChord"),
+            passAnchorD: try r.optDoubleIfMissing("passAnchorD"),
             last3: try r.doubleArray("last3"),
             ground: try r.optDouble("ground"), closing: try r.optDouble("closing"),
             movingTimeS: try r.double("movingTimeS"), movingSamples: try r.int("movingSamples"),
@@ -259,6 +261,11 @@ enum SnapshotCodec {
         func boolOrFalse(_ k: String) throws(SnapshotError) -> Bool {
             if obj[k] == nil { return false }
             return try bool(k)
+        }
+        /// T10.6 (C28), second named exception to C20: a missing key reads as nil; a present key must be null or a finite number.
+        func optDoubleIfMissing(_ k: String) throws(SnapshotError) -> Double? {
+            if obj[k] == nil { return nil }
+            return try optDouble(k)
         }
         func string(_ k: String) throws(SnapshotError) -> String {
             guard let v = try raw(k).stringValue else { throw bad(k) }

@@ -357,6 +357,8 @@ struct StepWork {
             }
             events.append(.overshoot(.init(atMs: now, pastM: past)))
         }
+        // 8. T10.6 (3), C27: slow-vehicle passed-closest mark, on every Step with an accepted fix (ACCEPT/REANCHOR), in every phase.
+        if fixAccepted { OvershootDetector.updatePassAnchor(&s, e) }
         // 8. Mode / GPS / battery / passed-closest / timeout; pre-alert.
         if (s.phase == .acquiring || s.phase == .tracking) && s.alarm.atMs == nil {
             if firstFix { s.preAlertArmed = !PreAlertRule.inZone(s, e) }

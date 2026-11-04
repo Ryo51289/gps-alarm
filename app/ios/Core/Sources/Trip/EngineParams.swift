@@ -1,4 +1,4 @@
-// EngineParams: the 83 parameters of T10 §5 (names, kinds, defaults, ranges), PARAM_SPECS and the Remote Config
+// EngineParams: the 86 parameters of T10 §5 (after T10.6) (names, kinds, defaults, ranges), PARAM_SPECS and the Remote Config
 // override parser (T12 §7.2, C12). Generated from the T10 §5 table; PARAM_SPECS is the single source of truth.
 
 public struct EngineParams: Sendable, Equatable {
@@ -44,6 +44,8 @@ public struct EngineParams: Sendable, Equatable {
     public internal(set) var acquireTimeoutS: Int = 120
     public internal(set) var lostErrFrac: Double = 0.25
     public internal(set) var lostSpeedGuardUpdates: Int = 2
+    public internal(set) var gpsLostLongS: Int = 1800
+    public internal(set) var gpsLostLongHintFactor: Double = 1.0
     public internal(set) var overshootNearMinM: Int = 1000
     public internal(set) var overshootOpenM: Int = 1000
     public internal(set) var overshootMinSpeedKmh: Int = 10
@@ -51,6 +53,7 @@ public struct EngineParams: Sendable, Equatable {
     public internal(set) var passedClosestReachFactor: Double = 2.0
     public internal(set) var passedClosestOpenMinM: Int = 500
     public internal(set) var passedClosestOpenFrac: Double = 0.5
+    public internal(set) var passedClosestSlowRiseM: Int = 300
     public internal(set) var arrivedRadiusM: Int = 300
     public internal(set) var snoozeS: Int = 60
     public internal(set) var maxSnoozes: Int = 1
@@ -135,47 +138,50 @@ public struct EngineParams: Sendable, Equatable {
         case 39: .int(acquireTimeoutS)
         case 40: .double(lostErrFrac)
         case 41: .int(lostSpeedGuardUpdates)
-        case 42: .int(overshootNearMinM)
-        case 43: .int(overshootOpenM)
-        case 44: .int(overshootMinSpeedKmh)
-        case 45: .int(passedClosestMinRadiusM)
-        case 46: .double(passedClosestReachFactor)
-        case 47: .int(passedClosestOpenMinM)
-        case 48: .double(passedClosestOpenFrac)
-        case 49: .int(arrivedRadiusM)
-        case 50: .int(snoozeS)
-        case 51: .int(maxSnoozes)
-        case 52: .int(alarmMaxActiveS)
-        case 53: .int(maxTripMinS)
-        case 54: .int(maxTripCapS)
-        case 55: .int(lowBatteryAlarmPct)
-        case 56: .int(lowBatteryEarlierPct)
-        case 57: .double(batteryPriorDrainPctPerH)
-        case 58: .double(batteryMinRatePctPerH)
-        case 59: .int(batteryMinRateWindowS)
-        case 60: .int(batteryReserveAfterAlarmS)
-        case 61: .int(denseEnterS)
-        case 62: .int(mediumEnterS)
-        case 63: .double(tierHysteresisFactor)
-        case 64: .int(samplingSparseIntervalS)
-        case 65: .int(samplingSparseMinIntervalS)
-        case 66: .int(samplingMediumIntervalS)
-        case 67: .int(samplingMediumMinIntervalS)
-        case 68: .int(samplingDenseIntervalS)
-        case 69: .int(samplingDenseMinIntervalS)
-        case 70: .int(maxSavingIntervalFactor)
-        case 71: .int(fallbackLagS)
-        case 72: .double(fallbackEarlyFrac)
-        case 73: .int(fallbackEarlyMaxS)
-        case 74: .double(fallbackHintSpeedFactor)
-        case 75: .int(fallbackNearS)
-        case 76: .int(fallbackNearSlackS)
-        case 77: .int(fallbackMinLeadS)
-        case 78: .int(fallbackQuietBeforeS)
-        case 79: .int(fallbackMinShiftS)
-        case 80: .int(fallbackMinIntervalS)
-        case 81: .int(fallbackRetryS)
-        case 82: .int(vehicleBusMaxAvgKmh)
+        case 42: .int(gpsLostLongS)
+        case 43: .double(gpsLostLongHintFactor)
+        case 44: .int(overshootNearMinM)
+        case 45: .int(overshootOpenM)
+        case 46: .int(overshootMinSpeedKmh)
+        case 47: .int(passedClosestMinRadiusM)
+        case 48: .double(passedClosestReachFactor)
+        case 49: .int(passedClosestOpenMinM)
+        case 50: .double(passedClosestOpenFrac)
+        case 51: .int(passedClosestSlowRiseM)
+        case 52: .int(arrivedRadiusM)
+        case 53: .int(snoozeS)
+        case 54: .int(maxSnoozes)
+        case 55: .int(alarmMaxActiveS)
+        case 56: .int(maxTripMinS)
+        case 57: .int(maxTripCapS)
+        case 58: .int(lowBatteryAlarmPct)
+        case 59: .int(lowBatteryEarlierPct)
+        case 60: .double(batteryPriorDrainPctPerH)
+        case 61: .double(batteryMinRatePctPerH)
+        case 62: .int(batteryMinRateWindowS)
+        case 63: .int(batteryReserveAfterAlarmS)
+        case 64: .int(denseEnterS)
+        case 65: .int(mediumEnterS)
+        case 66: .double(tierHysteresisFactor)
+        case 67: .int(samplingSparseIntervalS)
+        case 68: .int(samplingSparseMinIntervalS)
+        case 69: .int(samplingMediumIntervalS)
+        case 70: .int(samplingMediumMinIntervalS)
+        case 71: .int(samplingDenseIntervalS)
+        case 72: .int(samplingDenseMinIntervalS)
+        case 73: .int(maxSavingIntervalFactor)
+        case 74: .int(fallbackLagS)
+        case 75: .double(fallbackEarlyFrac)
+        case 76: .int(fallbackEarlyMaxS)
+        case 77: .double(fallbackHintSpeedFactor)
+        case 78: .int(fallbackNearS)
+        case 79: .int(fallbackNearSlackS)
+        case 80: .int(fallbackMinLeadS)
+        case 81: .int(fallbackQuietBeforeS)
+        case 82: .int(fallbackMinShiftS)
+        case 83: .int(fallbackMinIntervalS)
+        case 84: .int(fallbackRetryS)
+        case 85: .int(vehicleBusMaxAvgKmh)
         default: preconditionFailure("param index")
         }
     }
@@ -225,47 +231,50 @@ public struct EngineParams: Sendable, Equatable {
         case let (39, .int(x)): acquireTimeoutS = x
         case let (40, .double(x)): lostErrFrac = x
         case let (41, .int(x)): lostSpeedGuardUpdates = x
-        case let (42, .int(x)): overshootNearMinM = x
-        case let (43, .int(x)): overshootOpenM = x
-        case let (44, .int(x)): overshootMinSpeedKmh = x
-        case let (45, .int(x)): passedClosestMinRadiusM = x
-        case let (46, .double(x)): passedClosestReachFactor = x
-        case let (47, .int(x)): passedClosestOpenMinM = x
-        case let (48, .double(x)): passedClosestOpenFrac = x
-        case let (49, .int(x)): arrivedRadiusM = x
-        case let (50, .int(x)): snoozeS = x
-        case let (51, .int(x)): maxSnoozes = x
-        case let (52, .int(x)): alarmMaxActiveS = x
-        case let (53, .int(x)): maxTripMinS = x
-        case let (54, .int(x)): maxTripCapS = x
-        case let (55, .int(x)): lowBatteryAlarmPct = x
-        case let (56, .int(x)): lowBatteryEarlierPct = x
-        case let (57, .double(x)): batteryPriorDrainPctPerH = x
-        case let (58, .double(x)): batteryMinRatePctPerH = x
-        case let (59, .int(x)): batteryMinRateWindowS = x
-        case let (60, .int(x)): batteryReserveAfterAlarmS = x
-        case let (61, .int(x)): denseEnterS = x
-        case let (62, .int(x)): mediumEnterS = x
-        case let (63, .double(x)): tierHysteresisFactor = x
-        case let (64, .int(x)): samplingSparseIntervalS = x
-        case let (65, .int(x)): samplingSparseMinIntervalS = x
-        case let (66, .int(x)): samplingMediumIntervalS = x
-        case let (67, .int(x)): samplingMediumMinIntervalS = x
-        case let (68, .int(x)): samplingDenseIntervalS = x
-        case let (69, .int(x)): samplingDenseMinIntervalS = x
-        case let (70, .int(x)): maxSavingIntervalFactor = x
-        case let (71, .int(x)): fallbackLagS = x
-        case let (72, .double(x)): fallbackEarlyFrac = x
-        case let (73, .int(x)): fallbackEarlyMaxS = x
-        case let (74, .double(x)): fallbackHintSpeedFactor = x
-        case let (75, .int(x)): fallbackNearS = x
-        case let (76, .int(x)): fallbackNearSlackS = x
-        case let (77, .int(x)): fallbackMinLeadS = x
-        case let (78, .int(x)): fallbackQuietBeforeS = x
-        case let (79, .int(x)): fallbackMinShiftS = x
-        case let (80, .int(x)): fallbackMinIntervalS = x
-        case let (81, .int(x)): fallbackRetryS = x
-        case let (82, .int(x)): vehicleBusMaxAvgKmh = x
+        case let (42, .int(x)): gpsLostLongS = x
+        case let (43, .double(x)): gpsLostLongHintFactor = x
+        case let (44, .int(x)): overshootNearMinM = x
+        case let (45, .int(x)): overshootOpenM = x
+        case let (46, .int(x)): overshootMinSpeedKmh = x
+        case let (47, .int(x)): passedClosestMinRadiusM = x
+        case let (48, .double(x)): passedClosestReachFactor = x
+        case let (49, .int(x)): passedClosestOpenMinM = x
+        case let (50, .double(x)): passedClosestOpenFrac = x
+        case let (51, .int(x)): passedClosestSlowRiseM = x
+        case let (52, .int(x)): arrivedRadiusM = x
+        case let (53, .int(x)): snoozeS = x
+        case let (54, .int(x)): maxSnoozes = x
+        case let (55, .int(x)): alarmMaxActiveS = x
+        case let (56, .int(x)): maxTripMinS = x
+        case let (57, .int(x)): maxTripCapS = x
+        case let (58, .int(x)): lowBatteryAlarmPct = x
+        case let (59, .int(x)): lowBatteryEarlierPct = x
+        case let (60, .double(x)): batteryPriorDrainPctPerH = x
+        case let (61, .double(x)): batteryMinRatePctPerH = x
+        case let (62, .int(x)): batteryMinRateWindowS = x
+        case let (63, .int(x)): batteryReserveAfterAlarmS = x
+        case let (64, .int(x)): denseEnterS = x
+        case let (65, .int(x)): mediumEnterS = x
+        case let (66, .double(x)): tierHysteresisFactor = x
+        case let (67, .int(x)): samplingSparseIntervalS = x
+        case let (68, .int(x)): samplingSparseMinIntervalS = x
+        case let (69, .int(x)): samplingMediumIntervalS = x
+        case let (70, .int(x)): samplingMediumMinIntervalS = x
+        case let (71, .int(x)): samplingDenseIntervalS = x
+        case let (72, .int(x)): samplingDenseMinIntervalS = x
+        case let (73, .int(x)): maxSavingIntervalFactor = x
+        case let (74, .int(x)): fallbackLagS = x
+        case let (75, .double(x)): fallbackEarlyFrac = x
+        case let (76, .int(x)): fallbackEarlyMaxS = x
+        case let (77, .double(x)): fallbackHintSpeedFactor = x
+        case let (78, .int(x)): fallbackNearS = x
+        case let (79, .int(x)): fallbackNearSlackS = x
+        case let (80, .int(x)): fallbackMinLeadS = x
+        case let (81, .int(x)): fallbackQuietBeforeS = x
+        case let (82, .int(x)): fallbackMinShiftS = x
+        case let (83, .int(x)): fallbackMinIntervalS = x
+        case let (84, .int(x)): fallbackRetryS = x
+        case let (85, .int(x)): vehicleBusMaxAvgKmh = x
         default: preconditionFailure("param kind")
         }
     }
@@ -331,6 +340,8 @@ enum ParamTable {
         ParamSpec(name: "acquireTimeoutS", kind: .int, defaultValue: 120.0, min: 30.0, max: 600.0),
         ParamSpec(name: "lostErrFrac", kind: .double, defaultValue: 0.25, min: 0.0, max: 1.0),
         ParamSpec(name: "lostSpeedGuardUpdates", kind: .int, defaultValue: 2.0, min: 0.0, max: 5.0),
+        ParamSpec(name: "gpsLostLongS", kind: .int, defaultValue: 1800.0, min: 0.0, max: 21600.0),
+        ParamSpec(name: "gpsLostLongHintFactor", kind: .double, defaultValue: 1.0, min: 0.0, max: 2.0),
         ParamSpec(name: "overshootNearMinM", kind: .int, defaultValue: 1000.0, min: 300.0, max: 3000.0),
         ParamSpec(name: "overshootOpenM", kind: .int, defaultValue: 1000.0, min: 300.0, max: 3000.0),
         ParamSpec(name: "overshootMinSpeedKmh", kind: .int, defaultValue: 10.0, min: 3.0, max: 30.0),
@@ -338,6 +349,7 @@ enum ParamTable {
         ParamSpec(name: "passedClosestReachFactor", kind: .double, defaultValue: 2.0, min: 1.0, max: 4.0),
         ParamSpec(name: "passedClosestOpenMinM", kind: .int, defaultValue: 500.0, min: 200.0, max: 3000.0),
         ParamSpec(name: "passedClosestOpenFrac", kind: .double, defaultValue: 0.5, min: 0.2, max: 2.0),
+        ParamSpec(name: "passedClosestSlowRiseM", kind: .int, defaultValue: 300.0, min: 0.0, max: 3000.0),
         ParamSpec(name: "arrivedRadiusM", kind: .int, defaultValue: 300.0, min: 50.0, max: 1000.0),
         ParamSpec(name: "snoozeS", kind: .int, defaultValue: 60.0, min: 30.0, max: 600.0),
         ParamSpec(name: "maxSnoozes", kind: .int, defaultValue: 1.0, min: 0.0, max: 3.0),
