@@ -9,6 +9,8 @@ struct MainRunOutcome: Sendable {
     let startMs: Int64
     let urgentShifts: [Checks.UrgentShift]
     let gapProbes: [GapProbe]
+    /// T10.6 C29.
+    let t106: T106Counters
 }
 
 /// Computed once per test process (shared by U116 a, U117), sorted by run name; writes the "Urgent later shifts" and "GPS-gap
@@ -29,7 +31,8 @@ enum FixtureMainRuns {
                     var r = Runner(trace: t, spec: spec, mode: m, options: RunOptions(probes: false))
                     r.runAll()
                     return MainRunOutcome(run: r.run, traceId: t.file.traceId, startMs: r.startMs,
-                                          urgentShifts: Checks.urgentShifts(r.records, r.params), gapProbes: r.gapProbes)
+                                          urgentShifts: Checks.urgentShifts(r.records, r.params), gapProbes: r.gapProbes,
+                                          t106: r.t106)
                 }
             }
             var res: [MainRunOutcome] = []
@@ -75,5 +78,18 @@ enum FixtureMainRuns {
                 + "\(list.filter { $0.1.standingTerm }.count) |\n"
         }
         Report.shared.writePart(dir: "trace", name: "t105-gap-chord", markdown: g + "\n", json: nil)
+
+        // T10.6 C29 (Kotlin `Suite.t106Report`): preVLiftSteps, longLostAlarms, slowAwayAlarms over all main runs.
+        var c = "### T10.6 counters (C29), all main runs\n\n"
+        c += "preVLiftSteps: \(outs.reduce(0) { $0 + $1.t106.preVLiftSteps }), longLostAlarms: "
+            + "\(outs.reduce(0) { $0 + $1.t106.longLostAlarms.count }), slowAwayAlarms: "
+            + "\(outs.reduce(0) { $0 + $1.t106.slowAwayAlarms.count })\n\n"
+        for o in outs {
+            let x = o.t106
+            if x.preVLiftSteps == 0 && x.longLostAlarms.isEmpty && x.slowAwayAlarms.isEmpty { continue }
+            c += "- \(o.run): preVLiftSteps \(x.preVLiftSteps), longLost \(KW.klist(x.longLostAlarms)), "
+                + "slowAway \(KW.klist(x.slowAwayAlarms))\n"
+        }
+        Report.shared.writePart(dir: "trace", name: "t106-counters", markdown: c, json: nil)
     }
 }

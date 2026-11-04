@@ -77,6 +77,7 @@ struct SnapshotCodecTests {
             }
         }
         return a == b && Bits.same(a.dSmooth, b.dSmooth) && Bits.same(a.dStartM, b.dStartM) && Bits.same(a.minD, b.minD)
+            && Bits.same(a.passAnchorD, b.passAnchorD)
             && Bits.same(a.last3, b.last3) && Bits.same(a.ground, b.ground) && Bits.same(a.closing, b.closing)
             && Bits.same(a.movingTimeS, b.movingTimeS) && Bits.same(a.movingDistM, b.movingDistM) && Bits.same(a.cvGuard, b.cvGuard)
             && fx(a.last, b.last) && fx(a.stopAnchor, b.stopAnchor) && a.recent.count == b.recent.count
@@ -90,6 +91,7 @@ struct SnapshotCodecTests {
         for i in 0..<20 {
             var s = Self.randomState(&rng, guardCount: [0, 1, 2, 5][i % 4])
             s.minDChord = i % 2 == 0   // T10.5 round 3e: both values
+            s.passAnchorD = i % 3 == 1 ? nil : rng.nextDouble() * 1e5   // T10.6 (U124): nil and numbers interleaved
             let json = TripEngine.encodeSnapshot(s)
             let back = try TripEngine.decodeSnapshot(json)
             #expect(Self.bitsEqual(s, back), "state \(i)")
@@ -113,10 +115,15 @@ struct SnapshotCodecTests {
         s.movingDistM = values[3]
         for chord in [false, true] {   // T10.5 round 3e: minDChord both values
             s.minDChord = chord
-            let back = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s))
-            #expect(Bits.same(back.last3, values))
-            #expect(Bits.same(back.cvGuard, values))
-            #expect(Self.bitsEqual(s, back))
+            let anchors: [Double?] = [nil] + values.map { $0 }
+            for anchor in anchors {   // T10.6 (U124): passAnchorD nil and every awkward double
+                s.passAnchorD = anchor
+                let back = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s))
+                #expect(Bits.same(back.last3, values))
+                #expect(Bits.same(back.cvGuard, values))
+                #expect(Bits.same(back.passAnchorD, anchor))
+                #expect(Self.bitsEqual(s, back))
+            }
         }
     }
 

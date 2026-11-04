@@ -276,8 +276,7 @@ struct TesterT13Tests {
     /// gps OK, fix at now, acc 8, dStart = d + 20 000, minD = d, last3 = [d].
     static func t12TrackingState(_ config: TripConfig = t12Config(), d: Double, ground: Double? = 15.0, closing: Double? = 12.5,
                                  inStop: Bool = false, slow: Bool = false, cvGuard: [Double] = [], tier: SamplingTier = .dense,
-                                 policyAtFix: Int? = nil) -> EngineState {
-        let p = EngineParams.defaults
+                                 policyAtFix: Int? = nil, p: EngineParams = .defaults) -> EngineState {
         var s = EngineState.initial(config: config, params: p, nowMs: S)
         let fix = FixRec(fixAtMs: S, lat: 0.0 - d / Geo.kMetresPerDegLat, lng: 106.0, accM: 8.0, d: d, groundSample: nil)
         let pol = SamplingPlanner.policyFor(tier, p, maxSaving: false)
@@ -391,13 +390,17 @@ struct TesterT13Tests {
 
     /// GAP-1 / GAP-2 repro base (T12T `lostTrip`): TRACKING, established, closing 12.5 m/s (k 1.2), one fix at S, tier SPARSE,
     /// policyIntervalAtLastFixS 5, then no fix. T10.4 closed both gaps: the pins became U99 / U100 (= Kotlin `WakeGuardT104Test`).
-    static func lostTrip(_ t0S: Int) -> EngineDriver {
-        t12Driver(t12TrackingState(d: 1000.0 + 12.5 * Double(t0S), tier: .sparse, policyAtFix: 5))
+    static func lostTrip(_ t0S: Int, _ p: EngineParams = .defaults) -> EngineDriver {
+        t12Driver(t12TrackingState(d: 1000.0 + 12.5 * Double(t0S), tier: .sparse, policyAtFix: 5, p: p))
     }
+
+    /// T10.6 §6: U99 and U100 lose GPS >= gpsLostLongS before the alarm and check the T10.4 wake-up mechanism, not the "long
+    /// loss" rule W (U119–U121), so they keep their numbers with W off (Kotlin `noLongLoss`).
+    static let noLongLoss = KW.params(#"{"gpsLostLongS": 0}"#)
 
     @Test("U99 GAP-1 (T10.4, was gap1Pin): Tick exactly at predicted keeps a wake-up (S + 2 511 000); the next one rings GPS_LOST")
     func u99Gap1() {
-        var e = Self.lostTrip(3610)   // etaS = 3 710 − t
+        var e = Self.lostTrip(3610, Self.noLongLoss)   // etaS = 3 710 − t
         let s10 = e.tick(10)
         #expect(s10.view.samplingPolicy?.tier == .medium && s10.events.compactMap(\.asGpsLost).isEmpty)
         #expect(s10.state.policyIntervalAtLastFixS == 180)
@@ -415,7 +418,7 @@ struct TesterT13Tests {
         #expect(ring.events.alarms.map(\.reason) == [.gpsLost] && ring.events.alarms.allSatisfy(\.ringNow))
         #expect(ring.events.fallbacks == [.init(atMs: Self.S + 2_511_000, fallbackAtMs: nil, cause: .superseded)])
         // (b) Same wake-ups up to the c8 Step, then a Tick exactly at P.
-        var b = Self.lostTrip(3610)
+        var b = Self.lostTrip(3610, Self.noLongLoss)
         b.tick(10)
         for w: Int64 in [540_000, 1_611_000, 1_911_000, 2_450_000] { b.feed(.tick(atMs: Self.S + w)) }
         let atP = b.feed(.tick(atMs: Self.S + 2_510_000))
@@ -427,7 +430,7 @@ struct TesterT13Tests {
 
     @Test("U100 GAP-2 (T10.4, was gap2Pin): policy shortened in the Step keeps c2 and Tick(now) silent; GPS_LOST at 2 601 s (Doze) / 2 605 s (5 s ticks)")
     func u100Gap2() {
-        var e = Self.lostTrip(3700)   // etaS = 3 800 − t
+        var e = Self.lostTrip(3700, Self.noLongLoss)   // etaS = 3 800 − t
         let s = e.tick(100)
         #expect(s.view.samplingPolicy?.tier == .medium && s.view.gps == .ok && s.events.compactMap(\.asGpsLost).isEmpty)
         #expect(s.view.wakeAtMs == Self.S + 540_000)   // c2 not dropped
@@ -440,7 +443,7 @@ struct TesterT13Tests {
         #expect(wakes[0].1.view.predictedAlarmAtMs == Self.S + 2_600_000)
         #expect(wakes[4].1.events.alarms.map(\.reason) == [.gpsLost])   // before: 2 800 000
         // (b) Ticks every 5 s.
-        var f = Self.lostTrip(3700)
+        var f = Self.lostTrip(3700, Self.noLongLoss)
         var t = 0.0, lostT = -1.0, alarmT = -1.0
         while alarmT < 0 && t < 4000 {
             t += 5

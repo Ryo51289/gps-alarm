@@ -40,6 +40,8 @@ enum ModeRules {
             if s.gps == .lost {
                 if m != nil { return .gpsLost }
                 if let eta = e.etaS, eta < Double(s.params.gpsLostAlarmEtaS) { return .gpsLost }
+                // T10.6 (1)+(4), C25: "long loss" W, an "or" term.
+                if let lostLong = e.lostLongAtS, e.elapsedS >= lostLong { return .gpsLost }
             } else if let m {
                 return m
             }
@@ -80,7 +82,9 @@ enum ModeRules {
         let deadlineAt = s.startedAtMs + TMath.ms(s.maxTripDurationS)
         guard let e else { return Predicted(noBattery: deadlineAt, withBattery: deadlineAt, wakeBasis: deadlineAt, wakeBattery: nil) }
         let mAt = modeAt(s, e, now: now, atDist: { atDist($0, e, now: now) }, atTime: { atTime($0, e, now: now) })
-        let lostAt = s.gps == .lost ? atTime(p.gpsLostAlarmEtaS, e, now: now) : nil
+        // T10.6: lostLongAt depends only on the last fix, dSmooth, cvDr and params, so it is fixed between two fixes (wake-up basis).
+        let lostLongAt = e.lostLongAtS.map { s.last!.fixAtMs + TMath.floorMs($0) }
+        let lostAt = s.gps == .lost ? TMath.minOrNull(atTime(p.gpsLostAlarmEtaS, e, now: now), lostLongAt) : nil
         let noBattery = TMath.minOrNull(mAt, lostAt, deadlineAt)
         let battery = batteryAt(s, now: now)
         // T10.5: GPS OK and stopped means dNow = dSmooth (§4.4), so modeAt = now + constant slides with now: not a wake-up basis.

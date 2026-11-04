@@ -10,6 +10,13 @@ struct LostSpeedGuardTests {
         EngineDriver(.distance, thr: 1000, hint: .train, params: guardN.map { "{\"lostSpeedGuardUpdates\": \($0)}" })
     }
 
+    /// T10.6 §6: U90 and U91 lose GPS >= gpsLostLongS before the alarm; they check the T10.1 guard, so the "long loss" rule W is
+    /// off (Kotlin `noLong`).
+    static func noLong(_ guardN: Int?) -> EngineDriver {
+        EngineDriver(.distance, thr: 1000, hint: .train,
+                     params: guardN.map { "{\"gpsLostLongS\": 0, \"lostSpeedGuardUpdates\": \($0)}" } ?? "{\"gpsLostLongS\": 0}")
+    }
+
     /// Runs ticks every 60 s from `from` until the first alarm (or `until`); returns the tick of the first alarm.
     static func tickUntilAlarm(_ d: inout EngineDriver, from: Double, until: Double = 20_000) -> Double? {
         var t = from
@@ -24,7 +31,7 @@ struct LostSpeedGuardTests {
     @Test("U90 brake sample before GPS loss: cvGuard [12, 12], GpsLost at 1440, predicted constant, Alarm(GPS_LOST) 7200 (N = 0: 11 100)")
     func u90() {
         // Default N = 2.
-        var d = Self.driver(nil)
+        var d = Self.noLong(nil)
         for f in Self.u90Fixes { d.fix(f.0, d: f.1, spd: f.2) }
         #expect(approx(d.state.ground, 7.875) && approx(d.state.closing, 11.583333333333334, 1e-6))
         #expect(d.estimate!.k == 1.0 && approx(d.estimate!.closingV, 7.875))
@@ -46,7 +53,7 @@ struct LostSpeedGuardTests {
         #expect(alarmT == 7200)
         #expect(d.events.alarms.first?.reason == .gpsLost)
         // N = 0 (T10 before T10.1).
-        var z = Self.driver(0)
+        var z = Self.noLong(0)
         for f in Self.u90Fixes { z.fix(f.0, d: f.1, spd: f.2) }
         #expect(z.state.cvGuard.isEmpty)
         var zt = 960.0
@@ -61,7 +68,7 @@ struct LostSpeedGuardTests {
     @Test("U90 (T10 override 0.1/1800/0) fallback at tick 1440 is S + 6 687 000 as in T10.1")
     func u90Override() {
         var d = EngineDriver(.distance, thr: 1000, hint: .train,
-                             params: #"{"fallbackEarlyFrac": 0.1, "fallbackEarlyMaxS": 1800, "fallbackHintSpeedFactor": 0}"#)
+                             params: #"{"gpsLostLongS": 0, "fallbackEarlyFrac": 0.1, "fallbackEarlyMaxS": 1800, "fallbackHintSpeedFactor": 0}"#)
         for f in Self.u90Fixes { d.fix(f.0, d: f.1, spd: f.2) }
         var t = 960.0
         while t <= 1440 { d.tick(t); t += 60 }
@@ -72,7 +79,7 @@ struct LostSpeedGuardTests {
     @Test("U91 brake → stop → restart sample: cvGuard [12, 7.875], GpsLost 1980, Alarm(GPS_LOST) 7680 / 11 580 / 14 160 for N = 2 / 1 / 0")
     func u91() {
         for (n, want) in [(2, 7680.0), (1, 11_580.0), (0, 14_160.0)] {
-            var d = Self.driver(n == 2 ? nil : n)
+            var d = Self.noLong(n == 2 ? nil : n)
             for f in Self.u90Fixes { d.fix(f.0, d: f.1, spd: f.2) }
             d.fix(1080, d: 89_398, spd: 0); d.fix(1260, d: 89_398, spd: 0); d.fix(1440, d: 89_000, spd: 4.0)
             #expect(approx(d.state.ground, 6.421875) && approx(d.state.closing, 8.06875, 1e-6))

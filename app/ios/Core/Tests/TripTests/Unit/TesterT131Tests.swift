@@ -100,7 +100,9 @@ struct TesterT131Tests {
     /// Tick(view.wakeAtMs) until the Alarm.
     static func lostDoze(_ config: TripConfig, eta0: Double, ground: Double, closing: Double, slow: Bool, _ tag: String) -> DozeRun? {
         let d = (eta0 - 20.0) * closing
-        let st = TesterT13Tests.t12TrackingState(config, d: d, ground: ground, closing: closing, slow: slow)
+        // T10.6 §6: U107 loses GPS >= gpsLostLongS before the alarm and checks the A10 pre-alert rule, so W is off (U120 d: W on).
+        let st = TesterT13Tests.t12TrackingState(config, d: d, ground: ground, closing: closing, slow: slow,
+                                                 p: KW.params(#"{"gpsLostLongS": 0}"#))
         var e = TesterT13Tests.t12Driver(st)
         let lost = e.feed(.tick(atMs: lostAtMs(st)))
         guard !lost.events.compactMap(\.asGpsLost).isEmpty else {
@@ -435,13 +437,24 @@ struct TesterT131Tests {
         /// U116 (b): OVERSHOOT / PASSED_CLOSEST using a minD from the GPS-gap chord.
         var gapTriggers = 0
         var gapLines: [String] = []
+        /// U126 (T10.6): first alarms due to the "long loss" term W alone; true seconds to the destination at them (< 0: after).
+        var longLostAlarms = 0
+        var longLostRemainingS: [Double] = []
+        /// U126: per-seed lines for the seeds of the review (55, 433, 787).
+        var seedLines: [String] = []
+        /// U126 (after T12.3, D5): DISTANCE cases late > 1 800 s, (late, line).
+        var lateLines: [(Double, String)] = []
+        var lastFirstKey = ""
 
         func v(_ kind: String, _ at: @autoclosure () -> String) {
             violations[kind, default: 0] += 1
             if firstViolation[kind] == nil { firstViolation[kind] = at() }
         }
 
-        func first(_ k: String) { firstBy[k, default: 0] += 1 }
+        func first(_ k: String) {
+            lastFirstKey = k
+            firstBy[k, default: 0] += 1
+        }
 
         /// Kotlin `sortedMapOf<String, *>().toString()`.
         static func map<V>(_ m: [String: V]) -> String { "{" + m.keys.sorted().map { "\($0)=\(m[$0]!)" }.joined(separator: ", ") + "}" }
@@ -479,7 +492,8 @@ struct TesterT131Tests {
     }
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
-    static func dozeTrip(_ seed: Int64, _ variant: Variant, okP: Double, killP: Double, battery: Bool, _ st: FuzzStats) throws {
+    static func dozeTrip(_ seed: Int64, _ variant: Variant, okP: Double, killP: Double, battery: Bool, _ st: FuzzStats,
+                         params: EngineParams = .defaults) throws {
         var r = Rng(seed &* 7919 &+ Int64(variant.rawValue))
         let mode = AlarmMode.allCases[r.int(3)]
         let thr: Int? = mode == .distance || r.chance(0.3) ? 200 + r.int(9801) : nil
@@ -490,7 +504,7 @@ struct TesterT131Tests {
                                 timeThresholdMin: thrMin, preAlertEnabled: preAlert, vehicleHint: hint)
         let d0 = r.dbl(3_000.0, 600_000.0)
         let truth = Truth(&r, d0: d0)
-        var step = try TripEngine.start(config: config, params: .defaults, nowMs: S)
+        var step = try TripEngine.start(config: config, params: params, nowMs: S)
         let tripTag = "seed=\(seed) \(variant.name) mode=\(mode.jsonName) thr=\(opt(thr))/\(opt(thrMin)) d0=\(Int(truth.d0))"
         let dozeAtS = variant == .fromStart ? r.dbl(0.0, 300.0) : r.dbl(0.0, 1.0) * truth.d0 / truth.base
         let gapA = r.chance(0.5) ? r.dbl(0.0, 1.2) * truth.d0 / truth.base : Double.greatestFiniteMagnitude
@@ -503,7 +517,7 @@ struct TesterT131Tests {
         var lastInfoKind = "start"
         var lastInfo: InfoStep? = nil
         var chordMinD: Double? = nil   // U116 (b): last dChord of the trip
-        let p = EngineParams.defaults
+        let p = params
         var batteryAt = S
         var level = 20 + r.int(81)
         let drainPerH = r.dbl(1.0, 12.0)
@@ -512,6 +526,10 @@ struct TesterT131Tests {
         var prevWakeTicks: [Int64] = []
         func deadline(_ s: EngineState) -> Int64 { s.startedAtMs + TMath.ms(s.maxTripDurationS) + TMath.ms(s.params.fallbackLagS) }
         var everDead = false
+        // U126 classes: states after every Step (DISTANCE trips) and the harness death intervals [kill, restart).
+        var states: [EngineState] = []
+        if mode == .distance { states.append(step.state) }
+        var deadIntervals: [(Int64, Int64)] = []
 
         func inGap(_ tMs: Int64) -> Bool {
             let ts = Double(tMs - S) / 1000.0
@@ -519,6 +537,7 @@ struct TesterT131Tests {
         }
 
         func check(_ prev: Step, _ s: Step, _ label: @escaping () -> String) {
+            if mode == .distance { states.append(s.state) }
             st.steps += 1
             let at = { "\(tripTag) t=\(kd(Double(s.state.nowMs - S) / 1000.0)) after \(label())" }
             if !Runner.finite(s.state) { st.v("finite", at()) }
@@ -603,6 +622,7 @@ struct TesterT131Tests {
                     default: info = RestoreInfo(status: .pending)
                     }
                 }
+                deadIntervals.append((t, restartAt))
                 killAt = r.chance(0.3) ? restartAt + Int64(r.dbl(60.0, 7_200.0) * 1000.0) : nil
                 let snap = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(s0))
                 step = TripEngine.restore(snap, nowMs: restartAt, info: info)
@@ -613,6 +633,7 @@ struct TesterT131Tests {
                 if !rang, let a = step.events.alarms.first {
                     rang = true
                     st.first("restore \(info.status.jsonName) " + a.reason.jsonName)
+                    noteU126(st, seed, tripTag, config, truth, restartAt, step)
                 }
             } else {
                 let viaFb = fb != nil && t == Swift.max(fb!, now) && (wake == nil || fb! < wake!)
@@ -683,6 +704,7 @@ struct TesterT131Tests {
                 }
                 if !rang, let a = step.events.alarms.first {
                     rang = true
+                    noteU126(st, seed, tripTag, config, truth, t, step)
                     if viaFb {
                         // Engine-first: a fallback planned after the last new information (pure dead reckoning since then)
                         // must never beat the engine's own wake-up alarm.
@@ -750,6 +772,14 @@ struct TesterT131Tests {
                                 if truth.dAt(m) > thrD { lo = m } else { hi = m }
                             }
                             let cross = S + Int64(hi * 1000)
+                            let lateS = Double(t - cross) / 1000.0
+                            if lateS > 1_800.0 {
+                                let dead = deadIntervals.contains { cross >= $0.0 && cross < $0.1 }
+                                let before = states.last { $0.nowMs <= cross }
+                                st.lateLines.append((lateS, LongLoss.lateCaseLine(
+                                    tag: tripTag, hint: config.vehicleHint, lateS: lateS, first: st.lastFirstKey, dead: dead,
+                                    crossMs: cross, thrM: thrD, st: before) { ms in truth.dAt(Double(ms - S) / 1000.0) }))
+                            }
                             st.lateCases.append((Double(t - cross) / 1000.0,
                                                  "\(tripTag) late \(kd(Double(t - cross) / 1000.0)) s reason \(a.reason.jsonName) gapAtCross=\(inGap(cross)) "
                                                      + "dozeAt=\(Int(dozeAtS)) s cross=\((cross - S) / 1000) s everDead=\(everDead) "
@@ -773,10 +803,59 @@ struct TesterT131Tests {
         st.trips += 1
     }
 
+    /// U126: true time of arrival (dAt <= 0), s from S; nil when not within 200 000 s.
+    static func arrivalS(_ truth: Truth) -> Double? {
+        if truth.dAt(200_000.0) > 0.0 { return nil }
+        var lo = 0.0
+        var hi = 200_000.0
+        for _ in 0..<60 {
+            let m = (lo + hi) / 2
+            if truth.dAt(m) > 0.0 { lo = m } else { hi = m }
+        }
+        return hi
+    }
+
+    /// U126: the seeds of review T12.2 round 2.
+    static let u126Seeds: Set<Int64> = [55, 433, 787]
+
+    /// U126 (T10.6): statistics of the first alarm of a trip (`t` its time, `step` the Step that raised it).
+    static func noteU126(_ st: FuzzStats, _ seed: Int64, _ tripTag: String, _ config: TripConfig, _ truth: Truth, _ t: Int64,
+                         _ step: Step) {
+        guard let a = step.events.alarms.first else { return }
+        let ts = Double(t - S) / 1000.0
+        let arr = arrivalS(truth)
+        let info = a.reason == .gpsLost ? LongLoss.lostAlarmInfo(step.state) : nil
+        if info?.longLostOnly == true {
+            st.longLostAlarms += 1
+            if let arr { st.longLostRemainingS.append(arr - ts) }
+        }
+        if u126Seeds.contains(seed) {
+            var lateTxt = "-"
+            if config.mode == .distance, let thrI = config.distanceThresholdM {
+                let thr = Double(thrI)
+                var lo = 0.0
+                var hi = 200_000.0
+                if truth.dAt(hi) <= thr {
+                    for _ in 0..<60 {
+                        let m = (lo + hi) / 2
+                        if truth.dAt(m) > thr { lo = m } else { hi = m }
+                    }
+                    lateTxt = KW.jf(ts - hi, 0)
+                }
+            }
+            let e = Estimator.estimate(step.state, now: step.state.nowMs)
+            st.seedLines.append("\(tripTag) hint=\(config.vehicleHint.jsonName): \(a.reason.jsonName) at \(KW.ki(ts)) s; vs DISTANCE crossing "
+                                + "\(lateTxt) s (+ late); true remaining \(arr.map { String(KW.ki($0 - ts)) } ?? "null") s; "
+                                + "cvDr \(e.map { KW.jf($0.cvDr, 2) } ?? "null"); preV \(info?.preV ?? false); "
+                                + "W alone \(info?.longLostOnly ?? false)")
+        }
+    }
+
     static func runDozeFuzz(_ name: String, _ seeds: ClosedRange<Int64>, _ variant: Variant, okP: Double, killP: Double,
-                            battery: Bool) throws -> FuzzStats {
+                            battery: Bool, params: EngineParams = .defaults, write: Bool = true) throws -> FuzzStats {
         let st = FuzzStats()
-        for seed in seeds { try dozeTrip(seed, variant, okP: okP, killP: killP, battery: battery, st) }
+        for seed in seeds { try dozeTrip(seed, variant, okP: okP, killP: killP, battery: battery, st, params: params) }
+        if !write { return st }
         let late = st.lateVsTruth.sorted()
         let lateTxt = late.isEmpty ? "-" : "min \(Int(late[0])) m, p05 \(Int(late[late.count / 20])) m, median \(Int(late[late.count / 2])) m, "
             + "rang after passing the threshold: \(late.filter { $0 < 0 }.count)/\(late.count)"
@@ -844,6 +923,44 @@ struct TesterT131Tests {
         #expect(st.firstBy.keys.allSatisfy { !$0.hasPrefix("fallback") }, "\(st.firstBy)")
         #expect(st.fbAfterInfo.isEmpty, "\(st.fbAfterInfo)")
         #expect(st.urgentShifts >= 1, "urgent later shifts \(st.urgentShifts)")
+    }
+
+    /// U126 (T10.6 (1)(2)(4), statistics): the four Doze fuzzes of U111 with T10.6 off and on (defaults). Gate: no violation and an
+    /// alarm on every trip with T10.6 on (as U111). Written to u126-longloss.txt (byte-identical to Kotlin): DISTANCE lateness vs
+    /// truth off → T10.6, each DISTANCE case late > 1 800 s classified dead / short / fast / ?, first alarms due to W alone and the
+    /// true time left to the destination at them, the review seeds 55, 433 (withfix), 787 (nofix-mixed).
+    @Test("U126 a Doze fuzz lateness off vs T10.6, long-loss alarms, late > 1800 s classes and the review seeds")
+    func u126a() throws {
+        let runs: [(String, ClosedRange<Int64>, Variant, Double, Double, Bool)] = [
+            ("nofix-ok", 1...700, .noFix, 1.0, 0.0, false),
+            ("fromstart", 1...700, .fromStart, 0.85, 0.5, true),
+            ("withfix", 1...700, .withFixes, 0.85, 0.4, true),
+            ("nofix-mixed", 701...1400, .noFix, 0.85, 0.4, true),
+        ]
+        var out = "# U126 (T10.6) Doze fuzz of U111: off (gpsLostLongS 0, passedClosestSlowRiseM 0; preV on) -> T10.6 (defaults)\n"
+        var bad: [String] = []
+        for (name, seeds, variant, okP, killP, battery) in runs {
+            let off = try Self.runDozeFuzz(name, seeds, variant, okP: okP, killP: killP, battery: battery, params: LongLoss.offParams,
+                                           write: false)
+            let on = try Self.runDozeFuzz(name, seeds, variant, okP: okP, killP: killP, battery: battery, write: false)
+            if !on.violations.isEmpty { bad.append("\(name): \(FuzzStats.map(on.violations)) \(FuzzStats.map(on.firstViolation))") }
+            let lateOff = off.lateCases.map(\.0)
+            let lateOn = on.lateCases.map(\.0)
+            out += "\n## \(name)\n"
+            out += "DISTANCE late vs truth (s, rang after the threshold): off \(LongLoss.quantiles(lateOff)) -> T10.6 "
+                + "\(LongLoss.quantiles(lateOn))\n"
+            out += "late > 1800 s: off \(lateOff.filter { $0 > 1_800.0 }.count) -> T10.6 \(lateOn.filter { $0 > 1_800.0 }.count)\n"
+            // Kotlin sortedByDescending (stable): ties keep insertion order.
+            let sortedLate = on.lateLines.enumerated().sorted { $0.element.0 != $1.element.0 ? $0.element.0 > $1.element.0 : $0.offset < $1.offset }
+            for x in sortedLate { out += x.element.1 + "\n" }   // printed only, no gate (class ? → báo designer)
+            out += "first alarms due to W alone: \(on.longLostAlarms); true time left at them (s): \(LongLoss.quantiles(on.longLostRemainingS)); "
+                + "after arrival: \(on.longLostRemainingS.filter { $0 < 0.0 }.count)\n"
+            out += "firstAlarm off \(FuzzStats.map(off.firstBy))\nfirstAlarm T10.6 \(FuzzStats.map(on.firstBy))\n"
+            for l in off.seedLines { out += "seed off " + l + "\n" }
+            for l in on.seedLines { out += "seed T10.6 " + l + "\n" }
+        }
+        Report.shared.write("unit/u126-longloss.txt", out)
+        #expect(bad.isEmpty, "\(bad.joined(separator: "\n"))")
     }
 
     @Test("T131 kd = Kotlin Double.toString on the shapes used in the t121 files")

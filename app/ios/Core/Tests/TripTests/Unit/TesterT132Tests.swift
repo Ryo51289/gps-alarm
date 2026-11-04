@@ -135,6 +135,12 @@ struct TesterT132Tests {
         var lastInfo: LastInfo? = nil
         var osFirstKinds: [String: Int] = [:]
         var osFirstEarly: [Double] = []
+        /// U126: the state after the Step of the first Alarm.
+        var firstAlarmState: EngineState? = nil
+        /// U126 classes: states after every Step; harness death intervals [kill, restart).
+        var states: [EngineState] = []
+        var deadIntervals: [(Int64, Int64)] = []
+        private var killedAt: Int64? = nil
 
         init(_ start: Step, _ tag: String, _ rng: Rng, okP: Double = 1.0, cancelLagMaxMs: Int64 = 0) {
             self.step = start
@@ -219,7 +225,15 @@ struct TesterT132Tests {
                                 predictedAfter: s.view.predictedAlarmAtMs, moved: moved)
         }
 
-        func kill() {
+        /// Key of the first alarm as in the firstAlarm table of FuzzStats.
+        func firstKey() -> String {
+            guard let f = alarms.first else { return "none" }
+            let src = f.1.hasPrefix("FallbackFired") ? "os" : (f.1.hasPrefix("RESTORE") ? "restore" : "engine")
+            return "\(src) \(f.0.reason.jsonName)"
+        }
+
+        func kill(_ atMs: Int64? = nil) {
+            killedAt = atMs ?? step.state.nowMs
             dead = true
             engineRinging = false   // the engine ring dies with the process (AlarmRingService is T16)
         }
@@ -242,6 +256,8 @@ struct TesterT132Tests {
                 ri = RestoreInfo(status: info)
             }
             dead = false
+            if let k = killedAt { deadIntervals.append((k, t)) }
+            killedAt = nil
             let snap = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(prev.state))
             let s = TripEngine.restore(snap, nowMs: t, info: ri)
             noteInfo(prev, s)
@@ -252,6 +268,7 @@ struct TesterT132Tests {
         func afterStep(_ prev: Step?, _ s: Step, _ label: String, _ input: EngineInput?) -> Step {
             step = s
             steps += 1
+            states.append(s.state)
             lastInput = label
             records.append(StepRecord(t: Int((s.state.nowMs - S) / 1000), input: input.map { .input($0, fixIndex: nil) } ?? .start,
                                       events: s.events, view: s.view, v: ""))
@@ -272,6 +289,7 @@ struct TesterT132Tests {
             for e in s.events {
                 switch e {
                 case let .alarm(a):
+                    if alarms.isEmpty { firstAlarmState = s.state }
                     alarms.append((a, label))
                     if a.ringNow {
                         if osRinging { v("double ring: engine Alarm(\(a.reason.jsonName), ringNow) while the OS fallback rings") }
@@ -659,12 +677,19 @@ struct TesterT132Tests {
         #expect(got == "gps=OK predicted-now=210 s fac=ETA@240 s; first alarm OVERSHOOT at 10 s after the fix")
     }
 
-    // MARK: - (c) GPS lost > 1 h, changing speed (T10.6, pinned)
+    // MARK: - (c) GPS lost > 1 h, changing speed (T10.6: U121)
 
-    static func scenarioC(_ lossS: Int, _ m: Double, _ mode: AlarmMode) -> String {
+    struct CRes {
+        let line: String
+        let lateS: Int64
+        let lostLongAtS: Double?
+    }
+
+    /// T10.6 (U121): with W on (`params` gpsLostLongS > 0) the line gets a `lostLongAtS` column.
+    static func scenarioC(_ lossS: Int, _ m: Double, _ mode: AlarmMode, _ params: EngineParams = TesterT132Tests.p) -> CRes {
         let config = mode == .distance ? KW.cfg(.distance, thr: 1000) : KW.cfg(mode)
         let d = 12.5 * (1180.0 + Double(lossS))
-        let st = KW.trackingState(config, d: d, tier: .dense)
+        let st = KW.trackingState(config, p: params, d: d, tier: .dense)
         let truth = Truth(d, S)
         let r = Rng(433)
         var t = S
@@ -696,13 +721,47 @@ struct TesterT132Tests {
             }
             probe += 10_000
         }
+        let s60 = TripEngine.reduce(st, .tick(atMs: S + 60_000)).state
+        let lostLong = Estimator.estimate(s60, now: s60.nowMs)!.lostLongAtS
         let v = sim.finish()
         #expect(v.isEmpty, "\(v)")
-        return "loss=\(lossS)s m=\(kd(m)) \(mode.jsonName): alarm \(a.reason.jsonName) at \((a.atMs - S) / 1000) s; "
-            + "late vs trueRemaining1200 \((a.atMs - ideal) / 1000) s; true remaining at alarm \((dest - a.atMs) / 1000) s; "
+        let late = (a.atMs - ideal) / 1000
+        let line = "loss=\(lossS)s m=\(kd(m)) \(mode.jsonName): alarm \(a.reason.jsonName) at \((a.atMs - S) / 1000) s; "
+            + "late vs trueRemaining1200 \(late) s; true remaining at alarm \((dest - a.atMs) / 1000) s; "
             + "late vs cross1000 \((a.atMs - cross) / 1000) s; etaMinS<1200 rule would ring at \(etaMinAt.map { String(($0 - S) / 1000) } ?? "null") s "
             + "(late vs trueRemaining1200 \(etaMinAt.map { String(($0 - ideal) / 1000) } ?? "null") s)"
+            + (params.gpsLostLongS > 0 ? "; lostLongAtS \(lostLong.map { KW.jf($0, 1) } ?? "null")" : "")
+        return CRes(line: line, lateS: late, lostLongAtS: lostLong)
     }
+
+    static func tableC(_ params: EngineParams) -> [CRes] {
+        var rows: [CRes] = []
+        for lossS in [3_600, 7_200, 10_800] { for m in [0.7, 1.0, 1.15, 1.3, 1.5] { rows.append(scenarioC(lossS, m, .distance, params)) } }
+        rows.append(scenarioC(7_200, 1.3, .time, params))
+        rows.append(scenarioC(7_200, 1.3, .smart, params))
+        return rows
+    }
+
+    /// U121: measured with W on (Kotlin T12.3); DISTANCE rows within ± 5 s of T10 "T10.6" §1.4 column "W, Q12 A".
+    static let pinnedU121 = """
+    loss=3600s m=0.7 DISTANCE: alarm GPS_LOST at 2785 s; late vs trueRemaining1200 -3712 s; true remaining at alarm 4912 s; late vs cross1000 -4748 s; etaMinS<1200 rule would ring at 2780 s (late vs trueRemaining1200 -3717 s); lostLongAtS 2784.8
+    loss=3600s m=1.0 DISTANCE: alarm GPS_LOST at 2785 s; late vs trueRemaining1200 -1352 s; true remaining at alarm 2552 s; late vs cross1000 -2491 s; etaMinS<1200 rule would ring at 2780 s (late vs trueRemaining1200 -1358 s); lostLongAtS 2784.8
+    loss=3600s m=1.15 DISTANCE: alarm GPS_LOST at 2785 s; late vs trueRemaining1200 -873 s; true remaining at alarm 2073 s; late vs cross1000 -2019 s; etaMinS<1200 rule would ring at 2780 s (late vs trueRemaining1200 -878 s); lostLongAtS 2784.8
+    loss=3600s m=1.3 DISTANCE: alarm GPS_LOST at 2785 s; late vs trueRemaining1200 -504 s; true remaining at alarm 1704 s; late vs cross1000 -1656 s; etaMinS<1200 rule would ring at 2780 s (late vs trueRemaining1200 -509 s); lostLongAtS 2784.8
+    loss=3600s m=1.5 DISTANCE: alarm GPS_LOST at 2785 s; late vs trueRemaining1200 -127 s; true remaining at alarm 1327 s; late vs cross1000 -1285 s; etaMinS<1200 rule would ring at 2780 s (late vs trueRemaining1200 -132 s); lostLongAtS 2784.8
+    loss=7200s m=0.7 DISTANCE: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 -6172 s; true remaining at alarm 7372 s; late vs cross1000 -7284 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -5948 s); lostLongAtS 5435.7
+    loss=7200s m=1.0 DISTANCE: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 -2763 s; true remaining at alarm 3963 s; late vs cross1000 -3848 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -2540 s); lostLongAtS 5435.7
+    loss=7200s m=1.15 DISTANCE: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 -1460 s; true remaining at alarm 2660 s; late vs cross1000 -2607 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -1237 s); lostLongAtS 5435.7
+    loss=7200s m=1.3 DISTANCE: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 -514 s; true remaining at alarm 1714 s; late vs cross1000 -1627 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -291 s); lostLongAtS 5435.7
+    loss=7200s m=1.5 DISTANCE: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 400 s; true remaining at alarm 799 s; late vs cross1000 -758 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 624 s); lostLongAtS 5435.7
+    loss=10800s m=0.7 DISTANCE: alarm GPS_LOST at 8087 s; late vs trueRemaining1200 -8989 s; true remaining at alarm 10189 s; late vs cross1000 -10026 s; etaMinS<1200 rule would ring at 8540 s (late vs trueRemaining1200 -8537 s); lostLongAtS 8086.6
+    loss=10800s m=1.0 DISTANCE: alarm GPS_LOST at 8087 s; late vs trueRemaining1200 -3527 s; true remaining at alarm 4727 s; late vs cross1000 -4666 s; etaMinS<1200 rule would ring at 8540 s (late vs trueRemaining1200 -3075 s); lostLongAtS 8086.6
+    loss=10800s m=1.15 DISTANCE: alarm GPS_LOST at 8087 s; late vs trueRemaining1200 -2048 s; true remaining at alarm 3248 s; late vs cross1000 -3195 s; etaMinS<1200 rule would ring at 8540 s (late vs trueRemaining1200 -1596 s); lostLongAtS 8086.6
+    loss=10800s m=1.3 DISTANCE: alarm GPS_LOST at 8087 s; late vs trueRemaining1200 -1124 s; true remaining at alarm 2324 s; late vs cross1000 -2276 s; etaMinS<1200 rule would ring at 8540 s (late vs trueRemaining1200 -671 s); lostLongAtS 8086.6
+    loss=10800s m=1.5 DISTANCE: alarm GPS_LOST at 8087 s; late vs trueRemaining1200 449 s; true remaining at alarm 750 s; late vs cross1000 -674 s; etaMinS<1200 rule would ring at 8540 s (late vs trueRemaining1200 901 s); lostLongAtS 8086.6
+    loss=7200s m=1.3 TIME: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 -514 s; true remaining at alarm 1714 s; late vs cross1000 -1627 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -291 s); lostLongAtS 5435.7
+    loss=7200s m=1.3 SMART: alarm GPS_LOST at 5436 s; late vs trueRemaining1200 -514 s; true remaining at alarm 1714 s; late vs cross1000 -1627 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -291 s); lostLongAtS 5435.7
+    """
 
     static let pinnedC = """
     loss=3600s m=0.7 DISTANCE: alarm GPS_LOST at 3601 s; late vs trueRemaining1200 -2896 s; true remaining at alarm 4096 s; late vs cross1000 -3933 s; etaMinS<1200 rule would ring at 2780 s (late vs trueRemaining1200 -3717 s)
@@ -724,15 +783,23 @@ struct TesterT132Tests {
     loss=7200s m=1.3 SMART: alarm GPS_LOST at 7201 s; late vs trueRemaining1200 1249 s; true remaining at alarm -49 s; late vs cross1000 137 s; etaMinS<1200 rule would ring at 5660 s (late vs trueRemaining1200 -291 s)
     """
 
-    @Test("T132 c (= T122 c) GPS lost for more than 1 h with a changing true speed: GPS_LOST lateness pinned (T10.6)")
+    /// U121 (T10.6 (1), flipped from the tester's `T122 c`): same 17 runs with the "long loss" rule W on (defaults, Q12 = A).
+    /// DISTANCE lateness vs "true remaining 1 200 s" = T10 "T10.6" §1.4 column "W, Q12 A" (± 5 s), every row <= +460 s, TIME/SMART
+    /// at (2 h, 1.3) = DISTANCE. With gpsLostLongS = 0 the old pinned table `pinnedC` (T12.2) comes back unchanged.
+    @Test("U121 GPS lost for more than 1 h with a changing true speed: the long-loss rule W bounds the GPS_LOST lateness (T122 c flipped)")
     func c() {
-        var lines: [String] = []
-        for lossS in [3_600, 7_200, 10_800] { for m in [0.7, 1.0, 1.15, 1.3, 1.5] { lines.append(Self.scenarioC(lossS, m, .distance)) } }
-        lines.append(Self.scenarioC(7_200, 1.3, .time))
-        lines.append(Self.scenarioC(7_200, 1.3, .smart))
-        let txt = lines.joined(separator: "\n")
+        let rows = Self.tableC(Self.p)
+        let txt = rows.map(\.line).joined(separator: "\n")
         Report.shared.write("unit/t122-c-longloss.txt", txt + "\n")
-        #expect(txt == Self.pinnedC)
+        let handW: [Int64] = [-3711, -1352, -872, -504, -127, -6171, -2763, -1461, -515, 401, -8988, -3526, -2048, -1123, 450]
+        for (i, want) in handW.enumerated() { #expect((rows[i].lateS - want).magnitude <= 5, "row \(i): \(rows[i].lateS) vs hand \(want)") }
+        #expect(rows.allSatisfy { $0.lateS <= 460 }, "\(txt)")
+        #expect(rows[8].lateS == rows[15].lateS && rows[8].lateS == rows[16].lateS)
+        for (i, l) in [2784.8, 5435.7, 8086.6].enumerated() { #expect(approx(rows[i * 5].lostLongAtS, l, 0.1), "row \(i * 5)") }
+        #expect(txt == Self.pinnedU121)
+        // W off: the T12.2 table, line for line.
+        let off = Self.tableC(KW.params(#"{"gpsLostLongS": 0}"#)).map(\.line).joined(separator: "\n")
+        #expect(off == Self.pinnedC)
     }
 
     // MARK: - (d) wake-up storm regression, with a battery forecast
@@ -836,6 +903,11 @@ struct TesterT132Tests {
         var osFirstKinds: [String: Int] = [:]
         var osFirstEarly: [Double] = []
         var believedStopOverLag: [String] = []
+        /// U126 (after T12.3, D5): DISTANCE cases late > 1 800 s, (late, line).
+        var lateLines: [(Double, String)] = []
+        /// U126 (T10.6): first alarms due to the "long loss" term W alone; true seconds to the destination at them (< 0: after).
+        var longLost = 0
+        var longLostRemaining: [Double] = []
 
         func add(_ sim: Sim) {
             trips += 1
@@ -849,13 +921,7 @@ struct TesterT132Tests {
             osFirstEarly += sim.osFirstEarly
             believedStopOverLag += sim.believedStopOverLag.map { "\(sim.tag) \($0)" }
             let f = sim.alarms.first
-            let k: String
-            if let f {
-                let src = f.1.hasPrefix("FallbackFired") ? "os" : (f.1.hasPrefix("RESTORE") ? "restore" : "engine")
-                k = "\(src) \(f.0.reason.jsonName)"
-            } else {
-                k = "none"
-            }
+            let k = sim.firstKey()
             first[k, default: 0] += 1
             let v = sim.finish() + (f == nil ? ["\(sim.tag): trip without alarm"] : [])
             if !v.isEmpty { violTrips += 1 }
@@ -903,15 +969,34 @@ struct TesterT132Tests {
         "\(c.mode.jsonName) thr=\(c.distanceThresholdM.map(String.init) ?? "null")/\(c.timeThresholdMin.map(String.init) ?? "null")"
     }
 
+    /// U126 (after T12.3, D5): a DISTANCE first alarm more than 1 800 s after the threshold crossing, one classified line.
+    static func noteLate(_ sim: Sim, _ truth: Truth, _ config: TripConfig, _ a: TripEvent.Alarm, _ cross: Int64, _ st: FuzzStats) {
+        let lateS = Double(a.atMs - cross) / 1000.0
+        if lateS <= 1_800.0 { return }
+        let dead = sim.deadIntervals.contains { cross >= $0.0 && cross < $0.1 }
+        st.lateLines.append((lateS, LongLoss.lateCaseLine(
+            tag: sim.tag, hint: config.vehicleHint, lateS: lateS, first: sim.firstKey(), dead: dead, crossMs: cross,
+            thrM: Double(config.distanceThresholdM!), st: sim.states.last { $0.nowMs <= cross }) { ms in truth.dAt(ms) }))
+    }
+
+    /// U126: a first GPS_LOST alarm due to W alone, and the true time left to the destination at it.
+    static func noteLongLost(_ sim: Sim, _ truth: Truth, _ st: FuzzStats) {
+        guard let a = sim.alarms.first?.0, let state = sim.firstAlarmState else { return }
+        if a.reason != .gpsLost || !LongLoss.lostAlarmInfo(state).longLostOnly { return }
+        st.longLost += 1
+        if let arr = truth.crossAt(0.0, S + 60 * 3_600_000) { st.longLostRemaining.append(Double(arr - a.atMs) / 1000.0) }
+    }
+
     /// (e1) Approach with a real stop placed around the predicted alarm boundary (P0 ± 90 s), stop 20–1 500 s, then a new speed.
-    static func stopNearAlarm(_ seed: Int64, _ st: FuzzStats) throws {
+    static func stopNearAlarm(_ seed: Int64, _ st: FuzzStats, _ params: EngineParams = TesterT132Tests.p) throws {
         let r = Rng(seed)
         let config = randomConfig(r, "e1-\(seed)", extraThr: false)
         let mode = config.mode
         let c = r.dbl(4.0, 30.0)
         let g = c * r.dbl(1.0, 1.4)
         let d0 = r.dbl(8_000.0, 60_000.0)
-        let s0 = KW.trackingState(config, d: d0, ground: g, closing: c, slow: mode == .smart && g * 3.6 < Double(p.smartSlowSpeedKmh), tier: .dense)
+        let s0 = KW.trackingState(config, p: params, d: d0, ground: g, closing: c, slow: mode == .smart && g * 3.6 < Double(p.smartSlowSpeedKmh),
+                                  tier: .dense)
         let sim = Sim(TripEngine.reduce(s0, .tick(atMs: S)), "e1 seed=\(seed) \(thrTag(config))", r, okP: 0.9, cancelLagMaxMs: 5_000)
         guard let p0 = sim.step.view.predictedAlarmAtMs else { return }
         let truth = Truth(d0, S)
@@ -937,7 +1022,7 @@ struct TesterT132Tests {
                 let nextAny = [sim.step.view.wakeAtMs, sim.nextOs()?.at, nf].compactMap { $0 }.min() ?? .max
                 if nextAny >= k {
                     killed = true
-                    sim.kill()
+                    sim.kill(k)
                     st.kills += 1
                     let statuses = FallbackRestoreStatus.allCases.filter { $0 != .dismissed && $0 != .rang }
                     let at = Swift.max(k, sim.now) + Int64(r.int(300_000)) + 1_000
@@ -966,12 +1051,14 @@ struct TesterT132Tests {
         if config.mode == .distance, let f = sim.alarms.first?.0,
            let cross = truth.crossAt(Double(config.distanceThresholdM!), S + 48 * 3_600_000), f.atMs > cross {
             st.lateCross.append(Double(f.atMs - cross) / 1000.0)
+            noteLate(sim, truth, config, f, cross, st)
         }
+        noteLongLost(sim, truth, st)
         st.add(sim)
     }
 
     /// (e2) Doze trips (model of U111 `withfix`, own generator).
-    static func dozeTrip(_ seed: Int64, _ st: FuzzStats) throws {
+    static func dozeTrip(_ seed: Int64, _ st: FuzzStats, _ params: EngineParams = TesterT132Tests.p) throws {
         let r = Rng(seed)
         let config = randomConfig(r, "e2-\(seed)", extraThr: true)
         let d0 = r.dbl(3_000.0, 300_000.0)
@@ -999,7 +1086,7 @@ struct TesterT132Tests {
                 killAt = S + KW.kl(r.dbl(0.0, 1.5) * tripS * 1000.0)
             }
         }
-        let sim = Sim(try TripEngine.start(config: config, params: p, nowMs: S), "e2 seed=\(seed) \(thrTag(config)) d0=\(KW.ki(d0))", r,
+        let sim = Sim(try TripEngine.start(config: config, params: params, nowMs: S), "e2 seed=\(seed) \(thrTag(config)) d0=\(KW.ki(d0))", r,
                       okP: 0.85, cancelLagMaxMs: 5_000)
         var lastFix = S - 1_000_000
         var batteryAtT = S
@@ -1020,7 +1107,7 @@ struct TesterT132Tests {
             let osAt = sim.nextOs().map { Swift.max($0.at, now) }
             let x = [wake, osAt, nf, nb, killAt.map { Swift.max($0, now) }].compactMap { $0 }.min()!
             if let k = killAt, x == Swift.max(k, now) {
-                sim.kill()
+                sim.kill(x)
                 st.kills += 1
                 let restartAt = x + KW.kl(r.dbl(1.0, 7_200.0) * 1000.0)
                 let status: FallbackRestoreStatus
@@ -1052,7 +1139,9 @@ struct TesterT132Tests {
         if config.mode == .distance, let f = sim.alarms.first?.0,
            let cross = truth.crossAt(Double(config.distanceThresholdM!), S + 60 * 3_600_000), f.atMs > cross {
             st.lateCross.append(Double(f.atMs - cross) / 1000.0)
+            noteLate(sim, truth, config, f, cross, st)
         }
+        noteLongLost(sim, truth, st)
         st.add(sim)
     }
 
@@ -1065,5 +1154,38 @@ struct TesterT132Tests {
         Report.shared.write("unit/t122-e-fuzz.txt", e1.text("e1 stop near the alarm boundary") + "\n" + e2.text("e2 Doze with fixes at wake-ups, kills"))
         #expect(e1.urgent + e2.urgent >= 150, "the fuzz exercises the urgent later shift: \(e1.urgent) + \(e2.urgent)")
         #expect(e1.viol.isEmpty && e2.viol.isEmpty, "e1 \(e1.viol.prefix(5))\ne2 \(e2.viol.prefix(5))")
+        // U125 (T10.6): no OVERSHOOT / PASSED_CLOSEST before the truth passed the destination.
+        #expect(e1.wrongWording.isEmpty && e2.wrongWording.isEmpty, "e1 \(e1.wrongWording.prefix(5))\ne2 \(e2.wrongWording.prefix(5))")
+    }
+
+    /// U126 b (T10.6, statistics): e1 / e2 with T10.6 off and on. Gate (T10.6 on): no violation, an alarm on every trip, no
+    /// wrong-wording OVERSHOOT / PASSED_CLOSEST. Written to u126-longloss-t122.txt (byte-identical to Kotlin): DISTANCE lateness vs
+    /// the threshold crossing, each case late > 1 800 s classified, first alarms due to W alone and the true time left at them.
+    @Test("U126 b e1 e2 fuzz lateness off vs T10.6, late > 1800 s classes and long-loss alarms")
+    func u126b() throws {
+        let off = LongLoss.offParams
+        let e1Off = FuzzStats()
+        for seed in Int64(1)...6_000 { try Self.stopNearAlarm(seed, e1Off, off) }
+        let e2Off = FuzzStats()
+        for seed in Int64(10_001)...12_000 { try Self.dozeTrip(seed, e2Off, off) }
+        let e1 = FuzzStats()
+        for seed in Int64(1)...6_000 { try Self.stopNearAlarm(seed, e1) }
+        let e2 = FuzzStats()
+        for seed in Int64(10_001)...12_000 { try Self.dozeTrip(seed, e2) }
+        let q = LongLoss.quantiles
+        var out = "# U126 b (T10.6) e1 / e2 of TesterT122Test: off (gpsLostLongS 0, passedClosestSlowRiseM 0; preV on) -> T10.6\n"
+        for (name, a, b) in [("e1", e1Off, e1), ("e2", e2Off, e2)] {
+            out += "\n## \(name)\nDISTANCE late vs truth crossing (s): off \(q(a.lateCross)) -> T10.6 \(q(b.lateCross))\n"
+            out += "late > 1800 s: off \(a.lateCross.filter { $0 > 1_800.0 }.count) -> T10.6 \(b.lateCross.filter { $0 > 1_800.0 }.count)\n"
+            // Kotlin sortedByDescending (stable): ties keep insertion order. Printed only, no gate (class ? → báo designer).
+            let sortedLate = b.lateLines.enumerated().sorted { $0.element.0 != $1.element.0 ? $0.element.0 > $1.element.0 : $0.offset < $1.offset }
+            for x in sortedLate { out += x.element.1 + "\n" }
+            out += "first alarms due to W alone: \(b.longLost); true time left at them (s): \(q(b.longLostRemaining)); after arrival: "
+                + "\(b.longLostRemaining.filter { $0 < 0.0 }.count)\nfirstAlarm off \(KW.kmap(a.first))\nfirstAlarm T10.6 \(KW.kmap(b.first))\n"
+                + "violatingTrips off \(a.violTrips) -> T10.6 \(b.violTrips); wrong wording \(a.wrongWording.count) -> \(b.wrongWording.count)\n"
+        }
+        Report.shared.write("unit/u126-longloss-t122.txt", out)
+        #expect(e1.viol.isEmpty && e2.viol.isEmpty, "e1 \(e1.viol.prefix(5))\ne2 \(e2.viol.prefix(5))")
+        #expect(e1.wrongWording.isEmpty && e2.wrongWording.isEmpty)
     }
 }

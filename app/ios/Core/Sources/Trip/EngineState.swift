@@ -82,6 +82,8 @@ public struct EngineState: Sendable, Equatable {
     var minD: Double?
     /// T10.5 round 3e: minD comes from a GPS-gap chord (not from an observed fix); gates the `notCloser` overshoot term.
     var minDChord: Bool = false
+    /// T10.6 (C27, C28): distance mark of the slow-vehicle passed-closest net, set only once already past the closest point.
+    var passAnchorD: Double? = nil
     var last3: [Double]
     var ground: Double?
     var closing: Double?
@@ -115,7 +117,7 @@ public struct EngineState: Sendable, Equatable {
             snapshotVersion: 1, params: params, config: config, nowMs: nowMs, startedAtMs: nowMs,
             phase: .acquiring, gps: .noFixYet, locationCause: .available,
             last: nil, stopAnchor: nil, recent: [], rejects: [],
-            dSmooth: nil, dStartM: nil, minD: nil, minDChord: false, last3: [],
+            dSmooth: nil, dStartM: nil, minD: nil, minDChord: false, passAnchorD: nil, last3: [],
             ground: nil, closing: nil, movingTimeS: 0.0, movingSamples: 0, movingDistM: 0.0,
             stopStartMs: nil, slow: false, cvGuard: [],
             policy: nil, policyIntervalAtLastFixS: 0,

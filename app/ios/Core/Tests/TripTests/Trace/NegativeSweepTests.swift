@@ -12,7 +12,7 @@ struct NegativeSweepTests {
         return (t, try ExpectModel.parseCase(t.file.rawCases[i], index: i))
     }
 
-    @Test("TR36 stopgap 36 phases with lostSpeedGuardUpdates = 0: at least one phase misses the TR30 window")
+    @Test("TR36 stopgap 36 phases with lostSpeedGuardUpdates = 0, gpsLostLongS = 0: at least one phase misses the TR30 window")
     func tr36() async throws {
         let (trace, spec) = try Self.loadCase("train_hn_dh_stopgap", "distance_1000")
         let modes = CaseCatalog.modes(spec, interval: trace.file.intervalS).filter { $0.hasPrefix("policy-j") }
@@ -22,7 +22,9 @@ struct NegativeSweepTests {
             for m in modes {
                 g.addTask {
                     var r = Runner(trace: trace, spec: spec, mode: m,
-                                   options: RunOptions(paramOverrides: [("lostSpeedGuardUpdates", .number("0"))], probes: false))
+                                   // T10.6 C29: W off too, otherwise the "long loss" rule rescues the failing phases.
+                                   options: RunOptions(paramOverrides: [("lostSpeedGuardUpdates", .number("0")),
+                                                                        ("gpsLostLongS", .number("0"))], probes: false))
                     r.runAll()
                     return (m, Checks.flat(r).first { Checks.matches($0.e, filter) }?.t)
                 }
@@ -32,7 +34,7 @@ struct NegativeSweepTests {
             return out.sorted { $0.0 < $1.0 }
         }
         let failed = results.filter { r in guard let t = r.1 else { return true }; return !(t >= 28_815 && t <= 35_045) }
-        var md = "## TR36 (lostSpeedGuardUpdates = 0): \(failed.count)/36 phases miss [28815, 35045]\n\n| run | first GPS_LOST alarm |\n|---|---|\n"
+        var md = "## TR36 (lostSpeedGuardUpdates = 0, gpsLostLongS = 0): \(failed.count)/36 phases miss [28815, 35045]\n\n| run | first GPS_LOST alarm |\n|---|---|\n"
         for r in failed { md += "| \(r.0) | \(r.1.map(String.init) ?? "none") |\n" }
         Report.shared.writePart(dir: "trace", name: "tr36", markdown: md + "\n", json: nil)
         #expect(failed.count >= 1, "TR36: no phase failed — báo designer")

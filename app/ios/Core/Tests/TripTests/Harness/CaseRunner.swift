@@ -51,6 +51,13 @@ struct Runner: Sendable {
     var dozeWakeTicks = 0
     /// U116, U117 (T10.5 round 3, 3b): GPS-gap chord probes of the fixes that recovered GPS, were gap fixes or met the term.
     var gapProbes: [GapProbe] = []
+    /// T10.6 C29 counters of the run (every recorded Step).
+    var t106 = T106Counters()
+
+    /// T10.6 C29 (check only, §8 step 2; Kotlin `-Pnapstop.t106Off=true`): `NAPSTOP_T106_OFF=true` puts
+    /// {gpsLostLongS: 0, passedClosestSlowRiseM: 0} under the overrides of every harness run.
+    static let t106Off = ProcessInfo.processInfo.environment["NAPSTOP_T106_OFF"] == "true"
+    static let t106OffOverrides: [(String, JsonValue)] = [("gpsLostLongS", .number("0")), ("passedClosestSlowRiseM", .number("0"))]
 
     var run: String { "\(trace.file.traceId)/\(spec.id)/\(mode)" }
     var killT: Int? { spec.config.kill?.t }
@@ -71,7 +78,7 @@ struct Runner: Sendable {
         var errors: [String] = []
         // params = parseOverrides(write(config.params ⊕ overrides))
         var merged = spec.config.params
-        for (k, v) in options.paramOverrides {
+        for (k, v) in (Runner.t106Off ? Runner.t106OffOverrides : []) + options.paramOverrides {
             if let i = merged.firstIndex(where: { $0.0 == k }) { merged[i].1 = v } else { merged.append((k, v)) }
         }
         let parsed = EngineParamsFactory.parseOverrides(MiniJson.write(.object(merged)))
@@ -142,6 +149,7 @@ struct Runner: Sendable {
         }
         if !Runner.finite(step.state) { violations.append("state not finite at t=\(t)") }
         if probes { probe(t, step) }
+        t106.probe(t, step)
     }
 
     /// I14 (j = 0 runs) and P08 (T10.4) on the state of one recorded Step; pure engine calls, nothing enters the run.

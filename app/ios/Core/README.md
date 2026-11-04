@@ -12,10 +12,10 @@ Tests/TripTests/Support/        paths, bits, SplitMix64, SHA-256 (FIPS 180-4), s
 Tests/TripTests/Fixture/        GPX scanner, expect.json model (must-understand), anchors, ISO time
 Tests/TripTests/Harness/        CaseRunner (T12 §8.3), OsSim (§8.4), Checks (I4 T10.5 + urgent shifts), GapProbe (U116/U117),
                                 RestoreEquivalence (I8), KillSweep, Transcript (§9)
-Tests/TripTests/Unit/           U01–U118 + T12 extra cases + S01–S14; Kotlin tester ports TesterT131 (T121), TesterT132 (T122),
+Tests/TripTests/Unit/           U01–U126 + T12 extra cases + S01–S14; T106Tests (T10.6: U119, U120, U122–U124); Kotlin tester ports TesterT131 (T121), TesterT132 (T122),
                                 TesterT132Overshoot (T122 O1–O4) writing the same <report>/unit/*.txt as Kotlin
 Tests/TripTests/Trace/          TraceSuite (TR01–TR35, TR37, P01–P04, P06–P08), NegativeSweepTests (TR36, TR37-neg), DozeModelTests (TR39),
-                                P05ManifestTests (P05, S15, S16), FixtureMainRuns (T10.5 urgent shifts, GPS-gap chord), IdCoverageTests
+                                P05ManifestTests (P05, S15, S16), FixtureMainRuns (T10.5 urgent shifts, GPS-gap chord, T10.6 C29 counters), IdCoverageTests
 scripts/test-wsl.sh             run the tests in WSL
 scripts/p05-diff.sh             Kotlin ↔ Swift transcript diff (Git Bash)
 ```
@@ -41,6 +41,7 @@ The script runs `swift test -c release --enable-testable-imports --scratch-path 
 | `NAPSTOP_REPORT_DIR` | reports (`killsweep/summary.md`, `killsweep.json`, `trace/summary.md`, `p05-mismatch/`); default `$NAPSTOP_SCRATCH/napstop-report` in the script, `<package>/.build/napstop-report` otherwise |
 | `NAPSTOP_P05_DUMP` | write all 295 transcripts (`<run, "/"→"__">.jsonl`) to this directory; never `fixtures/p05` |
 | `NAPSTOP_P05_DIAG=1` | with the dump, also write `<run>.diag.jsonl` (Doubles as raw-bit hex, T12 §9.5) |
+| `NAPSTOP_T106_OFF=true` | check only (T10 "T10.6" §8, Kotlin `-Pnapstop.t106Off=true`): every harness run gets `{gpsLostLongS: 0, passedClosestSlowRiseM: 0}` under its overrides; P05 must then match the pre-T10.6 manifest |
 
 macOS (Xcode 26+, i.e. Swift ≥ 6.2 — needed for the exit test of U01): `cd app/ios/Core && swift test -c release --enable-testable-imports`.
 CI-style build: `swift build -c release --build-tests -Xswiftc -enable-testing -Xswiftc -warnings-as-errors`, then
