@@ -31,7 +31,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -39,7 +38,7 @@ import org.junit.rules.TemporaryFolder
 /**
  * Tester additions for T14 (beyond K14-K20): snapshot corruption and old versions,
  * process death at awkward moments, clock jumps, the finished queue, scenarios through
- * the backend's tick loop, and a listener that throws (review R2-3, behaviour documented).
+ * the backend's tick loop, and a listener that throws (review R2-3; expectation changed by T15 L44).
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class StubTripBackendTesterTest {
@@ -459,13 +458,11 @@ class StubTripBackendTesterTest {
     // ------------------------------------------------------------ R2-3: a listener that throws
 
     @Test
-    fun r2_3_throwingListenerStarvesTheListenersAfterItButNothingCrashes() =
+    fun r2_3_throwingListenerNoLongerStarvesTheListenersAfterIt() =
         runTest {
-            // Documents current behaviour for T15 (review R2-3): there is no throwing path
-            // today (PigeonEventSink.success does not throw on the main thread), but a
-            // listener added in front of the Dart one that throws makes every Step abort
-            // after the commit: later listeners never get updates, and API calls whose
-            // Step sends anything fail although their action was committed.
+            // T15 L44 (spec T15 D13, §5.11): expectation changed from the T14 tester version, which
+            // documented that a throwing listener aborted the Step for every later listener and made
+            // committed API calls fail. With ListenerHub each listener call is isolated.
             val b = backend(clock = { t0 + testScheduler.currentTime })
             b.startTrip(config("t1"), 16.8, 107.1, sim60)
             var thrown = 0
@@ -479,18 +476,14 @@ class StubTripBackendTesterTest {
             runCurrent()
 
             assertTrue(thrown > 10)
-            assertTrue("the listener after the thrower gets nothing", good.isEmpty())
+            assertTrue("the listener after the thrower gets every update", good.isNotEmpty())
+            assertTrue(good.any { it is AlarmMsg })
             assertTrue(warnings.isNotEmpty())
-            assertTrue(warnings.all { it == "stub step failed (IllegalStateException)" })
+            assertTrue(warnings.all { it == "listener failed (IllegalStateException)" })
 
-            // An API call fails (TripHostApiImpl maps it to `internal`) ...
-            try {
-                b.dismiss("t1")
-                fail("expected the listener's exception")
-            } catch (e: IllegalStateException) {
-                // expected
-            }
-            // ... yet the dismiss was committed: the trip is over and recorded.
+            // The API call succeeds and is committed.
+            b.dismiss("t1")
+            assertTrue(good.any { it is TripEndedMsg })
             bad.remove()
             assertNull(b.currentTrip())
             val record = b.pendingFinishedTrips().single()
@@ -499,12 +492,10 @@ class StubTripBackendTesterTest {
         }
 
     @Test
-    fun r2_3_listenersBeforeTheThrowerGetOnlyTheLeadingStateOfEachStep() =
+    fun r2_3_listenersBeforeTheThrowerGetEveryEventOfEachStep() =
         runTest {
-            // Documents current behaviour (stronger than review R2-3 says): updates are sent
-            // update-major (`for (update) for (listener)`), so the throw on the Step's first
-            // update aborts the Step for everybody. A listener *before* the thrower gets
-            // each Step's TripStateUpdateMsg but none of its events, AlarmMsg included.
+            // T15 L44: updates are sent listener-major with one try/catch per call, so a listener before
+            // the thrower now gets each Step's events too (PreAlert, AlarmMsg), not only its state.
             val b = backend(clock = { t0 + testScheduler.currentTime })
             b.startTrip(config("t1"), 16.8, 107.1, sim60)
             val good = mutableListOf<TripUpdateMsg>()
@@ -513,7 +504,7 @@ class StubTripBackendTesterTest {
             advanceTimeBy(20_000) // past PreAlert (~0.1 s) and the alarm (~12.3 s)
             runCurrent()
             assertTrue(good.count { it is TripStateUpdateMsg } >= 20)
-            assertTrue("no event reaches any listener", good.all { it is TripStateUpdateMsg })
-            assertTrue("the alarm Step itself was committed", good.last().let { (it as TripStateUpdateMsg).state.alarmRinging })
+            assertTrue("events reach the listener", good.any { it is PreAlertMsg } && good.any { it is AlarmMsg })
+            assertTrue("the alarm Step itself was committed", good.filterIsInstance<TripStateUpdateMsg>().last().state.alarmRinging)
         }
 }

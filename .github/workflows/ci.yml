@@ -218,6 +218,11 @@ jobs:
         working-directory: app/android
         run: ./gradlew :core-trip:test
 
+      # T15: pure-JVM trip runtime (actor, effects, restore, runtime trace / kill / Doze sweeps). Budget <= 3 min.
+      - name: Trip runtime tests (JVM, T15)
+        working-directory: app/android
+        run: ./gradlew :core-runtime:test --console=plain
+
       - name: Kotlin unit tests (JVM)
         working-directory: app/android
         run: ./gradlew :app:testDevDebugUnitTest :app:testProdDebugUnitTest
@@ -248,6 +253,26 @@ jobs:
             if [[ "$actual" != "$expected" ]]; then
               echo "::error::$name has package '$actual', expected '$expected'"
               status=1
+            fi
+          done
+          exit "$status"
+
+      # T15 §9 + T21 + T29 CD1: required permissions present, forbidden ones absent, LocationService type location.
+      - name: Verify merged manifest permissions
+        run: |
+          aapt2="$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          test -x "$aapt2"
+          status=0
+          for apk in build/app/outputs/flutter-apk/app-dev-debug.apk build/app/outputs/flutter-apk/app-prod-debug.apk; do
+            perms="$("$aapt2" dump permissions "$apk")"
+            for need in FOREGROUND_SERVICE_LOCATION RECEIVE_BOOT_COMPLETED USE_EXACT_ALARM POST_NOTIFICATIONS; do
+              if ! grep -q "$need" <<< "$perms"; then echo "::error::$apk lacks $need"; status=1; fi
+            done
+            for bad in ACCESS_BACKGROUND_LOCATION REQUEST_IGNORE_BATTERY_OPTIMIZATIONS SYSTEM_ALERT_WINDOW com.google.android.gms.permission.AD_ID ACCESS_ADSERVICES; do
+              if grep -q "$bad" <<< "$perms"; then echo "::error::$apk declares forbidden $bad"; status=1; fi
+            done
+            if ! "$aapt2" dump xmltree --file AndroidManifest.xml "$apk" | grep -A3 'LocationService'                 | grep -q 'foregroundServiceType(0x01010599)=0x00000008'; then
+              echo "::error::$apk: LocationService is not foregroundServiceType=location"; status=1
             fi
           done
           exit "$status"

@@ -16,8 +16,9 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 subprojects {
-    // :core-trip is a pure-JVM module (T12 section 2); it must not wait for the Flutter app project.
-    if (project.name != "core-trip") project.evaluationDependsOn(":app")
+    // :core-trip (T12 section 2) and :core-runtime (T15 D1) are pure-JVM modules; they must not wait
+    // for the Flutter app project.
+    if (project.name != "core-trip" && project.name != "core-runtime") project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {

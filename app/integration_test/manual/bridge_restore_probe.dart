@@ -7,7 +7,9 @@
 //   adb shell am start -n app.napstop.dev/app.napstop.MainActivity
 //   adb logcat -s flutter
 //
-// First launch with no trip: starts a real (no simulation, 1x) stub trip.
+// Restore probe of the real trip runtime: LM6 of T15 (docs/test-protocols/T15.md).
+//
+// First launch with no trip: starts a stub trip (stub/normal at 1x).
 // Every later launch: prints what currentTrip() restored, then listens to
 // `updates` and prints how long the first TripStateUpdateMsg took. Logs only
 // the trip id, enums and times: never the destination name or coordinates.
@@ -53,6 +55,8 @@ Future<void> main() async {
       ),
       destLat: 16.8163,
       destLng: 107.1003,
+      // Since T15 a start without `simulation` is a real trip (T15 D14).
+      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 1),
     );
     _log('started tripId=$tripId');
   } else {

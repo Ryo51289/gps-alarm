@@ -32,6 +32,9 @@ cd android && ./gradlew :app:testDevDebugUnitTest
 ./gradlew :core-trip:test --tests '*P05ManifestTest*' -Pnapstop.updateP05=true --rerun
 # Xuất mọi transcript P05 (+ .diag.jsonl) ra build/core-trip/napstop/transcripts/ để T13 (Swift) so.
 ./gradlew :core-trip:test --tests '*TraceSuiteTest*' -Pnapstop.dumpTranscripts=true --rerun
+
+# Trip runtime Android (T15, module :core-runtime, Kotlin JVM thuần): actor, hiệu ứng, khôi phục, trace qua runtime.
+./gradlew :core-runtime:test                                  # thống kê L31/L32: build/core-runtime/napstop/
 ```
 
 ## CI
@@ -119,7 +122,9 @@ dart format lib/core/bridge/core_api.g.dart
   `test/core/bridge/bridge_source_scan_test.dart` chặn.
 - Dart dùng `CoreBridge` (một stream `updates` dùng chung; ai nghe sau cũng nhận ngay `TripStateUpdateMsg` gần nhất,
   không nhận lại sự kiện cũ; lỗi native → `BridgeException` với `BridgeErrorCode`).
-- Android trước T15 chạy **stub có kịch bản** (`StubTripBackend`, snapshot ở `noBackupFilesDir/napstop_stub`, nên
+- Android: chuyến **thật** (`startTrip` không có `simulation`) chạy trên trip runtime của T15 (mục dưới). `simulation`
+  có `traceAsset` bắt đầu bằng `stub/` vẫn chạy **stub có kịch bản** của T14 (`CompositeTripBackend`); `simulation` khác
+  trả `simulation-unavailable` tới T18. Stub (`StubTripBackend`, snapshot ở `noBackupFilesDir/napstop_stub`, nên
   `currentTrip()` vẫn đọc được sau khi process chết). Chọn kịch bản qua `SimulationMsg.traceAsset`:
 
   | `traceAsset` (`StubTraces.*`) | Diễn biến (thời gian ảo, chia cho `speedFactor` ra thời gian thật) |
@@ -130,8 +135,7 @@ dart format lib/core/bridge/core_api.g.dart
   | `stub/overshoot` | chạy quá đích, `OvershootMsg` khi đã qua ≥ 1 km |
   | `stub/no_fix` | không bao giờ có fix: `GpsLostMsg(neverAcquired)` ở 120 s, báo `timeout` ở 4 giờ |
 
-  `startTrip` không có `simulation` = `stub/normal` ở 1× (báo sau ~12 phút; `currentTrip().simulation` = null). Stub chỉ
-  tick khi Dart đang nghe `updates`.
+  Stub chỉ tick khi Dart đang nghe `updates`. (Trước T15, `startTrip` không có `simulation` = `stub/normal` ở 1×.)
   Quyền: `PermissionHostApi` trả cố định (thật ở T21), `deviceInfo()` đọc thật; `AlarmHostApi` không phát âm (T16).
 - Test: Dart `flutter test test/core/bridge`; Kotlin `cd android && ./gradlew :app:testDevDebugUnitTest`; tích hợp I01
   trên emulator/máy Android (API 26+):
@@ -144,6 +148,52 @@ dart format lib/core/bridge/core_api.g.dart
 - iOS chỉ được kiểm bằng biên dịch: workflow chạy tay
   [`.github/workflows/ios-compile.yml`](../.github/workflows/ios-compile.yml) (`flutter build ios --simulator --debug
   --no-codesign` trên macOS). Chạy khi đổi code Swift.
+
+## Trip runtime Android (T15)
+
+Spec: `docs/specs/T15.md`. Engine (`:core-trip`) chạy trong `TripRuntime` (module `:core-runtime`, JVM thuần, actor một
+coroutine), singleton theo process; `:app` chỉ nối cổng với Android:
+
+| Thành phần (`android/app/src/main/kotlin/app/napstop/core/`) | Việc |
+|---|---|
+| `location/LocationService` | FGS `location` (vỏ: thông báo thường trực + giữ quyền nhận vị trí khi dùng app); chỉ khởi động khi app đang hiển thị (ADR-001) |
+| `location/FusedLocationSource` | Fused Location theo `SamplingPolicy` của engine (`FlpMapper`) |
+| `trip/host/AndroidAlarmScheduler` | `wakeAtMs` = `setExactAndAllowWhileIdle(ELAPSED_REALTIME_WAKEUP)`; báo dự phòng = `setAlarmClock`, 2 khe A/B (đặt mới trước, huỷ cũ sau) |
+| `trip/host/Receivers.kt` | `WakeAlarmReceiver`, `FallbackAlarmReceiver`, `BootReceiver` (`BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`), `RingEventReceiver`, `TripActionReceiver` |
+| `trip/host/TripNotifications` | kênh `napstop_tracking` (thường trực, nút "Dừng theo dõi"), `napstop_trip_alerts` (chưa có GPS, gián đoạn…) |
+| `alarm/InterimAlarmPort` | báo thức **tạm** (thông báo `FLAG_INSISTENT`, kênh `napstop_alarm_interim`) tới khi T16 thay |
+| `bridge/RealTripBackend`, `CompositeTripBackend`, `ListenerHub`, `MsgMapper` | Pigeon ↔ runtime (Pigeon không đổi) |
+
+Lưu trữ: `noBackupFilesDir/napstop_trip/` (`active_trip.properties`, `fallback_ledger.properties`,
+`ring_config.properties`, `finished/`) — luôn bị loại khỏi Auto Backup và chuyển máy. Chuỗi thông báo ở
+`res/values{,-en}/strings.xml`, cùng nội dung khoá ARB (test `NativeStringsParityTest`).
+
+```bash
+cd android && ./gradlew :core-runtime:test        # L01–L43 (JVM), trace qua runtime, quét process chết, mô hình Doze
+flutter test integration_test/t15_location_service_test.dart -d <device-id>   # LI01–LI03 (xem đầu file: pm grant, geo fix)
+```
+
+**Lệnh debug (chỉ bản debug, qua adb; receiver được bảo vệ bằng quyền `DUMP` nên chỉ `adb shell` gửi được):**
+
+```bash
+R="-n app.napstop.dev/app.napstop.core.trip.host.DebugCommandReceiver -a app.napstop.action.DEBUG"
+adb shell am broadcast $R --es cmd dump                                  # trạng thái runtime ra logcat (tag NapStopDebug)
+adb push ../fixtures/traces/coach_md_tb.gpx ../fixtures/traces/coach_md_tb.expect.json   /sdcard/Android/data/app.napstop.dev/files/replay/
+adb shell am broadcast $R --es cmd replay --es file coach_md_tb.gpx --es expect coach_md_tb.expect.json   --ef speedScale 1.0 --es mode distance --ei threshold 1000        # app phải đang mở trên màn hình
+adb shell am broadcast $R --es cmd force_tier --es value sparse          # sparse|medium|dense|off (LM1)
+adb shell am broadcast $R --es cmd gps_drop --es value on                # on|off
+adb shell am broadcast $R --es cmd snapshot_fail --es value on           # on|off (LM7)
+adb shell am broadcast $R --es cmd ring_fail --es value on               # on|off: ringNow ném (LM7, khe canh chuông)
+adb shell am broadcast $R --es cmd slow_read --es value 2500             # ms, giữ qua reboot; 0 = tắt (LM6, F1)
+adb shell am broadcast $R --es cmd listener_throw --es value on          # on|off
+adb shell am broadcast $R --es cmd fb_test --ei leadS 10 --ei cancelDelayS 0   # LM4, khi không có chuyến
+adb shell am broadcast $R --es cmd journal_clear
+# Journal đo (không toạ độ): kéo về rồi phân tích
+adb exec-out run-as app.napstop.dev cat no_backup/napstop_trip/journal.ndjson > journal.ndjson
+cd android && ./gradlew :core-runtime:analyzeJournal -Pjournal=$PWD/../journal.ndjson
+```
+
+Giao thức đo trên máy (LM1–LM8): `docs/test-protocols/T15.md`.
 
 ## Khung app (T22)
 

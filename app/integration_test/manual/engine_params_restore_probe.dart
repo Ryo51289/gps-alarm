@@ -1,3 +1,5 @@
+// Restore probe of the real trip runtime: LM6 of T15 (docs/test-protocols/T15.md).
+//
 // Manual probe for T14.1 (protocol: docs/test-protocols/T14.1.md, P02): a
 // 16 384-code-unit engineParamsJson survives a real process death byte for
 // byte through the Android stub snapshot. Not a test file: build it as the
@@ -64,6 +66,8 @@ Future<void> main() async {
       ),
       destLat: 16.8163,
       destLng: 107.1003,
+      // Since T15 a start without `simulation` is a real trip (T15 D14).
+      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 1),
     );
     _log('started $tripId length=${expected.length}');
     return;

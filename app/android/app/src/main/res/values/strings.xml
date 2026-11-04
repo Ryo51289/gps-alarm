@@ -2,4 +2,53 @@
 <resources>
     <!-- Brand name, not translated. The dev flavor overrides it in src/dev. -->
     <string name="app_name">NapStop</string>
+
+    <!-- T15 §8: native notification copy. Vietnamese is the source; keep every string in sync
+         with the ARB key named in the comment (lib/l10n/app_vi.arb, NativeStringsParityTest). -->
+    <!-- notifChannelTracking -->
+    <string name="notif_channel_tracking">Theo dõi chuyến đi</string>
+    <!-- notifChannelTripAlerts -->
+    <string name="notif_channel_trip_alerts">Cảnh báo chuyến đi</string>
+    <!-- notifChannelAlarmInterim (T15 interim alarm, removed by T16) -->
+    <string name="notif_channel_alarm_interim">Báo thức (tạm thời)</string>
+    <!-- notifTrackingTitle -->
+    <string name="notif_tracking_title">Đang theo dõi tới %1$s</string>
+    <!-- notifTrackingPublic -->
+    <string name="notif_tracking_public">NapStop đang theo dõi chuyến đi</string>
+    <!-- notifTrackingAcquiring -->
+    <string name="notif_tracking_acquiring">Đang tìm vị trí…</string>
+    <!-- notifTrackingDistanceEta -->
+    <string name="notif_tracking_distance_eta">Còn %1$s · khoảng %2$s phút</string>
+    <!-- notifTrackingDistance -->
+    <string name="notif_tracking_distance">Còn %1$s</string>
+    <!-- notifTrackingEstimating -->
+    <string name="notif_tracking_estimating">Đang ước tính · còn khoảng %1$s</string>
+    <!-- notifTrackingAlarming -->
+    <string name="notif_tracking_alarming">Đang báo thức</string>
+    <!-- notifTrackingSnoozed -->
+    <string name="notif_tracking_snoozed">Báo lại lúc %1$s</string>
+    <!-- notifActionStop -->
+    <string name="notif_action_stop">Dừng theo dõi</string>
+    <!-- notifInterruptedTitle -->
+    <string name="notif_interrupted_title">Chuyến đi bị gián đoạn</string>
+    <!-- notifInterruptedBody -->
+    <string name="notif_interrupted_body">Chạm để tiếp tục theo dõi</string>
+    <!-- gpsNotAcquired -->
+    <string name="gps_not_acquired">Chưa có GPS — báo thức chưa hoạt động</string>
+    <!-- gpsPermissionRevoked -->
+    <string name="gps_permission_revoked">Mất quyền vị trí — mở Cài đặt để bật lại</string>
+    <!-- gpsServicesOff -->
+    <string name="gps_services_off">Định vị đang tắt — bật lại để báo đúng lúc</string>
+    <!-- fallbackScheduleFailed -->
+    <string name="fallback_schedule_failed">Chưa đặt được báo thức dự phòng. Mở Cài đặt để cấp quyền.</string>
+    <!-- notifAlarmInterimTitle -->
+    <string name="notif_alarm_interim_title">Sắp tới %1$s</string>
+    <!-- alarmReasonFallback -->
+    <string name="alarm_reason_fallback">Báo thức dự phòng — có thể sắp tới %1$s. Mở ứng dụng để xem còn bao xa</string>
+    <!-- notifActionDismiss -->
+    <string name="notif_action_dismiss">Tắt</string>
+    <!-- notifActionSnooze -->
+    <string name="notif_action_snooze">Báo lại</string>
+    <!-- notifDestinationUnknown -->
+    <string name="notif_destination_unknown">nơi đến</string>
 </resources>

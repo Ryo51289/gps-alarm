@@ -9,6 +9,7 @@ import android.os.Build
 import app.napstop.core.bridge.BackgroundCheckMsg
 import app.napstop.core.bridge.BridgeErrors
 import app.napstop.core.bridge.FlutterError
+import app.napstop.core.trip.host.TripNotifications
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -124,8 +125,8 @@ internal class BackgroundCheckStore(context: Context) {
 }
 
 /**
- * Schedules the screen 9 check (spec T21 §5, D15): one exact alarm (the same safety net as
- * the fallback alarm of ADR-001) whose receiver records when it ran and vibrates. Survives
+ * Schedules the screen 9 check (spec T21 §5, D15): one exact alarm (setAlarmClock since T15, the
+ * same API as the fallback alarm of ADR-001) whose receiver records when it ran and vibrates. Survives
  * process death: the record is written before the alarm is set.
  */
 class BackgroundCheckScheduler(
@@ -156,7 +157,9 @@ class BackgroundCheckScheduler(
             val pi = pendingIntent(now)
             if (record.exact) {
                 try {
-                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, due, pi)
+                    // T15 D5: the same API as the trip's fallback alarm (setAlarmClock, on time in Doze), so the
+                    // screen 9 check measures what the real safety net does.
+                    am.setAlarmClock(AlarmManager.AlarmClockInfo(due, TripNotifications.openAppIntent(appContext, SHOW_REQUEST_CODE, null)), pi)
                 } catch (_: SecurityException) {
                     record = record.copy(exact = false)
                     store.write(record)
@@ -198,5 +201,6 @@ class BackgroundCheckScheduler(
 
     private companion object {
         const val REQUEST_CODE = 0x4E51
+        const val SHOW_REQUEST_CODE = 0x4E52
     }
 }

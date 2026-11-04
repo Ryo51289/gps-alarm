@@ -91,7 +91,8 @@ cd app && flutter pub get
 dart run pigeon --input pigeons/core_api.dart
 flutter analyze && flutter test
 flutter build apk --config-only                     # lần đầu sau khi clone: sinh gradlew + cấu hình Gradle
-cd android && ./gradlew :app:testDevDebugUnitTest   # test Kotlin (Trip Engine), flavor dev
+cd android && ./gradlew :app:testDevDebugUnitTest   # test Kotlin app, flavor dev
+cd android && ./gradlew :core-trip:test :core-runtime:test  # Trip Engine (T12) + trip runtime Android (T15), JVM thuần
 flutter build apk --debug                          # flavor mặc định dev; prod: --flavor prod
 flutter test --dart-define=NAPSTOP_EXPECT_FLAVOR=dev  # giống CI; prod: --flavor prod --dart-define=...=prod
 

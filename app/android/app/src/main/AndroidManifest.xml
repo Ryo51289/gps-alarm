@@ -14,6 +14,12 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- T15 §9: foreground service `location` (started only while the app is visible,
+         ADR-001), restore after reboot / app update, CPU held for one engine Step. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- T29 §7 + CD1: no advertising id, no Privacy Sandbox ad APIs. firebase_analytics
          (play-services-measurement) would merge these permissions; the app has no ads. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
@@ -61,6 +67,32 @@
         <receiver
             android:name=".core.bridge.permission.BackgroundCheckReceiver"
             android:exported="false"/>
+        <!-- T15 §9: trip runtime. Nothing here is exported; no receiver or alarm ever
+             starts LocationService (ADR-001 #4, spec T15 D9). -->
+        <service
+            android:name=".core.location.LocationService"
+            android:exported="false"
+            android:foregroundServiceType="location"/>
+        <receiver
+            android:name=".core.trip.host.WakeAlarmReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".core.trip.host.FallbackAlarmReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".core.trip.host.RingEventReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".core.trip.host.TripActionReceiver"
+            android:exported="false"/>
+        <receiver
+            android:name=".core.trip.host.BootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
         <!-- Maps SDK + Places key of the flavor, from secrets.properties (T23 D3).
              "DEFAULT_API_KEY" when none: the app then shows no map. -->
         <meta-data

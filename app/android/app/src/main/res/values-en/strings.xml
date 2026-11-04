@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- T15 §8: English copy of the native notifications (same keys as values/strings.xml,
+         same text as lib/l10n/app_en.arb; NativeStringsParityTest). -->
+    <string name="notif_channel_tracking">Trip tracking</string>
+    <string name="notif_channel_trip_alerts">Trip alerts</string>
+    <string name="notif_channel_alarm_interim">Alarm (interim)</string>
+    <string name="notif_tracking_title">Tracking to %1$s</string>
+    <string name="notif_tracking_public">NapStop is tracking your trip</string>
+    <string name="notif_tracking_acquiring">Finding your location…</string>
+    <string name="notif_tracking_distance_eta">%1$s to go · about %2$s min</string>
+    <string name="notif_tracking_distance">%1$s to go</string>
+    <string name="notif_tracking_estimating">Estimating · about %1$s to go</string>
+    <string name="notif_tracking_alarming">Alarm ringing</string>
+    <string name="notif_tracking_snoozed">Snoozed until %1$s</string>
+    <string name="notif_action_stop">Stop tracking</string>
+    <string name="notif_interrupted_title">Trip tracking interrupted</string>
+    <string name="notif_interrupted_body">Tap to keep tracking</string>
+    <string name="gps_not_acquired">No GPS yet — alarm isn\'t active</string>
+    <string name="gps_permission_revoked">Location permission off — open Settings</string>
+    <string name="gps_services_off">Location is off — turn it on</string>
+    <string name="fallback_schedule_failed">Couldn\'t set the backup alarm. Open Settings to allow it.</string>
+    <string name="notif_alarm_interim_title">Almost at %1$s</string>
+    <string name="alarm_reason_fallback">Backup alarm — you may be near %1$s. Open the app to check</string>
+    <string name="notif_action_dismiss">Dismiss</string>
+    <string name="notif_action_snooze">Snooze</string>
+    <string name="notif_destination_unknown">your stop</string>
+</resources>

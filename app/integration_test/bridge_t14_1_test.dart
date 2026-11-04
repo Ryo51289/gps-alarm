@@ -110,10 +110,13 @@ void main() {
     // 16 384 code units: accepted and handed back verbatim.
     final params = _awkwardJson(_max);
     final tripId = _id('v11ok');
+    // Since T15 a start without `simulation` is a real trip; this test only
+    // checks the value is handed back verbatim, so it uses the stub.
     await bridge.startTrip(
       _config(tripId, engineParamsJson: params),
       destLat: 16.8163,
       destLng: 107.1003,
+      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60),
     );
     final active = await bridge.currentTrip();
     expect(active, isNotNull);
@@ -150,6 +153,7 @@ void main() {
       _config(emojiTrip, engineParamsJson: emoji),
       destLat: 16.8163,
       destLng: 107.1003,
+      simulation: SimulationMsg(traceAsset: StubTraces.normal, speedFactor: 60),
     );
     expect((await bridge.currentTrip())!.config.engineParamsJson, emoji);
     await bridge.stopTrip(emojiTrip);

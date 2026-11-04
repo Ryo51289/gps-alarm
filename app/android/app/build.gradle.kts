@@ -61,6 +61,14 @@ android {
         }
     }
 
+    // T15: BuildConfig.DEBUG gates the measurement journal and the adb debug commands (spec §5.14).
+    buildFeatures { buildConfig = true }
+
+    // T15 L33: NativeStringsParityTest compares res/values*/strings.xml with the ARB files.
+    testOptions {
+        unitTests.all { it.systemProperty("napstop.l10nDir", rootProject.file("../lib/l10n").absolutePath) }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
@@ -77,12 +85,19 @@ kotlin {
 }
 
 dependencies {
-    // Trip Engine (T12). Not used by :app yet (T15 wires it); proves the JVM library dexes into the APK.
+    // Trip Engine (T12) and its Android coordinator (T15 D1, pure JVM).
     implementation(project(":core-trip"))
+    implementation(project(":core-runtime"))
+    // T15: Fused Location Provider (Google Maven, latest 21.4.0 checked 2026-11-03) and
+    // NotificationCompat / ServiceCompat: 1.18.0 = latest androidx.core with minCompileSdk 36 (1.19.x needs 37).
+    implementation("com.google.android.gms:play-services-location:21.4.0")
+    implementation("androidx.core:core-ktx:1.18.0")
     // Pigeon @async host methods are suspend functions (T14 §5.1).
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+    // T15 L33: real org.json for reading the ARB files (android.jar only has stubs in unit tests).
+    testImplementation("org.json:json:20260814")
 }
 
 flutter {

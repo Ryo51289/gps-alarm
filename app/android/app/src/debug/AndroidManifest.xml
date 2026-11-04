@@ -4,4 +4,17 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <application>
+        <!-- T15 §5.14 (debug only): measurement commands over adb. android.permission.DUMP is
+             signature|privileged|development: only the shell (adb) holds it, other apps
+             cannot send these broadcasts. -->
+        <receiver
+            android:name="app.napstop.core.trip.host.DebugCommandReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="app.napstop.action.DEBUG"/>
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>

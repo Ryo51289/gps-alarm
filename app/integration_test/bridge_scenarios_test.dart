@@ -1,5 +1,5 @@
 // Tester additions for T14 (beyond I01): stub branches K11/K12 through the
-// real platform channels, review M4 (currentTrip().simulation of a real trip)
+// real platform channels (M4 moved to t15_location_service_test.dart LI04)
 // and M5 (a second subscriber of `updates`). Android emulator/device, dev:
 //   flutter test integration_test/bridge_scenarios_test.dart -d <device-id>
 import 'dart:async';
@@ -138,22 +138,8 @@ void main() {
     await bridge.ackFinishedTrips([tripId]);
   });
 
-  testWidgets('M4 real trip: currentTrip().simulation is null', (tester) async {
-    await _cleanSlate(bridge);
-    final tripId = _id('m4');
-    await bridge.startTrip(_config(tripId), destLat: 16.8, destLng: 107.1);
-    final current = await bridge.currentTrip();
-    expect(current!.config.tripId, tripId);
-    expect(current.simulation, isNull);
-    await bridge.stopTrip(tripId);
-    final pending = await bridge.pendingFinishedTrips();
-    expect(
-      pending.singleWhere((t) => t.tripId == tripId).outcome,
-      TripOutcomeMsg.cancelled,
-    );
-    await bridge.ackFinishedTrips([tripId]);
-    expect(await bridge.currentTrip(), isNull);
-  });
+  // M4 (a real trip has `currentTrip().simulation == null`) moved to
+  // t15_location_service_test.dart as LI04: it needs the T15 runtime.
 
   testWidgets('M5 a second subscriber starts with the latest state', (
     tester,

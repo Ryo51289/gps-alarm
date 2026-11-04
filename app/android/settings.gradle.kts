@@ -27,3 +27,5 @@ plugins {
 
 include(":app")
 include(":core-trip")
+// T15: pure-JVM trip runtime (engine coordinator, effect planning, restore), JVM-tested.
+include(":core-runtime")

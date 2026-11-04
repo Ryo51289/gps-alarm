@@ -9,8 +9,9 @@
 │ data: drift (SQLite) · stations.json · shared_preferences        │
 └───────────────────────────── Pigeon ─────────────────────────────┘
 ┌────────── Android (Kotlin) ──────────┐ ┌──────────── iOS (Swift) ────────────┐
-│ LocationService (Foreground, FLP)    │ │ LocationController (CLMonitor +     │
-│ TripEngine (thuần Kotlin, test JVM)  │ │   continuous updates)               │
+│ LocationService (FGS location, FLP)  │ │ LocationController (CLMonitor +     │
+│ TripEngine :core-trip + TripRuntime  │
+│   :core-runtime (JVM thuần, T15)     │ │   continuous updates)               │
 │ AlarmController (full-screen intent, │ │ TripEngine (Swift, Swift Testing)   │
 │   MediaPlayer USAGE_ALARM, vibrate)  │ │ AlarmController (AlarmKit/fallback) │
 │ SimulatedLocationSource (GPX replay) │ │ SimulatedLocationSource             │
@@ -22,6 +23,8 @@
 
 **Nguyên tắc:** quyết định "báo hay chưa" nằm ở native để vẫn chạy khi Flutter engine đã bị huỷ.
 Flutter chỉ cấu hình chuyến, hiển thị trạng thái, và lưu lịch sử khi được đánh thức.
+
+**Android (T15):** engine chạy trong `TripRuntime` (module `:core-runtime`, actor tuần tự, một process); `LocationService` chỉ là vỏ FGS `location` + FLP. Báo dự phòng = `setAlarmClock` (hai khe A/B, đặt mới rồi mới huỷ cũ, khe canh chuông ≤ now + `fallbackLagS` trước mỗi lần kêu); `wakeAtMs` = `setExactAndAllowWhileIdle(ELAPSED_REALTIME_WAKEUP)`. Kêu trước, ghi đĩa sau (ghi lỗi không bao giờ chặn kêu); snapshot/sổ trong `noBackupFilesDir`; khôi phục sau kill/reboot/cập nhật app qua `BootReceiver` (`BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`). Không bao giờ khởi động FGS `location` từ nền. Chi tiết: `docs/specs/T15.md`.
 
 ## 2. Trip Engine (hợp đồng chung — nguồn chuẩn là `docs/specs/T10.md`, mục này chỉ tóm tắt)
 - Reducer thuần: `reduce(state, input) → Step(state', events, view)` (T10 §1, §2.5). Không đồng hồ hệ thống, không IO;

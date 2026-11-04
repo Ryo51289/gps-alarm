@@ -7,6 +7,7 @@ import app.napstop.core.bridge.BridgeErrors
 import app.napstop.core.bridge.FinishedTripMsg
 import app.napstop.core.bridge.FlutterError
 import app.napstop.core.bridge.ListenerHandle
+import app.napstop.core.bridge.ListenerHub
 import app.napstop.core.bridge.SimulationMsg
 import app.napstop.core.bridge.TripBackend
 import app.napstop.core.bridge.TripConfigMsg
@@ -39,7 +40,8 @@ import kotlinx.coroutines.withContext
  * written (§5.2), so memory can be ahead of disk only by such quiet Steps, which the
  * next call after a process death recomputes from the snapshot anyway. Failures inside
  * the tick loop are logged and retried on the next tick instead of crashing the app
- * (review T14 M3).
+ * (review T14 M3). Listeners sit in a [ListenerHub] (T15 D13): one that throws never starves the others and never
+ * fails a committed call.
  */
 class StubTripBackend(
     private val store: StubStore,
@@ -52,11 +54,8 @@ class StubTripBackend(
     private val mutex = Mutex()
     private var loaded = false
     private var state: StubTripState? = null
-    private val listeners = mutableListOf<Listener>()
+    private val listeners = ListenerHub(warn)
     private var tickJob: Job? = null
-
-    /** Identity wrapper: the same lambda added twice is two listeners, each removed by its own handle. */
-    private class Listener(val onUpdate: (TripUpdateMsg) -> Unit)
 
     override suspend fun startTrip(config: TripConfigMsg, destLat: Double, destLng: Double, simulation: SimulationMsg?) {
         mutex.withLock {
@@ -124,20 +123,19 @@ class StubTripBackend(
     }
 
     override fun addListener(listener: (TripUpdateMsg) -> Unit): ListenerHandle {
-        val entry = Listener(listener)
-        listeners += entry
-        // Replay: one Step now (the latest view plus whatever this Step itself produces),
-        // sent to every listener; then make sure the tick loop runs.
-        val replay = scope.launch { if (stepFromScope()) ensureTicking() }
-        return ListenerHandle {
-            if (listeners.remove(entry)) {
-                replay.cancel()
-                if (listeners.isEmpty()) {
+        var replay: Job? = null
+        val handle =
+            listeners.add(listener) {
+                replay?.cancel()
+                if (listeners.isEmpty) {
                     tickJob?.cancel()
                     tickJob = null
                 }
             }
-        }
+        // Replay: one Step now (the latest view plus whatever this Step itself produces),
+        // sent to every listener; then make sure the tick loop runs.
+        replay = scope.launch { if (stepFromScope()) ensureTicking() }
+        return handle
     }
 
     // ---------------------------------------------------------------- internals
@@ -155,7 +153,7 @@ class StubTripBackend(
     }
 
     private fun ensureTicking() {
-        if (listeners.isNotEmpty() && tickJob?.isActive != true) {
+        if (!listeners.isEmpty && tickJob?.isActive != true) {
             tickJob = scope.launch { tickLoop() }
         }
     }
@@ -222,8 +220,7 @@ class StubTripBackend(
                 if (persist) withContext(io) { store.writeActive(step.state) }
                 state = step.state
             }
-            val targets = listeners.toList()
-            for (update in step.updates) targets.forEach { it.onUpdate(update) }
+            listeners.publish(step.updates)
         }
     }
 

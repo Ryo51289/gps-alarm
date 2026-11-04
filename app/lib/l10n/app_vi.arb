@@ -1465,5 +1465,135 @@
   "alarmSettingsErrorTimeout": "Việc bắt đầu theo dõi lâu hơn bình thường. Bấm Thử lại để kiểm tra.",
   "@alarmSettingsErrorTimeout": {
     "description": "Screen 3 error banner: startTrip did not answer in time; the trip may still have started. Retry checks first."
+  },
+  "notifChannelTracking": "Theo dõi chuyến đi",
+  "@notifChannelTracking": {
+    "description": "Android notification channel name: ongoing trip notification. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifChannelTripAlerts": "Cảnh báo chuyến đi",
+  "@notifChannelTripAlerts": {
+    "description": "Android notification channel name: trip warnings (no GPS, interrupted...). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifChannelAlarmInterim": "Báo thức (tạm thời)",
+  "@notifChannelAlarmInterim": {
+    "description": "Android notification channel name of the interim T15 alarm (removed by T16). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifTrackingTitle": "Đang theo dõi tới {destination}",
+  "@notifTrackingTitle": {
+    "description": "Ongoing notification title. Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "notifTrackingPublic": "NapStop đang theo dõi chuyến đi",
+  "@notifTrackingPublic": {
+    "description": "Ongoing notification on the lock screen (no destination name). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifTrackingAcquiring": "Đang tìm vị trí…",
+  "@notifTrackingAcquiring": {
+    "description": "Ongoing notification text before the first GPS fix. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifTrackingDistanceEta": "Còn {distance} · khoảng {minutes} phút",
+  "@notifTrackingDistanceEta": {
+    "description": "Ongoing notification text: distance left and minutes. Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "notifTrackingDistance": "Còn {distance}",
+  "@notifTrackingDistance": {
+    "description": "Ongoing notification text: distance left, no ETA. Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "notifTrackingEstimating": "Đang ước tính · còn khoảng {distance}",
+  "@notifTrackingEstimating": {
+    "description": "Ongoing notification text while GPS is lost (estimated). Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "notifTrackingAlarming": "Đang báo thức",
+  "@notifTrackingAlarming": {
+    "description": "Ongoing notification text while the alarm rings. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifTrackingSnoozed": "Báo lại lúc {time}",
+  "@notifTrackingSnoozed": {
+    "description": "Ongoing notification text while snoozed; time in the device format. Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "notifActionStop": "Dừng theo dõi",
+  "@notifActionStop": {
+    "description": "Notification button: stop the trip. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifInterruptedTitle": "Chuyến đi bị gián đoạn",
+  "@notifInterruptedTitle": {
+    "description": "Notification title: tracking stopped (no foreground service). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifInterruptedBody": "Chạm để tiếp tục theo dõi",
+  "@notifInterruptedBody": {
+    "description": "Notification text: tap to resume tracking. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "gpsNotAcquired": "Chưa có GPS — báo thức chưa hoạt động",
+  "@gpsNotAcquired": {
+    "description": "High-priority notification: no GPS fix yet (T10 §10). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "gpsPermissionRevoked": "Mất quyền vị trí — mở Cài đặt để bật lại",
+  "@gpsPermissionRevoked": {
+    "description": "High-priority notification: location permission revoked (T10 §10). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "gpsServicesOff": "Định vị đang tắt — bật lại để báo đúng lúc",
+  "@gpsServicesOff": {
+    "description": "High-priority notification: location services off (T10 §10). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "fallbackScheduleFailed": "Chưa đặt được báo thức dự phòng. Mở Cài đặt để cấp quyền.",
+  "@fallbackScheduleFailed": {
+    "description": "High-priority notification: the backup alarm could not be set (T10 §10). Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifAlarmInterimTitle": "Sắp tới {destination}",
+  "@notifAlarmInterimTitle": {
+    "description": "Interim alarm notification title (T15, replaced by T16). Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "alarmReasonFallback": "Báo thức dự phòng — có thể sắp tới {destination}. Mở ứng dụng để xem còn bao xa",
+  "@alarmReasonFallback": {
+    "description": "Alarm text when the backup alarm rang (T10.2). Native notification (T15 §8), keep in sync with res/values/strings.xml.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "notifActionDismiss": "Tắt",
+  "@notifActionDismiss": {
+    "description": "Interim alarm notification button: dismiss. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifActionSnooze": "Báo lại",
+  "@notifActionSnooze": {
+    "description": "Interim alarm notification button: snooze. Native notification (T15 §8), keep in sync with res/values/strings.xml."
+  },
+  "notifDestinationUnknown": "nơi đến",
+  "@notifDestinationUnknown": {
+    "description": "Used for {destination} when the destination name is unknown. Native notification (T15 §8), keep in sync with res/values/strings.xml."
   }
 }
