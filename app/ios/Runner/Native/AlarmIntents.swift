@@ -51,12 +51,7 @@ struct NapStopStopIntent: LiveActivityIntent {
           }
         #endif
       },
-      handOver: { r in
-        let host =
-          RuntimeHost.shared
-          ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
-        await host.onStopIntent(r)
-      })
+      handOver: { r in await AlarmIntents.host().onStopIntent(r) })
     if let journal = RuntimeHost.shared?.journal {
       StopIntentFlow.recordWriteFailure(written: written, journal)  // review T17 R4-2
     }
@@ -64,13 +59,132 @@ struct NapStopStopIntent: LiveActivityIntent {
   }
 }
 
-enum AlarmIntents {
-  /// Injected into RuntimeHost: builds the StopIntent of one alarm (AlarmKit needs `any LiveActivityIntent`).
-  static let factory: StopIntentFactory = { alarmID, tripId, kind in
-    if #available(iOS 26.0, *) {
-      return NapStopStopIntent(alarmID: alarmID, tripId: tripId, kind: kind)
+/// "Báo lại sau {minutes} phút", the secondary button of a "now"/fallback/guard alarm (spec T17.2 D2, D4, D5). Runs in the
+/// background ([AI-MODES]): the app is not opened. Parameters: ids only.
+@available(iOS 26.0, *)
+struct NapStopSnoozeIntent: LiveActivityIntent {
+  static var title: LocalizedStringResource = "Báo lại"
+  static let supportedModes: IntentModes = .background
+
+  @Parameter(title: "Alarm")
+  var alarmID: String
+
+  @Parameter(title: "Trip")
+  var tripId: String
+
+  @Parameter(title: "Kind")
+  var kind: String
+
+  init() {
+    self.alarmID = ""
+    self.tripId = ""
+    self.kind = ""
+  }
+
+  init(alarmID: String, tripId: String, kind: String) {
+    self.alarmID = alarmID
+    self.tripId = tripId
+    self.kind = kind
+  }
+
+  func perform() async throws -> some IntentResult {
+    let rec = RingEventRec(
+      tripId: tripId, alarmId: alarmID, kind: SystemAlarmKind(rawValue: kind) ?? .fallback, action: .snooze,
+      atWallMs: RuntimeHost.nowWallMs())
+    // D4: (1) ring event on disk, (2) stop the alarm (the docs do not say a `.custom` button stops it; Code=0 is fine),
+    // (3) the runtime (UserAction(SNOOZE)).
+    let written = await StopIntentFlow.perform(
+      rec,
+      write: { try RuntimeHost.appendRingEventSync($0) },
+      stopSystemAlarm: { AlarmIntents.stopAlarm(alarmID) },
+      handOver: { r in await AlarmIntents.host().onSnoozeIntent(r) })
+    if let journal = RuntimeHost.shared?.journal {
+      StopIntentFlow.recordWriteFailure(written: written, journal)
     }
-    return ()
+    return .result()
+  }
+}
+
+/// "Xem đường quay lại", the secondary button of an OVERSHOOT alarm (spec T17.2 D2, D7). Writes the launch action, ends
+/// the trip, and brings the app to the foreground (screen 8, T27). Parameters: ids only.
+@available(iOS 26.0, *)
+struct NapStopRouteBackIntent: LiveActivityIntent {
+  static var title: LocalizedStringResource = "Xem đường quay lại"
+  /// [AI-MODES]: starts in the background, the app comes to the foreground before the intent completes.
+  static let supportedModes: IntentModes = [.background, .foreground(.deferred)]
+
+  @Parameter(title: "Alarm")
+  var alarmID: String
+
+  @Parameter(title: "Trip")
+  var tripId: String
+
+  @Parameter(title: "Kind")
+  var kind: String
+
+  init() {
+    self.alarmID = ""
+    self.tripId = ""
+    self.kind = ""
+  }
+
+  init(alarmID: String, tripId: String, kind: String) {
+    self.alarmID = alarmID
+    self.tripId = tripId
+    self.kind = kind
+  }
+
+  func perform() async throws -> some IntentResult {
+    // D8: `consumeLaunchAction` waits for the launch action while this runs.
+    RuntimeHost.routeBackInFlight.enter()
+    defer { RuntimeHost.routeBackInFlight.leave() }
+    let rec = RingEventRec(
+      tripId: tripId, alarmId: alarmID, kind: SystemAlarmKind(rawValue: kind) ?? .fallback, action: .routeBack,
+      atWallMs: RuntimeHost.nowWallMs())
+    let written = await StopIntentFlow.perform(
+      rec,
+      write: { try RuntimeHost.appendRingEventSync($0) },
+      stopSystemAlarm: { AlarmIntents.stopAlarm(alarmID) },
+      handOver: { r in await AlarmIntents.host().onRouteBackIntent(r) })
+    if let journal = RuntimeHost.shared?.journal {
+      StopIntentFlow.recordWriteFailure(written: written, journal)
+    }
+    // [AI-CIF]: ask for the foreground explicitly (the launch action is on disk already). Throws when the system declines
+    // (e.g. already foreground or not allowed); AM03 checks what the device does.
+    try? await continueInForeground(nil, alwaysConfirm: false)
+    return .result()
+  }
+}
+
+enum AlarmIntents {
+  /// Injected into RuntimeHost: builds the intents of one alarm (AlarmKit needs `any LiveActivityIntent`).
+  static let factory: AlarmIntentFactory = { alarmID, tripId, kind, secondary in
+    if #available(iOS 26.0, *) {
+      let stop = NapStopStopIntent(alarmID: alarmID, tripId: tripId, kind: kind)
+      switch secondary {
+      case .snooze?:
+        return (stop, NapStopSnoozeIntent(alarmID: alarmID, tripId: tripId, kind: kind))
+      case .routeBack?:
+        return (stop, NapStopRouteBackIntent(alarmID: alarmID, tripId: tripId, kind: kind))
+      case nil:
+        return (stop, nil)
+      }
+    }
+    return ((), nil)
+  }
+
+  /// The runtime host; an intent may run in a process the system just launched in the background.
+  static func host() -> RuntimeHost {
+    RuntimeHost.shared ?? RuntimeHost.bootstrap(options: options(), intentFactory: factory)
+  }
+
+  /// D4 (2): stop the alarm of a secondary button; "already stopped" (Code=0) is fine (K4 #11, D22).
+  static func stopAlarm(_ alarmID: String) {
+    #if canImport(AlarmKit)
+      if #available(iOS 26.0, *), let id = UUID(uuidString: alarmID) {
+        try? AlarmManager.shared.stop(id: id)
+      }
+    #endif
   }
 
   /// Diagnostics only in builds with NAPSTOP_DIAG (§5.13); the fake alarm port only on the Simulator, on request.

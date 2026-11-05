@@ -22,14 +22,14 @@ import UIKit
     // every launch, before Flutter opens the database; a failure never blocks the launch.
     let excluded = BackupExclusion.excludeAppSupportSubdirectories(["napstop_db", "napstop_trip"])
     // T17: the trip runtime exists before Flutter, also when iOS launches the app in the background (StopIntent).
-    let host = RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
+    let host = RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
     host.journal.record("backup_exclusion", excluded.mapValues { $0 ? "ok" : "failed" })
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
+    let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
     coreBridge.register(messenger: engineBridge.applicationRegistrar.messenger(), runtime: host.runtime)
   }
 

@@ -93,10 +93,11 @@ public struct AlarmLedger: Sendable, Codable, Equatable {
     }
 }
 
-/// Written by StopIntent before anything else (D12). ring_events.json = [RingEventRec], newest last, ≤ 16.
+/// Written by StopIntent (and the T17.2 secondary intents) before anything else (D12). ring_events.json = [RingEventRec],
+/// newest last, ≤ 16.
 public struct RingEventRec: Sendable, Codable, Equatable {
-    /// T17.2 adds snooze, routeBack.
-    public enum Action: String, Sendable, Codable { case dismiss }
+    /// dismiss = Stop (T17); snooze / routeBack = secondary button (T17.2 D4).
+    public enum Action: String, Sendable, Codable { case dismiss, snooze, routeBack }
     public let tripId: String
     public let alarmId: String
     public let kind: SystemAlarmKind
@@ -110,6 +111,48 @@ public struct RingEventRec: Sendable, Codable, Equatable {
         self.action = action
         self.atWallMs = atWallMs
     }
+
+    /// dismiss / routeBack end the trip; snooze does not.
+    public var endsTrip: Bool { action != .snooze }
+}
+
+public enum RingEventPicker {
+    /// T17.2 §3.4: the event of `tripId` that counts at restore. The newest by `atWallMs`; a dismiss/routeBack of the same
+    /// alarm wins over a newer snooze (the user stopped that alarm). nil = none of this trip.
+    public static func effective(_ events: [RingEventRec], tripId: String) -> RingEventRec? {
+        let mine = events.filter { $0.tripId == tripId }
+        guard var newest = mine.first else { return nil }
+        for e in mine.dropFirst() where e.atWallMs >= newest.atWallMs { newest = e }
+        if newest.action == .snooze,
+           let end = mine.filter({ $0.alarmId == newest.alarmId && $0.endsTrip }).max(by: { $0.atWallMs < $1.atWallMs }) {
+            return end
+        }
+        return newest
+    }
+}
+
+/// launch_action.json (T17.2 D7): written by the route-back intent, taken once by `AlarmHostApi.consumeLaunchAction`.
+/// No coordinates; `pastM` is the distance past the destination (T27 D6). Never logged.
+public struct LaunchActionRec: Sendable, Codable, Equatable, CustomStringConvertible {
+    public static let overshootRoute = "overshootRoute"
+    public let kind: String
+    public let tripId: String
+    public let pastM: Int?
+    public let atWallMs: Int64
+    public let atElapsedMs: Int64
+    public let bootSessionId: String?
+
+    public init(kind: String = LaunchActionRec.overshootRoute, tripId: String, pastM: Int?, atWallMs: Int64,
+                atElapsedMs: Int64, bootSessionId: String?) {
+        self.kind = kind
+        self.tripId = tripId
+        self.pastM = pastM
+        self.atWallMs = atWallMs
+        self.atElapsedMs = atElapsedMs
+        self.bootSessionId = bootSessionId
+    }
+
+    public var description: String { "LaunchActionRec(\(kind), pastM \(pastM == nil ? "unset" : "set"))" }
 }
 
 /// JSON helpers shared by the store implementations (no coordinates in any of these types).

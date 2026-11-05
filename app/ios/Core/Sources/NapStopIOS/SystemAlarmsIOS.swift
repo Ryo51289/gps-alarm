@@ -6,13 +6,16 @@ import Trip
 import TripRuntime
 import UserNotifications
 #if canImport(AlarmKit)
+import ActivityKit
 import AlarmKit
 import AppIntents
 import SwiftUI
 #endif
 
-/// Builds the StopIntent (Runner target, so App Intents metadata is extracted there) for one alarm.
-public typealias StopIntentFactory = @Sendable (_ alarmID: String, _ tripId: String, _ kind: String) -> Any
+/// The App Intents of one alarm (Runner target, so App Intents metadata is extracted there): the StopIntent, and the
+/// intent of the secondary button when `secondary` is set (T17.2 §3.1). Both are `any LiveActivityIntent` on iOS 26+.
+public typealias AlarmIntentFactory = @Sendable (_ alarmID: String, _ tripId: String, _ kind: String,
+                                                 _ secondary: SecondaryAction?) -> (stop: Any, secondary: Any?)
 
 #if canImport(AlarmKit)
 @available(iOS 26.0, *)
@@ -25,37 +28,62 @@ public struct NapStopAlarmMetadata: AlarmMetadata {
 @available(iOS 26.0, *)
 public final class AlarmKitSystemAlarms: SystemAlarms, @unchecked Sendable {
     let registry: AlarmRefRegistry
-    let stopIntent: StopIntentFactory?
+    let intents: AlarmIntentFactory?
     let stopLabel: @Sendable () -> String
+    let secondaryLabel: @Sendable (SecondaryAction) -> String
 
-    public init(registry: AlarmRefRegistry, stopIntent: StopIntentFactory?, stopLabel: @escaping @Sendable () -> String) {
+    public init(registry: AlarmRefRegistry, intents: AlarmIntentFactory?, stopLabel: @escaping @Sendable () -> String,
+                secondaryLabel: @escaping @Sendable (SecondaryAction) -> String = { _ in "" }) {
         self.registry = registry
-        self.stopIntent = stopIntent
+        self.intents = intents
         self.stopLabel = stopLabel
+        self.secondaryLabel = secondaryLabel
     }
 
-    private func alert(_ title: String) -> AlarmPresentation.Alert {
+    /// T17.2 §3.1: label (NativeCopy, locale at scheduling time) + SF Symbol; VoiceOver reads the label.
+    private func secondaryButton(_ a: SecondaryAction) -> AlarmButton {
+        let symbol: String
+        switch a {
+        case .snooze: symbol = "zzz"
+        case .routeBack: symbol = "arrow.uturn.backward"
+        }
+        return AlarmButton(text: LocalizedStringResource(stringLiteral: secondaryLabel(a)), textColor: .white,
+                           systemImageName: symbol)
+    }
+
+    private func alert(_ title: String, _ secondary: SecondaryAction?) -> AlarmPresentation.Alert {
         let resource = LocalizedStringResource(stringLiteral: title)
+        // [AK-ALERT]: one secondary button; `.custom` runs the app's secondaryIntent (no countdown, PLAN Q3 = A).
+        let button = secondary.map(secondaryButton)
+        let behavior: AlarmPresentation.Alert.SecondaryButtonBehavior? = button == nil ? nil : .custom
         if #available(iOS 26.1, *) {
-            return AlarmPresentation.Alert(title: resource)
+            return AlarmPresentation.Alert(title: resource, secondaryButton: button, secondaryButtonBehavior: behavior)
         }
         return AlarmPresentation.Alert(title: resource,
                                        stopButton: AlarmButton(text: LocalizedStringResource(stringLiteral: stopLabel()),
-                                                               textColor: .white, systemImageName: "stop.circle"))
+                                                               textColor: .white, systemImageName: "stop.circle"),
+                                       secondaryButton: button, secondaryButtonBehavior: behavior)
     }
 
     public func schedule(_ r: SystemAlarmRequest) async throws {
         // D14: never let AlarmKit prompt (it asks on the first schedule when not determined).
         guard AlarmManager.shared.authorizationState == .authorized else { throw AlarmChannelError.notAuthorized }
         guard let uuid = UUID(uuidString: r.id) else { throw AlarmChannelError.badId }
+        let made = intents?(r.id, r.tripId, r.kind.rawValue, r.secondary)
+        let stopIntent = made?.stop as? (any LiveActivityIntent)
+        let secondaryIntent = made?.secondary as? (any LiveActivityIntent)
+        // A button without its intent would do nothing: show it only with one.
+        let secondary = secondaryIntent == nil ? nil : r.secondary
         let attributes = AlarmAttributes<NapStopAlarmMetadata>(
-            presentation: AlarmPresentation(alert: alert(r.title)),
+            presentation: AlarmPresentation(alert: alert(r.title, secondary)),
             metadata: NapStopAlarmMetadata(tripId: r.tripId, kind: r.kind.rawValue, generation: r.generation),
             tintColor: Color.orange)
-        let intent = stopIntent?(r.id, r.tripId, r.kind.rawValue) as? (any LiveActivityIntent)
         let date = Date(timeIntervalSince1970: Double(r.fireAtWallMs) / 1000)
+        // T17.2 D10: bundle file (`.named`, main bundle [I12]); nil = system default sound.
+        let sound: AlertConfiguration.AlertSound = r.soundFile.map { .named($0) } ?? .default
         let config: AlarmManager.AlarmConfiguration<NapStopAlarmMetadata> = .alarm(
-            schedule: .fixed(date), attributes: attributes, stopIntent: intent, secondaryIntent: nil, sound: .default)
+            schedule: .fixed(date), attributes: attributes, stopIntent: stopIntent, secondaryIntent: secondaryIntent,
+            sound: sound)
         registry.beginSchedule(r.id, .init(tripId: r.tripId, kind: r.kind, generation: r.generation, fireAtWallMs: r.fireAtWallMs))
         do {
             _ = try await AlarmManager.shared.schedule(id: uuid, configuration: config)
@@ -197,9 +225,23 @@ public final class FakeSystemAlarmsIOS: SystemAlarms, @unchecked Sendable {
             $0[r.id] = SystemAlarmInfo(id: r.id, tripId: r.tripId, kind: r.kind, generation: r.generation, state: .scheduled,
                                        fireAtWallMs: r.fireAtWallMs, channel: r.channel)
         }
+        // T17.2 AC04: what the newest request of each kind carried, for the Simulator integration test (shared_preferences
+        // reads `flutter.`-prefixed standard defaults). Kind, button and sound file only: no title, no position.
+        UserDefaults.standard.set(Self.summary(r), forKey: "flutter.napstop.diag.lastAlarm.\(r.kind.rawValue)")
         let delay = max(0, r.fireAtWallMs - now())
         DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(Int(delay))) { [weak self] in self?.fire(r.id) }
         report()
+    }
+
+    /// "secondary=snooze:1;sound=alarm_horn.wav" ("none" when absent).
+    public static func summary(_ r: SystemAlarmRequest) -> String {
+        let s: String
+        switch r.secondary {
+        case let .snooze(m)?: s = "snooze:\(m)"
+        case .routeBack?: s = "routeBack"
+        case nil: s = "none"
+        }
+        return "secondary=\(s);sound=\(r.soundFile ?? "none")"
     }
 
     private func fire(_ id: String) {
@@ -222,5 +264,7 @@ public final class FakeSystemAlarmsIOS: SystemAlarms, @unchecked Sendable {
     public func stop(id: String, channel: AlarmChannelKind) async { await cancel(id: id, channel: channel) }
 
     public func list() async -> [SystemAlarmInfo]? { withItems { Array($0.values) } }
+
+    func anyAlerting() -> Bool { withItems { $0.values.contains { $0.state == .alerting } } }
 }
 #endif

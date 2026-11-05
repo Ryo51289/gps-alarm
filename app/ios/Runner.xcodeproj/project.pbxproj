@@ -26,6 +26,10 @@
 		D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17B00062EC7000100A0B001 /* DeviceBridge.swift */; };
 		D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = D17B000A2EC7000100A0B001 /* InfoPlist.strings */; };
 		D17B00042EC7000100A0B001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */; };
+		D17200012EC8000100A0B001 /* IOSAlarmHostApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */; };
+		D17200032EC8000100A0B001 /* alarm_horn.wav in Resources */ = {isa = PBXBuildFile; fileRef = D17200062EC8000100A0B001 /* alarm_horn.wav */; };
+		D17200042EC8000100A0B001 /* alarm_bell.wav in Resources */ = {isa = PBXBuildFile; fileRef = D17200072EC8000100A0B001 /* alarm_bell.wav */; };
+		D17200052EC8000100A0B001 /* alarm_beep.wav in Resources */ = {isa = PBXBuildFile; fileRef = D17200082EC8000100A0B001 /* alarm_beep.wav */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -83,6 +87,10 @@
 		D17B00072EC7000100A0B001 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		D17B00082EC7000100A0B001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAlarmHostApi.swift; sourceTree = "<group>"; };
+		D17200062EC8000100A0B001 /* alarm_horn.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_horn.wav; sourceTree = "<group>"; };
+		D17200072EC8000100A0B001 /* alarm_bell.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_bell.wav; sourceTree = "<group>"; };
+		D17200082EC8000100A0B001 /* alarm_beep.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_beep.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -148,6 +156,7 @@
 				97C147021CF9000F007C117D /* Info.plist */,
 				D17B000A2EC7000100A0B001 /* InfoPlist.strings */,
 				D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */,
+				D17200092EC8000100A0B001 /* Sounds */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
@@ -165,11 +174,22 @@
 				D14B00022EC5000100A0B001 /* CoreApi.g.swift */,
 				D14B00032EC5000100A0B001 /* CoreBridgeStub.swift */,
 				D17B00062EC7000100A0B001 /* DeviceBridge.swift */,
+				D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */,
 				D17B00052EC7000100A0B001 /* IOSPermissionHostApi.swift */,
 				D17A00092EC6000100A0B001 /* MsgMapper.swift */,
 				D17A00082EC6000100A0B001 /* RealTripBackend.swift */,
 			);
 			path = Bridge;
+			sourceTree = "<group>";
+		};
+		D17200092EC8000100A0B001 /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+				D17200082EC8000100A0B001 /* alarm_beep.wav */,
+				D17200072EC8000100A0B001 /* alarm_bell.wav */,
+				D17200062EC8000100A0B001 /* alarm_horn.wav */,
+			);
+			path = Sounds;
 			sourceTree = "<group>";
 		};
 		D17A00102EC6000100A0B001 /* Native */ = {
@@ -294,6 +314,9 @@
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */,
 				D17B00042EC7000100A0B001 /* PrivacyInfo.xcprivacy in Resources */,
+				D17200032EC8000100A0B001 /* alarm_horn.wav in Resources */,
+				D17200042EC8000100A0B001 /* alarm_bell.wav in Resources */,
+				D17200052EC8000100A0B001 /* alarm_beep.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -356,6 +379,7 @@
 				D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */,
 				D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */,
 				D17B00012EC7000100A0B001 /* IOSPermissionHostApi.swift in Sources */,
+				D17200012EC8000100A0B001 /* IOSAlarmHostApi.swift in Sources */,
 				D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -469,6 +493,8 @@
 					"$(inherited)",
 					"-weak_framework",
 					AlarmKit,
+					"-weak_framework",
+					ActivityKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.napstop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -655,6 +681,8 @@
 					"$(inherited)",
 					"-weak_framework",
 					AlarmKit,
+					"-weak_framework",
+					ActivityKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.napstop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -683,6 +711,8 @@
 					"$(inherited)",
 					"-weak_framework",
 					AlarmKit,
+					"-weak_framework",
+					ActivityKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.napstop;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -17,7 +17,7 @@
     var minutes: Int
 
     func perform() async throws -> some IntentResult {
-      let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
+      let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
       let alarms = host.alarms
       let journal = host.journal
       let perHour = max(1, self.perHour)
@@ -71,7 +71,7 @@
     var delayS: Int
 
     func perform() async throws -> some IntentResult {
-      let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
+      let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
       let req = SystemAlarmRequest(
         id: UUID().uuidString, tripId: "diag-now", kind: .now, generation: 1,
         fireAtWallMs: RuntimeHost.nowWallMs() + Int64(max(1, delayS)) * 1000, title: "NapStop diag", channel: .alarmKit)

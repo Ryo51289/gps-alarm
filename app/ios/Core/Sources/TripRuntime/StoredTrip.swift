@@ -159,4 +159,8 @@ public protocol RuntimeStore: Sendable {
     func writeFinished(_ r: FinishedRecord) throws
     func readFinished() -> [FinishedRecord]
     func deleteFinished(_ ids: [String])
+    /// launch_action.json (T17.2 D7); missing/corrupt → nil.
+    func readLaunchAction() -> LaunchActionRec?
+    func writeLaunchAction(_ r: LaunchActionRec) throws
+    func deleteLaunchAction()
 }

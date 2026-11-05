@@ -28,12 +28,16 @@ public final class RuntimeHost: @unchecked Sendable {
     let registry: AlarmRefRegistry
     private var observers: [NSObjectProtocol] = []
     private var alarmTask: Task<Void, Never>?
+    private let fakeAlarms: FakeSystemAlarmsIOS?
+
+    /// T17.2 D8: number of `NapStopRouteBackIntent.perform()` running (static: set before the host exists).
+    public static let routeBackInFlight = InFlightCounter()
 
     /// Call once on the main thread from `application(_:didFinishLaunchingWithOptions:)`.
     @discardableResult
-    public static func bootstrap(options: Options = Options(), stopIntentFactory: StopIntentFactory?) -> RuntimeHost {
+    public static func bootstrap(options: Options = Options(), intentFactory: AlarmIntentFactory?) -> RuntimeHost {
         if let s = shared { return s }
-        let h = RuntimeHost(options: options, stopIntentFactory: stopIntentFactory)
+        let h = RuntimeHost(options: options, intentFactory: intentFactory)
         shared = h
         h.start()
         return h
@@ -43,7 +47,7 @@ public final class RuntimeHost: @unchecked Sendable {
         NativeCopy.localeTag(stored: UserDefaults.standard.string(forKey: appLocaleKey), preferredLanguages: Locale.preferredLanguages)
     }
 
-    private init(options: Options, stopIntentFactory: StopIntentFactory?) {
+    private init(options: Options, intentFactory: AlarmIntentFactory?) {
         self.options = options
         // Review #17: static strings + error type names only (never coordinates, names or values).
         let logger = Logger(subsystem: "app.napstop", category: "trip")
@@ -59,12 +63,14 @@ public final class RuntimeHost: @unchecked Sendable {
         let fake: FakeSystemAlarmsIOS? = options.fakeAlarms ? FakeSystemAlarmsIOS() : nil
         #if canImport(AlarmKit)
         if #available(iOS 26.0, *), fake == nil {
-            akChannel = AlarmKitSystemAlarms(registry: registry, stopIntent: stopIntentFactory,
-                                             stopLabel: { NativeCopy.string("alarmKitStop", RuntimeHost.localeTag()) })
+            akChannel = AlarmKitSystemAlarms(registry: registry, intents: intentFactory,
+                                             stopLabel: { NativeCopy.string("alarmKitStop", RuntimeHost.localeTag()) },
+                                             secondaryLabel: { NativeCopy.secondaryLabel($0, locale: RuntimeHost.localeTag()) })
         }
         #endif
         let alarms: SystemAlarms = fake ?? SystemAlarmsRouter(alarmKit: akChannel, notifications: NotificationSystemAlarms())
         self.alarms = alarms
+        self.fakeAlarms = fake
         self.journal = journal
         let ports = RuntimePorts(time: IOSTime(), location: CoreLocationSession(), alarms: alarms, store: store,
                                  env: fake == nil ? IOSDeviceEnv() : FakeChannelEnv(base: IOSDeviceEnv()), app: IOSAppState(), notifier: notifier,
@@ -99,7 +105,7 @@ public final class RuntimeHost: @unchecked Sendable {
         observe(UIDevice.batteryStateDidChangeNotification, battery)
         #if canImport(AlarmKit)
         if #available(iOS 26.0, *), !options.fakeAlarms {
-            let mapper = AlarmKitSystemAlarms(registry: registry, stopIntent: nil, stopLabel: { "" })
+            let mapper = AlarmKitSystemAlarms(registry: registry, intents: nil, stopLabel: { "" })
             alarmTask = Task.detached {
                 for await list in AlarmManager.shared.alarmUpdates {
                     await rt.onSystemAlarms(mapper.map(list))
@@ -119,6 +125,27 @@ public final class RuntimeHost: @unchecked Sendable {
     /// StopIntent step (3): ensureLoaded + handling (§5.6.5).
     public func onStopIntent(_ e: RingEventRec) async { await runtime.onStopIntent(e) }
 
+    /// T17.2 §3.2 step (3) of NapStopSnoozeIntent.
+    public func onSnoozeIntent(_ e: RingEventRec) async { await runtime.onSnoozeIntent(e) }
+
+    /// T17.2 §3.2 step (3) of NapStopRouteBackIntent (launch action, then DISMISS).
+    public func onRouteBackIntent(_ e: RingEventRec) async { await runtime.onRouteBackIntent(e) }
+
+    /// T17.2 D8: launch_action.json, taken once (no wait; `IOSAlarmHostApi` waits for an intent in flight).
+    public func consumeLaunchAction() async -> LaunchActionRec? { await runtime.consumeLaunchAction() }
+
+    /// T17.2 D11: is an alarm of this app ringing now (no "Nghe thử" over it, T16 AE11)? Synchronous: AlarmKit's list on
+    /// iOS 26+, the fake port in diagnostics; false when unreadable or before iOS 26.
+    public func anyAlarmAlerting() -> Bool {
+        if let fake = fakeAlarms { return fake.anyAlerting() }
+        #if canImport(AlarmKit)
+        if #available(iOS 26.0, *) {
+            return ((try? AlarmManager.shared.alarms) ?? []).contains { $0.state == .alerting }
+        }
+        #endif
+        return false
+    }
+
     /// `applicationWillTerminate`: synchronous snapshot, at most ~1 s (§7).
     public func willTerminate() {
         // Review #8: never block main on the runtime queue (a queued Step may be waiting for main). Write the last
@@ -132,5 +159,15 @@ public final class RuntimeHost: @unchecked Sendable {
     }
 
     public static func nowWallMs() -> Int64 { IOSTime().wallMs() }
+}
+
+/// Thread-safe count of running intents (T17.2 D8).
+public final class InFlightCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var n = 0
+    public init() {}
+    public func enter() { lock.lock(); n += 1; lock.unlock() }
+    public func leave() { lock.lock(); n = max(0, n - 1); lock.unlock() }
+    public var active: Bool { lock.lock(); defer { lock.unlock() }; return n > 0 }
 }
 #endif

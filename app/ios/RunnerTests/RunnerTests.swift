@@ -259,3 +259,132 @@ final class T171PermissionTests: XCTestCase {
     }
   }
 }
+
+// T17.2 AC02–AC03 (docs/specs/T17.2.md): IOSAlarmHostApi. Runs on CI macOS (Simulator); typechecked on WSL only.
+
+import AVFoundation
+
+/// Records preview calls instead of playing.
+final class RecordingPreview: SoundPreviewing {
+  var played: [(file: String, maxMs: Int64)] = []
+  var stops = 0
+  private(set) var isPlaying = false
+  func play(file: String, maxMs: Int64) {
+    played.append((file, maxMs))
+    isPlaying = true
+  }
+  func stop() {
+    stops += 1
+    isPlaying = false
+  }
+}
+
+/// launch_action.json stand-in: written later from another queue, taken once.
+final class LaunchBox: @unchecked Sendable {
+  private let lock = NSLock()
+  private var value: LaunchActionRec?
+  private var running = false
+  func set(_ r: LaunchActionRec?) { lock.lock(); value = r; lock.unlock() }
+  func take() -> LaunchActionRec? { lock.lock(); defer { lock.unlock() }; let v = value; value = nil; return v }
+  var inFlight: Bool {
+    get { lock.lock(); defer { lock.unlock() }; return running }
+    set { lock.lock(); running = newValue; lock.unlock() }
+  }
+}
+
+final class T172AlarmHostApiTests: XCTestCase {
+  private let rec = LaunchActionRec(tripId: "t1", pastM: 1_340, atWallMs: 1, atElapsedMs: 1, bootSessionId: nil)
+
+  private func api(_ box: LaunchBox, preview: SoundPreviewing = RecordingPreview(), alerting: Bool = false,
+                   constants: RuntimeConstants = .default) -> IOSAlarmHostApi {
+    IOSAlarmHostApi(
+      launchActions: { box.take() }, routeBackInFlight: { box.inFlight }, alarmAlerting: { alerting },
+      preview: preview, constants: constants)
+  }
+
+  func testAC02WaitsForRouteBackInFlight() async throws {
+    let box = LaunchBox()
+    box.inFlight = true
+    let rec = self.rec
+    DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(500)) {
+      box.set(rec)
+      box.inFlight = false
+    }
+    let started = Date()
+    let msg = try await api(box).consumeLaunchAction()
+    XCTAssertEqual(msg?.kind, .overshootRoute)
+    XCTAssertEqual(msg?.tripId, "t1")
+    XCTAssertEqual(msg?.pastM, 1_340)
+    XCTAssertLessThanOrEqual(Date().timeIntervalSince(started), 1.5 + 0.3)
+  }
+
+  func testAC02NotInFlightAnswersAtOnce() async throws {
+    let box = LaunchBox()
+    let started = Date()
+    let msg = try await api(box).consumeLaunchAction()
+    XCTAssertNil(msg)
+    XCTAssertLessThan(Date().timeIntervalSince(started), 0.2)
+    box.set(rec)
+    let first = try await api(box).consumeLaunchAction()
+    XCTAssertEqual(first?.tripId, "t1")
+    let second = try await api(box).consumeLaunchAction()
+    XCTAssertNil(second, "taken once")
+  }
+
+  func testAC03SystemSoundCreatesNoPlayerAndAlertingBlocksPreview() throws {
+    let rec = RecordingPreview()
+    try api(LaunchBox(), preview: rec).previewSound(soundId: "system", volume: 0.3)
+    XCTAssertTrue(rec.played.isEmpty)
+    try api(LaunchBox(), preview: rec, alerting: true).previewSound(soundId: "bell", volume: 0.3)
+    XCTAssertTrue(rec.played.isEmpty, "never over a ringing alarm (T16 AE11)")
+    try api(LaunchBox(), preview: rec).previewSound(soundId: "default", volume: 0.0)
+    XCTAssertEqual(rec.played.map(\.file), ["alarm_horn.wav"])
+    XCTAssertEqual(rec.played.first?.maxMs, 10_000)
+  }
+
+  func testAC03BellPlaysAtFullVolumeAndStopsByItself() throws {
+    let preview = AVSoundPreview()
+    var c = RuntimeConstants.default
+    c.previewMaxMs = 400
+    try api(LaunchBox(), preview: preview, constants: c).previewSound(soundId: "bell", volume: 0.3)
+    let player = try XCTUnwrap(preview.player, "alarm_bell.wav in the app bundle")
+    XCTAssertEqual(player.volume, 1.0, "volume ignored (Q4 = A)")
+    XCTAssertTrue(player.isPlaying)
+    XCTAssertGreaterThanOrEqual(player.duration, 28.0)
+    let stopped = expectation(description: "auto stop")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+      XCTAssertNil(preview.player)
+      stopped.fulfill()
+    }
+    wait(for: [stopped], timeout: 3)
+    XCTAssertEqual(IOSAlarmHostApi.msg(rec).pastM, 1_340)
+  }
+
+  func testPreviewStopsWhenAnAlarmStartsRinging() throws {
+    // Review T17.2 nit #5: polled once a second while the preview plays.
+    let rec = RecordingPreview()
+    var ringing = false
+    let a = IOSAlarmHostApi(
+      launchActions: { nil }, routeBackInFlight: { false }, alarmAlerting: { ringing }, preview: rec)
+    try a.previewSound(soundId: "beep", volume: 1)
+    XCTAssertTrue(rec.isPlaying)
+    ringing = true
+    let done = expectation(description: "stopped by the watch")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+      XCTAssertFalse(rec.isPlaying)
+      XCTAssertEqual(rec.stops, 1)
+      done.fulfill()
+    }
+    wait(for: [done], timeout: 3)
+  }
+
+  func testShowAlarmScreenIsFalseAndLocaleKeyKept() async throws {
+    let a = api(LaunchBox())
+    let shown = try await a.showAlarmScreen(tripId: "t1")
+    XCTAssertFalse(shown)
+    try a.setAppLocale(languageTag: "en")
+    XCTAssertEqual(UserDefaults.standard.string(forKey: RuntimeHost.appLocaleKey), "en")
+    try a.setAppLocale(languageTag: "fr")
+    XCTAssertNil(UserDefaults.standard.string(forKey: RuntimeHost.appLocaleKey))
+  }
+}

@@ -328,6 +328,12 @@ final class FakeStore: Locked, RuntimeStore, @unchecked Sendable {
 
     func readFinished() -> [FinishedRecord] { locked { Array(finished.values) } }
     func deleteFinished(_ ids: [String]) { locked { for i in ids { finished[i] = nil } } }
+
+    // T17.2: launch_action.json (survives newProcess() like the other files; forkKilled() does not copy it).
+    private var launch: LaunchActionRec?
+    func readLaunchAction() -> LaunchActionRec? { locked { launch } }
+    func writeLaunchAction(_ r: LaunchActionRec) throws { locked { launch = r }; log.add("writeLaunchAction") }
+    func deleteLaunchAction() { locked { launch = nil } }
 }
 
 final class FakeEnv: Locked, DeviceEnv, @unchecked Sendable {

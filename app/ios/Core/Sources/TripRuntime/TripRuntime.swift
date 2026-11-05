@@ -84,6 +84,8 @@ public actor TripRuntime: LocationSink {
         case restoreSettle
         case goneCheck(id: String, goneAtWallMs: Int64)
         case endBgTask(token: Int)
+        /// T17.2 (review T17 round 3): a "now" ring held for STOP_INTENT_GRACE_MS (`heldRing`).
+        case heldRing
     }
 
     struct Deferred: Equatable { let dueWallMs: Int64; let kind: DeferredKind }
@@ -128,6 +130,11 @@ public actor TripRuntime: LocationSink {
     private var memoryRingEvents: [RingEventRec] = []
     /// Flutter calls made while a background restore waits for D13 (spec R2 "D13 (#6)").
     private var restoreWaiters: [CheckedContinuation<Void, Never>] = []
+    /// T17.2 (review T17 round 3, risk of a second ring): a slot of the ledger is past its time and gone from `list()`
+    /// without the runtime seeing it ring, so the user may just have stopped it on the lock screen and its StopIntent may
+    /// still be on its way. The "now" ring of a Step made meanwhile waits STOP_INTENT_GRACE_MS (`DeferredKind.heldRing`).
+    private var ringHoldSlot: AlarmSlotRec?
+    private var heldRing: RingRequest?
 
     public init(ports: RuntimePorts, constants: RuntimeConstants = .default, warn: @escaping @Sendable (String) -> Void) {
         self.ports = ports
@@ -200,6 +207,15 @@ public actor TripRuntime: LocationSink {
     public func onSystemAlarms(_ alarms: [SystemAlarmInfo]) async { await submit { rt in await rt.handleSystemAlarms(alarms) } }
 
     public func onStopIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleStopIntent(e) } }
+
+    /// T17.2 §3.3: "Báo lại" on the AlarmKit alert (the intent wrote `e` and stopped the alarm first, D4).
+    public func onSnoozeIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleSnoozeIntent(e) } }
+
+    /// T17.2 §3.3: "Xem đường quay lại" on the AlarmKit alert: launch action first, then DISMISS (D7).
+    public func onRouteBackIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleRouteBackIntent(e) } }
+
+    /// T17.2 D8: takes (reads + deletes) launch_action.json; nil when none, expired or invalid.
+    public func consumeLaunchAction() async -> LaunchActionRec? { await submit { rt in rt.doConsumeLaunchAction() } }
 
     public func onAppActive() async { await submit { rt in await rt.handleAppActive() } }
 
@@ -375,6 +391,7 @@ public actor TripRuntime: LocationSink {
         let facts = factsReader(a.engine)
         if facts == nil { warn("engine facts unreadable") }
         let events = ringEvents()
+        let picked = RingEventPicker.effective(events, tripId: a.meta.tripId)
         let list = await readList()
         if let list { lastList = list; prevUpdates = list }
         let now = nowTrip()
@@ -384,6 +401,11 @@ public actor TripRuntime: LocationSink {
         } ?? RestoreInfo(status: .unknown)
         ports.journal.record("restore", ["status": info.status.jsonName])
         let step = TripEngine.restore(a.engine, nowMs: now, info: info)
+        // T17.2 §3.4: the process died after a route-back intent wrote its ring event and before the runtime wrote the
+        // launch action: write it now, before the trip ends (pastM from the snapshot).
+        if let p = picked, p.action == .routeBack, ports.store.readLaunchAction()?.tripId != p.tripId {
+            writeLaunchAction(p, pastM: step.view.overshootPastM)
+        }
         // Mode first (§5.8 step 3): only an active app starts location (D10).
         if step.view.phase != .ended, await ports.app.activity() == .active {
             let spec = LocationRequestMapper.spec(step.view.samplingPolicy, a.params)
@@ -396,8 +418,13 @@ public actor TripRuntime: LocationSink {
         await apply(step, prevView: nil, facts: RingFactsReader.facts(tripId: a.meta.tripId, list: list ?? [], ledger: ledger,
                                                                          nowWallMs: nowWall(), constants: constants))
         guard let cur = active, let view = cur.view, view.phase != .ended else { return }
-        // Spec R2 (replaces G3, §5.8 step 2): ring again only when no system alarm ever took this ring.
-        if (view.phase == .alarming || view.phase == .overshot) && view.alarmRinging
+        if let p = picked, p.action == .snooze {
+            // T17.2 §3.4: the snooze tapped before the process died. ALARMING → UserAction(SNOOZE) at the tap time;
+            // SNOOZED/ENDED → nothing. The alarm was stopped by the intent: no ring decision here.
+            if view.phase == .alarming || view.phase == .overshot { await applySnoozeEvent(p) }
+            // Applied (or moot): a later restore must not read it again (RANG on SNOOZED would ring SNOOZE_END early).
+            ports.store.removeRingEvents(tripId: p.tripId)
+        } else if (view.phase == .alarming || view.phase == .overshot) && view.alarmRinging
             && !(list ?? []).contains(where: { $0.tripId == cur.meta.tripId && $0.state == .alerting }) {
             let f = factsReader(cur.engine)
             let lastRing = f?.alarmLastRingAtMs
@@ -419,7 +446,9 @@ public actor TripRuntime: LocationSink {
                                             guardAtWallMs: guardAt) {
                     await scheduleSlot(.guardSlot, targetAtMs: toTrip(guardAt), wallMs: guardAt)
                 }
-                await ring(RingRequest(tripId: cur.meta.tripId, reason: reason, snoozeAllowed: false, distanceM: nil,
+                // T17.2 D1: same snooze rule as the engine (Alarm.snoozeAllowed) for the secondary button.
+                let allowed = view.phase == .alarming && view.snoozeCount < cur.params.maxSnoozes
+                await ring(RingRequest(tripId: cur.meta.tripId, reason: reason, snoozeAllowed: allowed, distanceM: nil,
                                        etaS: nil, batteryPct: nil, atWallMs: nowWall()))
             }
         }
@@ -525,12 +554,14 @@ public actor TripRuntime: LocationSink {
         }
     }
 
-    private func process(_ input: EngineInput) async {
+    @discardableResult
+    private func process(_ input: EngineInput) async -> Step? {
         if restorePending { await completeRestore() }
-        guard let a = active, a.view != nil else { return }
+        guard let a = active, a.view != nil else { return nil }
         let step = TripEngine.reduce(a.engine, input)
         var facts = RingFacts.none
         var live: AlarmSlotRec?
+        ringHoldSlot = nil
         if step.events.contains(where: { if case let .alarm(x) = $0 { return x.ringNow }; return false }) {
             let fresh = await readList()
             // V2-2: an unreadable list says nothing about what rings now (a stale `lastList` could swallow the ring and the
@@ -539,10 +570,13 @@ public actor TripRuntime: LocationSink {
                 lastList = fresh
                 facts = RingFactsReader.facts(tripId: a.meta.tripId, list: fresh, ledger: ledger, nowWallMs: nowWall(),
                                               constants: constants)
+                ringHoldSlot = RingHold.slot(ledger, list: fresh, nowWallMs: nowWall())
             }
             live = EffectPlanner.liveSlot(ledger, list: fresh)  // spec R1: fresh list, nil when unreadable
         }
         await apply(step, prevView: a.view, facts: facts, liveSlot: live)
+        ringHoldSlot = nil
+        return step
     }
 
     /// Commit + effects of one Step.
@@ -586,7 +620,16 @@ public actor TripRuntime: LocationSink {
         case let .persistNow(budget):
             await persistNow(budget)
         case let .ringNow(req):
-            await ring(req)
+            if let slot = ringHoldSlot {
+                // T17.2 (review T17 round 3): wait for a StopIntent of that slot before ringing; one held ring per trip,
+                // a newer request (e.g. OVERSHOOT) replaces it.
+                if heldRing == nil { addDeferred(nowWall() + constants.stopIntentGraceMs, .heldRing) }
+                heldRing = req
+                ports.journal.record("ring_held", ["kind": slot.kind.rawValue])
+            } else {
+                clearHeldRing()
+                await ring(req)
+            }
         case let .feed(input):
             if case .fallbackFired = input { ports.journal.record("fb_fired", ["src": "planner"]) }
             if case let .fallbackFired(_, firedAt) = input, let id = facts.ringingAlarmId, ledger.lastFired?.alarmId != id {
@@ -666,11 +709,18 @@ public actor TripRuntime: LocationSink {
         writeLedger()
         let bg = ports.bgTasks.begin("napstop.ring")
         let title = NativeCopy.alarmTitle(req.reason, destinationName: a.meta.destinationName, locale: locale())
+        // T17.2 D1, D10: secondary button and sound, fixed at scheduling time (AlarmKit cannot change a scheduled alarm).
+        let secondary = SecondaryActionPlanner.action(
+            kind: .now, reason: req.reason, snoozeAllowed: req.snoozeAllowed, snoozeCount: a.view?.snoozeCount ?? 0,
+            maxSnoozes: a.params.maxSnoozes, snoozeMinutes: SecondaryActionPlanner.snoozeMinutes(a.params.snoozeS),
+            constants: constants)
+        let sound = AlarmSoundCatalog.fileName(a.meta.alarm.soundId)
         var okChannel: AlarmChannelKind?
         for ch in chans {
             do {
                 try await ports.alarms.schedule(SystemAlarmRequest(id: id, tripId: a.meta.tripId, kind: .now, generation: g,
-                                                                   fireAtWallMs: fire, title: title, channel: ch))
+                                                                   fireAtWallMs: fire, title: title, channel: ch,
+                                                                   secondary: secondary, soundFile: sound))
                 okChannel = ch
                 ports.journal.record("ak", ["op": "schedule", "kind": "now", "gen": "\(g)", "ok": "true", "ch": ch.rawValue])
                 break
@@ -736,9 +786,19 @@ public actor TripRuntime: LocationSink {
             if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: false)) }
             return
         }
+        // T17.2 D1: a guard slot gets the button of the ring it guards (the view is already the Step's view: its reason and
+        // snooze rule); a fallback slot (or a guard without a ring) offers snooze while snoozes are left.
+        let v = a.view
+        let secondary = SecondaryActionPlanner.action(
+            kind: kind, reason: kind == .guardSlot ? v?.alarmReason : nil,
+            snoozeAllowed: v.map { $0.phase == .alarming && $0.snoozeCount < a.params.maxSnoozes } ?? false,
+            snoozeCount: v?.snoozeCount ?? 0, maxSnoozes: a.params.maxSnoozes,
+            snoozeMinutes: SecondaryActionPlanner.snoozeMinutes(a.params.snoozeS), constants: constants)
         do {
             try await ports.alarms.schedule(SystemAlarmRequest(id: id, tripId: a.meta.tripId, kind: kind, generation: g,
-                                                               fireAtWallMs: wallMs, title: title, channel: ch))
+                                                               fireAtWallMs: wallMs, title: title, channel: ch,
+                                                               secondary: secondary,
+                                                               soundFile: AlarmSoundCatalog.fileName(a.meta.alarm.soundId)))
         } catch {
             warn("alarm schedule failed (\(type(of: error)))")
             ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false",
@@ -829,6 +889,30 @@ public actor TripRuntime: LocationSink {
             writeLedger()
         }
         ringRetryPending = false
+        clearHeldRing()  // snoozed/dismissed before the held ring was due
+    }
+
+    private func clearHeldRing() {
+        heldRing = nil
+        deferred.removeAll { $0.kind == .heldRing }
+    }
+
+    /// The held "now" ring is due (T17.2, review T17 round 3). Rings unless a StopIntent ended the trip, one is on disk, or
+    /// the engine no longer rings.
+    private func ringHeld() async {
+        guard let req = heldRing else { return }
+        heldRing = nil
+        guard let a = active, let v = a.view, a.meta.tripId == req.tripId, v.phase == .alarming || v.phase == .overshot,
+              v.alarmRinging else {
+            ports.journal.record("ring_held", ["drop": "state"])
+            return
+        }
+        if ringEvents().contains(where: { $0.tripId == req.tripId && $0.endsTrip }) {
+            ports.journal.record("ring_held", ["drop": "stopIntent"])  // its handler runs next in the queue
+            return
+        }
+        await ring(RingRequest(tripId: req.tripId, reason: req.reason, snoozeAllowed: req.snoozeAllowed,
+                               distanceM: req.distanceM, etaS: req.etaS, batteryPct: req.batteryPct, atWallMs: nowWall()))
     }
 
     private func endTrip(_ rec: FinishedRecord) async {
@@ -840,6 +924,7 @@ public actor TripRuntime: LocationSink {
         ports.journal.record("loc", ["op": "stop"])
         engineDueTripMs = nil
         deferred.removeAll { if case .endBgTask = $0.kind { return false }; return true }
+        heldRing = nil
         await ports.notifier.clearAll(tripId: a.meta.tripId)
         await writer.cancelPendingAndWait()
         do {
@@ -998,6 +1083,8 @@ public actor TripRuntime: LocationSink {
             await process(.alarmSilenced(atMs: nowTrip(), silencedAtMs: toTrip(goneAt)))
         case let .endBgTask(token):
             ports.bgTasks.end(token)
+        case .heldRing:
+            await ringHeld()
         }
     }
 
@@ -1084,24 +1171,124 @@ public actor TripRuntime: LocationSink {
             if active == nil || active?.view?.phase == .ended { return }
         }
         if known, let a = active, let v = a.view, v.phase != .ended {
-            if e.kind != .now && ledger.lastFired?.alarmId != e.alarmId {
-                // The slot rang while the app was suspended and no alarmUpdates came (spec R4 S3, any phase: queued fixes
-                // may have rung meanwhile): tell the engine first.
-                let wall = [ledger.current, ledger.stale].compactMap { $0 }.first { $0.alarmId == e.alarmId }?.targetAtWallMs
-                    ?? e.atWallMs
-                await perform(.fallbackFired(alarmId: e.alarmId, kind: e.kind, generation: 0, firedAtWallMs: wall))
-                await drainFeeds()
-            }
+            await slotFiredFirst(e)
             await process(.userAction(atMs: nowTrip(), action: .dismiss))
             ports.store.removeRingEvents(tripId: e.tripId)
             return
         }
         // Unknown or ended trip (§5.6.5).
-        let ch = (await readList())?.first { $0.id == e.alarmId }?.channel ?? .alarmKit
-        await ports.alarms.cancel(id: e.alarmId, channel: ch)
+        await cancelIntentAlarm(e)
         ledger.markEnded(e.tripId, max: constants.endedTripIdsMax)
         writeLedger()
         ports.store.removeRingEvents(tripId: e.tripId)
+    }
+
+    /// A fallback/guard slot answered on the lock screen rang while the app was suspended and no alarmUpdates came (spec
+    /// R4 S3, any phase: queued fixes may have rung meanwhile): tell the engine first.
+    private func slotFiredFirst(_ e: RingEventRec) async {
+        guard e.kind != .now, ledger.lastFired?.alarmId != e.alarmId else { return }
+        let wall = [ledger.current, ledger.stale].compactMap { $0 }.first { $0.alarmId == e.alarmId }?.targetAtWallMs
+            ?? e.atWallMs
+        await perform(.fallbackFired(alarmId: e.alarmId, kind: e.kind, generation: 0, firedAtWallMs: wall))
+        await drainFeeds()
+    }
+
+    private func cancelIntentAlarm(_ e: RingEventRec) async {
+        let ch = (await readList())?.first { $0.id == e.alarmId }?.channel ?? .alarmKit
+        await ports.alarms.cancel(id: e.alarmId, channel: ch)
+    }
+
+    // MARK: - Secondary button (T17.2 §3.3)
+
+    private func handleSnoozeIntent(_ e: RingEventRec) async {
+        await load()
+        expectedStops.insert(e.alarmId)
+        let known = active?.meta.tripId == e.tripId
+        ports.journal.record("snooze_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false"])
+        if known, restorePending {
+            // As the StopIntent: in memory too; RestorePlanner plans RANG and the restore feeds UserAction(SNOOZE) (§3.4).
+            memoryRingEvents.append(e)
+            await completeRestore()
+            memoryRingEvents.removeAll { $0.tripId == e.tripId }
+            ports.store.removeRingEvents(tripId: e.tripId)
+            return
+        }
+        guard known, let a = active, let v = a.view, v.phase != .ended else {
+            // Unknown or ended trip: cancel that alarm only (an unknown trip is not known to have ended: no markEnded).
+            await cancelIntentAlarm(e)
+            ports.store.removeRingEvents(tripId: e.tripId)
+            return
+        }
+        await slotFiredFirst(e)
+        await applySnoozeEvent(e)
+        ports.store.removeRingEvents(tripId: e.tripId)
+    }
+
+    /// D5, D6: UserAction(SNOOZE) at the tap time (never before the engine clock). Refused (no snoozes left, or an old
+    /// alarm) → the alarm the intent stopped is reported silenced; the engine stays ALARMING/OVERSHOT, nothing rings now.
+    private func applySnoozeEvent(_ e: RingEventRec) async {
+        guard let a = active, a.view?.phase != .ended else { return }
+        let engineNow = factsReader(a.engine)?.nowMs ?? nowTrip()
+        let tap = toTrip(e.atWallMs)
+        let step = await process(.userAction(atMs: max(engineNow, min(tap, nowTrip())), action: .snooze))
+        let snoozed = step?.events.contains { if case .snoozed = $0 { return true }; return false } ?? false
+        if !snoozed, let v = active?.view, v.alarmRinging {
+            ports.journal.record("snooze_intent", ["refused": "true"])
+            feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(tap, nowTrip())))
+        }
+    }
+
+    private func handleRouteBackIntent(_ e: RingEventRec) async {
+        await load()
+        expectedStops.insert(e.alarmId)
+        let known = active?.meta.tripId == e.tripId
+        ports.journal.record("route_back_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false"])
+        if known, restorePending {
+            // RestorePlanner plans DISMISSED and the restore writes the launch action first (§3.4).
+            memoryRingEvents.append(e)
+            await completeRestore()
+            memoryRingEvents.removeAll { $0.tripId == e.tripId }
+            if active == nil || active?.view?.phase == .ended {
+                ports.store.removeRingEvents(tripId: e.tripId)
+                return
+            }
+        }
+        if known, let a = active, let v = a.view, v.phase != .ended {
+            writeLaunchAction(e, pastM: v.overshootPastM)  // D7: before the dismiss
+            await slotFiredFirst(e)
+            await process(.userAction(atMs: nowTrip(), action: .dismiss))
+            ports.store.removeRingEvents(tripId: e.tripId)
+            return
+        }
+        // Unknown or ended trip: the user still asked for the way back; Dart hides the route button without a trips row
+        // (T27 D7). Route back ends the trip like Stop (review T17.2 #3, deviates from spec §3.3): markEnded, so the
+        // interpreter stops/cancels any other slot of that trip (e.g. a trip whose snapshot was lost, F2).
+        writeLaunchAction(e, pastM: nil)
+        await cancelIntentAlarm(e)
+        ledger.markEnded(e.tripId, max: constants.endedTripIdsMax)
+        writeLedger()
+        ports.store.removeRingEvents(tripId: e.tripId)
+    }
+
+    /// launch_action.json for the tap of `e`: wall = tap time, elapsed moved back by the same amount (the TTL counts from
+    /// the tap, as Android `LaunchActions.set` at the tap).
+    private func writeLaunchAction(_ e: RingEventRec, pastM: Int?) {
+        let wall = nowWall()
+        let ago = max(0, wall - e.atWallMs)
+        let r = LaunchActionRec(tripId: e.tripId, pastM: pastM, atWallMs: min(e.atWallMs, wall),
+                                atElapsedMs: ports.time.elapsedMs() - ago, bootSessionId: ports.time.bootSessionId())
+        do { try ports.store.writeLaunchAction(r) } catch { warn("launch action write failed (\(type(of: error)))") }
+        ports.journal.record("launch_action", ["op": "write", "pastM": pastM == nil ? "unset" : "set"])
+    }
+
+    private func doConsumeLaunchAction() -> LaunchActionRec? {
+        let r = ports.store.readLaunchAction()
+        ports.store.deleteLaunchAction()
+        guard let r else { return nil }
+        let out = LaunchActionSlot.valid(r, nowWallMs: nowWall(), nowElapsedMs: ports.time.elapsedMs(),
+                                         bootSessionId: ports.time.bootSessionId(), ttlMs: constants.launchActionTtlMs)
+        ports.journal.record("launch_action", ["op": "consume", "valid": out == nil ? "false" : "true"])
+        return out
     }
 
     private func handleAppActive() async {

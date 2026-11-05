@@ -31,6 +31,14 @@ public struct SystemAlarmInfo: Sendable, Equatable {
     }
 }
 
+/// The one secondary button of an AlarmKit alert (docs/specs/T17.2.md D1, [AK-ALERT]); nil = Stop only (T17).
+public enum SecondaryAction: Sendable, Equatable, Codable {
+    /// "Báo lại sau {minutes} phút" → NapStopSnoozeIntent.
+    case snooze(minutes: Int)
+    /// "Xem đường quay lại" → NapStopRouteBackIntent (opens the app, T27 screen 8).
+    case routeBack
+}
+
 public struct SystemAlarmRequest: Sendable, CustomStringConvertible {
     public let id: String
     public let tripId: String
@@ -40,9 +48,13 @@ public struct SystemAlarmRequest: Sendable, CustomStringConvertible {
     /// Resolved NativeCopy; may contain the destination name: NEVER log.
     public let title: String
     public let channel: AlarmChannelKind
+    /// T17.2 D1: nil = only the Stop button (T17 behaviour).
+    public let secondary: SecondaryAction?
+    /// T17.2 D10: bundle file for `AlertSound.named`; nil = `AlertSound.default`.
+    public let soundFile: String?
 
     public init(id: String, tripId: String, kind: SystemAlarmKind, generation: Int64, fireAtWallMs: Int64, title: String,
-                channel: AlarmChannelKind) {
+                channel: AlarmChannelKind, secondary: SecondaryAction? = nil, soundFile: String? = nil) {
         self.id = id
         self.tripId = tripId
         self.kind = kind
@@ -50,6 +62,8 @@ public struct SystemAlarmRequest: Sendable, CustomStringConvertible {
         self.fireAtWallMs = fireAtWallMs
         self.title = title
         self.channel = channel
+        self.secondary = secondary
+        self.soundFile = soundFile
     }
 
     public var description: String { "SystemAlarmRequest(\(kind.rawValue), gen \(generation), <redacted>)" }

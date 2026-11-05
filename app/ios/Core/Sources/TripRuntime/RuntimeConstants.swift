@@ -1,4 +1,9 @@
-// Platform-layer constants (docs/specs/T17.md §6). Native, not Remote Config (D17).
+// Platform-layer constants (docs/specs/T17.md §6, T17.2 §6). Native, not Remote Config (D17).
+
+/// T17.2 §5 (T16.2, waiting for the PO): what iOS does when the trip overshoots while the first ring is still live.
+/// `.none` = P0 (engine T10 #18 unchanged). P1 needs no iOS code (the engine would emit `Alarm(OVERSHOOT)`, which goes the
+/// normal `ring` path with the route-back button); P2 would be a separate task.
+public enum OvershootWhileRingingPolicy: String, Sendable, Equatable { case none, ringAgainOnSilence }
 
 public struct RuntimeConstants: Sendable, Equatable {
     public var akNowLeadMs: Int64 = 5_000
@@ -17,6 +22,16 @@ public struct RuntimeConstants: Sendable, Equatable {
     public var endedTripIdsMax: Int = 8
     public var ringEventsMax: Int = 16
     public var journalMaxBytes: Int = 5_242_880
+    /// T17.2 D3: "Báo lại" on the AlarmKit alert (Q3 = A). false = C (no snooze button; the app has one).
+    public var snoozeButtonEnabled = true
+    /// T17.2 D8 (T27 D5): a launch action older than this is dropped.
+    public var launchActionTtlMs: Int64 = 600_000
+    /// T17.2 D8: how long `consumeLaunchAction` waits for a route-back intent in flight.
+    public var launchActionWaitMs: Int64 = 1_500
+    /// T17.2 D11 (T16 AE11): "Nghe thử" stops after this.
+    public var previewMaxMs: Int64 = 10_000
+    /// T17.2 §5: P0 until the PO decides T16.2.
+    public var overshootWhileRingingPolicy: OvershootWhileRingingPolicy = .none
 
     public init() {}
     public static let `default` = RuntimeConstants()

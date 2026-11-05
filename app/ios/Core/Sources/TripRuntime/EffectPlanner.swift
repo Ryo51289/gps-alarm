@@ -197,3 +197,15 @@ public enum RingFactsReader {
         return .none
     }
 }
+
+/// T17.2 (review T17 round 3 risk): a slot of the ledger whose time has passed and which is gone from a readable `list()`
+/// although the runtime never saw it ring (`lastFired`). It rang while the app was suspended and was stopped, maybe by
+/// the user on the lock screen, whose StopIntent can still be on its way. A "now" ring decided meanwhile waits for
+/// STOP_INTENT_GRACE_MS first. Pure.
+public enum RingHold {
+    public static func slot(_ l: AlarmLedger, list: [SystemAlarmInfo], nowWallMs: Int64) -> AlarmSlotRec? {
+        [l.current, l.stale].compactMap { $0 }.first { s in
+            s.targetAtWallMs <= nowWallMs && l.lastFired?.alarmId != s.alarmId && !list.contains { $0.id == s.alarmId }
+        }
+    }
+}

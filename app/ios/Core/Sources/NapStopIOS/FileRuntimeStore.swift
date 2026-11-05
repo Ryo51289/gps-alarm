@@ -31,6 +31,7 @@ public final class FileRuntimeStore: RuntimeStore, @unchecked Sendable {
     private var activeURL: URL { dir.appendingPathComponent("active_trip.json") }
     private var ledgerURL: URL { dir.appendingPathComponent("alarm_ledger.json") }
     private var eventsURL: URL { dir.appendingPathComponent("ring_events.json") }
+    private var launchActionURL: URL { dir.appendingPathComponent("launch_action.json") }
     private var finishedDir: URL { dir.appendingPathComponent("finished", isDirectory: true) }
     public var alarmRefsURL: URL { dir.appendingPathComponent("alarm_refs.json") }
 
@@ -103,6 +104,14 @@ public final class FileRuntimeStore: RuntimeStore, @unchecked Sendable {
             }
         }
     }
+
+    /// T17.2 D7: same directory (excluded from backup, same file protection).
+    public func readLaunchAction() -> LaunchActionRec? {
+        sync { (try? Data(contentsOf: launchActionURL)).flatMap { try? LedgerCodec.decode(LaunchActionRec.self, $0) } }
+    }
+
+    public func writeLaunchAction(_ r: LaunchActionRec) throws { try sync { try write(LedgerCodec.encode(r), launchActionURL) } }
+    public func deleteLaunchAction() { sync { try? FileManager.default.removeItem(at: launchActionURL) } }
 
     public func deleteFinished(_ ids: [String]) {
         sync {

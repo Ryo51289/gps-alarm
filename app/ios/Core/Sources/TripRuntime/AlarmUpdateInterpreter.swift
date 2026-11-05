@@ -95,7 +95,9 @@ public enum RestorePlanner {
     public static func plan(_ facts: EngineFacts, ledger: AlarmLedger, events: [RingEventRec], list: [SystemAlarmInfo]?,
                             nowTripMs: Int64, toTrip: (Int64) -> Int64) -> RestoreInfo {
         func resolved(_ f: FiredRec) -> Int64 { f.firedAtMs ?? toTrip(f.firedAtWallMs) }
-        if let d = events.first(where: { $0.tripId == facts.tripId && $0.action == .dismiss }) {
+        // T17.2 §3.4: the newest event of the trip; dismiss/routeBack → DISMISSED, snooze → RANG (the runtime then feeds
+        // UserAction(SNOOZE) when the engine is ALARMING). Same "fired at" for both.
+        if let d = RingEventPicker.effective(events, tripId: facts.tripId) {
             var fired: Int64?
             if let lf = ledger.lastFired { fired = resolved(lf) }
             if fired == nil {
@@ -105,6 +107,7 @@ public enum RestorePlanner {
                     ?? (ledger.stale?.alarmId == d.alarmId ? ledger.stale?.targetAtWallMs : nil)
                 fired = w.map(toTrip)
             }
+            if !d.endsTrip { return RestoreInfo(status: .rang, firedAtMs: fired ?? toTrip(d.atWallMs)) }
             return RestoreInfo(status: .dismissed, firedAtMs: fired ?? toTrip(d.atWallMs), dismissedAtMs: toTrip(d.atWallMs))
         }
         guard let list else { return RestoreInfo(status: .unknown) }

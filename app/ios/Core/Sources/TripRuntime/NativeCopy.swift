@@ -21,6 +21,9 @@ public enum NativeCopy {
         "preAlertBodyDistance": ("Sắp tới {destination} — còn khoảng {distance}", "Almost at {destination} — about {distance}"),
         "notifInterruptedTitle": ("Chuyến đi bị gián đoạn", "Trip tracking interrupted"),
         "notifInterruptedBody": ("Chạm để tiếp tục theo dõi", "Tap to keep tracking"),
+        // T17.2 D12: secondary button of the AlarmKit alert (existing ARB keys of the Android alarm screen).
+        "alarmSnoozeMinutes": ("Báo lại sau {minutes} phút", "Snooze {minutes} min"),
+        "alarmRouteBack": ("Xem đường quay lại", "Route back"),
     ]
 
     /// Keys added by T17 (§8); the others already exist in app_vi.arb / app_en.arb.
@@ -63,6 +66,14 @@ public enum NativeCopy {
     /// Title of a fallback slot (it rings only when the app could not ring itself).
     public static func fallbackTitle(destinationName: String?, locale: String) -> String {
         string("alarmKitTitleFallback", locale, ["destination": destination(destinationName, locale)])
+    }
+
+    /// Label of the AlarmKit secondary button (T17.2 D12), fixed when the alarm is scheduled.
+    public static func secondaryLabel(_ a: SecondaryAction, locale: String) -> String {
+        switch a {
+        case let .snooze(minutes): return string("alarmSnoozeMinutes", locale, ["minutes": String(minutes)])
+        case .routeBack: return string("alarmRouteBack", locale)
+        }
     }
 
     /// (title, body) of a trip notice (§5.10).

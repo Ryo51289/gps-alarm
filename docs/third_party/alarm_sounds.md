@@ -16,3 +16,27 @@
 - Sinh lại (kết quả giống từng byte): `python3 tools/alarm_sounds/generate.py`.
 - PO nghe và duyệt ở bước review (Q3). Muốn thay bằng bản ghi CC0 khác: giữ tên `alarm_horn|bell|beep`, ghi nguồn + link
   giấy phép vào bảng trên.
+
+## Bản iOS (T17.2)
+
+| File | Nguồn | Độ dài | Giấy phép |
+|---|---|---|---|
+| `app/ios/Runner/Sounds/alarm_horn.wav` | `…/raw/alarm_horn.wav`, nâng lên 44 100 Hz, lặp nguyên vòng 11 lần | 29,149 s | CC0 1.0 (như bản Android) |
+| `app/ios/Runner/Sounds/alarm_bell.wav` | `…/raw/alarm_bell.wav`, nâng lên 44 100 Hz, lặp 14 lần | 28,000 s | CC0 1.0 |
+| `app/ios/Runner/Sounds/alarm_beep.wav` | `…/raw/alarm_beep.wav`, nâng lên 44 100 Hz, lặp 21 lần | 29,400 s | CC0 1.0 |
+
+- **Định dạng:** WAV PCM 16 bit mono 44 100 Hz, giống âm thử `probe_alarm.wav` đã kêu được qua AlarmKit ở S3 (`WavTone.make`; review T17.2
+  #1). AlarmKit `AlertSound.named(_:)` không nêu định dạng/độ dài.
+- **Nâng tần số:** nguồn Android 22 050 Hz được nâng ×2 bằng nội suy tuyến tính. Mẫu chẵn giữ nguyên; mẫu lẻ = trung bình (cắt về 0) của
+  mẫu đó và mẫu kế, mẫu cuối nối với mẫu đầu để vòng lặp liền.
+- **Độ dài:** 28–29,5 s (< 30 s để dùng lại được cho kênh thông báo T17.3). Số vòng = số lớn nhất mà tổng ≤ 29,5 s
+  (`docs/specs/T17.2.md` D10). Mỗi file ~2,5 MB.
+- **Vị trí:** gốc main bundle (Resources của target Runner).
+  - WWDC25 "Wake up to the AlarmKit API" (https://developer.apple.com/videos/play/wwdc2025/230/) và S3 §4.1 ghi: file `.named` nằm ở main
+    bundle hoặc `Library/Sounds` của container app.
+  - S3 đã thử `Library/Sounds`. Bundle chưa được thử trên máy (AM04).
+  - Nếu AM04 không kêu: chép file vào `Library/Sounds` lúc mở app như S3 (`ToneFile.swift`).
+- **Sinh lại:** giống từng byte, chỉ cần bash, od, awk, coreutils (không cần ffmpeg/sox): `bash app/ios/scripts/make-alarm-sounds.sh`.
+  Kiểm lệch: `bash app/ios/scripts/make-alarm-sounds.sh --check`. Test AU13 của `TripRuntimeTests` chạy lệnh này và tính lại cùng các
+  byte bằng Swift.
+- **`system`:** trên iOS là âm mặc định của AlarmKit (`AlertSound.default`), không đóng gói.
