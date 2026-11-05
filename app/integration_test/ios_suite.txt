@@ -7,3 +7,5 @@ integration_test/ios_smoke_test.dart
 integration_test/t17_ios_runtime_test.dart 17.4689199,106.5997285
 integration_test/t17_1_ios_permissions_test.dart 17.4800199,106.5997285
 integration_test/t17_2_ios_alarm_test.dart 17.4689199,106.5997285
+integration_test/t28_3_ios_ui_test.dart 17.4689199,106.5997285
+integration_test/t18_1_ios_simulation_test.dart 20.9495996,105.7476229

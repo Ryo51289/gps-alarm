@@ -34,9 +34,12 @@ public struct TripMeta: Sendable, Equatable, CustomStringConvertible, CustomDebu
     public let vehicleHint: VehicleKind
     public let alarm: RingSettings
     public let engineParamsJson: String?
+    /// T18.1: the simulation of this trip; nil = a real trip.
+    public let simulation: SimSpec?
 
     public init(tripId: String, destinationName: String, mode: AlarmMode, distanceThresholdM: Int?, timeThresholdMin: Int?,
-                preAlertEnabled: Bool, vehicleHint: VehicleKind, alarm: RingSettings, engineParamsJson: String?) {
+                preAlertEnabled: Bool, vehicleHint: VehicleKind, alarm: RingSettings, engineParamsJson: String?,
+                simulation: SimSpec? = nil) {
         self.tripId = tripId
         self.destinationName = destinationName
         self.mode = mode
@@ -46,9 +49,17 @@ public struct TripMeta: Sendable, Equatable, CustomStringConvertible, CustomDebu
         self.vehicleHint = vehicleHint
         self.alarm = alarm
         self.engineParamsJson = engineParamsJson
+        self.simulation = simulation
     }
 
-    public var description: String { "TripMeta(\(tripId), <redacted>)" }
+    public var description: String { "TripMeta(\(tripId), <redacted>, simulated=\(simulation != nil))" }
+
+    /// This meta with `simulation` set (the bridge maps SimulationMsg here).
+    public func with(simulation s: SimSpec?) -> TripMeta {
+        TripMeta(tripId: tripId, destinationName: destinationName, mode: mode, distanceThresholdM: distanceThresholdM,
+                 timeThresholdMin: timeThresholdMin, preAlertEnabled: preAlertEnabled, vehicleHint: vehicleHint, alarm: alarm,
+                 engineParamsJson: engineParamsJson, simulation: s)
+    }
     public var debugDescription: String { description }
 
     public func config(destLat: Double, destLng: Double) -> TripConfig {
@@ -95,6 +106,8 @@ public enum StoredTripCodec {
         var vehicleHint: String
         var alarm: RingSettings
         var engineParamsJson: String?
+        /// T18.1: written only for a simulated trip.
+        var simulation: SimSpec?
     }
 
     private struct DTO: Codable {
@@ -121,7 +134,7 @@ public enum StoredTripCodec {
                       meta: MetaDTO(tripId: m.tripId, destinationName: m.destinationName, mode: modeName(m.mode),
                                     distanceThresholdM: m.distanceThresholdM, timeThresholdMin: m.timeThresholdMin,
                                     preAlertEnabled: m.preAlertEnabled, vehicleHint: vehicleName(m.vehicleHint), alarm: m.alarm,
-                                    engineParamsJson: m.engineParamsJson),
+                                    engineParamsJson: m.engineParamsJson, simulation: m.simulation),
                       anchor: t.anchor, engineSnapshot: t.engineSnapshot, savedAtWallMs: t.savedAtWallMs)
         // Encoding plain Codable values cannot fail.
         return (try? LedgerCodec.encode(dto)) ?? Data()
@@ -135,10 +148,11 @@ public enum StoredTripCodec {
         let modes: [String: AlarmMode] = ["distance": .distance, "time": .time, "smart": .smart]
         let vehicles: [String: VehicleKind] = ["train": .train, "coach": .coach, "bus": .bus, "unknown": .unknown]
         guard let mode = modes[m.mode], let vehicle = vehicles[m.vehicleHint] else { throw .corrupt }
+        if let s = m.simulation, !(s.speedFactor.isFinite && s.speedFactor > 0) { throw .corrupt }
         let meta = TripMeta(tripId: m.tripId, destinationName: m.destinationName, mode: mode,
                             distanceThresholdM: m.distanceThresholdM, timeThresholdMin: m.timeThresholdMin,
                             preAlertEnabled: m.preAlertEnabled, vehicleHint: vehicle, alarm: m.alarm,
-                            engineParamsJson: m.engineParamsJson)
+                            engineParamsJson: m.engineParamsJson, simulation: m.simulation)
         return StoredTrip(runtimeVersion: dto.runtimeVersion, meta: meta, anchor: dto.anchor, engineSnapshot: dto.engineSnapshot,
                           savedAtWallMs: dto.savedAtWallMs)
     }

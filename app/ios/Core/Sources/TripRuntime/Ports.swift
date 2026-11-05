@@ -35,7 +35,8 @@ public struct RawFix: Sendable, Equatable, CustomStringConvertible, CustomDebugS
     public var debugDescription: String { description }
 }
 
-public enum LocationAccuracyClass: String, Sendable, Equatable { case hundredMeters, nearestTenMeters, best }
+/// `keepAlive` (T18.1 D9): the session that keeps the app running during a simulated trip; its fixes are dropped.
+public enum LocationAccuracyClass: String, Sendable, Equatable { case hundredMeters, nearestTenMeters, best, keepAlive }
 
 public struct LocationRequestSpec: Sendable, Equatable {
     public let accuracy: LocationAccuracyClass
@@ -45,6 +46,9 @@ public struct LocationRequestSpec: Sendable, Equatable {
         self.accuracy = accuracy
         self.intervalMs = intervalMs
     }
+
+    /// T18.1 D9: lowest accuracy, fixes never reach the engine (no throttle interval).
+    public static let keepAlive = LocationRequestSpec(accuracy: .keepAlive, intervalMs: 0)
 }
 
 public protocol LocationSink: AnyObject, Sendable {

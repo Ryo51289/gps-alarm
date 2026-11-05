@@ -23,13 +23,14 @@ final class RealTripBackend: TripHostApi {
   func startTrip(config: TripConfigMsg, destLat: Double, destLng: Double, simulation: SimulationMsg?) async throws {
     let runtime = self.runtime
     try await CoreBridgeStub.guarded {
-      let meta = MsgMapper.meta(config)
+      // T18.1 §6: a simulated trip runs on the real runtime (bundled trace, trip clock with a speed factor).
+      let meta = MsgMapper.meta(config).with(simulation: simulation.map {
+        SimSpec(traceId: $0.traceAsset, speedFactor: $0.speedFactor)
+      })
       let sim = simulation.map { SimulationInput(traceAsset: $0.traceAsset, speedFactor: $0.speedFactor) }
       if let rule = TripConfigValidator.validate(meta, destLat: destLat, destLng: destLng, simulation: sim) {
         throw PigeonError(code: "invalid-config", message: rule, details: nil)
       }
-      // D18: simulation on iOS comes with T18.1.
-      if simulation != nil { throw PigeonError(code: "simulation-unavailable", message: nil, details: nil) }
       if let e = Self.error(await runtime.start(meta: meta, destLat: destLat, destLng: destLng)) { throw e }
     }
   }
@@ -46,7 +47,8 @@ final class RealTripBackend: TripHostApi {
       let choice = await runtime.batteryChoice()
       return ActiveTripMsg(
         config: MsgMapper.config(cur.meta),
-        state: MsgMapper.state(BridgeMapper.state(view: cur.view, batteryChoice: choice)), simulation: nil)
+        state: MsgMapper.state(BridgeMapper.state(view: cur.view, batteryChoice: choice)),
+        simulation: cur.meta.simulation.map { SimulationMsg(traceAsset: $0.traceId, speedFactor: $0.speedFactor) })
     }
   }
 

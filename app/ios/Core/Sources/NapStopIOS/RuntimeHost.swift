@@ -35,9 +35,11 @@ public final class RuntimeHost: @unchecked Sendable {
 
     /// Call once on the main thread from `application(_:didFinishLaunchingWithOptions:)`.
     @discardableResult
-    public static func bootstrap(options: Options = Options(), intentFactory: AlarmIntentFactory?) -> RuntimeHost {
+    /// `traces`: bundled simulation traces (T18.1 D12; the Runner passes its Flutter asset store).
+    public static func bootstrap(options: Options = Options(), intentFactory: AlarmIntentFactory?,
+                                 traces: TraceStore = NoTraceStore()) -> RuntimeHost {
         if let s = shared { return s }
-        let h = RuntimeHost(options: options, intentFactory: intentFactory)
+        let h = RuntimeHost(options: options, intentFactory: intentFactory, traces: traces)
         shared = h
         h.start()
         return h
@@ -47,7 +49,7 @@ public final class RuntimeHost: @unchecked Sendable {
         NativeCopy.localeTag(stored: UserDefaults.standard.string(forKey: appLocaleKey), preferredLanguages: Locale.preferredLanguages)
     }
 
-    private init(options: Options, intentFactory: AlarmIntentFactory?) {
+    private init(options: Options, intentFactory: AlarmIntentFactory?, traces: TraceStore) {
         self.options = options
         // Review #17: static strings + error type names only (never coordinates, names or values).
         let logger = Logger(subsystem: "app.napstop", category: "trip")
@@ -75,7 +77,7 @@ public final class RuntimeHost: @unchecked Sendable {
         let ports = RuntimePorts(time: IOSTime(), location: CoreLocationSession(), alarms: alarms, store: store,
                                  env: fake == nil ? IOSDeviceEnv() : FakeChannelEnv(base: IOSDeviceEnv()), app: IOSAppState(), notifier: notifier,
                                  timer: timer, sleeper: TaskSleeper(), bgTasks: UIKitBackgroundTasks(), journal: journal,
-                                 localeTag: { RuntimeHost.localeTag() })
+                                 localeTag: { RuntimeHost.localeTag() }, traces: traces)
         runtime = TripRuntime(ports: ports, warn: warn)
         let rt = runtime
         timer.onFire = { g in Task { await rt.onTimer(generation: g) } }

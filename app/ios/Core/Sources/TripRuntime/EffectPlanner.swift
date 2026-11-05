@@ -70,11 +70,14 @@ public struct PlanInput: Sendable {
     public let constants: RuntimeConstants
     /// Spec R1: `liveSlot(ledger, freshList)`, computed by the runtime for Steps with Alarm(ringNow).
     public let liveSlot: AlarmSlotRec?
+    /// T18.1 §3: trip ms per real ms of the trip clock (wall durations → trip durations).
+    public let speed: Double
 
     public init(prevView: TripView?, step: Step, meta: TripMeta, mode: TrackingMode, facts: RingFacts, ledger: AlarmLedger,
                 timerDueTripMs: Int64?, params: EngineParams, nowWallMs: Int64, nowTripMs: Int64,
-                constants: RuntimeConstants = .default, liveSlot: AlarmSlotRec? = nil) {
+                constants: RuntimeConstants = .default, liveSlot: AlarmSlotRec? = nil, speed: Double = 1.0) {
         self.liveSlot = liveSlot
+        self.speed = speed
         self.prevView = prevView
         self.step = step
         self.meta = meta
@@ -121,7 +124,8 @@ public enum EffectPlanner {
             let f = p.facts
             if f.ringingNow && (f.ringingKind == .fallback || f.ringingKind == .guardSlot) {
                 // Obligation 3: a fallback/guard alarm of this trip is ringing right now.
-                let started = f.ringStartedAtWallMs.map { p.nowTripMs - max(0, p.nowWallMs - $0) } ?? p.nowTripMs
+                let started = f.ringStartedAtWallMs.map { p.nowTripMs - ClockMath.up(max(0, p.nowWallMs - $0), p.speed) }
+                    ?? p.nowTripMs
                 fx.append(.feed(.fallbackFired(atMs: p.nowTripMs, firedAtMs: started)))
             } else if f.ringingNow && f.ringingKind == .now {
                 // One ring per trip: the "now" alarm is live already.

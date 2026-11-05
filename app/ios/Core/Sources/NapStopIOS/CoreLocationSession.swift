@@ -24,6 +24,8 @@ public final class CoreLocationSession: NSObject, LocationSession, CLLocationMan
         case .hundredMeters: return kCLLocationAccuracyHundredMeters
         case .nearestTenMeters: return kCLLocationAccuracyNearestTenMeters
         case .best: return kCLLocationAccuracyBest
+        // T18.1 D9: keep-alive session of a simulated trip; lowest accuracy, fixes dropped by the runtime [CL-ACC].
+        case .keepAlive: return kCLLocationAccuracyThreeKilometers
         }
     }
 

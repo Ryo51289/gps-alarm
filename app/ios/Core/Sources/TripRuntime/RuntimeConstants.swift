@@ -32,6 +32,10 @@ public struct RuntimeConstants: Sendable, Equatable {
     public var previewMaxMs: Int64 = 10_000
     /// T17.2 §5: P0 until the PO decides T16.2.
     public var overshootWhileRingingPolicy: OvershootWhileRingingPolicy = .none
+    /// T18.1 §7: reading + parsing a bundled trace at start (T18 §10).
+    public var simTraceLoadBudgetMs: Int64 = 3_000
+    /// T18.1 §5: virtual events handled by one timer command; the rest goes to a next command.
+    public var simCatchUpMaxEvents: Int = 2_000
 
     public init() {}
     public static let `default` = RuntimeConstants()

@@ -8,6 +8,8 @@ import UIKit
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   /// Pigeon bridge to the native core (T14, T17). Strong reference for the app's lifetime.
   private let coreBridge = CoreBridgeStub()
+  /// T18.1 D12: bundled simulation traces; the registrar is attached once the Flutter engine exists.
+  private let traces = FlutterAssetTraceStore()
 
   override func application(
     _ application: UIApplication,
@@ -22,14 +24,16 @@ import UIKit
     // every launch, before Flutter opens the database; a failure never blocks the launch.
     let excluded = BackupExclusion.excludeAppSupportSubdirectories(["napstop_db", "napstop_trip"])
     // T17: the trip runtime exists before Flutter, also when iOS launches the app in the background (StopIntent).
-    let host = RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
+    let host = RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory, traces: traces)
     host.journal.record("backup_exclusion", excluded.mapValues { $0 ? "ok" : "failed" })
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
+    traces.attach(engineBridge.pluginRegistry.registrar(forPlugin: FlutterAssetTraceStore.pluginKey))
+    let host = RuntimeHost.shared
+      ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory, traces: traces)
     coreBridge.register(messenger: engineBridge.applicationRegistrar.messenger(), runtime: host.runtime)
   }
 

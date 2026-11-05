@@ -77,9 +77,45 @@ public struct AlarmLedger: Sendable, Codable, Equatable {
     /// Newest last, ≤ ENDED_TRIP_IDS_MAX.
     public var endedTripIds: [String] = []
     public var interruptedAlerted = false
+    /// T18.1 D10: the active trip is simulated (for a lost snapshot). Written only when true.
+    public var activeSimulated = false
 
     public init() {}
     public static let empty = AlarmLedger()
+
+    private enum CodingKeys: String, CodingKey {
+        case ledgerVersion, activeTripId, nextGeneration, current, stale, now, lastFired, endedTripIds, interruptedAlerted
+        case activeSimulated
+    }
+
+    /// Same keys as the synthesized T17 coding; `activeSimulated` optional.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ledgerVersion = try c.decode(Int.self, forKey: .ledgerVersion)
+        activeTripId = try c.decodeIfPresent(String.self, forKey: .activeTripId)
+        nextGeneration = try c.decode(Int64.self, forKey: .nextGeneration)
+        current = try c.decodeIfPresent(AlarmSlotRec.self, forKey: .current)
+        stale = try c.decodeIfPresent(AlarmSlotRec.self, forKey: .stale)
+        now = try c.decodeIfPresent(NowRingRec.self, forKey: .now)
+        lastFired = try c.decodeIfPresent(FiredRec.self, forKey: .lastFired)
+        endedTripIds = try c.decode([String].self, forKey: .endedTripIds)
+        interruptedAlerted = try c.decode(Bool.self, forKey: .interruptedAlerted)
+        activeSimulated = try c.decodeIfPresent(Bool.self, forKey: .activeSimulated) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(ledgerVersion, forKey: .ledgerVersion)
+        try c.encodeIfPresent(activeTripId, forKey: .activeTripId)
+        try c.encode(nextGeneration, forKey: .nextGeneration)
+        try c.encodeIfPresent(current, forKey: .current)
+        try c.encodeIfPresent(stale, forKey: .stale)
+        try c.encodeIfPresent(now, forKey: .now)
+        try c.encodeIfPresent(lastFired, forKey: .lastFired)
+        try c.encode(endedTripIds, forKey: .endedTripIds)
+        try c.encode(interruptedAlerted, forKey: .interruptedAlerted)
+        if activeSimulated { try c.encode(true, forKey: .activeSimulated) }
+    }
 
     /// Ids this ledger knows for the active trip (current, stale, now).
     public var knownIds: [String] {

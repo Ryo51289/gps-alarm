@@ -152,6 +152,8 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
     /// Throws for matching requests.
     var fail: ((SystemAlarmRequest) -> Bool)?
     var listUnreadable = false
+    /// T18.1 D6b test: matching alarms stay `scheduled` forever (AlarmKit never reports them alerting).
+    var neverAlert: ((SystemAlarmInfo) -> Bool)?
     private(set) var scheduled: [SystemAlarmRequest] = []
     private(set) var cancels: [String] = []
     private(set) var stops: [String] = []
@@ -225,7 +227,7 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
             var best: Int64?
             for e in entries.values {
                 var w: Int64?
-                if e.info.state == .scheduled { w = e.info.fireAtWallMs }
+                if e.info.state == .scheduled, !(neverAlert?(e.info) ?? false) { w = e.info.fireAtWallMs }
                 if e.info.state == .alerting, let s = silenceAfterMs, let since = e.alertingSinceWall { w = since + s }
                 if let w { best = min(best ?? w, w) }
             }
@@ -240,7 +242,7 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
             var changed = false
             for id in order {
                 guard var e = entries[id] else { continue }
-                if e.info.state == .scheduled, let f = e.info.fireAtWallMs, f <= wall {
+                if e.info.state == .scheduled, let f = e.info.fireAtWallMs, f <= wall, !(neverAlert?(e.info) ?? false) {
                     e.info = SystemAlarmInfo(id: id, tripId: e.info.tripId, kind: e.info.kind, generation: e.info.generation,
                                              state: .alerting, fireAtWallMs: f, channel: e.info.channel)
                     e.alertingSinceWall = f

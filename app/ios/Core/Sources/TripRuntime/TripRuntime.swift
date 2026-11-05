@@ -24,10 +24,14 @@ public struct RuntimePorts: Sendable {
     public let journal: RuntimeJournal
     /// "vi" | "en": UserDefaults napstop.appLocale, else device (D19).
     public let localeTag: @Sendable () -> String
+    /// T18.1 D12: bundled simulation traces (Flutter assets on the device).
+    public let traces: TraceStore
 
     public init(time: TimeSource, location: LocationSession, alarms: SystemAlarms, store: RuntimeStore, env: DeviceEnv,
                 app: AppStatePort, notifier: TripNotifier, timer: WakeTimer, sleeper: RuntimeSleeper,
-                bgTasks: BackgroundTasks, journal: RuntimeJournal, localeTag: @escaping @Sendable () -> String) {
+                bgTasks: BackgroundTasks, journal: RuntimeJournal, localeTag: @escaping @Sendable () -> String,
+                traces: TraceStore = NoTraceStore()) {
+        self.traces = traces
         self.time = time
         self.location = location
         self.alarms = alarms
@@ -86,6 +90,8 @@ public actor TripRuntime: LocationSink {
         case endBgTask(token: Int)
         /// T17.2 (review T17 round 3): a "now" ring held for STOP_INTENT_GRACE_MS (`heldRing`).
         case heldRing
+        /// T18.1 D7: the ring guard of a simulated trip (in process, real time; never a system alarm).
+        case simGuard
     }
 
     struct Deferred: Equatable { let dueWallMs: Int64; let kind: DeferredKind }
@@ -135,6 +141,17 @@ public actor TripRuntime: LocationSink {
     /// still be on its way. The "now" ring of a Step made meanwhile waits STOP_INTENT_GRACE_MS (`DeferredKind.heldRing`).
     private var ringHoldSlot: AlarmSlotRec?
     private var heldRing: RingRequest?
+    /// T18.1 D2: the virtual event queue of the active simulated trip; nil = no simulated trip.
+    private var sim: SimDriver?
+    /// D4: throttle interval of the engine's sampling policy on a simulated trip; nil = no location request.
+    private var simIntervalMs: Int64?
+    /// D2, D5: while a command of a simulated trip runs, the trip "now" (the trip time of the virtual event, or of the
+    /// external input after the catch-up). Reset after every command.
+    private var simEventAtMs: Int64?
+    /// A catch-up continuation command is queued (§5, SIM_CATCHUP_MAX_EVENTS).
+    private var simContinueQueued = false
+    /// D6 addendum (K4 #3 on the trip clock): trip time at which the "now" ring of the simulated trip counts as alerting.
+    private var simNowAlertTripMs: Int64?
 
     public init(ports: RuntimePorts, constants: RuntimeConstants = .default, warn: @escaping @Sendable (String) -> Void) {
         self.ports = ports
@@ -155,6 +172,7 @@ public actor TripRuntime: LocationSink {
     private func runJob(_ job: Job) async {
         await job.run(self)
         await drainFeeds()
+        simEventAtMs = nil
         rearm()
     }
 
@@ -239,7 +257,8 @@ public actor TripRuntime: LocationSink {
     public nonisolated func terminateSnapshot(wallMs: Int64) -> (trip: StoredTrip, tripId: String, interrupted: Bool)? {
         guard let v = terminateCache.get() else { return nil }
         let t = StoredTrip(meta: v.meta, anchor: v.anchor, engineSnapshot: TripEngine.encodeSnapshot(v.engine), savedAtWallMs: wallMs)
-        return (t, v.meta.tripId, v.phase == .acquiring || v.phase == .tracking)
+        // T18.1 D10: a simulated trip never gets the "interrupted" notice (the next launch ends it quietly).
+        return (t, v.meta.tripId, v.meta.simulation == nil && (v.phase == .acquiring || v.phase == .tracking))
     }
 
     /// D13 (spec R2): while the app is not active and a restore waits for StopIntent / app active / the settle time,
@@ -263,6 +282,12 @@ public actor TripRuntime: LocationSink {
         await submit { rt in rt.factsReader = r }
     }
 
+    /// Test seam (internal): T18.1 SIU15, the virtual fallback slot of the simulated trip due at `tripMs` (the engine never
+    /// lets it fire on the fixture traces: it alarms or moves the slot first).
+    func setSimFallbackDueForTesting(_ tripMs: Int64) async {
+        await submit { rt in rt.sim?.fallbackDueTripMs = tripMs }
+    }
+
     /// Test seam (internal): a listener attached at once, without the D13 wait, so a test sees the restore Step itself.
     func addListenerWithoutRestoreWait(_ l: @escaping RuntimeListener) async -> Int {
         await submit { rt in
@@ -283,6 +308,7 @@ public actor TripRuntime: LocationSink {
     private func nowWall() -> Int64 { ports.time.wallMs() }
 
     private func nowTrip() -> Int64 {
+        if let e = simEventAtMs { return e }
         if clock == nil { clock = TripClock(anchor: .now(ports.time)) }
         return clock!.now(ports.time)
     }
@@ -332,7 +358,14 @@ public actor TripRuntime: LocationSink {
             }
         }
         guard let s = stored, let e = engine, s.meta.tripId == ledger.activeTripId || ledger.activeTripId == nil else {
-            if let lost = ledger.activeTripId {
+            if let lost = ledger.activeTripId, ledger.activeSimulated {
+                // T18.1 D10 (= SM17): a simulated trip whose snapshot is gone: forget it, no notice.
+                ledger.activeTripId = nil
+                ledger.activeSimulated = false
+                ledger.markEnded(lost, max: constants.endedTripIdsMax)
+                writeLedger()
+                ports.journal.record("sim_end", ["cause": "snapshotLost"])
+            } else if let lost = ledger.activeTripId {
                 // F2 of T15: the trip is gone; tell the user once, keep its alarms (they still ring).
                 await ports.notifier.show(tripId: lost, .interrupted, destinationName: nil)
                 ledger.activeTripId = nil
@@ -347,8 +380,13 @@ public actor TripRuntime: LocationSink {
                 do { try ports.store.writeFinished(r); ports.store.deleteActive() } catch { pendingFinishedMem.append(r) }
             }
             ledger.activeTripId = nil
+            ledger.activeSimulated = false
             ledger.markEnded(s.meta.tripId, max: constants.endedTripIdsMax)
             writeLedger()
+            return
+        }
+        if s.meta.simulation != nil {
+            await endSimulatedAfterDeath(s, e)
             return
         }
         let valid = TripClock.anchorValid(s.anchor, ports.time, driftMaxMs: constants.clockDriftMaxMs)
@@ -472,6 +510,204 @@ public actor TripRuntime: LocationSink {
         }
     }
 
+    // MARK: - Simulated trips (T18.1)
+
+    /// D10 (= SM16): a simulated trip never survives its process. STOP_TRIP on the stored state, finished record, every
+    /// system alarm of the trip stopped/cancelled, no notice, no location, no trip.
+    private func endSimulatedAfterDeath(_ s: StoredTrip, _ e: EngineState) async {
+        let id = s.meta.tripId
+        let at = EngineFacts.read(e)?.nowMs ?? s.savedAtWallMs
+        let step = TripEngine.reduce(e, .userAction(atMs: at, action: .stopTrip))
+        var ended: TripEvent.TripEnded?
+        for case let .tripEnded(x) in step.events { ended = x }
+        let rec = ended.map { FinishedRecordBuilder.fromEvent(tripId: id, $0) } ?? FinishedRecordBuilder.fromEnded(step.state)
+        if let rec {
+            do { try ports.store.writeFinished(rec) } catch {
+                warn("finished write failed (\(type(of: error)))")
+                pendingFinishedMem.append(rec)
+            }
+        }
+        ports.store.deleteActive()
+        ledger.activeTripId = id  // adopt() attributes registry-less alarms of the ledger to this trip
+        let list = await readList() ?? []
+        let known = Set(ledger.knownIds + [ledger.lastFired?.alarmId].compactMap { $0 })
+        var done: Set<String> = []
+        for x in list where x.tripId == id || known.contains(x.id) {
+            if x.state == .alerting { await ports.alarms.stop(id: x.id, channel: x.channel) }
+            await ports.alarms.cancel(id: x.id, channel: x.channel)
+            done.insert(x.id)
+        }
+        for slot in [ledger.current, ledger.stale].compactMap({ $0 }) where !done.contains(slot.alarmId) {
+            await ports.alarms.stop(id: slot.alarmId, channel: slot.channel)
+            await ports.alarms.cancel(id: slot.alarmId, channel: slot.channel)
+        }
+        if let n = ledger.now, !done.contains(n.alarmId) {
+            await ports.alarms.stop(id: n.alarmId, channel: n.channel)
+            await ports.alarms.cancel(id: n.alarmId, channel: n.channel)
+        }
+        ledger.activeTripId = nil
+        ledger.activeSimulated = false
+        ledger.current = nil
+        ledger.stale = nil
+        ledger.now = nil
+        ledger.interruptedAlerted = false
+        ledger.markEnded(id, max: constants.endedTripIdsMax)
+        writeLedger()
+        ports.store.removeRingEvents(tripId: id)
+        await ports.notifier.clearAll(tripId: id)
+        setMode(.idle)
+        ports.journal.record("sim_end", ["cause": "processDied"])
+    }
+
+    /// D2: handles every virtual event with trip time ≤ `target`, in order, each at its own trip time. false = stopped by
+    /// `limit` with events still due.
+    private func simCatchUp(to target: Int64, limit: Int?) async -> Bool {
+        var n = 0
+        while var d = sim {
+            if let l = limit, n >= l { return false }
+            // D8 may restart the clock from an earlier event time: never past the clock (round 2).
+            guard let ev = d.pop(upTo: min(target, clockNow()), intervalMs: simIntervalMs) else { return true }
+            sim = d
+            n += 1
+            // The engine time never goes back (an external input may have run at the clock time, D5).
+            let at = max(ev.atTripMs, active?.view?.atMs ?? ev.atTripMs)
+            if case .fallbackDue = ev, let alertAt = simNowAlertTripMs, at > alertAt {
+                // Pending when the "now" alarm started alerting: the interpreter would have cancelled it (K4 #3).
+                simNowAlertTripMs = nil
+                ports.journal.record("sim_fallback", ["op": "cancelled", "cause": "nowAlerting"])
+                continue
+            }
+            simNowAlertReached(at)
+            simEventAtMs = at
+            switch ev {
+            case .fallbackDue:
+                await ringFallbackSim(at)
+            case .engineWake:
+                await process(.tick(atMs: at))
+            case let .sample(s, _):
+                await process(.locationFix(LocationFix(atMs: at, fixAtMs: at, lat: s.lat, lng: s.lng, accuracyM: s.accM,
+                                                       speedMps: s.spdMps)))
+            }
+            await drainFeeds()  // T17 D2: feeds right after the Step that made them
+        }
+        return true
+    }
+
+    /// D6 addendum (K4 #3, T17 §5.6.4, on the trip clock): when the "now" alarm of a simulated trip starts alerting, the
+    /// interpreter of a real trip cancels every scheduled fallback slot. The virtual slot pending at that trip time is
+    /// dropped the same way, at the trip time (not when AlarmKit reports it), so the engine sequence stays a function of
+    /// the trace (SIU10 = ITR30). Called with the trip time about to be handled; a slot set from then on stays.
+    private func simNowAlertReached(_ t: Int64) {
+        guard let alertAt = simNowAlertTripMs, t >= alertAt else { return }
+        simNowAlertTripMs = nil
+        if sim?.fallbackDueTripMs != nil {
+            sim?.fallbackDueTripMs = nil
+            ports.journal.record("sim_fallback", ["op": "cancelled", "cause": "nowAlerting"])
+        }
+    }
+
+    /// The trip clock now (the catch-up target).
+    private func clockNow() -> Int64 {
+        if clock == nil { clock = TripClock(anchor: .now(ports.time)) }
+        return clock!.now(ports.time)
+    }
+
+    /// D5: before an external input of a simulated trip, every due virtual event; the input then runs at
+    /// max(engine now, clock now). No-op on a real trip.
+    private func simSyncForInput() async {
+        guard sim != nil, active?.view != nil else { return }
+        let target = clockNow()
+        _ = await simCatchUp(to: target, limit: nil)
+        if sim != nil {
+            simEventAtMs = max(active?.view?.atMs ?? target, min(target, clockNow()))
+            simNowAlertReached(simEventAtMs!)
+        }
+    }
+
+    /// Timer path (§5): catch-up bounded by SIM_CATCHUP_MAX_EVENTS; when stopped, a next command continues and false is
+    /// returned (the rest of the timer work waits for it, so nothing runs before a due virtual event).
+    private func simTimerCatchUp() async -> Bool {
+        guard sim != nil, active?.view != nil else { return true }
+        let target = clockNow()
+        if await !simCatchUp(to: target, limit: constants.simCatchUpMaxEvents) {
+            if !simContinueQueued {
+                simContinueQueued = true
+                ports.journal.record("sim_catchup", ["more": "true"])
+                enqueue { rt in
+                    rt.simContinueQueued = false
+                    await rt.timerBody()
+                }
+            }
+            return false
+        }
+        if sim != nil {
+            simEventAtMs = max(active?.view?.atMs ?? target, min(target, clockNow()))
+            simNowAlertReached(simEventAtMs!)
+        }
+        return true
+    }
+
+    /// D6: the virtual fallback slot is due. Only now a real AlarmKit alarm (kind fallback) is scheduled to ring, recorded
+    /// as `lastFired` (the interpreter does not feed it again when it alerts), then FallbackFired at the virtual time.
+    private func ringFallbackSim(_ at: Int64) async {
+        guard let a = active, let v = a.view, v.phase != .ended else { return }
+        let id = UUID().uuidString
+        let g = ledger.nextGeneration
+        ledger.nextGeneration += 1
+        let fire = nowWall() + constants.akNowLeadMs
+        ledger.lastFired = FiredRec(alarmId: id, kind: .fallback, generation: g, firedAtMs: at, firedAtWallMs: fire)
+        writeLedger()
+        let secondary = SecondaryActionPlanner.action(
+            kind: .fallback, reason: nil, snoozeAllowed: v.phase == .alarming && v.snoozeCount < a.params.maxSnoozes,
+            snoozeCount: v.snoozeCount, maxSnoozes: a.params.maxSnoozes,
+            snoozeMinutes: SecondaryActionPlanner.snoozeMinutes(a.params.snoozeS), constants: constants)
+        let title = NativeCopy.fallbackTitle(destinationName: a.meta.destinationName, locale: locale())
+        var ok = false
+        for ch in await channels() {
+            do {
+                try await ports.alarms.schedule(SystemAlarmRequest(id: id, tripId: a.meta.tripId, kind: .fallback, generation: g,
+                                                                   fireAtWallMs: fire, title: title, channel: ch,
+                                                                   secondary: secondary,
+                                                                   soundFile: AlarmSoundCatalog.fileName(a.meta.alarm.soundId)))
+                ok = true
+                ports.journal.record("ak", ["op": "schedule", "kind": "fallback", "gen": "\(g)", "ok": "true", "sim": "true",
+                                            "ch": ch.rawValue])
+                break
+            } catch {
+                ports.journal.record("ak", ["op": "schedule", "kind": "fallback", "gen": "\(g)", "ok": "false", "sim": "true",
+                                            "err": String(describing: type(of: error)), "ch": ch.rawValue])
+            }
+        }
+        if !ok {
+            // As G2: nothing rings; the ring guard path tries a "now" ring later.
+            warn("ring failed")
+            await ports.notifier.show(tripId: a.meta.tripId, .ringFailed, destinationName: a.meta.destinationName)
+            ringRetryPending = true
+            lastRingRetryWallMs = nowWall()
+        }
+        ports.journal.record("fb_fired", ["src": "sim"])
+        feeds.append(.fallbackFired(atMs: at, firedAtMs: at))
+    }
+
+    /// D7: the in-process ring guard of a simulated trip is due. Rings "now" (as G2) unless the trip no longer rings, an
+    /// alarm of the trip is alerting, or the "now" alarm was seen alerting.
+    private func simGuardDue() async {
+        guard let a = active, let v = a.view, v.phase == .alarming || v.phase == .overshot else { return }
+        let list = await readList()
+        if let list { lastList = list }
+        if (list ?? []).contains(where: { $0.tripId == a.meta.tripId && $0.state == .alerting }) { return }
+        if ledger.now?.seenAlerting == true { return }
+        ports.journal.record("sim_guard", ["ring": "true"])
+        await ring(RingRequest(tripId: a.meta.tripId, reason: v.alarmReason ?? .fallback,
+                               snoozeAllowed: v.phase == .alarming && v.snoozeCount < a.params.maxSnoozes, distanceM: nil,
+                               etaS: nil, batteryPct: nil, atWallMs: nowWall()))
+    }
+
+    private func armSimGuard(_ wallMs: Int64) {
+        deferred.removeAll { $0.kind == .simGuard }
+        addDeferred(wallMs, .simGuard)
+    }
+
     // MARK: - Start (§5.1)
 
     private func doStart(_ meta: TripMeta, _ lat: Double, _ lng: Double) async -> StartOutcome {
@@ -486,6 +722,12 @@ public actor TripRuntime: LocationSink {
             return .rejected(code: code, message: message, details: details)
         }
         setMode(.starting)
+        let simSpec = meta.simulation
+        if let s = simSpec {
+            // T18.1 §5: the id is never a path (checked before it is joined into an asset key).
+            if !SimTraceIds.valid(s.traceId) { return reject("simulation-unavailable", "TraceIdInvalid") }
+            if !(s.speedFactor.isFinite && s.speedFactor > 0) { return reject("invalid-config", "simulation.speedFactor: out of range") }
+        }
         if await ports.app.activity() != .active { return reject("not-foreground") }
         let a = await ports.env.locationAccess()
         let c = await ports.env.channelAccess()
@@ -494,6 +736,14 @@ public actor TripRuntime: LocationSink {
         if !a.servicesEnabled { missing.append("locationServices") }
         if !(c.alarmKit == .authorized || c.notifications) { missing.append("alarmChannel") }
         if !missing.isEmpty { return reject("permission-missing", nil, missing) }
+        var trace: SimTrace?
+        if let s = simSpec {
+            switch await TraceLoader.load(s.traceId, store: ports.traces, sleeper: ports.sleeper,
+                                          budgetMs: constants.simTraceLoadBudgetMs) {
+            case let .loaded(t): trace = t
+            case let .failed(code): return reject("simulation-unavailable", code)
+            }
+        }
         let params = EngineParamsFactory.fromOverrides(meta.engineParamsJson)
         let anchor = ClockAnchor.now(ports.time)
         var newClock = TripClock(anchor: anchor)
@@ -505,8 +755,10 @@ public actor TripRuntime: LocationSink {
             return reject("invalid-config", "\(error)")
         }
         let spec = LocationRequestMapper.spec(step0.view.samplingPolicy, params)
+        // D9: a simulated trip keeps the app running with a real low-accuracy session whose fixes are dropped.
+        let sessionSpec = trace == nil ? spec : LocationRequestSpec.keepAlive
         do {
-            try await ports.location.start(spec, sink: self)
+            try await ports.location.start(sessionSpec, sink: self)
         } catch let e as LocationStartError {
             switch e {
             case .backgroundModeMissing: return reject("start-failed", "BackgroundModeMissing")
@@ -523,6 +775,7 @@ public actor TripRuntime: LocationSink {
             await ports.alarms.cancel(id: id, channel: ch)
         }
         ledger.activeTripId = meta.tripId
+        ledger.activeSimulated = trace != nil
         ledger.current = nil
         ledger.stale = nil
         ledger.now = nil
@@ -530,7 +783,7 @@ public actor TripRuntime: LocationSink {
         ledger.interruptedAlerted = false
         writeLedger()
         clock = newClock
-        currentSpec = spec
+        currentSpec = sessionSpec
         throttle.reset()
         engineDueTripMs = nil
         batteryChoiceMem = nil
@@ -538,10 +791,20 @@ public actor TripRuntime: LocationSink {
         lastAvailability = .available
         ringRetryPending = false
         expectedStops = []
+        sim = nil
+        simIntervalMs = nil
+        if let t = trace, let s = simSpec {
+            clock!.rebase(s.speedFactor, ports.time)
+            sim = SimDriver(trace: t, startTripMs: clock!.now(ports.time))
+            simIntervalMs = spec.intervalMs
+            // The effects of step0 (FallbackScheduled feed, wake) run at its own trip time.
+            simEventAtMs = step0.view.atMs
+            ports.journal.record("sim", ["trace": t.id, "speed": "\(s.speedFactor)"])
+        }
         active = Active(meta: meta, engine: step0.state, view: nil, params: params)
         setMode(.tracking)
         await apply(step0, prevView: nil, facts: .none, persistBudgetMs: constants.startPersistBudgetMs)
-        if let f = await ports.location.lastKnown() { locationSession(didReceive: f) }
+        if trace == nil, let f = await ports.location.lastKnown() { locationSession(didReceive: f) }
         return .started
     }
 
@@ -586,6 +849,12 @@ public actor TripRuntime: LocationSink {
         a.engine = step.state
         a.view = step.view
         active = a
+        // T18.1 D8: the first Step that leaves {ACQUIRING, TRACKING} brings a simulated trip back to 1×, before its own
+        // effects are planned (snooze, alarmMaxActiveS are user time). Logged before its step line (as Android).
+        if sim != nil, let c = clock, c.speed != 1.0, step.view.phase != .acquiring, step.view.phase != .tracking {
+            clock!.rebase(1.0, ports.time, atTripMs: step.view.atMs)
+            ports.journal.record("sim_speed", ["to": "1.0"])
+        }
         if let c = clock { terminateCache.set((a.meta, c.anchor, a.engine, step.view.phase)) }
         ports.journal.record("step", ["phase": step.view.phase.jsonName, "gps": step.view.gps.jsonName,
                                       "tier": step.view.samplingPolicy?.tier.jsonName ?? "",
@@ -597,8 +866,8 @@ public actor TripRuntime: LocationSink {
                                       }.first ?? ""])
         let fx = EffectPlanner.plan(PlanInput(
             prevView: prevView, step: step, meta: a.meta, mode: trackingMode, facts: facts, ledger: ledger,
-            timerDueTripMs: engineDueTripMs, params: a.params, nowWallMs: nowWall(), nowTripMs: nowTrip(),
-            constants: constants, liveSlot: liveSlot))
+            timerDueTripMs: sim != nil ? sim?.engineWakeTripMs : engineDueTripMs, params: a.params, nowWallMs: nowWall(),
+            nowTripMs: nowTrip(), constants: constants, liveSlot: liveSlot, speed: clock?.speed ?? 1.0))
         if step.events.contains(where: { if case let .alarm(x) = $0 { return x.ringNow }; return false }),
            !fx.contains(where: { if case .ringNow = $0 { return true }; if case .feed(.fallbackFired) = $0 { return true }; return false }) {
             ports.journal.record("ring_live", [:])  // one ring per trip: the "now" alarm is live already
@@ -616,7 +885,11 @@ public actor TripRuntime: LocationSink {
         guard let a = active else { return }
         switch f {
         case let .armRingGuard(w):
-            await scheduleSlot(.guardSlot, targetAtMs: toTrip(w), wallMs: w)
+            if sim != nil {
+                armSimGuard(w)  // D7: in process, real time
+            } else {
+                await scheduleSlot(.guardSlot, targetAtMs: toTrip(w), wallMs: w)
+            }
         case let .persistNow(budget):
             await persistNow(budget)
         case let .ringNow(req):
@@ -644,17 +917,29 @@ public actor TripRuntime: LocationSink {
             if let s = show { await ports.notifier.show(tripId: a.meta.tripId, s, destinationName: a.meta.destinationName) }
             if let c = clear { await ports.notifier.clear(tripId: a.meta.tripId, c) }
         case let .applySampling(spec):
-            currentSpec = spec
-            await ports.location.retune(spec)
-            ports.journal.record("loc", ["op": "retune", "acc": spec.accuracy.rawValue])
+            if sim != nil {
+                // D4: the request goes to the virtual sample queue; the keep-alive session is not retuned.
+                simIntervalMs = spec.intervalMs
+                ports.journal.record("loc", ["op": "simInterval", "intervalMs": "\(spec.intervalMs)"])
+            } else {
+                currentSpec = spec
+                await ports.location.retune(spec)
+                ports.journal.record("loc", ["op": "retune", "acc": spec.accuracy.rawValue])
+            }
         case let .scheduleFallback(t):
-            await scheduleSlot(.fallback, targetAtMs: t, wallMs: toWall(t))
+            if sim != nil {
+                // D6: a virtual slot, answered at once.
+                sim?.fallbackDueTripMs = t
+                feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: t, ok: true))
+            } else {
+                await scheduleSlot(.fallback, targetAtMs: t, wallMs: toWall(t))
+            }
         case .cancelFallbacks:
-            await cancelSlots()
+            if sim != nil { sim?.fallbackDueTripMs = nil } else { await cancelSlots() }
         case let .setTimer(due):
-            engineDueTripMs = due
+            if sim != nil { sim?.engineWakeTripMs = due } else { engineDueTripMs = due }
         case .cancelTimer:
-            engineDueTripMs = nil
+            if sim != nil { sim?.engineWakeTripMs = nil } else { engineDueTripMs = nil }
         case .persist:
             let failed = await writer.lastFailed
             if !step.events.isEmpty || failed || nowWall() - lastPersistWallMs >= constants.snapshotMinIntervalMs,
@@ -734,6 +1019,10 @@ public actor TripRuntime: LocationSink {
                                     seenAlerting: false, channel: ch)
             writeLedger()
             ringRetryPending = false
+            if sim != nil, let c = clock {
+                // D6 addendum: the "now" alarm alerts AK_NOW_LEAD_MS later, on the trip clock (1× by then, D8).
+                simNowAlertTripMs = nowTrip() + ClockMath.up(constants.akNowLeadMs, c.speed)
+            }
         } else {
             // G2 (§5.6.3): the guard slot stays; the UI shows the alarm as silenced so a re-ring stays possible.
             warn("ring failed")
@@ -890,6 +1179,8 @@ public actor TripRuntime: LocationSink {
         }
         ringRetryPending = false
         clearHeldRing()  // snoozed/dismissed before the held ring was due
+        deferred.removeAll { $0.kind == .simGuard }  // T18.1 D7: the user answered
+        simNowAlertTripMs = nil  // the "now" alarm is stopped: it never alerts
     }
 
     private func clearHeldRing() {
@@ -923,6 +1214,9 @@ public actor TripRuntime: LocationSink {
         await ports.location.stop()
         ports.journal.record("loc", ["op": "stop"])
         engineDueTripMs = nil
+        if sim != nil { ports.journal.record("sim_end", ["cause": "tripEnded"]) }
+        sim = nil
+        simIntervalMs = nil
         deferred.removeAll { if case .endBgTask = $0.kind { return false }; return true }
         heldRing = nil
         await ports.notifier.clearAll(tripId: a.meta.tripId)
@@ -940,6 +1234,7 @@ public actor TripRuntime: LocationSink {
         ledger.stale = nil
         ledger.now = nil
         ledger.interruptedAlerted = false
+        ledger.activeSimulated = false
         ledger.markEnded(a.meta.tripId, max: constants.endedTripIdsMax)
         writeLedger()
         ports.store.removeRingEvents(tripId: a.meta.tripId)
@@ -957,6 +1252,8 @@ public actor TripRuntime: LocationSink {
     private func handleFix(_ raw: RawFix) async {
         await load()
         guard let a = active, a.view != nil, trackingMode == .tracking, !restorePending else { return }
+        // T18.1 D9: the keep-alive session of a simulated trip; its fixes never reach the engine (nor the journal).
+        if a.meta.simulation != nil { return }
         guard let fix = FixMapper.map(raw, nowWallMs: nowWall(), nowTripMs: nowTrip()) else {
             droppedPlatform += 1
             ports.journal.record("fix", ["drop": "platform"])
@@ -970,6 +1267,11 @@ public actor TripRuntime: LocationSink {
 
     private func handleAvailability(_ cause: AvailabilityCause) async {
         await load()
+        if active?.meta.simulation != nil {
+            // D11: only the keep-alive session is affected.
+            ports.journal.record("sim_loc", ["availability": cause.jsonName])
+            return
+        }
         guard active != nil, cause != lastAvailability else { return }
         lastAvailability = cause
         await process(.locationAvailability(atMs: nowTrip(), cause: cause))
@@ -977,7 +1279,7 @@ public actor TripRuntime: LocationSink {
 
     private func handleBattery(_ b: BatteryReading) async {
         await load()
-        guard active != nil, b != lastBattery else { return }
+        guard active != nil, active?.meta.simulation == nil, b != lastBattery else { return }  // D11
         lastBattery = b
         await process(.batterySample(atMs: nowTrip(), levelPct: b.levelPct, charging: b.charging))
     }
@@ -986,6 +1288,8 @@ public actor TripRuntime: LocationSink {
         await load()
         if restorePending { await completeRestore() }
         guard let a = active, a.meta.tripId == tripId, a.view?.phase != .ended else { return }
+        await simSyncForInput()  // D5
+        guard let cur = active, cur.meta.tripId == tripId, cur.view?.phase != .ended else { return }
         if BridgeMapper.batteryChoice(kind) != nil { batteryChoiceMem = kind }
         await process(.userAction(atMs: nowTrip(), action: kind))
     }
@@ -1016,13 +1320,23 @@ public actor TripRuntime: LocationSink {
         let token = nextListener
         nextListener += 1
         listeners[token] = l
-        if active?.view != nil { feeds.append(.tick(atMs: nowTrip())) }
+        if active?.view != nil {
+            await simSyncForInput()  // D5
+            if active?.view != nil { feeds.append(.tick(atMs: nowTrip())) }
+        }
         return token
     }
 
     private func handleTimer(_ generation: Int64) async {
         guard generation == timerGen else { return }
+        await timerBody()
+    }
+
+    private func timerBody() async {
         armedWallMs = nil
+        // T18.1 D2: the due virtual events of a simulated trip first, in order; the rest of this command (deferred
+        // checks, ring retry) then runs at the clock time.
+        if await !simTimerCatchUp() { return }
         let wall = nowWall()
         let due = deferred.filter { $0.dueWallMs <= wall }
         deferred.removeAll { $0.dueWallMs <= wall }
@@ -1037,12 +1351,12 @@ public actor TripRuntime: LocationSink {
             tickDue = clock != nil
         }
         guard let a = active, a.view != nil, !restorePending else { return }
-        if let b = await ports.env.battery(), b != lastBattery {
+        if a.meta.simulation == nil, let b = await ports.env.battery(), b != lastBattery {
             lastBattery = b
             await process(.batterySample(atMs: nowTrip(), levelPct: b.levelPct, charging: b.charging))
             await drainFeeds()
         }
-        if trackingMode == .tracking {
+        if trackingMode == .tracking, a.meta.simulation == nil {  // D11: not for a simulated trip
             let cause = await ports.env.locationAccess().availability
             if cause != lastAvailability {
                 lastAvailability = cause
@@ -1069,7 +1383,12 @@ public actor TripRuntime: LocationSink {
         if let c = ledger.current, list.contains(where: { $0.id == c.alarmId && $0.state == .scheduled }) { return }
         lastRingRetryWallMs = nowWall()
         let at = nowWall() + Int64(a.params.fallbackLagS) * 1000
-        await scheduleSlot(.guardSlot, targetAtMs: toTrip(at), wallMs: at)
+        if sim != nil {
+            // D7: the guard of a simulated trip is in process.
+            if !deferred.contains(where: { $0.kind == .simGuard }) { armSimGuard(at) }
+        } else {
+            await scheduleSlot(.guardSlot, targetAtMs: toTrip(at), wallMs: at)
+        }
     }
 
     private func runDeferred(_ k: DeferredKind) async {
@@ -1080,22 +1399,33 @@ public actor TripRuntime: LocationSink {
             guard let a = active, let v = a.view, v.alarmRinging else { return }
             let events = ringEvents()
             if events.contains(where: { $0.alarmId == id }) { return }
-            await process(.alarmSilenced(atMs: nowTrip(), silencedAtMs: toTrip(goneAt)))
+            await process(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(toTrip(goneAt), nowTrip())))
         case let .endBgTask(token):
             ports.bgTasks.end(token)
         case .heldRing:
             await ringHeld()
+        case .simGuard:
+            await simGuardDue()
         }
     }
 
     private func addDeferred(_ wall: Int64, _ k: DeferredKind) { deferred.append(Deferred(dueWallMs: wall, kind: k)) }
 
-    /// One in-process timer for the engine wake and the deferred checks (D11).
+    /// One in-process timer for the engine wake (or the next virtual event of a simulated trip, D2) and the deferred
+    /// checks (D11).
     private func rearm() {
         var due: Int64?
-        if let d = engineDueTripMs, clock != nil { due = nowWall() + max(0, d - nowTrip()) }
+        if let s = sim, clock != nil {
+            if let next = s.nextDueTripMs(intervalMs: simIntervalMs) { due = nowWall() + clock!.realDelayMs(next, ports.time) }
+        } else if let d = engineDueTripMs, clock != nil {
+            due = nowWall() + max(0, d - nowTrip())
+        }
         for x in deferred { due = min(due ?? x.dueWallMs, x.dueWallMs) }
         if due == armedWallMs { return }
+        // T18.1 (round 2): the armed timer is already due and so is the new time: it fires as soon as it can. Re-arming it
+        // "now" with a new generation would only postpone it again at every command (a simulated trip stalled behind its
+        // trip clock while commands kept coming).
+        if let d = due, let a = armedWallMs, d <= nowWall(), a <= nowWall() { return }
         armedWallMs = due
         timerGen += 1
         if let d = due {
@@ -1107,6 +1437,7 @@ public actor TripRuntime: LocationSink {
 
     private func handleSystemAlarms(_ list: [SystemAlarmInfo]) async {
         await load()
+        await simSyncForInput()  // T18.1 D5
         await interpretUpdates(list)
     }
 
@@ -1159,6 +1490,7 @@ public actor TripRuntime: LocationSink {
 
     private func handleStopIntent(_ e: RingEventRec) async {
         await load()
+        await simSyncForInput()  // T18.1 D5
         expectedStops.insert(e.alarmId)
         let known = active?.meta.tripId == e.tripId
         ports.journal.record("stop_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false"])
@@ -1202,6 +1534,7 @@ public actor TripRuntime: LocationSink {
 
     private func handleSnoozeIntent(_ e: RingEventRec) async {
         await load()
+        await simSyncForInput()  // T18.1 D5
         expectedStops.insert(e.alarmId)
         let known = active?.meta.tripId == e.tripId
         ports.journal.record("snooze_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false"])
@@ -1240,6 +1573,7 @@ public actor TripRuntime: LocationSink {
 
     private func handleRouteBackIntent(_ e: RingEventRec) async {
         await load()
+        await simSyncForInput()  // T18.1 D5
         expectedStops.insert(e.alarmId)
         let known = active?.meta.tripId == e.tripId
         ports.journal.record("route_back_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false"])
@@ -1308,7 +1642,7 @@ public actor TripRuntime: LocationSink {
     private func handleWillTerminate() async {
         guard let a = active, let v = a.view else { return }
         await persistNow(constants.startPersistBudgetMs)
-        if (v.phase == .acquiring || v.phase == .tracking) && !ledger.interruptedAlerted {
+        if a.meta.simulation == nil, (v.phase == .acquiring || v.phase == .tracking) && !ledger.interruptedAlerted {  // T18.1 D10
             await ports.notifier.show(tripId: a.meta.tripId, .interrupted, destinationName: nil)
             ledger.interruptedAlerted = true
             writeLedger()

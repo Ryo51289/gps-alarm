@@ -174,7 +174,9 @@ void main() {
   );
 
   testWidgets(
-    'II05 a simulated trip is not available on iOS yet',
+    // T18.1: real traces run on iOS now (t18_1_ios_simulation_test.dart); a
+    // stub id is still refused.
+    'II05 a simulated trip with a stub id is simulation-unavailable',
     skip: _notIos,
     (tester) async {
       final bridge = CoreBridge();
@@ -184,10 +186,7 @@ void main() {
           _config(_id('ii05')),
           destLat: _farLat,
           destLng: _hereLng,
-          simulation: SimulationMsg(
-            traceAsset: 'bus_hn_brt01',
-            speedFactor: 60,
-          ),
+          simulation: SimulationMsg(traceAsset: 'stub/normal', speedFactor: 60),
         ),
         throwsA(
           isA<BridgeException>().having(

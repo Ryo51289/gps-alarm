@@ -26,7 +26,11 @@ final class World: @unchecked Sendable {
     private var emittedVersion = -1
     let startWall: Int64
 
-    init(startWall: Int64 = 1_700_000_000_000, constants: RuntimeConstants = .default) {
+    /// T18.1: bundled traces of simulated trips (default: none).
+    let traces: TraceStore
+
+    init(startWall: Int64 = 1_700_000_000_000, constants: RuntimeConstants = .default, traces: TraceStore = NoTraceStore()) {
+        self.traces = traces
         self.startWall = startWall
         self.constants = constants
         time = VirtualTime(wallBase: startWall)
@@ -43,7 +47,7 @@ final class World: @unchecked Sendable {
     private func makeRuntime() -> TripRuntime {
         let ports = RuntimePorts(time: time, location: location, alarms: alarms, store: store, env: env, app: app,
                                  notifier: notifier, timer: timer, sleeper: sleeper, bgTasks: bg, journal: journal,
-                                 localeTag: { [weak self] in self?.locale ?? "vi" })
+                                 localeTag: { [weak self] in self?.locale ?? "vi" }, traces: traces)
         return TripRuntime(ports: ports, constants: constants, warn: { [weak self] s in
             guard let self else { return }
             self.warnings.locked { self.warningList.append(s) }
@@ -81,7 +85,7 @@ final class World: @unchecked Sendable {
 
     /// A copy of what survives a process death right now (store, system alarms, clock); the copy has no process.
     func forkKilled() -> World {
-        let f = World(startWall: startWall, constants: constants)
+        let f = World(startWall: startWall, constants: constants, traces: traces)
         f.time.copyState(from: time)
         f.alarms.copyState(from: alarms)
         f.store.copyState(from: store)
