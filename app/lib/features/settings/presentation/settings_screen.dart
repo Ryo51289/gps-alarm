@@ -14,8 +14,10 @@ import 'package:napstop/core/preferences/display_preferences.dart';
 import 'package:napstop/core/telemetry/remote_config/engine_params_providers.dart';
 import 'package:napstop/core/telemetry/telemetry_providers.dart';
 import 'package:napstop/core/trip/trip_providers.dart';
+import 'package:napstop/features/alarm_settings/data/platform_alarm_caps_provider.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dart';
+import 'package:napstop/features/alarm_settings/domain/platform_alarm_caps.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_strings.dart';
 import 'package:napstop/features/home/domain/readiness.dart';
 import 'package:napstop/features/home/presentation/home_providers.dart';
@@ -134,9 +136,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openSoundPicker() async {
+    final caps = ref.read(platformAlarmCapsProvider);
     await showSoundPickerSheet(
       context,
-      onPreview: (id) => unawaited(_play(id)),
+      // T28.3 §4: no preview of `system` on iOS; stop the one playing.
+      onPreview: (id) => canPreviewSound(caps, resolveSoundId(id))
+          ? unawaited(_play(id))
+          : _stopPreview(force: true),
     );
     if (mounted) {
       _stopPreview(force: true);
@@ -213,6 +219,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.read(engineParamsReaderProvider).current().json,
     );
     final consent = ref.watch(telemetryProvider).consent;
+    final caps = ref.watch(platformAlarmCapsProvider);
+    final canPreview = canPreviewSound(caps, resolveSoundId(alarm.soundId));
+    // T28.3 §4: options the iPhone alarm ignores are hidden, with one note.
+    final optionsHidden =
+        !caps.rampUp ||
+        !caps.vibrationLevels ||
+        !caps.flash ||
+        !caps.headphones;
     final volume = _dragVolume ?? alarm.volumePct.toDouble();
     const gap = SizedBox(height: NapSpace.section);
     const headerGap = SizedBox(height: NapSpace.s10);
@@ -250,119 +264,141 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 NapListRow(
                   title: l.settingsSound,
                   subtitle: l.soundLabel(alarm.soundId),
-                  trailing: NapButton(
-                    label: _previewing
-                        ? l.settingsPreviewStop
-                        : l.settingsPreview,
-                    size: NapButtonSize.compact,
-                    variant: NapButtonVariant.tonal,
-                    onPressed: loaded ? _togglePreview : null,
-                  ),
+                  trailing: canPreview
+                      ? NapButton(
+                          label: _previewing
+                              ? l.settingsPreviewStop
+                              : l.settingsPreview,
+                          size: NapButtonSize.compact,
+                          variant: NapButtonVariant.tonal,
+                          onPressed: loaded ? _togglePreview : null,
+                        )
+                      : null,
                   chevron: true,
                   onTap: loaded ? () => unawaited(_openSoundPicker()) : null,
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    NapSpace.s16,
-                    NapSpace.s12,
-                    NapSpace.s16,
-                    NapSpace.s12,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: NapSpace.s4,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l.settingsVolume,
-                              style: context.napText.titleSmall,
+                if (!caps.volumeSlider)
+                  NapListRow(
+                    title: l.settingsVolume,
+                    subtitle: l.settingsVolumeIosNote,
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      NapSpace.s16,
+                      NapSpace.s12,
+                      NapSpace.s16,
+                      NapSpace.s12,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: NapSpace.s4,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l.settingsVolume,
+                                style: context.napText.titleSmall,
+                              ),
                             ),
-                          ),
-                          ExcludeSemantics(
-                            child: value(
-                              l.settingsVolumeValue(volumePctOf(volume)),
+                            ExcludeSemantics(
+                              child: value(
+                                l.settingsVolumeValue(volumePctOf(volume)),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      NapLabeledSlider(
-                        value: volume,
-                        min: kMinAlarmVolumePct.toDouble(),
-                        max: kMaxAlarmVolumePct.toDouble(),
-                        divisions: kVolumeDivisions,
-                        semanticLabel: l.settingsVolume,
-                        semanticFormatter: (v) =>
-                            l.settingsVolumeSemantic(volumePctOf(v)),
-                        onChanged: loaded
-                            ? (v) => setState(() => _dragVolume = v)
-                            : null,
-                        onChangeEnd: loaded ? _volumeEnd : null,
-                      ),
-                      Text(
-                        l.settingsVolumeHint,
-                        style: context.napText.bodySmall!.copyWith(
-                          color: c.textSecondary,
+                          ],
                         ),
-                      ),
-                    ],
+                        NapLabeledSlider(
+                          value: volume,
+                          min: kMinAlarmVolumePct.toDouble(),
+                          max: kMaxAlarmVolumePct.toDouble(),
+                          divisions: kVolumeDivisions,
+                          semanticLabel: l.settingsVolume,
+                          semanticFormatter: (v) =>
+                              l.settingsVolumeSemantic(volumePctOf(v)),
+                          onChanged: loaded
+                              ? (v) => setState(() => _dragVolume = v)
+                              : null,
+                          onChangeEnd: loaded ? _volumeEnd : null,
+                        ),
+                        Text(
+                          l.settingsVolumeHint,
+                          style: context.napText.bodySmall!.copyWith(
+                            color: c.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                NapSwitchRow(
-                  title: l.settingsRampUp,
-                  subtitle: l.settingsRampUpHint,
-                  value: alarm.rampUp,
-                  onChanged: loaded
-                      ? (v) => _settings.setAlarm(alarm.copyWith(rampUp: v))
-                      : null,
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(NapSpace.s16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: NapSpace.s10,
-                    children: [
-                      Text(
-                        l.settingsVibration,
-                        style: context.napText.titleSmall,
-                      ),
-                      NapSegmentedControl<VibrationMsg>(
-                        semanticLabel: l.settingsVibration,
-                        segments: [
-                          for (final v in kVibrationOptions)
-                            NapSegment(value: v, label: l.vibrationLabel(v)),
-                        ],
-                        selected: kVibrationOptions.contains(alarm.vibration)
-                            ? alarm.vibration
-                            : VibrationMsg.strong,
-                        onChanged: loaded
-                            ? (v) => _settings.setAlarm(
-                                alarm.copyWith(vibration: v),
-                              )
-                            : null,
-                      ),
-                    ],
+                if (caps.rampUp)
+                  NapSwitchRow(
+                    title: l.settingsRampUp,
+                    subtitle: l.settingsRampUpHint,
+                    value: alarm.rampUp,
+                    onChanged: loaded
+                        ? (v) => _settings.setAlarm(alarm.copyWith(rampUp: v))
+                        : null,
                   ),
-                ),
-                NapSwitchRow(
-                  title: l.settingsFlash,
-                  subtitle: l.settingsFlashHint,
-                  value: alarm.flash,
-                  onChanged: loaded
-                      ? (v) => _settings.setAlarm(alarm.copyWith(flash: v))
-                      : null,
-                ),
-                NapSwitchRow(
-                  title: l.settingsHeadphones,
-                  subtitle: l.settingsHeadphonesHint,
-                  value: prefersHeadphones(trip),
-                  onChanged: loaded
-                      ? (v) => _settings.setTripDefaults(
-                          withHeadphones(trip, on: v),
-                        )
-                      : null,
-                ),
+                if (caps.vibrationLevels)
+                  Padding(
+                    padding: const EdgeInsets.all(NapSpace.s16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: NapSpace.s10,
+                      children: [
+                        Text(
+                          l.settingsVibration,
+                          style: context.napText.titleSmall,
+                        ),
+                        NapSegmentedControl<VibrationMsg>(
+                          semanticLabel: l.settingsVibration,
+                          segments: [
+                            for (final v in kVibrationOptions)
+                              NapSegment(value: v, label: l.vibrationLabel(v)),
+                          ],
+                          selected: kVibrationOptions.contains(alarm.vibration)
+                              ? alarm.vibration
+                              : VibrationMsg.strong,
+                          onChanged: loaded
+                              ? (v) => _settings.setAlarm(
+                                  alarm.copyWith(vibration: v),
+                                )
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                if (caps.flash)
+                  NapSwitchRow(
+                    title: l.settingsFlash,
+                    subtitle: l.settingsFlashHint,
+                    value: alarm.flash,
+                    onChanged: loaded
+                        ? (v) => _settings.setAlarm(alarm.copyWith(flash: v))
+                        : null,
+                  ),
+                if (caps.headphones)
+                  NapSwitchRow(
+                    title: l.settingsHeadphones,
+                    subtitle: l.settingsHeadphonesHint,
+                    value: prefersHeadphones(trip),
+                    onChanged: loaded
+                        ? (v) => _settings.setTripDefaults(
+                            withHeadphones(trip, on: v),
+                          )
+                        : null,
+                  ),
+                if (optionsHidden)
+                  Padding(
+                    padding: const EdgeInsets.all(NapSpace.s16),
+                    child: Text(
+                      l.settingsAlarmIosOptionsNote,
+                      style: context.napText.bodySmall!.copyWith(
+                        color: c.textSecondary,
+                      ),
+                    ),
+                  ),
               ],
             ),
             gap,
@@ -377,12 +413,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   chevron: true,
                   onTap: loaded ? openTripDefaults : null,
                 ),
-                NapListRow(
-                  title: l.settingsDismiss,
-                  trailing: value(l.dismissLabel(trip.dismissMethod)),
-                  chevron: true,
-                  onTap: loaded ? openTripDefaults : null,
-                ),
+                if (caps.dismissMethodChoice)
+                  NapListRow(
+                    title: l.settingsDismiss,
+                    trailing: value(l.dismissLabel(trip.dismissMethod)),
+                    chevron: true,
+                    onTap: loaded ? openTripDefaults : null,
+                  ),
                 NapListRow(
                   title: l.settingsSnooze,
                   trailing: value(l.snoozeValue(params)),

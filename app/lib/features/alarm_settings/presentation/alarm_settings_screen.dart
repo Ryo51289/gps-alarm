@@ -15,15 +15,18 @@ import 'package:napstop/core/telemetry/remote_config/engine_params_override.dart
 import 'package:napstop/core/telemetry/remote_config/engine_params_providers.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/alarm_settings/data/alarm_settings_providers.dart';
+import 'package:napstop/features/alarm_settings/data/platform_alarm_caps_provider.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_hints.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dart';
+import 'package:napstop/features/alarm_settings/domain/platform_alarm_caps.dart';
 import 'package:napstop/features/alarm_settings/domain/pre_alert_hint.dart';
 import 'package:napstop/features/alarm_settings/domain/trip_starter.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_strings.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/alarm_style_picker.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/destination_summary_card.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/dismiss_method_picker.dart';
+import 'package:napstop/features/alarm_settings/presentation/widgets/ios_alarm_style_note.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/mode_panel.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/pre_alert_row.dart';
 import 'package:napstop/features/alarm_settings/presentation/widgets/start_bar.dart';
@@ -275,7 +278,9 @@ class _AlarmSettingsScreenState extends ConsumerState<AlarmSettingsScreen> {
                   settings: settings,
                   params: _params,
                   alarmPrefs: _alarmPrefs,
+                  caps: ref.watch(platformAlarmCapsProvider),
                   ringsInSilent: ringsInSilent(_permissions, _device),
+                  iosRingsInSilent: ringsInSilentIfKnown(_permissions, _device),
                   lowBatteryPct: lowBatteryWarningPct(_status, _params),
                   alarmMuted: alarmMayBeSilenced(_status),
                   onChanged: _update,
@@ -317,7 +322,9 @@ class _Content extends StatelessWidget {
     required this.settings,
     required this.params,
     required this.alarmPrefs,
+    required this.caps,
     required this.ringsInSilent,
+    required this.iosRingsInSilent,
     required this.lowBatteryPct,
     required this.alarmMuted,
     required this.onChanged,
@@ -329,7 +336,11 @@ class _Content extends StatelessWidget {
   final TripSettings settings;
   final AlarmSettingsParams params;
   final AlarmPreferences alarmPrefs;
+  final PlatformAlarmCaps caps;
   final bool ringsInSilent;
+
+  /// iOS note: null while unknown, so it claims nothing (test report #1).
+  final bool? iosRingsInSilent;
   final int? lowBatteryPct;
   final bool alarmMuted;
   final ValueChanged<TripSettings> onChanged;
@@ -414,21 +425,29 @@ class _Content extends StatelessWidget {
           onChanged: (v) => onChanged(settings.copyWith(preAlertEnabled: v)),
         ),
         gap,
-        AlarmStylePicker(
-          selected: settings.alarmStyle,
-          hint: alarmStyleHint(
-            settings.alarmStyle,
-            ringsInSilent: ringsInSilent,
-            rampUp: alarmPrefs.rampUp,
-          ),
-          onChanged: (s) => onChanged(settings.copyWith(alarmStyle: s)),
-        ),
+        // T28.3 §3: on iOS the system alarm ignores style and dismiss
+        // method; the stored values stay (D4).
+        if (caps.alarmStyleChoice)
+          AlarmStylePicker(
+            selected: settings.alarmStyle,
+            hint: alarmStyleHint(
+              settings.alarmStyle,
+              ringsInSilent: ringsInSilent,
+              rampUp: alarmPrefs.rampUp,
+            ),
+            onChanged: (s) => onChanged(settings.copyWith(alarmStyle: s)),
+          )
+        else
+          IosAlarmStyleNote(ringsInSilent: iosRingsInSilent),
         gap,
-        DismissMethodPicker(
-          selected: settings.dismissMethod,
-          snoozeNote: l.snoozeNote(params),
-          onChanged: (m) => onChanged(settings.copyWith(dismissMethod: m)),
-        ),
+        if (caps.dismissMethodChoice)
+          DismissMethodPicker(
+            selected: settings.dismissMethod,
+            snoozeNote: l.snoozeNote(params),
+            onChanged: (m) => onChanged(settings.copyWith(dismissMethod: m)),
+          )
+        else
+          SnoozeNoteText(l.snoozeNote(params)),
       ],
     );
   }

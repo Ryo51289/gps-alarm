@@ -13,6 +13,7 @@ import 'package:napstop/features/alarm/domain/ring_ui_rules.dart';
 import 'package:napstop/features/alarm/domain/route_back.dart';
 import 'package:napstop/features/alarm/presentation/widgets/alarm_glow.dart';
 import 'package:napstop/features/alarm/presentation/widgets/swipe_to_stop_bar.dart';
+import 'package:napstop/features/alarm_settings/data/platform_alarm_caps_provider.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
@@ -295,6 +296,8 @@ class _AlarmFallbackScreenState extends ConsumerState<AlarmFallbackScreen> {
 
   Widget _body(BuildContext context, AppLocalizations l) {
     final c = context.napColors;
+    // T28.3 D6: iOS has no app alarm screen to bring back (T17.2 D9).
+    final nativeScreen = ref.watch(platformAlarmCapsProvider).nativeAlarmScreen;
     final text = context.napText;
     final state = _state;
     final config = _config;
@@ -386,7 +389,9 @@ class _AlarmFallbackScreenState extends ConsumerState<AlarmFallbackScreen> {
                       Semantics(
                         liveRegion: true,
                         child: Text(
-                          l.alarmFallbackNote,
+                          nativeScreen
+                              ? l.alarmFallbackNote
+                              : l.alarmFallbackNoteIos,
                           textAlign: TextAlign.center,
                           style: text.bodyMedium?.copyWith(
                             color: c.textSecondary,
@@ -416,12 +421,15 @@ class _AlarmFallbackScreenState extends ConsumerState<AlarmFallbackScreen> {
                         ),
                         const SizedBox(height: NapSpace.s12),
                       ],
-                      NapButton(
-                        label: l.alarmOpenAlarmScreen,
-                        variant: NapButtonVariant.secondary,
-                        onPressed: () => unawaited(_openNative()),
-                      ),
-                      const SizedBox(height: NapSpace.s16),
+                      if (nativeScreen) ...[
+                        NapButton(
+                          label: l.alarmOpenAlarmScreen,
+                          variant: NapButtonVariant.secondary,
+                          onPressed: () => unawaited(_openNative()),
+                        ),
+                        const SizedBox(height: NapSpace.s16),
+                      ] else
+                        const SizedBox(height: NapSpace.s16),
                       SwipeToStopBar(
                         hint: l.alarmSwipeHint,
                         semanticsLabel: l.alarmStopA11y,

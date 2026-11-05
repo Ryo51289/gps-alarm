@@ -5,6 +5,7 @@ import 'package:napstop/core/bridge/core_api.g.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/preferences/app_settings.dart';
 import 'package:napstop/core/telemetry/remote_config/engine_params_providers.dart';
+import 'package:napstop/features/alarm_settings/data/platform_alarm_caps_provider.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dart';
 import 'package:napstop/features/alarm_settings/domain/pre_alert_hint.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_strings.dart';
@@ -35,6 +36,7 @@ class _TripDefaultsScreenState extends ConsumerState<TripDefaultsScreen> {
     final l = AppLocalizations.of(context);
     final s = ref.watch(appSettingsProvider.select((a) => a.tripDefaults));
     final set = ref.read(appSettingsProvider.notifier).setTripDefaults;
+    final caps = ref.watch(platformAlarmCapsProvider);
     const gap = SizedBox(height: NapSpace.section);
     return Scaffold(
       body: SafeArea(
@@ -88,11 +90,15 @@ class _TripDefaultsScreenState extends ConsumerState<TripDefaultsScreen> {
               onChanged: (v) => set(s.copyWith(preAlertEnabled: v)),
             ),
             gap,
-            DismissMethodPicker(
-              selected: s.dismissMethod,
-              snoozeNote: l.snoozeNote(_params),
-              onChanged: (m) => set(s.copyWith(dismissMethod: m)),
-            ),
+            // T28.3 §4: iOS ignores the dismiss method; the snooze line stays.
+            if (caps.dismissMethodChoice)
+              DismissMethodPicker(
+                selected: s.dismissMethod,
+                snoozeNote: l.snoozeNote(_params),
+                onChanged: (m) => set(s.copyWith(dismissMethod: m)),
+              )
+            else
+              SnoozeNoteText(l.snoozeNote(_params)),
           ],
         ),
       ),

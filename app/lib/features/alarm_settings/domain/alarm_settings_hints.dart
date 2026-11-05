@@ -12,17 +12,34 @@ import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dar
 enum AlarmStyleHint { ring, ringNoRamp, ringNoSilent, vibrate, headphones }
 
 /// Whether the alarm rings in Silent mode: Android always (alarm stream);
-/// iOS only with AlarmKit (iOS 26+, granted). Unknown yet → true.
-bool ringsInSilent(PermissionStatusMsg? permissions, DeviceInfoMsg? device) {
-  if (permissions == null || device == null) {
-    return true;
+/// iOS only with AlarmKit (iOS 26+, granted). Unknown yet → true (T25: the
+/// Android hint). iOS before 26 is never, whatever the permissions
+/// (T28.3 test report #1). Screens that must not claim it while unknown use
+/// [ringsInSilentIfKnown].
+bool ringsInSilent(PermissionStatusMsg? permissions, DeviceInfoMsg? device) =>
+    ringsInSilentIfKnown(permissions, device) ?? true;
+
+/// Like [ringsInSilent], but null while it cannot be told: device unknown,
+/// or iOS 26+ with permissions unknown (not read yet, or the read failed).
+bool? ringsInSilentIfKnown(
+  PermissionStatusMsg? permissions,
+  DeviceInfoMsg? device,
+) {
+  if (device == null) {
+    return null;
   }
-  return switch (device.platform) {
-    PlatformMsg.android => true,
-    PlatformMsg.ios =>
-      (device.iosMajor ?? 0) >= 26 &&
-          permissions.alarmKit == PermissionStateMsg.granted,
-  };
+  switch (device.platform) {
+    case PlatformMsg.android:
+      return true;
+    case PlatformMsg.ios:
+      if ((device.iosMajor ?? 0) < 26) {
+        return false;
+      }
+      if (permissions == null) {
+        return null;
+      }
+      return permissions.alarmKit == PermissionStateMsg.granted;
+  }
 }
 
 AlarmStyleHint alarmStyleHint(

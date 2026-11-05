@@ -416,8 +416,10 @@ void main() {
           interruptionFilter: InterruptionFilterMsg.unknown,
         ),
       );
+      // T28.3 D5: iOS 26 + AlarmKit adds the "rings in Silent" line (ok).
       expect(_kinds(iosStatus), [
         ReadinessChipKind.locationWhileInUse,
+        ReadinessChipKind.iosAlarmKitOn,
         ReadinessChipKind.battery,
       ]);
       expect(iosStatus.level, ReadinessLevel.ready);

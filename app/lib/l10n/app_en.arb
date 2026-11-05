@@ -538,5 +538,14 @@
   "alarmKitStop": "Stop",
   "alarmKitRingFailed": "Couldn't set the alarm. Open NapStop now.",
   "iosLocationUsage": "NapStop uses your location to wake you before your stop, even when the screen is locked. Your location never leaves your phone.",
-  "iosAlarmKitUsage": "NapStop sets an alarm to wake you before your stop, even when your phone is on Silent."
+  "iosAlarmKitUsage": "NapStop sets an alarm to wake you before your stop, even when your phone is on Silent.",
+  "alarmSettingsIosAlarmKitNote": "Uses iPhone Alarms: rings even on Silent. Stop it with the Stop button on the Lock Screen.",
+  "settingsVolumeIosNote": "Follows your iPhone volume",
+  "settingsAlarmIosOptionsNote": "Ramp-up, vibration level, flash and headphones aren't available on iPhone yet.",
+  "homeChipIosAlarmKitOn": "Alarm rings even on Silent",
+  "homeChipIosSilentRisk": "Notification alarm: turn off Silent before sleeping",
+  "trackingTileAlarmIos": "Alarm",
+  "trackingTileAlarmIosSilentOk": "Rings on Silent",
+  "trackingTileAlarmIosSilentRisk": "Turn off Silent",
+  "alarmFallbackNoteIos": "Your alarm is ringing. You can stop it here."
 }

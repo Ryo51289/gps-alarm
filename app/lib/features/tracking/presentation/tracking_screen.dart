@@ -11,6 +11,8 @@ import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/device/device_providers.dart';
 import 'package:napstop/core/telemetry/telemetry.dart';
 import 'package:napstop/core/telemetry/telemetry_providers.dart';
+import 'package:napstop/features/alarm_settings/data/platform_alarm_caps_provider.dart';
+import 'package:napstop/features/alarm_settings/domain/alarm_settings_hints.dart';
 import 'package:napstop/features/onboarding/domain/start_check.dart';
 import 'package:napstop/features/tracking/data/battery_sheet_shown.dart';
 import 'package:napstop/features/tracking/data/tracked_trip_provider.dart';
@@ -49,6 +51,10 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
 
   /// D8 (a): blocking permission problems, read on open and resume.
   List<StartRequirement> _missing = const [];
+
+  /// iOS alarm tile (T28.3 §6): AlarmKit rings in Silent mode. Null while
+  /// unknown (not read yet, or the read failed): no claim either way.
+  bool? _ringsInSilent;
   DeviceStatusMsg? _device;
   late int _nowMs;
 
@@ -186,9 +192,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   Future<void> _refreshEnv() async {
     final deviceInfo = ref.read(deviceInfoProvider.future);
     List<StartRequirement> missing;
+    bool? silentOk;
     try {
       final permissions = await _bridge.permissionStatus();
-      missing = checkStart(permissions, await deviceInfo).missing;
+      final info = await deviceInfo;
+      missing = checkStart(permissions, info).missing;
+      silentOk = ringsInSilent(permissions, info);
     } on Object {
       missing = const [];
     }
@@ -203,6 +212,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     }
     setState(() {
       _missing = missing;
+      _ringsInSilent = silentOk;
       _device = device;
       _nowMs = _now;
     });
@@ -663,7 +673,11 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                   ),
                 ],
                 gap,
-                TrackingStatusRow(view: view),
+                TrackingStatusRow(
+                  view: view,
+                  caps: ref.watch(platformAlarmCapsProvider),
+                  ringsInSilent: _ringsInSilent,
+                ),
                 if (view.banners.isNotEmpty) ...[
                   gap,
                   TrackingBanners(

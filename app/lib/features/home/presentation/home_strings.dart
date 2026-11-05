@@ -51,6 +51,8 @@ extension HomeStrings on AppLocalizations {
       ReadinessChipKind.batteryOptimization => homeChipBatteryOptimization,
       ReadinessChipKind.deviceStatusUnknown => homeChipDeviceStatusUnknown,
       ReadinessChipKind.dndCheckAlarms => homeChipDndCheckAlarms,
+      ReadinessChipKind.iosAlarmKitOn => homeChipIosAlarmKitOn,
+      ReadinessChipKind.iosSilentRisk => homeChipIosSilentRisk,
     };
   }
 }

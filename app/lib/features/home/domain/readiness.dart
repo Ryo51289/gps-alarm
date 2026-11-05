@@ -4,6 +4,7 @@ library;
 
 import 'package:meta/meta.dart';
 import 'package:napstop/core/bridge/core_api.g.dart';
+import 'package:napstop/features/alarm_settings/domain/alarm_settings_hints.dart';
 import 'package:napstop/features/onboarding/domain/start_check.dart';
 
 enum ReadinessLevel { ready, check, blocked }
@@ -41,6 +42,13 @@ enum ReadinessChipKind {
   /// Android: Do Not Disturb "priority" whose alarm policy cannot be read
   /// (API 26-29, or a read error), T21 §12.
   dndCheckAlarms,
+
+  /// iOS 26+, AlarmKit allowed: rings even in Silent mode (T28.3 D5).
+  iosAlarmKitOn,
+
+  /// iOS, notifications only (before 26, or AlarmKit not applicable): may
+  /// not ring in Silent mode (T28.3 D5).
+  iosSilentRisk,
 }
 
 /// One line of the card.
@@ -153,6 +161,28 @@ Readiness evaluateReadiness({
         ReadinessSeverity.blocking,
       ),
     );
+  }
+  // T28.3 D5: iOS cannot read volume or Silent mode, so say whether the
+  // alarm rings in Silent mode, by the same rule as screens 3 and 4
+  // (`ringsInSilent`, test report O1). iOS 26+ with AlarmKit not allowed
+  // already has the alarmKitOff warning (step 3): no second line.
+  if (device.platform == PlatformMsg.ios &&
+      !missing.contains(StartRequirement.alarmChannel)) {
+    if (ringsInSilent(permissions, device)) {
+      chips.add(
+        const ReadinessChip(
+          ReadinessChipKind.iosAlarmKitOn,
+          ReadinessSeverity.ok,
+        ),
+      );
+    } else if (!check.warnings.contains(PermissionWarning.alarmKit)) {
+      chips.add(
+        const ReadinessChip(
+          ReadinessChipKind.iosSilentRisk,
+          ReadinessSeverity.caution,
+        ),
+      );
+    }
   }
 
   // 3. Permission warnings, in the order of checkStart.

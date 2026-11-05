@@ -2822,5 +2822,41 @@
   "iosAlarmKitUsage": "NapStop đặt báo thức để đánh thức bạn trước khi tới nơi, kể cả khi máy đang Im lặng.",
   "@iosAlarmKitUsage": {
     "description": "iOS Info.plist usage string, keep in sync with Runner/*.lproj/InfoPlist.strings. NSAlarmKitUsageDescription (T17.1 §4)."
+  },
+  "alarmSettingsIosAlarmKitNote": "Dùng Báo thức của iPhone: kêu to cả khi máy để Im lặng. Tắt bằng nút Dừng trên màn khoá.",
+  "@alarmSettingsIosAlarmKitNote": {
+    "description": "Screen 3 and trip defaults (iOS with AlarmKit, T28.3 §3): replaces the alarm style cards; how the iPhone alarm rings and stops."
+  },
+  "settingsVolumeIosNote": "Theo âm lượng của iPhone",
+  "@settingsVolumeIosNote": {
+    "description": "Screen 12 (iOS, T28.3 §4): subtitle of the volume row that replaces the slider; the app cannot set the alarm volume."
+  },
+  "settingsAlarmIosOptionsNote": "Tăng dần, mức rung, đèn flash và ưu tiên tai nghe chưa có trên iPhone.",
+  "@settingsAlarmIosOptionsNote": {
+    "description": "Screen 12 (iOS, T28.3 §4): note at the end of the alarm sound group; these Android options are hidden on iPhone."
+  },
+  "homeChipIosAlarmKitOn": "Báo thức kêu cả khi Im lặng",
+  "@homeChipIosAlarmKitOn": {
+    "description": "Readiness chip (iOS 26+, AlarmKit allowed, T28.3 §5): the alarm rings even in Silent mode."
+  },
+  "homeChipIosSilentRisk": "Báo bằng thông báo: tắt Im lặng trước khi ngủ",
+  "@homeChipIosSilentRisk": {
+    "description": "Readiness chip (iOS before 26, notifications only, T28.3 §5): the alarm may not ring in Silent mode."
+  },
+  "trackingTileAlarmIos": "Báo thức",
+  "@trackingTileAlarmIos": {
+    "description": "Screen 4 third status tile on iOS (T28.3 §6): title of the alarm channel tile (replaces headphones / alarm style)."
+  },
+  "trackingTileAlarmIosSilentOk": "Kêu cả khi Im lặng",
+  "@trackingTileAlarmIosSilentOk": {
+    "description": "Screen 4 alarm tile subtitle on iOS (T28.3 §6): AlarmKit rings even in Silent mode."
+  },
+  "trackingTileAlarmIosSilentRisk": "Cần tắt Im lặng",
+  "@trackingTileAlarmIosSilentRisk": {
+    "description": "Screen 4 alarm tile subtitle on iOS (T28.3 §6): notification alarm, Silent mode must be off."
+  },
+  "alarmFallbackNoteIos": "Báo thức đang kêu. Bạn có thể tắt ngay tại đây.",
+  "@alarmFallbackNoteIos": {
+    "description": "Flutter screen 5 on iOS (T28.3 §7): note while the iPhone alarm rings and the app is open (replaces alarmFallbackNote)."
   }
 }
