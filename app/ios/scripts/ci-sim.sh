@@ -54,7 +54,11 @@ cmd_xcode() {
   path="${pick#* }"
   sudo xcode-select -s "$path/Contents/Developer"
   xcodebuild -version >&2
-  if ! xcodebuild -showsdks 2>/dev/null | grep -qE 'iphoneos(2[6-9]|[3-9][0-9])'; then
+  # Read the whole list first: under pipefail, `xcodebuild | grep -q` fails with SIGPIPE when grep exits early
+  # (first CI run, 06/11).
+  local sdks
+  sdks="$(xcodebuild -showsdks 2>/dev/null || true)"
+  if ! grep -qE 'iphoneos(2[6-9]|[3-9][0-9])' <<<"$sdks"; then
     die "Xcode $ver at $path has no iOS >= 26 SDK"
   fi
   id="$(xcodebuild -version | tr '\n' ' ' | sed -nE 's/^Xcode ([^ ]+) Build version ([^ ]+).*/\1-\2/p')"

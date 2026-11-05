@@ -159,9 +159,11 @@ jobs:
       - name: Select Xcode 26 and check Swift >= 6.2
         id: xcode
         run: |
+          # Keep this step's stderr for the result summary (it failed with no trace on the first CI run, 06/11).
+          exec 2> >(tee -a "$RUNNER_TEMP/setup.log" >&2)
           bash ../scripts/ci-sim.sh xcode >> "$GITHUB_OUTPUT"
           swift --version
-          ver="$(swift --version 2>&1 | sed -nE 's/.*Swift version ([0-9]+)\.([0-9]+).*/\1 \2/p' | head -n 1)"
+          ver="$(swift --version 2>&1 | sed -nE 's/.*Swift version ([0-9]+)\.([0-9]+).*/\1 \2/p' | awk 'NR == 1')"
           read -r major minor <<<"$ver"
           if [ -z "$major" ] || [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 2 ]; }; then
             echo "::error::NapStopCore tests need Swift >= 6.2 (Xcode 26); runner has '${ver:-unknown}'."
@@ -206,6 +208,7 @@ jobs:
               grep -E 'Test run with|Executed [0-9]+ tests?|error:' "$log" | tail -n 40 || echo "no test summary line"
             else
               echo "swift test did not run"
+              if [ -f "$RUNNER_TEMP/setup.log" ]; then echo "--- setup step stderr (tail)"; tail -n 30 "$RUNNER_TEMP/setup.log"; fi
             fi
             echo '```'
             if [ -f "$report/killsweep/summary.md" ]; then echo; cat "$report/killsweep/summary.md"; fi
