@@ -131,6 +131,9 @@ struct TesterT132Tests {
         var steps = 0
         var lastInput = "start"
         var truthSpeed: ((Int64) -> Double)? = nil
+        /// T10.7 §10: signed true distance (ms → m) and the counter of chord fixes after an alarm (nil = not counted).
+        var truthD: ((Int64) -> Double)? = nil
+        var chord: AlarmedChordCounter? = nil
         var believedStopOverLag: [String] = []
         var lastInfo: LastInfo? = nil
         var osFirstKinds: [String: Int] = [:]
@@ -169,6 +172,10 @@ struct TesterT132Tests {
             switch input {
             case .locationFix, .batterySample: noteInfo(prev, s)
             default: break
+            }
+            if case let .locationFix(lf) = input, let chord,
+               let w = chord.onFix(tag, prev.state, lf, s, truthD?(s.state.nowMs)) {
+                v("T10.7 alarmed-chord Overshoot before the destination was passed: \(w)")
             }
             return afterStep(prev, s, label ?? simpleName(input), input)
         }
@@ -516,7 +523,7 @@ struct TesterT132Tests {
     }
 
     static func scenarioB(_ config: TripConfig, _ past: Double, _ x: Double, _ awake: Bool, _ fromStart: Bool,
-                          implausibleInGap: Bool = false) throws -> ResultB {
+                          implausibleInGap: Bool = false, chord: AlarmedChordCounter? = nil) throws -> ResultB {
         let thrTxt = config.distanceThresholdM.map(String.init) ?? config.timeThresholdMin.map(String.init) ?? ""
         let key = "\(config.mode.jsonName)\(thrTxt) fromStart=\(fromStart) awake=\(awake) past=\(KW.ki(past)) x=\(KW.ki(x))"
         let sim: Sim
@@ -547,6 +554,8 @@ struct TesterT132Tests {
         let v2 = (d0 + past) / (Double(tf - fixAt0) / 1000.0)
         let truth = Truth(d0, fixAt0)
         truth.segs.append((fixAt0, v2))
+        sim.truthD = { truth.dAt($0) }
+        sim.chord = chord
         var lastFix = tf
         let rangBefore = !sim.alarms.isEmpty
         var periodMs: Int64? = nil
@@ -582,6 +591,9 @@ struct TesterT132Tests {
     @Test("U115 (= T122 b tunnel) destination passed inside a tunnel, first fix <= 90 s before the fallback: no TIMEOUT, alarm <= 2 fix periods after the gap")
     func u115() throws {
         var out = ""
+        // T10.7 §10. Always 0 by construction (no fix is fed after the gap on "rang before the fix" runs): not evidence for T10.7,
+        // which U127, TR43 and T122 e1/e2 cover (review T12.4 nit #5).
+        let chord = AlarmedChordCounter()
         var viol: [String] = []
         var late: [String] = []
         var afterFix: [String] = []
@@ -591,7 +603,7 @@ struct TesterT132Tests {
             for past in [300.0, 1_000.0, 2_000.0, 2_900.0, 3_100.0, 3_500.0, 5_000.0, 10_000.0] {
                 for x in [90.0, 60.0, 31.0, 29.0, 20.0, 10.0] {
                     if config.mode != .distance && (!fromStart || x == 60.0 || x == 20.0) { continue }
-                    let r = try Self.scenarioB(config, past, x, awake, fromStart)
+                    let r = try Self.scenarioB(config, past, x, awake, fromStart, chord: chord)
                     out += r.line + "\n"
                     viol += r.viol
                     if r.reason == .timeout { timeouts += 1 }
@@ -608,6 +620,7 @@ struct TesterT132Tests {
                 }
             }
         } } }
+        AlarmedChordCounter.report("U115", chord)
         let afterTxt = "{" + afterFixS.keys.sorted().map { "\(Self.kd($0))=\(afterFixS[$0]!)" }.joined(separator: ", ") + "}"
         Report.shared.write("unit/t122-b-tunnel.txt",
                             "violations=\(KW.klist(Array(viol.prefix(40))))\nTIMEOUT=\(timeouts)\nawake runs, first alarm − first fix after the gap (s → runs): \(afterTxt)\n"
@@ -622,6 +635,9 @@ struct TesterT132Tests {
     @Test("U115 variant (= T122, RK20 d): one IMPLAUSIBLE fix inside the gap in 10 % of runs, TIMEOUT count recorded (3 of 32)")
     func u115Variant() throws {
         var out = ""
+        // T10.7 §10. Always 0 by construction (no fix is fed after the gap on "rang before the fix" runs): not evidence for T10.7,
+        // which U127, TR43 and T122 e1/e2 cover (review T12.4 nit #5).
+        let chord = AlarmedChordCounter()
         var viol: [String] = []
         var reasons: [String: Int] = [:]
         var timeouts = 0
@@ -634,7 +650,7 @@ struct TesterT132Tests {
                     let i = idx
                     idx += 1
                     if i % 10 != 0 { continue }
-                    let r = try Self.scenarioB(config, past, x, awake, fromStart, implausibleInGap: true)
+                    let r = try Self.scenarioB(config, past, x, awake, fromStart, implausibleInGap: true, chord: chord)
                     runs += 1
                     out += r.line + "\n"
                     viol += r.viol
@@ -643,6 +659,7 @@ struct TesterT132Tests {
                 }
             }
         } } }
+        AlarmedChordCounter.report("U115 variant", chord)
         Report.shared.write("unit/t122-b-tunnel-implausible.txt",
                             "runs=\(runs) TIMEOUT=\(timeouts) firstAlarm=\(KW.kmap(reasons)) violations=\(KW.klist(Array(viol.prefix(40))))\n\n\(out)")
         #expect(viol.isEmpty, "violations \(viol.prefix(10))")
@@ -888,6 +905,8 @@ struct TesterT132Tests {
 
     final class FuzzStats {
         var trips = 0
+        /// T10.7 §10: chord fixes after an alarm and the Overshoot events after them.
+        let chord = AlarmedChordCounter()
         var steps = 0
         var urgent = 0
         var soon = 0
@@ -1006,6 +1025,8 @@ struct TesterT132Tests {
         let resume = stopAt + KW.kl(r.dbl(20.0, 1_500.0) * 1000.0)
         truth.segs.append((resume, c * r.dbl(0.5, 1.5)))
         sim.truthSpeed = { truth.speedAt($0) }
+        sim.truthD = { truth.dAt($0) }
+        sim.chord = st.chord
         let fixP = r.dbl(0.3, 1.0)
         // Doze (60 %): from some time before the stop, a fix only at a wake-up Tick (probability fixInDozeP), as U111 withfix.
         let dozeAt = r.chance(0.6) ? stopAt - Int64(r.int(1_800_000)) : Int64.max
@@ -1088,6 +1109,8 @@ struct TesterT132Tests {
         }
         let sim = Sim(try TripEngine.start(config: config, params: params, nowMs: S), "e2 seed=\(seed) \(thrTag(config)) d0=\(KW.ki(d0))", r,
                       okP: 0.85, cancelLagMaxMs: 5_000)
+        sim.truthD = { truth.dAt($0) }
+        sim.chord = st.chord
         var lastFix = S - 1_000_000
         var batteryAtT = S
         var level = 20 + r.int(81)
@@ -1151,6 +1174,8 @@ struct TesterT132Tests {
         for seed in Int64(1)...6_000 { try Self.stopNearAlarm(seed, e1) }
         let e2 = FuzzStats()
         for seed in Int64(10_001)...12_000 { try Self.dozeTrip(seed, e2) }
+        AlarmedChordCounter.report("T122 e1", e1.chord)
+        AlarmedChordCounter.report("T122 e2", e2.chord)
         Report.shared.write("unit/t122-e-fuzz.txt", e1.text("e1 stop near the alarm boundary") + "\n" + e2.text("e2 Doze with fixes at wake-ups, kills"))
         #expect(e1.urgent + e2.urgent >= 150, "the fuzz exercises the urgent later shift: \(e1.urgent) + \(e2.urgent)")
         #expect(e1.viol.isEmpty && e2.viol.isEmpty, "e1 \(e1.viol.prefix(5))\ne2 \(e2.viol.prefix(5))")

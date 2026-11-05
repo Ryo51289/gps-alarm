@@ -4,7 +4,8 @@
 /// a LocationFix that moved `last`: whether it is a gap fix (round 3f: no IMPLAUSIBLE reject since L), the chord parameter u and
 /// distance, `dChord` (only for 0 < u < 1, as in `chordClosest`), and whether the `notCloser` term of the overshoot rule holds on
 /// the state after the Step (before any alarm, minDChord, minD < nearRadius, dSmooth − minD ≥ overshootOpenM). `dFixM`: raw
-/// distance of the new fix to the destination (U116 a2, T11.3: `d_f − dChord ≥ overshootOpenM`).
+/// distance of the new fix to the destination (U116 a2, T11.3: `d_f − dChord ≥ overshootOpenM`). T10.7: `isGapFix` also opens
+/// in ALARMING/SNOOZED; `phase` is the phase before the Step.
 struct GapProbe: Sendable {
     let atMs: Int64
     let recovered: Bool
@@ -14,6 +15,8 @@ struct GapProbe: Sendable {
     let dChord: Double?
     let standingTerm: Bool
     let dFixM: Double
+    /// T10.7 (U116 a1/a1b): phase before the Step.
+    let phase: TripPhase
 
     static func of(_ s0: EngineState, _ input: LocationFix, _ s1: Step) -> GapProbe? {
         guard let l = s0.last, let f = s1.state.last, f != l, f.fixAtMs == input.fixAtMs else { return nil }
@@ -24,7 +27,7 @@ struct GapProbe: Sendable {
         if gap, let ch, ch.u > 0.0 && ch.u < 1.0 { dChord = ch.distM }
         let dFix = Geo.distanceM(f.lat, f.lng, s0.config.destLat, s0.config.destLng)
         return GapProbe(atMs: input.atMs, recovered: recovered, gapFix: gap, u: ch?.u, chordM: ch?.distM, dChord: dChord,
-                        standingTerm: standingTerm(s0, s1), dFixM: dFix)
+                        standingTerm: standingTerm(s0, s1), dFixM: dFix, phase: s0.phase)
     }
 
     /// `notCloser` term of the overshoot rule (rounds 3c–3e), with the phase/alarm before the Step and minD/dSmooth after.

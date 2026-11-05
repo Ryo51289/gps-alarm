@@ -11,10 +11,11 @@ Sources/Trip/                   engine (T10 §2–§7): TripEngine, planners, Mi
 Tests/TripTests/Support/        paths, bits, SplitMix64, SHA-256 (FIPS 180-4), synthetic geometry, EngineDriver, KWorld (Kotlin test world)
 Tests/TripTests/Fixture/        GPX scanner, expect.json model (must-understand), anchors, ISO time
 Tests/TripTests/Harness/        CaseRunner (T12 §8.3), OsSim (§8.4), Checks (I4 T10.5 + urgent shifts), GapProbe (U116/U117),
-                                RestoreEquivalence (I8), KillSweep, Transcript (§9)
-Tests/TripTests/Unit/           U01–U126 + T12 extra cases + S01–S14; T106Tests (T10.6: U119, U120, U122–U124); Kotlin tester ports TesterT131 (T121), TesterT132 (T122),
+                                AlarmedChordCounter (T10.7 §10), LoopRoutes (U128), RestoreEquivalence (I8), KillSweep, Transcript (§9)
+Tests/TripTests/Unit/           U01–U129 + T12 extra cases + S01–S14; T106Tests (T10.6: U119, U120, U122–U124); T107Tests (T10.7: U127, U129), T107LoopTests (U128);
+                                Kotlin tester ports TesterT131 (T121), TesterT132 (T122),
                                 TesterT132Overshoot (T122 O1–O4) writing the same <report>/unit/*.txt as Kotlin
-Tests/TripTests/Trace/          TraceSuite (TR01–TR35, TR37, P01–P04, P06–P08), NegativeSweepTests (TR36, TR37-neg), DozeModelTests (TR39),
+Tests/TripTests/Trace/          TraceSuite (TR01–TR35, TR37, P01–P04, P06–P08), NegativeSweepTests (TR36, TR37-neg), DozeModelTests (TR39), TR43ReRingTests (TR43),
                                 P05ManifestTests (P05, S15, S16), FixtureMainRuns (T10.5 urgent shifts, GPS-gap chord, T10.6 C29 counters), IdCoverageTests
 scripts/test-wsl.sh             run the tests in WSL
 scripts/p05-diff.sh             Kotlin ↔ Swift transcript diff (Git Bash)

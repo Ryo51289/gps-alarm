@@ -238,7 +238,8 @@ struct T105GapTests {
         let f = Self.fix(f0, -300.0)
         #expect(try #require(f.state.minD) >= 299.0)
         #expect(f.events.alarms.map(\.reason) == [.distance], "f")
-        // (g) already alarmed (GPS_LOST while lost): no new Alarm, minD not lowered by the chord.
+        // (g) already alarmed (GPS_LOST while lost): no new Alarm at the first fix, minD not lowered by the chord. T10.7 round 2
+        // (C31): the chord after the alarm only goes to alarmedChordD ("came near", U127).
         var g0 = Self.reproState()
         g0.phase = .alarming
         g0.alarm = .empty
@@ -250,7 +251,9 @@ struct T105GapTests {
         g0.fallback = .cleared
         let g = Self.fix(g0, -3_100.0)
         #expect(g.events.alarms.isEmpty, "g \(g.events)")
-        #expect(try #require(g.state.minD) >= 3_000.0)
+        #expect(try #require(g.state.minD) >= 3_000.0, "g minD \(KW.kdOpt(g.state.minD))")
+        #expect(try #require(g.state.alarmedChordD) <= 1.0, "g alarmedChordD \(KW.kdOpt(g.state.alarmedChordD))")
+        #expect(!g.state.minDChord, "g minDChord")
         // (h) not yet passed: 5 000 m on the same side (seed 26 pattern): no alarm, the urgent later shift as U109.
         let h = Self.fix(Self.reproState(), 5_000.0, spd: 0.8)
         #expect(h.events.alarms.isEmpty, "h \(h.events)")
@@ -756,6 +759,9 @@ struct T105GapTests {
     /// every main run has exactly one, at the first accepted fix after `gpsGaps[0]`, with 0 < u < 1, dChord < nearRadius of the
     /// case and d_f − dChord ≥ overshootOpenM; on the `all` run at `g.end` with dChord 483.5 ± 0.5 m and u 0.797 ± 0.001.
     /// (a3) ≥ 6 traces.
+    /// T10.7: (a1) by phase — only probes with phase ∈ {ACQUIRING, TRACKING}; (a1b) non-TR40 probes in ALARMING/SNOOZED with a
+    /// dChord do not pass the destination meaningfully: dChord ≥ nearRadius || d_f − dChord < overshootOpenM (list in
+    /// `u116-a1b.txt`).
     @Test("U116 a the GPS-gap chord goes through a fixture destination only on TR40 traces")
     func u116a() async {
         let outs = await FixtureMainRuns.all.value
@@ -765,7 +771,7 @@ struct T105GapTests {
         let lines = probes.map { (o, g) in
             "\(o.run) t=\(Self.kd(Double(g.atMs - o.startMs) / 1000.0)) recovered=\(g.recovered) gapFix=\(g.gapFix) u=\(KW.kdOpt(g.u)) "
                 + "chord=\(KW.kdOpt(g.chordM)) dChord=\(KW.kdOpt(g.dChord)) dFix=\(Self.kd(g.dFixM)) standingTerm=\(g.standingTerm) "
-                + "tr40=\(tr40.contains(o.traceId))"
+                + "tr40=\(tr40.contains(o.traceId)) phase=\(g.phase.jsonName)"
         }.joined(separator: "\n")
         Report.shared.write("unit/u116-gap.txt",
                             "traces=\(KW.klist(traces)) probes=\(probes.count) tr40=\(KW.klist(tr40.sorted()))\n\(lines)\n")
@@ -773,9 +779,27 @@ struct T105GapTests {
         #expect(traces.count >= 6, "(a3) traces with probes: \(traces)")
         #expect(!tr40.isEmpty, "(a2) no fixture case carries testId TR40")
 
-        // (a1)
-        let stray = probes.filter { $0.1.dChord != nil && !tr40.contains($0.0.traceId) }
+        // (a1) T10.7: before any alarm only.
+        let stray = probes.filter {
+            $0.1.dChord != nil && !tr40.contains($0.0.traceId) && ($0.1.phase == .acquiring || $0.1.phase == .tracking)
+        }
         #expect(stray.isEmpty, "(a1) chord through the destination on a non-TR40 trace: \(stray.prefix(10).map { $0.0.run })")
+
+        // (a1b) T10.7: after an alarm (ALARMING/SNOOZED), the chord must not pass the destination meaningfully.
+        let alarmed = probes.filter {
+            $0.1.dChord != nil && !tr40.contains($0.0.traceId) && ($0.1.phase == .alarming || $0.1.phase == .snoozed)
+        }
+        var a1bBad: [String] = []
+        let a1bLines = alarmed.map { (o, g) -> String in
+            let dChord = g.dChord!
+            let ok = dChord >= Double(o.nearRadiusM) || g.dFixM - dChord < Double(o.overshootOpenM)
+            let line = "\(o.run) t=\(Self.kd(Double(g.atMs - o.startMs) / 1000.0)) phase=\(g.phase.jsonName) u=\(KW.kdOpt(g.u)) "
+                + "dChord=\(Self.kd(dChord)) dFix=\(Self.kd(g.dFixM)) ok=\(ok)"
+            if !ok { a1bBad.append(line) }
+            return line
+        }
+        Report.shared.write("unit/u116-a1b.txt", "probes=\(alarmed.count) bad=\(a1bBad.count)\n\(a1bLines.joined(separator: "\n"))\n")
+        #expect(a1bBad.isEmpty, "(a1b) chord passing the destination after an alarm on a non-TR40 trace: \(a1bBad.prefix(10))")
 
         // (a2)
         var bad: [String] = []

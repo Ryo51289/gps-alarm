@@ -23,6 +23,7 @@ enum SnapshotCodec {
         o.append(("minD", optDouble(s.minD)))
         o.append(("minDChord", .bool(s.minDChord)))
         o.append(("passAnchorD", optDouble(s.passAnchorD)))
+        o.append(("alarmedChordD", optDouble(s.alarmedChordD)))
         o.append(("last3", .array(s.last3.map(double))))
         o.append(("ground", optDouble(s.ground)))
         o.append(("closing", optDouble(s.closing)))
@@ -140,6 +141,7 @@ enum SnapshotCodec {
             dSmooth: try r.optDouble("dSmooth"), dStartM: try r.optDouble("dStartM"), minD: try r.optDouble("minD"),
             minDChord: try r.boolOrFalse("minDChord"),
             passAnchorD: try r.optDoubleIfMissing("passAnchorD"),
+            alarmedChordD: try r.optDoubleIfMissing("alarmedChordD"),   // T10.7 round 2: third named exception to C20
             last3: try r.doubleArray("last3"),
             ground: try r.optDouble("ground"), closing: try r.optDouble("closing"),
             movingTimeS: try r.double("movingTimeS"), movingSamples: try r.int("movingSamples"),

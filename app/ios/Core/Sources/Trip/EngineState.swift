@@ -84,6 +84,8 @@ public struct EngineState: Sendable, Equatable {
     var minDChord: Bool = false
     /// T10.6 (C27, C28): distance mark of the slow-vehicle passed-closest net, set only once already past the closest point.
     var passAnchorD: Double? = nil
+    /// T10.7 round 2 (C31): smallest GPS-gap chord distance taken after the first alarm (ALARMING/SNOOZED); "came near" only.
+    var alarmedChordD: Double? = nil
     var last3: [Double]
     var ground: Double?
     var closing: Double?
@@ -117,7 +119,7 @@ public struct EngineState: Sendable, Equatable {
             snapshotVersion: 1, params: params, config: config, nowMs: nowMs, startedAtMs: nowMs,
             phase: .acquiring, gps: .noFixYet, locationCause: .available,
             last: nil, stopAnchor: nil, recent: [], rejects: [],
-            dSmooth: nil, dStartM: nil, minD: nil, minDChord: false, passAnchorD: nil, last3: [],
+            dSmooth: nil, dStartM: nil, minD: nil, minDChord: false, passAnchorD: nil, alarmedChordD: nil, last3: [],
             ground: nil, closing: nil, movingTimeS: 0.0, movingSamples: 0, movingDistM: 0.0,
             stopStartMs: nil, slow: false, cvGuard: [],
             policy: nil, policyIntervalAtLastFixS: 0,

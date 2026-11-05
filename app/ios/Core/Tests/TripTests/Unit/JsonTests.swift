@@ -77,7 +77,7 @@ struct SnapshotCodecTests {
             }
         }
         return a == b && Bits.same(a.dSmooth, b.dSmooth) && Bits.same(a.dStartM, b.dStartM) && Bits.same(a.minD, b.minD)
-            && Bits.same(a.passAnchorD, b.passAnchorD)
+            && Bits.same(a.passAnchorD, b.passAnchorD) && Bits.same(a.alarmedChordD, b.alarmedChordD)
             && Bits.same(a.last3, b.last3) && Bits.same(a.ground, b.ground) && Bits.same(a.closing, b.closing)
             && Bits.same(a.movingTimeS, b.movingTimeS) && Bits.same(a.movingDistM, b.movingDistM) && Bits.same(a.cvGuard, b.cvGuard)
             && fx(a.last, b.last) && fx(a.stopAnchor, b.stopAnchor) && a.recent.count == b.recent.count
@@ -92,6 +92,7 @@ struct SnapshotCodecTests {
             var s = Self.randomState(&rng, guardCount: [0, 1, 2, 5][i % 4])
             s.minDChord = i % 2 == 0   // T10.5 round 3e: both values
             s.passAnchorD = i % 3 == 1 ? nil : rng.nextDouble() * 1e5   // T10.6 (U124): nil and numbers interleaved
+            s.alarmedChordD = i % 4 < 2 ? nil : Double(i) * 37.125 + 0.1   // T10.7 round 2 (U129): nil and numbers interleaved
             let json = TripEngine.encodeSnapshot(s)
             let back = try TripEngine.decodeSnapshot(json)
             #expect(Self.bitsEqual(s, back), "state \(i)")
@@ -123,6 +124,11 @@ struct SnapshotCodecTests {
                 #expect(Bits.same(back.cvGuard, values))
                 #expect(Bits.same(back.passAnchorD, anchor))
                 #expect(Self.bitsEqual(s, back))
+                var sa = s   // T10.7 round 2 (U129): alarmedChordD with the same values
+                sa.alarmedChordD = anchor
+                let backA = try TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sa))
+                #expect(Self.bitsEqual(sa, backA))
+                #expect(Bits.same(backA.alarmedChordD, anchor))
             }
         }
     }

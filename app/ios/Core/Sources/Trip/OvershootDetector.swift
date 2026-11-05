@@ -1,6 +1,9 @@
 // Overshoot, passed-closest net, arrival (T10 §4.11). Only evaluated on a Step with an accepted fix.
 // T10.5 round 3/3b: destination passed inside a GPS gap (the chord between the fix before the gap and the first fix after it
 // lowers minD; no immediate chord alarm, round 3b). Round 3c–3f: the `notCloser` overshoot term, gated by `minDChord`.
+// T10.7: also after an alarm (ALARMING/SNOOZED), so a chime that stopped by itself re-rings OVERSHOOT by the usual rule
+// (increasing && fast) when the vehicle passed the destination inside the gap (RK24).
+// T10.7 round 2 (C31): after the alarm the chord only proves "came near" (alarmedChordD → nearD), never "moved away 1 km".
 
 /// Projection of the destination on the chord L → f in a local plane around it: parameter u and distance (m).
 struct Chord: Sendable, Equatable {
@@ -36,6 +39,14 @@ enum OvershootDetector {
         Double(TMath.max(s.params.overshootNearMinM, s.config.mode == .distance ? (s.config.distanceThresholdM ?? 0) : 0))
     }
 
+    /// T10.7 round 2 (C31): "came near" distance — minD, or min(minD, alarmedChordD) when a chord was taken after the first alarm
+    /// (exactly minD, no call to min, when alarmedChordD is nil).
+    static func nearD(_ s: EngineState) -> Double? {
+        guard let m = s.minD else { return nil }
+        guard let a = s.alarmedChordD else { return m }
+        return TMath.min(m, a)
+    }
+
     static func isOvershoot(_ s: EngineState) -> Bool {
         guard s.overshootAtMs == nil, s.phase == .tracking || s.phase == .alarming || s.phase == .snoozed,
               let minD = s.minD, let d = s.dSmooth else { return false }
@@ -48,7 +59,10 @@ enum OvershootDetector {
         let notCloser = s.stopStartMs != nil
             || (l3.count == 3 && l3[2] >= l3[0] && TMath.min(l3[0], TMath.min(l3[1], l3[2])) - minD >= Double(p.overshootOpenM))
         let notYet = (s.phase == .acquiring || s.phase == .tracking) && s.alarm.atMs == nil
-        return minD < nearRadiusM(s) && d - minD >= Double(p.overshootOpenM)
+        // T10.7 round 2 (C31): (1) came near uses nearD (may come from a chord after the alarm); (2) moved away > 1 km uses minD
+        // (observed fixes, or a chord before any alarm), never alarmedChordD.
+        let nd = nearD(s)!
+        return nd < nearRadiusM(s) && d - minD >= Double(p.overshootOpenM)
             && ((increasing(s) && fast(s)) || (notYet && s.minDChord && notCloser))
     }
 
@@ -77,10 +91,12 @@ enum OvershootDetector {
         return ch.u > 0.0 && ch.u < 1.0 ? ch.distM : nil
     }
 
-    /// T10.5 round 3 `gapFix`: first accepted fix after a GPS gap, before any alarm. `s` is the state before step 2 changed
-    /// gps / policyIntervalAtLastFixS / policy; `l` is `last` before this fix. (Round 3f's `rejects` test is the caller's.)
+    /// T10.5 round 3 `gapFix`: first accepted fix after a GPS gap. `s` is the state before step 2 changed phase / gps /
+    /// policyIntervalAtLastFixS / policy; `l` is `last` before this fix. (Round 3f's `rejects` test is the caller's.)
+    /// T10.7 (C30, RK24): also after an alarm (ALARMING/SNOOZED); there the chord only sets alarmedChordD (round 2, C31).
     static func isGapFix(_ s: EngineState, l: FixRec?, f: FixRec) -> Bool {
-        guard let l, s.phase == .acquiring || s.phase == .tracking, s.alarm.atMs == nil else { return false }
+        guard let l, s.phase == .acquiring || s.phase == .tracking || s.phase == .alarming || s.phase == .snoozed,
+              s.overshootAtMs == nil else { return false }
         return s.gps == .lost || f.fixAtMs - l.fixAtMs >= TMath.ms(GpsMonitor.lostAfterS(s))
     }
 

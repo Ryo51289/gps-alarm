@@ -583,7 +583,7 @@ struct T106Tests {
             let json = TripEngine.encodeSnapshot(st)
             // Swift writes the shortest round-trip digits (`description`); Kotlin writes `Double.toString` (5e-324 → 4.9E-324).
             let lit = anchor.map { "\($0)" } ?? "null"
-            #expect(json.contains("\"minDChord\":true,\"passAnchorD\":\(lit),\"last3\""), "\(json)")
+            #expect(json.contains("\"minDChord\":true,\"passAnchorD\":\(lit),\"alarmedChordD\":null,\"last3\""), "\(json)")
             #expect(try TripEngine.decodeSnapshot(json) == st)
             let without = json.replacingOccurrences(of: ",\"passAnchorD\":\(lit)", with: "")
             #expect(!without.contains("passAnchorD"))

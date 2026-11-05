@@ -412,6 +412,8 @@ struct TesterT131Tests {
 
     final class FuzzStats {
         var trips = 0
+        /// T10.7 §10: chord fixes after an alarm and the Overshoot events after them.
+        let alarmedChord = AlarmedChordCounter()
         var steps = 0
         var probes = 0
         var firstBy: [String: Int] = [:]
@@ -697,6 +699,10 @@ struct TesterT131Tests {
                                            + passKinds(step.events))
                         if dTruth > 0.0 { st.v("chord minD used before the destination was passed", st.gapLines.last!) }
                     }
+                    // T10.7 §10: a chord after the alarm (ALARMING/SNOOZED) followed by an Overshoot before the destination.
+                    if let w = st.alarmedChord.onFix(tripTag, s0, lf, step, truth.dAt(Double(t - S) / 1000.0)) {
+                        st.v("T10.7 alarmed-chord Overshoot before the destination was passed", w)
+                    }
                 }
                 switch input {
                 case .locationFix, .batterySample: lastInfo = infoStep(t, s0, step)
@@ -856,6 +862,7 @@ struct TesterT131Tests {
         let st = FuzzStats()
         for seed in seeds { try dozeTrip(seed, variant, okP: okP, killP: killP, battery: battery, st, params: params) }
         if !write { return st }
+        AlarmedChordCounter.report("U111 \(name)", st.alarmedChord)
         let late = st.lateVsTruth.sorted()
         let lateTxt = late.isEmpty ? "-" : "min \(Int(late[0])) m, p05 \(Int(late[late.count / 20])) m, median \(Int(late[late.count / 2])) m, "
             + "rang after passing the threshold: \(late.filter { $0 < 0 }.count)/\(late.count)"

@@ -228,6 +228,7 @@ struct StepWork {
             s.dSmooth = d
             s.minD = d
             s.minDChord = false
+            s.alarmedChordD = nil   // T10.7 round 2 (C31)
             s.last3 = [d]
             s.stopStartMs = nil
             s.stopAnchor = nil
@@ -236,13 +237,23 @@ struct StepWork {
             // T10.5 round 3/3b (§4.11): first in ACCEPT, from the state before this fix (gps, lostAfterS, last). A chord through
             // the destination lowers minD and ends the stop from before the gap (the vehicle went along the chord).
             // Round 3f: not after a fix rejected as IMPLAUSIBLE since L (`rejects` read before ACCEPT cleared it).
+            // T10.7 (C30): also in ALARMING/SNOOZED (overshootAtMs == nil). T10.7 round 2 (C31): after the first alarm the chord
+            // only proves "came near" (alarmedChordD); minD, minDChord and the stop are left alone, so "moved away > 1 km" is
+            // measured from observed fixes.
+            let notYet = (s.phase == .acquiring || s.phase == .tracking) && s.alarm.atMs == nil
             if noRejectsSincePrev, OvershootDetector.isGapFix(s, l: s.last, f: rec), let l = s.last,
                let dChord = OvershootDetector.chordClosest(l, rec, s.config) {
-                s.stopStartMs = nil
-                s.stopAnchor = nil
-                if s.minD == nil || dChord < s.minD! {
-                    s.minD = dChord
-                    s.minDChord = true   // T10.5 round 3e
+                if notYet {
+                    s.stopStartMs = nil
+                    s.stopAnchor = nil
+                    if s.minD == nil || dChord < s.minD! {
+                        s.minD = dChord
+                        s.minDChord = true   // T10.5 round 3e
+                    }
+                } else if let a = s.alarmedChordD {
+                    s.alarmedChordD = TMath.min(a, dChord)
+                } else {
+                    s.alarmedChordD = dChord
                 }
             }
             if let last = s.last {
@@ -346,7 +357,8 @@ struct StepWork {
         }
         // 7. Overshoot.
         if fixAccepted && OvershootDetector.isOvershoot(s) {
-            let past = TMath.roundHalfUp((s.dSmooth ?? 0) - (s.minD ?? 0))
+            // T10.7 round 2 (C31): from the estimated closest point (nearD; = minD when no chord was taken after the alarm).
+            let past = TMath.roundHalfUp((s.dSmooth ?? 0) - (OvershootDetector.nearD(s) ?? 0))
             s.overshootAtMs = now
             s.overshootPastM = past
             switch s.phase {
