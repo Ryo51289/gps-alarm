@@ -40,7 +40,7 @@ tài khoản, thanh toán, bản đồ offline.
 | 8 | Đã đi quá trạm | Khoảng cách đã quá, mở Google Maps chỉ đường quay lại |
 | 9 | Hướng dẫn tắt tối ưu pin | Theo hãng: Xiaomi, Samsung, Oppo, Vivo; 3 bước + chạy thử 30 giây |
 | 11 | Lịch sử | Kết quả mỗi chuyến: tỉnh đúng lúc / báo lại / lỡ trạm / đã dừng; "Đặt lại" 1 chạm |
-| 12 | Cài đặt chung | Âm báo, âm lượng, tăng dần, rung, flash, ưu tiên tai nghe, mặc định chuyến, đơn vị, giờ, giao diện, ngôn ngữ |
+| 12 | Cài đặt chung | Âm báo, âm lượng, tăng dần, rung, flash, ưu tiên tai nghe, mặc định chuyến, giao diện, ngôn ngữ (MVP 1 luôn dùng km, giờ theo cài đặt 12/24 của máy — PO Q1 T28, 05/11) |
 
 ### 3.1 Màn 0 — quyền theo nền tảng
 
