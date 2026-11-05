@@ -144,22 +144,30 @@ void main() {
     );
   });
 
-  // N1 (review T20 vong 2): computeMaxIntrinsicWidth adds the full trailing
-  // width, but layout caps trailing at half the inner width. RenderBox
+  // N1 (review T20 vong 2; T28 §7, orchestrator N1 = A): the max intrinsic
+  // width is max(gaps + children, 2 x trailing), because layout caps the
+  // trailing at half the inner width (T20 rule, unchanged). RenderBox
   // contract: at maxIntrinsicWidth the height must already be minimal.
-  testWidgets(
-    'N1 max intrinsic width is wide enough for a one-line trailing',
-    (tester) async {
-      await pumpNap(tester, _configs['long trailing']!);
-      final box = _rowBox(tester);
-      final w = box.getMaxIntrinsicWidth(double.infinity);
-      expect(
-        box.getMinIntrinsicHeight(w),
-        moreOrLessEquals(box.getMinIntrinsicHeight(double.infinity)),
-      );
+  // Inside IntrinsicWidth the row gets min(2T + padding, screen): where 2T
+  // does not fit (390 px), the trailing keeps the W/2 cap and wraps to 2
+  // lines without overflow; where it fits (600 px) it stays on one line.
+  testWidgets('N1 max intrinsic width honours the half-width trailing cap', (
+    tester,
+  ) async {
+    await pumpNap(tester, _configs['long trailing']!);
+    final box = _rowBox(tester);
+    final w = box.getMaxIntrinsicWidth(double.infinity);
+    expect(
+      box.getMinIntrinsicHeight(w),
+      moreOrLessEquals(box.getMinIntrinsicHeight(double.infinity)),
+    );
 
-      // Same thing through IntrinsicWidth (AlertDialog/SimpleDialog).
-      const value = 'Chuông số 1 dài';
+    // Same thing through IntrinsicWidth (AlertDialog/SimpleDialog).
+    const value = 'Chuông số 1 dài';
+    const padding = 2 * NapSpace.s16;
+    Future<({double row, double inner, RenderBox trailing})> pumpAt(
+      double width,
+    ) async {
       await pumpNap(
         tester,
         const Center(
@@ -167,41 +175,67 @@ void main() {
             child: NapListRow(title: 'A', trailing: Text(value)),
           ),
         ),
+        width: width,
       );
-      final line = tester.getSize(find.text('A')).height;
-      expect(tester.getSize(find.text(value)).height, moreOrLessEquals(line));
-    },
-    skip: true, // N1 open: trailing wraps to 2 lines (46 vs 21 px).
-  );
+      expect(tester.takeException(), isNull, reason: 'width $width');
+      final row = tester.getSize(find.byType(NapListRow)).width;
+      return (
+        row: row,
+        inner: _rowBox(tester).size.width,
+        trailing: tester.renderObject<RenderBox>(find.text(value)),
+      );
+    }
+
+    // 390 px: 2T + padding does not fit, the row takes the screen width.
+    final narrow = await pumpAt(390);
+    final t = narrow.trailing.getMaxIntrinsicWidth(double.infinity);
+    final line = narrow.trailing.getMinIntrinsicHeight(double.infinity);
+    expect(2 * t + padding, greaterThan(390));
+    expect(narrow.row, moreOrLessEquals(390));
+    expect(narrow.inner, moreOrLessEquals(390 - padding));
+    expect(narrow.trailing.size.width, lessThanOrEqualTo(narrow.inner / 2));
+    expect(narrow.trailing.size.height, moreOrLessEquals(2 * line));
+    // The title still has its one line.
+    expect(
+      tester.getSize(find.text('A')).height,
+      moreOrLessEquals(
+        tester
+            .renderObject<RenderBox>(find.text('A'))
+            .getMinIntrinsicHeight(double.infinity),
+      ),
+    );
+
+    // 600 px: 2T + padding fits, so IntrinsicWidth gives exactly that and
+    // the trailing is on one line.
+    final wide = await pumpAt(600);
+    expect(wide.row, moreOrLessEquals(2 * t + padding));
+    expect(wide.trailing.size.height, moreOrLessEquals(line));
+  });
 
   // N2 (review T20 vong 2): when leading + gaps + chevron + half-width
   // trailing exceed the row, children paint outside it and nothing is
   // reported (a Row would throw "RenderFlex overflowed").
-  testWidgets(
-    'N2 overflowing row is reported in debug',
-    (tester) async {
-      await pumpNap(
-        tester,
-        _configs['all slots + badge']!,
-        textScale: 2,
-        width: 200,
-      );
-      final reported = tester.takeException() != null;
-      final box = _rowBox(tester);
-      var outside = false;
-      box.visitChildren((child) {
-        final b = child as RenderBox;
-        final rect = (b.parentData! as BoxParentData).offset & b.size;
-        if (rect.left < -0.01 || rect.right > box.size.width + 0.01) {
-          outside = true;
-        }
-      });
-      expect(
-        !outside || reported,
-        isTrue,
-        reason: 'children overflow the row but no error was reported',
-      );
-    },
-    skip: true, // N2 open: overflow is silent.
-  );
+  testWidgets('N2 overflowing row is reported in debug', (tester) async {
+    await pumpNap(
+      tester,
+      _configs['all slots + badge']!,
+      textScale: 2,
+      width: 200,
+    );
+    final reported = tester.takeException() != null;
+    final box = _rowBox(tester);
+    var outside = false;
+    box.visitChildren((child) {
+      final b = child as RenderBox;
+      final rect = (b.parentData! as BoxParentData).offset & b.size;
+      if (rect.left < -0.01 || rect.right > box.size.width + 0.01) {
+        outside = true;
+      }
+    });
+    expect(
+      !outside || reported,
+      isTrue,
+      reason: 'children overflow the row but no error was reported',
+    );
+  });
 }

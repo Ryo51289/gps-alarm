@@ -40,7 +40,8 @@ class AlarmController(
     private val ringConfigs = ConcurrentHashMap<String, RingConfig>()
     private val tripStore = FileRuntimeStore(File(ctx.noBackupFilesDir, FileRuntimeStore.DIR_NAME), warn)
     private val watchers = ConcurrentHashMap<String, Job>()
-    private val locale: () -> Locale = { ctx.resources.configuration.locales[0] ?: Locale.getDefault() }
+    /** App language (T28): copy formatting here, and the `localeTag` every RING_START carries to `:ring`. */
+    private val locale: () -> Locale = { AppLocale.locale(ctx) }
 
     val constants: AlarmConstants = AlarmConstantsHolder.load(ctx)
 
@@ -55,10 +56,12 @@ class AlarmController(
             c = constants,
             warn = warn,
             locale = locale,
+            localeTag = { AppLocale.tag(ctx) },
         )
 
     init {
-        AlarmChannels.ensure(ctx)
+        // On IO, serialized with AppLocale.set (the first read touches a tiny file). Posts ensure missing channels themselves.
+        AppLocale.refreshChannels(ctx)
     }
 
     override fun ringNow(request: RingRequest) {

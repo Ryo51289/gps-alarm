@@ -43,6 +43,20 @@ final class AlarmPreferences {
     flash: false,
   );
 
+  AlarmPreferences copyWith({
+    String? soundId,
+    int? volumePct,
+    bool? rampUp,
+    VibrationMsg? vibration,
+    bool? flash,
+  }) => AlarmPreferences(
+    soundId: soundId ?? this.soundId,
+    volumePct: volumePct ?? this.volumePct,
+    rampUp: rampUp ?? this.rampUp,
+    vibration: vibration ?? this.vibration,
+    flash: flash ?? this.flash,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is AlarmPreferences &&

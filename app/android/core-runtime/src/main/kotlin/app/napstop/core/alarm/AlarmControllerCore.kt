@@ -12,6 +12,8 @@ data class RingStart(
     val launchUi: Boolean,
     /** Watchdog restart / adopt: keep the original start. */
     val resumeStartedAtWallMs: Long?,
+    /** App language of the ring's strings, "vi" | "en"; null = device (T28 D9: `:ring` never reads the language file). */
+    val localeTag: String? = null,
 ) {
     override fun toString(): String = "RingStart(tripId=${request.tripId}, seq=$ringSeq, source=${request.source}, launchUi=$launchUi)"
 }
@@ -62,6 +64,7 @@ object RingStartCodec {
         m["atWallMs"] = r.atWallMs
         m["launchUi"] = s.launchUi
         m["resumeStartedAtWallMs"] = s.resumeStartedAtWallMs
+        m["localeTag"] = s.localeTag
         return m
     }
 
@@ -100,6 +103,8 @@ object RingStartCodec {
                 snoozeS = optInt(m, "snoozeS")?.takeIf { it > 0 } ?: throw Invalid(),
                 launchUi = bool(m, "launchUi"),
                 resumeStartedAtWallMs = (m["resumeStartedAtWallMs"] as Number?)?.toLong(),
+                // Optional (T28): absent (older codec) or not a String = device language; a label never blocks a ring.
+                localeTag = m["localeTag"] as? String,
             )
         } catch (e: Invalid) {
             null
@@ -187,6 +192,8 @@ class AlarmControllerCore(
     private val c: AlarmConstants,
     private val warn: (String) -> Unit,
     private val locale: () -> Locale = { Locale.getDefault() },
+    /** App language sent in every RingStart (T28); null = device. */
+    private val localeTag: () -> String? = { null },
 ) : AlarmPort {
     private val lock = Any()
     private val starting = HashMap<String, StartingMarker>()
@@ -209,7 +216,11 @@ class AlarmControllerCore(
             }
             val cur = factsLocked(trip, rec)
             val snoozeS = ringConfigQuiet(trip)?.snoozeS?.takeIf { it > 0 } ?: c.snoozeSDefault
-            val s = RingStart(req, clock.elapsedNanos(), snoozeS, launchUi = quietBool { transport.appVisible() }, resumeStartedAtWallMs = null)
+            val s =
+                RingStart(
+                    req, clock.elapsedNanos(), snoozeS, launchUi = quietBool { transport.appVisible() }, resumeStartedAtWallMs = null,
+                    localeTag = quietTag(),
+                )
             if (cur.ringingNow) {
                 // At most one ring per trip (T15 §4.2, T10 #6): the ring on only gets its content updated.
                 if (rec?.ringing == true && rec.mode == RingMode.BACKUP && starting[trip] == null) {
@@ -469,6 +480,7 @@ class AlarmControllerCore(
             snoozeS = rc?.snoozeS?.takeIf { it > 0 } ?: c.snoozeSDefault,
             launchUi = false,
             resumeStartedAtWallMs = r.startedAtWallMs,
+            localeTag = quietTag(),
         )
     }
 
@@ -504,6 +516,13 @@ class AlarmControllerCore(
             warn("$what failed (${e.javaClass.simpleName})")
         }
     }
+
+    private fun quietTag(): String? =
+        try {
+            localeTag()
+        } catch (e: Exception) {
+            null
+        }
 
     private inline fun quietBool(block: () -> Boolean): Boolean =
         try {

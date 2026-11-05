@@ -304,13 +304,40 @@ class FakeCoreBridge implements CoreBridge {
   @override
   Future<void> snooze(String tripId) => _answer('snooze', null, () {});
 
-  @override
-  Future<List<FinishedTripMsg>> pendingFinishedTrips() =>
-      _answer('pendingFinishedTrips', null, () => const []);
+  /// The native queue of ended trips (T28), oldest first; [ackFinishedTrips]
+  /// removes the acked ids like native does.
+  final List<FinishedTripMsg> pending = [];
+  Object? pendingError;
+  Object? ackError;
+
+  /// When set, [pendingFinishedTrips] waits for it (T28 H09).
+  Completer<void>? pendingGate;
+
+  /// Arguments of every [ackFinishedTrips] call.
+  final List<List<String>> ackCalls = [];
 
   @override
-  Future<void> ackFinishedTrips(List<String> tripIds) =>
-      _answer('ackFinishedTrips', null, () {});
+  Future<List<FinishedTripMsg>> pendingFinishedTrips() {
+    final gate = pendingGate;
+    if (gate == null) {
+      return _answer('pendingFinishedTrips', pendingError, () => [...pending]);
+    }
+    calls.add('pendingFinishedTrips');
+    return gate.future.then((_) {
+      final error = pendingError;
+      return error == null
+          ? [...pending]
+          : Future<List<FinishedTripMsg>>.error(error);
+    });
+  }
+
+  @override
+  Future<void> ackFinishedTrips(List<String> tripIds) {
+    ackCalls.add(List.unmodifiable(tripIds));
+    return _answer('ackFinishedTrips', ackError, () {
+      pending.removeWhere((f) => tripIds.contains(f.tripId));
+    });
+  }
 
   @override
   Future<PermissionStatusMsg> permissionStatus() =>
@@ -413,8 +440,10 @@ class FakeCoreBridge implements CoreBridge {
   }
 
   @override
-  Future<void> previewSound(String soundId, double volume) =>
-      _answer('previewSound', null, () {});
+  Future<void> previewSound(String soundId, double volume) {
+    previewCalls.add((soundId: soundId, volume: volume));
+    return _answer('previewSound', previewError, () {});
+  }
 
   @override
   Future<void> stopPreview() => _answer('stopPreview', null, () {});
@@ -443,11 +472,18 @@ class FakeCoreBridge implements CoreBridge {
     return _answer('showAlarmScreen', null, () => showAlarmScreenResult);
   }
 
+  /// Thrown by [setAppLocale] when set (T28 S11).
+  Object? setAppLocaleError;
+
   @override
   Future<void> setAppLocale(String? languageTag) {
     setAppLocaleCalls.add(languageTag);
-    return _answer('setAppLocale', null, () {});
+    return _answer('setAppLocale', setAppLocaleError, () {});
   }
+
+  /// Arguments of every [previewSound] call (T28).
+  final List<({String soundId, double volume})> previewCalls = [];
+  Object? previewError;
 }
 
 /// One [FakeCoreBridge.startTrip] call.

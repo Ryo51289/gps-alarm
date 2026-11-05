@@ -34,6 +34,11 @@ class Trips extends Table {
   IntColumn get startedAt => integer()();
 
   // --- set when the trip ends (T28); null while running ---
+  //
+  // For a simulated trip, ended_at / alarm_at / dismissed_at are the values
+  // of FinishedTripMsg, i.e. VIRTUAL trip-clock times (T18 D14): use them for
+  // durations only, never show them as wall-clock times when `simulated`.
+  // An orphan row (T28 D4) has ended_at set and result still null.
 
   IntColumn get endedAt => integer().nullable()();
   TextColumn get result =>

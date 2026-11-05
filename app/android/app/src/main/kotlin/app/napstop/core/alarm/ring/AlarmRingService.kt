@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import app.napstop.core.alarm.AlarmChannels
+import app.napstop.core.alarm.AppLocale
 import app.napstop.core.alarm.FgsType
 import app.napstop.core.alarm.FgsTypePolicy
 import app.napstop.core.alarm.RingIntents
@@ -41,14 +42,15 @@ class AlarmRingService : Service() {
         lastStartId = startId
         // Runs on the ring thread before this start's work: a stop decided for an older start leaves this one alone.
         session.noteStartId(startId)
-        if (!startForegroundFirst()) {
+        // Parsed once (in memory); its tag names the placeholder (T28), else the session's.
+        val start = if (intent?.action == RingIntents.ACTION_RING_START) RingIntents.fromBundle(intent.extras) else null
+        if (!startForegroundFirst(start?.localeTag ?: session.localeTag)) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
         when (intent?.action) {
             RingIntents.ACTION_RING_START -> {
-                val s = RingIntents.fromBundle(intent.extras)
-                if (s == null) session.stopServiceIfIdle() else session.start(s)
+                if (start == null) session.stopServiceIfIdle() else session.start(start)
             }
             RingIntents.ACTION_RING_ADOPT -> {
                 val trip = RingIntents.validTripId(intent.getStringExtra(RingIntents.EXTRA_TRIP_ID))
@@ -82,8 +84,8 @@ class AlarmRingService : Service() {
         stopSelfResult(handledStartId)
     }
 
-    private fun startForegroundFirst(): Boolean {
-        val notif = RingNotifications.placeholder(this)
+    private fun startForegroundFirst(localeTag: String?): Boolean {
+        val notif = RingNotifications.placeholder(this, AppLocale.localizedWith(this, localeTag))
         for (t in FgsTypePolicy.ringTypes(Build.VERSION.SDK_INT, canScheduleExact())) {
             try {
                 ServiceCompat.startForeground(this, RingNotifications.ID_RING_FGS, notif, androidType(t))

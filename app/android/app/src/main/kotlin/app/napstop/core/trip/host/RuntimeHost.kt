@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import app.napstop.BuildConfig
 import app.napstop.core.alarm.AlarmController
+import app.napstop.core.alarm.AppLocale
 import app.napstop.core.location.AndroidDeviceEnv
 import app.napstop.core.location.AndroidTimeSource
 import app.napstop.core.location.AndroidTrackingController
@@ -53,6 +54,8 @@ object RuntimeHost {
                 SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> Log.e(TAG, "runtime: ${e.javaClass.simpleName}") },
             )
         val constants = RuntimeConstants()
+        // T28: channels in the app language, created / renamed on IO (no disk read on the main thread here).
+        AppLocale.refreshChannels(ctx)
         val notifications = TripNotifications(ctx).also { it.ensureChannels() }
         val location = SwitchableLocationSource(FusedLocationSource(ctx, constants.stepWakelockMs))
         val journal = debugJournal(ctx)

@@ -11,6 +11,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import app.napstop.MainActivity
 import app.napstop.R
+import app.napstop.core.alarm.AppLocale
 import app.napstop.core.trip.runtime.NoticeFormatter
 import app.napstop.core.trip.runtime.NoticeTemplates
 import app.napstop.core.trip.runtime.TrackingNotice
@@ -23,51 +24,67 @@ import java.util.Locale
  * Notification channels and notifications of a trip (spec T15 §5.10, D15). The ongoing one belongs to LocationService
  * (id [ID_TRACKING], channel `napstop_tracking`, LOW); alerts go to `napstop_trip_alerts` (HIGH) with tag = tripId.
  * Copy only from strings.xml (= ARB keys, §8). Lock screen: VISIBILITY_PRIVATE with a public version without the
- * destination name. Missing POST_NOTIFICATIONS: posting fails quietly, the trip goes on (PRD §3.1).
+ * destination name. Missing POST_NOTIFICATIONS: posting fails quietly, the trip goes on (PRD §3.1). Strings and number /
+ * time formats follow the app language ([AppLocale], T28); a change shows at the next update of the ongoing notification.
  */
 class TripNotifications(context: Context) : TripNotifier {
     private val ctx = context.applicationContext
     private val nm: NotificationManager? get() = ctx.getSystemService(NotificationManager::class.java)
 
+    /**
+     * Display strings in the app language, read on each use (the language may change during a trip). Never reads the disk:
+     * often called on the main thread (LocationService); before the first read finishes it is the device language.
+     */
+    private val res: Context get() = AppLocale.localizedWith(ctx, AppLocale.tagNow(ctx))
+
+    /**
+     * Creates the channels; renames them to the app language once it is known (T28 D10). Before that only missing channels
+     * are created, so a device-language name never overwrites the chosen one ([AppLocale.refreshChannels] renames them).
+     */
     fun ensureChannels() {
         val m = nm ?: return
-        m.createNotificationChannel(
-            NotificationChannel(CHANNEL_TRACKING, ctx.getString(R.string.notif_channel_tracking), NotificationManager.IMPORTANCE_LOW).apply {
+        val rename = AppLocale.isLoaded
+        val res = res
+        fun create(channel: NotificationChannel) {
+            if (rename || m.getNotificationChannel(channel.id) == null) m.createNotificationChannel(channel)
+        }
+        create(
+            NotificationChannel(CHANNEL_TRACKING, res.getString(R.string.notif_channel_tracking), NotificationManager.IMPORTANCE_LOW).apply {
                 setShowBadge(false)
             },
         )
-        m.createNotificationChannel(
-            NotificationChannel(CHANNEL_ALERTS, ctx.getString(R.string.notif_channel_trip_alerts), NotificationManager.IMPORTANCE_HIGH),
+        create(NotificationChannel(CHANNEL_ALERTS, res.getString(R.string.notif_channel_trip_alerts), NotificationManager.IMPORTANCE_HIGH))
+    }
+
+    fun templates(): NoticeTemplates {
+        val res = res
+        return NoticeTemplates(
+            title = res.getString(R.string.notif_tracking_title),
+            acquiring = res.getString(R.string.notif_tracking_acquiring),
+            distanceEta = res.getString(R.string.notif_tracking_distance_eta),
+            distance = res.getString(R.string.notif_tracking_distance),
+            estimating = res.getString(R.string.notif_tracking_estimating),
+            alarming = res.getString(R.string.notif_tracking_alarming),
+            snoozed = res.getString(R.string.notif_tracking_snoozed),
+            destinationUnknown = res.getString(R.string.notif_destination_unknown),
+            simTitle = res.getString(R.string.notif_tracking_sim_title),
         )
     }
 
-    fun templates(): NoticeTemplates =
-        NoticeTemplates(
-            title = ctx.getString(R.string.notif_tracking_title),
-            acquiring = ctx.getString(R.string.notif_tracking_acquiring),
-            distanceEta = ctx.getString(R.string.notif_tracking_distance_eta),
-            distance = ctx.getString(R.string.notif_tracking_distance),
-            estimating = ctx.getString(R.string.notif_tracking_estimating),
-            alarming = ctx.getString(R.string.notif_tracking_alarming),
-            snoozed = ctx.getString(R.string.notif_tracking_snoozed),
-            destinationUnknown = ctx.getString(R.string.notif_destination_unknown),
-            simTitle = ctx.getString(R.string.notif_tracking_sim_title),
-        )
-
-    fun locale(): Locale = ctx.resources.configuration.locales[0] ?: Locale.getDefault()
+    fun locale(): Locale = AppLocale.localeWith(ctx, AppLocale.tagNow(ctx))
 
     /** The ongoing notification; [content] null = the first one, before the runtime committed the trip. */
     fun tracking(content: TrackingNotice?): Notification {
         ensureChannels()
         val t = templates()
-        val title = content?.let { NoticeFormatter.title(it.destinationName, t, it.simulated) } ?: ctx.getString(R.string.notif_tracking_public)
+        val title = content?.let { NoticeFormatter.title(it.destinationName, t, it.simulated) } ?: res.getString(R.string.notif_tracking_public)
         val body =
-            content?.let { NoticeFormatter.body(it, t, locale()) { ms -> DateFormat.getTimeFormat(ctx).format(Date(ms)) } }
+            content?.let { NoticeFormatter.body(it, t, locale()) { ms -> DateFormat.getTimeFormat(res).format(Date(ms)) } }
                 ?: t.acquiring
         val publicVersion =
             NotificationCompat.Builder(ctx, CHANNEL_TRACKING)
                 .setSmallIcon(R.drawable.ic_stat_napstop)
-                .setContentTitle(ctx.getString(R.string.notif_tracking_public))
+                .setContentTitle(res.getString(R.string.notif_tracking_public))
                 .build()
         val b =
             NotificationCompat.Builder(ctx, CHANNEL_TRACKING)
@@ -82,7 +99,7 @@ class TripNotifications(context: Context) : TripNotifier {
                 .setPublicVersion(publicVersion)
                 .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
                 .setContentIntent(openAppIntent(ctx, REQ_OPEN, resumeTripId = null))
-        content?.let { b.addAction(0, ctx.getString(R.string.notif_action_stop), stopIntent(it.tripId)) }
+        content?.let { b.addAction(0, res.getString(R.string.notif_action_stop), stopIntent(it.tripId)) }
         return b.build()
     }
 
@@ -105,13 +122,13 @@ class TripNotifications(context: Context) : TripNotifier {
                     .setSilent(!alert)
             when (notice) {
                 TripNotice.Interrupted -> {
-                    b.setContentTitle(ctx.getString(R.string.notif_interrupted_title))
-                        .setContentText(ctx.getString(R.string.notif_interrupted_body))
+                    b.setContentTitle(res.getString(R.string.notif_interrupted_title))
+                        .setContentText(res.getString(R.string.notif_interrupted_body))
                         .setContentIntent(openAppIntent(ctx, REQ_RESUME, resumeTripId = tripId))
-                        .addAction(0, ctx.getString(R.string.notif_action_stop), stopIntent(tripId))
+                        .addAction(0, res.getString(R.string.notif_action_stop), stopIntent(tripId))
                 }
                 else -> {
-                    val text = ctx.getString(textOf(notice))
+                    val text = res.getString(textOf(notice))
                     b.setContentTitle(text).setStyle(NotificationCompat.BigTextStyle().bigText(text))
                         .setContentIntent(openAppIntent(ctx, REQ_OPEN, resumeTripId = null))
                 }

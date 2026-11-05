@@ -6,7 +6,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** T16 AA5 (+ A39 for :app): the interim alarm is gone; `:ring` code stays apart; the manifest has the ring components. */
+/**
+ * T16 AA5 (+ A39 for :app): the interim alarm is gone; `:ring` code stays apart; the manifest has the ring components.
+ * T28 K05: every native display string goes through [AppLocale].
+ */
 class SourceScanTest {
     private val main = File("src/main")
     private val kotlinFiles = File(main, "kotlin").walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
@@ -61,5 +64,51 @@ class SourceScanTest {
             val f = File(main, "res/raw/$n.wav")
             assertTrue(n, f.isFile && f.length() in 1..200_000)
         }
+    }
+
+    /** Source without comments (KDoc may name AppLocale without using it). */
+    private fun code(f: File): String =
+        f.readText().replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), "").replace(Regex("//[^\n]*"), "")
+
+    @Test
+    fun k05_nativeStringsGoThroughAppLocale() {
+        // Resolvers that only read strings from the Context their caller localized (no applicationContext of their own).
+        val resolvers = setOf("AlarmChannels.kt", "RingStrings.kt", "RingNotifications.kt")
+        var withStrings = 0
+        for (f in kotlinFiles) {
+            val src = code(f)
+            if (!src.contains("getString(R.string.") && !src.contains("getString(id")) continue
+            withStrings++
+            if (f.name in resolvers) {
+                assertFalse("${f.name}: strings of its own app context", src.contains("applicationContext.getString("))
+                continue
+            }
+            assertTrue("${f.name} reads strings without AppLocale", src.contains("AppLocale."))
+        }
+        assertTrue(withStrings >= 7)
+        for (f in kotlinFiles) {
+            val src = code(f)
+            if (f.name != "AppLocale.kt") {
+                assertFalse("${f.name}: locale of the resources instead of AppLocale", src.contains("configuration.locales[0]"))
+            }
+            for (banned in listOf("LocaleManager", "setApplicationLocales")) assertFalse("${f.name}: $banned (T28 D9)", src.contains(banned))
+        }
+        assertFalse(File(main, "AndroidManifest.xml").readText().contains("localeConfig"))
+    }
+
+    @Test
+    fun k05_ringProcessNeverReadsTheLanguageFile() {
+        val ring = kotlinFiles.filter { it.path.replace('\\', '/').contains("/core/alarm/ring/") }
+        assertTrue(ring.size >= 10)
+        for (f in ring) {
+            val src = code(f)
+            for (banned in listOf("AppLocale.FILE", "AppLocale.tag(", "AppLocale.localized(", "AppLocale.locale(", "AppLocale.set(", "LocaleFile")) {
+                assertFalse("${f.name}: $banned", src.contains(banned))
+            }
+        }
+        // The backup ring notifier runs in both processes: it uses the tag of its RingStart only.
+        val backup = code(File(main, "kotlin/app/napstop/core/alarm/BackupRingNotifier.kt"))
+        assertTrue(backup.contains("AppLocale.localizedWith(ctx, s.localeTag)"))
+        assertFalse(backup.contains("AppLocale.localized("))
     }
 }

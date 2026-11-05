@@ -1,4 +1,5 @@
 // Fakes for screen 3 tests (T25). Not a test file.
+import 'package:napstop/core/bridge/core_api.g.dart';
 import 'package:napstop/core/telemetry/remote_config/engine_params_override.dart';
 import 'package:napstop/core/trip/data/trips_repository.dart';
 import 'package:napstop/core/trip/domain/trip_record.dart';
@@ -79,4 +80,25 @@ class FakeTripsRepository implements TripsRepository {
   Stream<List<TripRecord>> watchRecentDestinations({
     int limit = kRecentTripsLimit,
   }) => Stream.value(rows.values.toList());
+
+  // T28 history: not used by the screen 3 tests.
+  @override
+  Future<({ApplyFinishedResult result, TripRecord? record})> applyFinished(
+    FinishedTripMsg f,
+  ) => throw UnimplementedError('applyFinished');
+
+  @override
+  Stream<List<TripRecord>> watchHistory({int limit = kHistoryLimit}) =>
+      Stream.value(rows.values.toList());
+
+  @override
+  Stream<List<TripRecord>> watchRealTripsSince(int sinceMs) =>
+      Stream.value(rows.values.toList());
+
+  @override
+  Future<int> markUnfinishedAsUnknown({
+    required String? exceptTripId,
+    required int startedBeforeMs,
+    required int endedAtMs,
+  }) async => 0;
 }

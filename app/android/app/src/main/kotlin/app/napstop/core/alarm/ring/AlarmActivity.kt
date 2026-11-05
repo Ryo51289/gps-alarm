@@ -4,6 +4,7 @@ import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.app.KeyguardManager
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
@@ -17,6 +18,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import app.napstop.R
 import app.napstop.core.alarm.AlarmConstantsHolder
+import app.napstop.core.alarm.AppLocale
 import app.napstop.core.alarm.DismissMethod
 import app.napstop.core.alarm.LaunchActions
 import app.napstop.core.alarm.MathChallenge
@@ -41,6 +43,10 @@ import kotlinx.coroutines.launch
  * `:ring`. Shows over the lock screen and turns the screen on; never dismisses the keyguard to stop (only "Xem đường
  * quay lại" does). Back and volume keys do nothing. It renders [RingSession.state] and sends the user's dismiss /
  * snooze to the session. Opened from the backup notification, it asks the service to adopt the ring (D4).
+ *
+ * Strings follow the ring's app language (T28 D9): the `localeTag` of the RING_START this activity was opened with
+ * (backup notification), else the session's. Not through attachBaseContext: the intent is not known there yet, and the
+ * session learns the language only when its start runs. Every render reads it again.
  */
 class AlarmActivity : Activity() {
     private lateinit var session: RingSession
@@ -53,6 +59,9 @@ class AlarmActivity : Activity() {
     private var variant: RingVariant? = null
     private var handledEnd = false
 
+    /** Language the dismiss control was built with (rebuilt when it changes, T28). */
+    private var dismissTag: String? = null
+
     private lateinit var glow: View
     private lateinit var overline: TextView
     private lateinit var title: TextView
@@ -64,6 +73,10 @@ class AlarmActivity : Activity() {
     private lateinit var snooze: Button
 
     private val giveUp = Runnable { if (!seenRinging) finish() }
+
+    /** The ring's language; never the language file (this is `:ring`). */
+    private fun localeTag(): String? =
+        RingIntents.fromBundle(intent?.getBundleExtra(RingIntents.EXTRA_RING_START))?.localeTag ?: session.localeTag
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -164,7 +177,6 @@ class AlarmActivity : Activity() {
             snooze.typeface = it
         }
         val d = resources.displayMetrics.density
-        routeBack.text = getString(R.string.alarm_route_back)
         routeBack.background = GradientDrawable().apply {
             setColor(0xFFFFFFFF.toInt())
             cornerRadius = 28 * d
@@ -230,31 +242,35 @@ class AlarmActivity : Activity() {
     }
 
     private fun render(content: RingContent, m: DismissMethod, bannerKey: String?) {
+        val tag = localeTag()
+        val res = AppLocale.localizedWith(this, tag)
         val overshoot = content.variant == RingVariant.OVERSHOOT
-        val overlineText = getString(if (overshoot) R.string.alarm_overline_overshoot else R.string.alarm_overline_arriving)
+        val overlineText = res.getString(if (overshoot) R.string.alarm_overline_overshoot else R.string.alarm_overline_arriving)
         // Upper case in code (not textAllCaps) so TalkBack and UI tests read the same text.
-        overline.text = overlineText.uppercase(resources.configuration.locales[0])
+        overline.text = overlineText.uppercase(AppLocale.localeWith(this, tag))
         overline.setTextColor(getColor(if (overshoot) R.color.alarm_overline_overshoot else R.color.alarm_accent))
-        val name = RingStrings.title(this, content)
+        val name = RingStrings.title(res, content)
         title.text = name
-        subtitle.text = RingStrings.text(this, content.subtitle)
+        subtitle.text = RingStrings.text(res, content.subtitle)
         val pastLine = content.pastLine
         past.visibility = if (pastLine != null) View.VISIBLE else View.GONE
-        if (pastLine != null) past.text = RingStrings.text(this, pastLine)
+        if (pastLine != null) past.text = RingStrings.text(res, pastLine)
         banner.visibility = if (bannerKey != null) View.VISIBLE else View.GONE
-        if (bannerKey != null) banner.text = RingStrings.key(this, bannerKey)
+        if (bannerKey != null) banner.text = RingStrings.key(res, bannerKey)
+        routeBack.text = res.getString(R.string.alarm_route_back)
         routeBack.visibility = if (overshoot) View.VISIBLE else View.GONE
         val label = content.snoozeLabel
         snooze.visibility = if (label != null) View.VISIBLE else View.GONE
-        if (label != null) snooze.text = RingStrings.text(this, label)
+        if (label != null) snooze.text = RingStrings.text(res, label)
         setTitle("$overlineText. $name")
         if (variant != content.variant) {
             variant = content.variant
             setGlow(overshoot)
         }
-        if (method != m) {
+        if (method != m || dismissTag != tag) {
             method = m
-            buildDismiss(m)
+            dismissTag = tag
+            buildDismiss(m, res)
         }
     }
 
@@ -279,22 +295,22 @@ class AlarmActivity : Activity() {
         }
     }
 
-    private fun buildDismiss(m: DismissMethod) {
+    private fun buildDismiss(m: DismissMethod, res: Context) {
         shake?.stop()
         shake = null
         dismissArea.removeAllViews()
         val semi = AlarmFonts.get(this, AlarmFonts.Weight.SEMI_BOLD)
-        val stopLabel = getString(R.string.alarm_stop_a11y)
+        val stopLabel = res.getString(R.string.alarm_stop_a11y)
         // No accelerometer (or no sensor service): shaking could never stop the alarm → swipe (review T16 #5).
         val hasAccel = getSystemService(android.hardware.SensorManager::class.java)?.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER) != null
         val method = if (m == DismissMethod.SHAKE && !hasAccel) DismissMethod.SWIPE else m
         val v: View =
             when (method) {
                 DismissMethod.SWIPE ->
-                    SwipeToDismissView(this, getString(R.string.alarm_swipe_hint), stopLabel, semi) { session.userDismiss(routeBack = false) }
+                    SwipeToDismissView(this, res.getString(R.string.alarm_swipe_hint), stopLabel, semi) { session.userDismiss(routeBack = false) }
                 DismissMethod.SHAKE ->
                     ShakeDismissController(
-                        this, getString(R.string.alarm_shake_hint), { pct -> getString(R.string.alarm_shake_progress_a11y, pct.toString()) },
+                        this, res.getString(R.string.alarm_shake_hint), { pct -> res.getString(R.string.alarm_shake_progress_a11y, pct.toString()) },
                         stopLabel, semi, AlarmConstantsHolder.load(this),
                     ) { session.userDismiss(routeBack = false) }.also {
                         shake = it
@@ -302,8 +318,8 @@ class AlarmActivity : Activity() {
                     }.view
                 DismissMethod.MATH ->
                     MathKeypadView(
-                        this, MathChallenge(SecureRandom()), getString(R.string.alarm_math_hint), getString(R.string.alarm_math_wrong),
-                        getString(R.string.alarm_math_delete), getString(R.string.alarm_math_confirm), semi,
+                        this, MathChallenge(SecureRandom()), res.getString(R.string.alarm_math_hint), res.getString(R.string.alarm_math_wrong),
+                        res.getString(R.string.alarm_math_delete), res.getString(R.string.alarm_math_confirm), semi,
                     ) { session.userDismiss(routeBack = false) }
             }
         dismissArea.addView(v, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT))

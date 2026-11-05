@@ -1803,5 +1803,530 @@
   "alarmHeadphonesUnplugged": "Đã rút tai nghe — chuyển sang rung",
   "@alarmHeadphonesUnplugged": {
     "description": "Alarm screen banner: headphones unplugged. Native alarm (T16), keep in sync with res/values/strings.xml."
+  },
+  "historyStatsTrips": "chuyến tháng {month}",
+  "@historyStatsTrips": {
+    "description": "Screen 11 stats card: label under the trip count. month = current month number (vi \"tháng 11\"), monthName = its name (en \"November\"); each language uses one of them.",
+    "placeholders": {
+      "month": {
+        "type": "int"
+      },
+      "monthName": {
+        "type": "String"
+      }
+    }
+  },
+  "historyStatsKm": "km đã đi",
+  "@historyStatsKm": {
+    "description": "Screen 11 stats card: label under the kilometres travelled this month."
+  },
+  "historyStatsRatio": "{woke}/{total}",
+  "@historyStatsRatio": {
+    "description": "Screen 11 stats card: woke on time out of trips with an alarm, e.g. 4/5.",
+    "placeholders": {
+      "woke": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "historyStatsRatioNone": "—",
+  "@historyStatsRatioNone": {
+    "description": "Screen 11 stats card: no trip with an alarm this month."
+  },
+  "historyStatsOnTime": "lần tỉnh đúng lúc",
+  "@historyStatsOnTime": {
+    "description": "Screen 11 stats card: label under the on-time ratio."
+  },
+  "historyStatsSemantics": "{trips} chuyến tháng {month}, {km} km đã đi, {ratio} lần tỉnh đúng lúc",
+  "@historyStatsSemantics": {
+    "description": "Screen 11 stats card read by screen readers as one sentence. month = month number, monthName = month name (each language uses one). ratio is \"4/5\" or \"—\".",
+    "placeholders": {
+      "trips": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "monthName": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      },
+      "ratio": {
+        "type": "String"
+      }
+    }
+  },
+  "historyFilterAll": "Tất cả",
+  "@historyFilterAll": {
+    "description": "Screen 11 filter chip: every trip."
+  },
+  "historyFilterTrain": "Tàu",
+  "@historyFilterTrain": {
+    "description": "Screen 11 filter chip: train trips."
+  },
+  "historyFilterCoach": "Xe khách",
+  "@historyFilterCoach": {
+    "description": "Screen 11 filter chip: long-distance coach trips."
+  },
+  "historyFilterBus": "Xe buýt",
+  "@historyFilterBus": {
+    "description": "Screen 11 filter chip: city bus trips."
+  },
+  "historyMeta": "{vehicle} · {date} · {distance}",
+  "@historyMeta": {
+    "description": "Screen 11 trip row: vehicle, start date and distance travelled.",
+    "placeholders": {
+      "vehicle": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "historyMetaPair": "{first} · {second}",
+  "@historyMetaPair": {
+    "description": "Screen 11 trip row: two of vehicle, date, distance when one is unknown.",
+    "placeholders": {
+      "first": {
+        "type": "String"
+      },
+      "second": {
+        "type": "String"
+      }
+    }
+  },
+  "historyOutcomeOnTime": "Tỉnh đúng lúc",
+  "@historyOutcomeOnTime": {
+    "description": "Screen 11 badge: the user woke up at the first alarm."
+  },
+  "historyOutcomeSnoozed": "Báo lại {count} lần rồi mới dậy",
+  "@historyOutcomeSnoozed": {
+    "description": "Screen 11 badge: the user snoozed, then woke up.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "historyOutcomeMissed": "Lỡ trạm",
+  "@historyOutcomeMissed": {
+    "description": "Screen 11 badge: the alarm was not answered."
+  },
+  "historyOutcomeCancelled": "Đã dừng",
+  "@historyOutcomeCancelled": {
+    "description": "Screen 11 badge: the user stopped the trip before the alarm."
+  },
+  "historyOutcomeUnknown": "Không rõ kết quả",
+  "@historyOutcomeUnknown": {
+    "description": "Screen 11 badge: the trip ended without a result (the app was closed while it started)."
+  },
+  "historyOutcomeRunning": "Đang theo dõi",
+  "@historyOutcomeRunning": {
+    "description": "Screen 11 badge: the trip is running."
+  },
+  "historySimulatedBadge": "Giả lập",
+  "@historySimulatedBadge": {
+    "description": "Screen 11 badge: a simulated (demo) trip."
+  },
+  "historyRestart": "Đặt lại chuyến này",
+  "@historyRestart": {
+    "description": "Screen 11: icon button that opens screen 3 with this trip prefilled (screen reader label)."
+  },
+  "historyEmpty": "Chưa có chuyến nào. Chuyến đã đi sẽ hiện ở đây.",
+  "@historyEmpty": {
+    "description": "Screen 11: empty history."
+  },
+  "historyEmptyFilter": "Chưa có chuyến nào loại này",
+  "@historyEmptyFilter": {
+    "description": "Screen 11: no trip matches the selected filter."
+  },
+  "historyError": "Không đọc được lịch sử chuyến đi.",
+  "@historyError": {
+    "description": "Screen 11: the history could not be read."
+  },
+  "settingsActiveTripNote": "Chuyến đang chạy giữ cài đặt cũ. Thay đổi áp dụng từ chuyến sau.",
+  "@settingsActiveTripNote": {
+    "description": "Screen 12 banner while a trip runs."
+  },
+  "settingsSectionAlarm": "Âm báo",
+  "@settingsSectionAlarm": {
+    "description": "Screen 12 section header: alarm sound settings."
+  },
+  "settingsSound": "Âm báo thức",
+  "@settingsSound": {
+    "description": "Screen 12 row: the alarm sound."
+  },
+  "settingsSoundHorn": "Còi tàu (mặc định)",
+  "@settingsSoundHorn": {
+    "description": "Alarm sound: train horn, the default."
+  },
+  "settingsSoundBell": "Chuông",
+  "@settingsSoundBell": {
+    "description": "Alarm sound: bell."
+  },
+  "settingsSoundBeep": "Bíp",
+  "@settingsSoundBeep": {
+    "description": "Alarm sound: beep."
+  },
+  "settingsSoundSystem": "Âm báo thức của máy",
+  "@settingsSoundSystem": {
+    "description": "Alarm sound: the phone's default alarm sound."
+  },
+  "settingsSoundPickerTitle": "Chọn âm báo",
+  "@settingsSoundPickerTitle": {
+    "description": "Screen 12: title of the alarm sound sheet."
+  },
+  "settingsPreview": "Nghe thử",
+  "@settingsPreview": {
+    "description": "Screen 12: button that plays the alarm sound."
+  },
+  "settingsPreviewStop": "Dừng",
+  "@settingsPreviewStop": {
+    "description": "Screen 12: button that stops the sound preview."
+  },
+  "settingsPreviewFailed": "Không phát thử được âm báo.",
+  "@settingsPreviewFailed": {
+    "description": "Screen 12 snack bar: the preview could not play."
+  },
+  "settingsVolume": "Âm lượng báo",
+  "@settingsVolume": {
+    "description": "Screen 12: alarm volume slider."
+  },
+  "settingsVolumeValue": "{pct}%",
+  "@settingsVolumeValue": {
+    "description": "Screen 12: alarm volume value.",
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsVolumeSemantic": "{pct} phần trăm",
+  "@settingsVolumeSemantic": {
+    "description": "Screen 12: alarm volume value read by screen readers.",
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsVolumeHint": "Tính theo âm lượng báo thức của máy. Kêu cả khi máy để im lặng.",
+  "@settingsVolumeHint": {
+    "description": "Screen 12: hint under the volume slider."
+  },
+  "settingsRampUp": "Tăng dần âm lượng",
+  "@settingsRampUp": {
+    "description": "Screen 12 switch: the alarm starts soft."
+  },
+  "settingsRampUpHint": "Từ nhỏ tới to trong 30 giây",
+  "@settingsRampUpHint": {
+    "description": "Screen 12: hint of the ramp-up switch."
+  },
+  "settingsVibration": "Độ rung",
+  "@settingsVibration": {
+    "description": "Screen 12: vibration strength."
+  },
+  "settingsVibrationLight": "Nhẹ",
+  "@settingsVibrationLight": {
+    "description": "Vibration strength: light."
+  },
+  "settingsVibrationMedium": "Vừa",
+  "@settingsVibrationMedium": {
+    "description": "Vibration strength: medium."
+  },
+  "settingsVibrationStrong": "Mạnh",
+  "@settingsVibrationStrong": {
+    "description": "Vibration strength: strong."
+  },
+  "settingsFlash": "Nhấp nháy đèn flash",
+  "@settingsFlash": {
+    "description": "Screen 12 switch: flash the camera light while ringing."
+  },
+  "settingsFlashHint": "Thêm tín hiệu khi ngủ say",
+  "@settingsFlashHint": {
+    "description": "Screen 12: hint of the flash switch."
+  },
+  "settingsHeadphones": "Ưu tiên phát qua tai nghe",
+  "@settingsHeadphones": {
+    "description": "Screen 12 switch: new trips ring in the headphones."
+  },
+  "settingsHeadphonesHint": "Không làm phiền người nằm cạnh. Không cắm tai nghe thì vẫn kêu ra loa.",
+  "@settingsHeadphonesHint": {
+    "description": "Screen 12: hint of the headphones switch."
+  },
+  "settingsSectionTripDefaults": "Mặc định cho chuyến mới",
+  "@settingsSectionTripDefaults": {
+    "description": "Screen 12 section header: defaults of screen 3."
+  },
+  "settingsTripMode": "Chế độ báo",
+  "@settingsTripMode": {
+    "description": "Screen 12 row: default alarm mode."
+  },
+  "settingsDismiss": "Cách tắt báo",
+  "@settingsDismiss": {
+    "description": "Screen 12 row: default dismiss method."
+  },
+  "settingsSnooze": "Báo lại tối đa",
+  "@settingsSnooze": {
+    "description": "Screen 12 row: snooze count and interval (read only)."
+  },
+  "settingsTripModeDistance": "Khoảng cách · {distance}",
+  "@settingsTripModeDistance": {
+    "description": "Screen 12: default mode distance with its threshold.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsTripModeTime": "Thời gian · {minutes} phút",
+  "@settingsTripModeTime": {
+    "description": "Screen 12: default mode time with its threshold.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTripModeSmart": "Thông minh",
+  "@settingsTripModeSmart": {
+    "description": "Screen 12: default mode smart."
+  },
+  "settingsSnoozeValue": "{count} lần · sau {interval}",
+  "@settingsSnoozeValue": {
+    "description": "Screen 12: snooze value. interval is a duration (e.g. 1 phút).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "interval": {
+        "type": "String"
+      }
+    }
+  },
+  "settingsTripDefaultsTitle": "Mặc định cho chuyến mới",
+  "@settingsTripDefaultsTitle": {
+    "description": "Title of the trip defaults screen."
+  },
+  "settingsTripDefaultsHint": "Áp dụng cho chuyến mới. Mỗi chuyến vẫn chỉnh riêng được.",
+  "@settingsTripDefaultsHint": {
+    "description": "Trip defaults screen: line under the title."
+  },
+  "settingsSectionDisplay": "Hiển thị",
+  "@settingsSectionDisplay": {
+    "description": "Screen 12 section header: display."
+  },
+  "settingsTheme": "Giao diện",
+  "@settingsTheme": {
+    "description": "Screen 12: light / dark / system theme."
+  },
+  "settingsThemeLight": "Sáng",
+  "@settingsThemeLight": {
+    "description": "Theme: light."
+  },
+  "settingsThemeDark": "Tối",
+  "@settingsThemeDark": {
+    "description": "Theme: dark."
+  },
+  "settingsThemeSystem": "Theo máy",
+  "@settingsThemeSystem": {
+    "description": "Theme: follow the phone."
+  },
+  "settingsSectionLanguage": "Ngôn ngữ",
+  "@settingsSectionLanguage": {
+    "description": "Screen 12 section header: language."
+  },
+  "settingsLanguageVi": "Tiếng Việt",
+  "@settingsLanguageVi": {
+    "description": "Language option: Vietnamese (always written in Vietnamese)."
+  },
+  "settingsLanguageEn": "English",
+  "@settingsLanguageEn": {
+    "description": "Language option: English (always written in English)."
+  },
+  "settingsLanguageSystem": "Theo ngôn ngữ máy",
+  "@settingsLanguageSystem": {
+    "description": "Language option: follow the phone (Vietnamese when the phone is neither Vietnamese nor English)."
+  },
+  "settingsSectionPrivacy": "Quyền riêng tư",
+  "@settingsSectionPrivacy": {
+    "description": "Screen 12 section header: privacy."
+  },
+  "settingsCrashReports": "Gửi báo cáo lỗi",
+  "@settingsCrashReports": {
+    "description": "Screen 12 switch: Crashlytics consent (T29 §10)."
+  },
+  "settingsCrashReportsHint": "Giúp sửa lỗi nhanh hơn. Không chứa vị trí.",
+  "@settingsCrashReportsHint": {
+    "description": "Screen 12: hint of the crash reports switch (T29 §10)."
+  },
+  "settingsUsageStats": "Gửi thống kê sử dụng",
+  "@settingsUsageStats": {
+    "description": "Screen 12 switch: Analytics consent (T29 §10)."
+  },
+  "settingsUsageStatsHint": "Chỉ ghi sự kiện như bắt đầu, kết thúc chuyến. Không chứa vị trí.",
+  "@settingsUsageStatsHint": {
+    "description": "Screen 12: hint of the usage statistics switch (T29 §10)."
+  },
+  "settingsSectionOther": "Khác",
+  "@settingsSectionOther": {
+    "description": "Screen 12 section header: other."
+  },
+  "settingsPermissions": "Quyền & tối ưu pin",
+  "@settingsPermissions": {
+    "description": "Screen 12 row: opens screen 0 (permissions)."
+  },
+  "settingsPermissionsOk": "Đủ quyền",
+  "@settingsPermissionsOk": {
+    "description": "Screen 12 badge: every permission is granted."
+  },
+  "settingsPermissionsCheck": "Cần kiểm tra",
+  "@settingsPermissionsCheck": {
+    "description": "Screen 12 badge: a permission or setting needs attention."
+  },
+  "settingsLicenses": "Giấy phép & ghi công",
+  "@settingsLicenses": {
+    "description": "Screen 12 row: opens the license page."
+  },
+  "settingsVersion": "phiên bản {version} ({build})",
+  "@settingsVersion": {
+    "description": "Screen 12 footer: app version and build number.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      },
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "simSheetTitle": "Chế độ giả lập (demo)",
+  "@simSheetTitle": {
+    "description": "Simulation sheet title (hidden demo entry on screen 12)."
+  },
+  "simSheetHint": "Phát lại một chuyến có sẵn qua đúng đường báo thức thật. Cần quyền vị trí như chuyến thật.",
+  "@simSheetHint": {
+    "description": "Simulation sheet subtitle."
+  },
+  "simSpeedLabel": "Tốc độ phát",
+  "@simSpeedLabel": {
+    "description": "Simulation sheet: playback speed control."
+  },
+  "simSpeedValue": "{factor}×",
+  "@simSpeedValue": {
+    "description": "Simulation sheet: a playback speed, e.g. 60×.",
+    "placeholders": {
+      "factor": {
+        "type": "int"
+      }
+    }
+  },
+  "simTraceTrainHnDh": "Tàu Hà Nội → Đồng Hới",
+  "@simTraceTrainHnDh": {
+    "description": "Simulated trip train_hn_dh."
+  },
+  "simTraceCoachMdTb": "Xe khách Mỹ Đình → Thái Bình",
+  "@simTraceCoachMdTb": {
+    "description": "Simulated trip coach_md_tb."
+  },
+  "simTraceBusHnBrt01": "Buýt nhanh BRT01 (Hà Nội)",
+  "@simTraceBusHnBrt01": {
+    "description": "Simulated trip bus_hn_brt01."
+  },
+  "simTraceCoachDnLangcoTunnel": "Xe khách qua hầm Hải Vân → Lăng Cô",
+  "@simTraceCoachDnLangcoTunnel": {
+    "description": "Simulated trip coach_dn_langco_tunnel."
+  },
+  "simTraceCoachGbPhulyOvershoot": "Xe khách Giáp Bát → Phủ Lý (đi quá trạm)",
+  "@simTraceCoachGbPhulyOvershoot": {
+    "description": "Simulated trip coach_gb_phuly_overshoot."
+  },
+  "simTraceBusHnBrt01Noisy": "Buýt BRT01, GPS nhiễu",
+  "@simTraceBusHnBrt01Noisy": {
+    "description": "Simulated trip bus_hn_brt01_noisy."
+  },
+  "simTraceSubtitle": "{vehicle} · tới nơi sau khoảng {duration}",
+  "@simTraceSubtitle": {
+    "description": "Simulation sheet: vehicle and real time until arrival at the chosen speed.",
+    "placeholders": {
+      "vehicle": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "simDurationSeconds": "{s} giây",
+  "@simDurationSeconds": {
+    "description": "Simulation sheet: a duration under a minute.",
+    "placeholders": {
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "simDurationMinutes": "{m} phút {s} giây",
+  "@simDurationMinutes": {
+    "description": "Simulation sheet: a duration under an hour.",
+    "placeholders": {
+      "m": {
+        "type": "int"
+      },
+      "s": {
+        "type": "int"
+      }
+    }
+  },
+  "simDurationHours": "{h} giờ {m} phút",
+  "@simDurationHours": {
+    "description": "Simulation sheet: a duration of an hour or more.",
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "simStart": "Tiếp tục",
+  "@simStart": {
+    "description": "Simulation sheet: opens screen 3 with the chosen trace."
+  },
+  "simCatalogError": "Không đọc được danh sách chuyến giả lập.",
+  "@simCatalogError": {
+    "description": "Simulation sheet: the trace catalog could not be read."
+  },
+  "simCatalogEmpty": "Chưa có chuyến giả lập nào.",
+  "@simCatalogEmpty": {
+    "description": "Simulation sheet: the catalog has no trace."
+  },
+  "historyStatsSemanticsNoAlarm": "{trips} chuyến tháng {month}, {km} km đã đi, chưa có lần báo nào",
+  "@historyStatsSemanticsNoAlarm": {
+    "description": "Screen 11 stats card for screen readers when no trip of the month had an alarm. month = month number, monthName = month name (each language uses one).",
+    "placeholders": {
+      "trips": {
+        "type": "int"
+      },
+      "month": {
+        "type": "int"
+      },
+      "monthName": {
+        "type": "String"
+      },
+      "km": {
+        "type": "String"
+      }
+    }
   }
 }

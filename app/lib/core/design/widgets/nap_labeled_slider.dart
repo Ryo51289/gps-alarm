@@ -13,6 +13,7 @@ final class NapLabeledSlider extends StatelessWidget {
     required this.semanticLabel,
     required this.semanticFormatter,
     this.divisions,
+    this.onChangeEnd,
     this.minLabel,
     this.maxLabel,
     super.key,
@@ -25,6 +26,9 @@ final class NapLabeledSlider extends StatelessWidget {
 
   /// Null disables the slider.
   final ValueChanged<double>? onChanged;
+
+  /// Called once when the user lets go (T28: write on release only).
+  final ValueChanged<double>? onChangeEnd;
 
   /// E.g. "Alarm distance".
   final String semanticLabel;
@@ -54,6 +58,7 @@ final class NapLabeledSlider extends StatelessWidget {
               max: max,
               divisions: divisions,
               onChanged: onChanged,
+              onChangeEnd: onChangeEnd,
               semanticFormatterCallback: semanticFormatter,
             ),
           ),

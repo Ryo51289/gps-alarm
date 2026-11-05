@@ -8,9 +8,12 @@ import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart'
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/battery_guide/presentation/battery_guide_screen.dart';
 import 'package:napstop/features/destination/presentation/destination_screen.dart';
+import 'package:napstop/features/history/presentation/history_screen.dart';
 import 'package:napstop/features/home/presentation/home_screen.dart';
 import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
 import 'package:napstop/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:napstop/features/settings/presentation/settings_screen.dart';
+import 'package:napstop/features/settings/presentation/trip_defaults_screen.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Navigator of the full-screen routes; they cover the bottom navigation.
@@ -50,10 +53,7 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
             routes: [
               GoRoute(
                 path: AppRoutes.history,
-                builder: (context, _) => PlaceholderScreen(
-                  title: AppLocalizations.of(context).appScreenHistoryTitle,
-                  showBack: false,
-                ),
+                builder: (context, _) => const HistoryScreen(),
               ),
             ],
           ),
@@ -61,10 +61,15 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
             routes: [
               GoRoute(
                 path: AppRoutes.settings,
-                builder: (context, _) => PlaceholderScreen(
-                  title: AppLocalizations.of(context).appScreenSettingsTitle,
-                  showBack: false,
-                ),
+                builder: (context, _) => const SettingsScreen(),
+                routes: [
+                  // `/settings/trip-defaults`, over the bottom navigation.
+                  GoRoute(
+                    path: 'trip-defaults',
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (context, _) => const TripDefaultsScreen(),
+                  ),
+                ],
               ),
             ],
           ),

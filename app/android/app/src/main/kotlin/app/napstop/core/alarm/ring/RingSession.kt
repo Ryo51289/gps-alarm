@@ -13,6 +13,7 @@ import app.napstop.core.alarm.AlarmChannels
 import app.napstop.core.alarm.AlarmConstants
 import app.napstop.core.alarm.AlarmConstantsHolder
 import app.napstop.core.alarm.AndroidRingClock
+import app.napstop.core.alarm.AppLocale
 import app.napstop.core.alarm.BackupRingNotifier
 import app.napstop.core.alarm.DismissMethod
 import app.napstop.core.alarm.RingBoot
@@ -86,6 +87,15 @@ class RingSession private constructor(context: Context) {
     private val timeout = Runnable { machine.startedAtWallMs?.let { applyInput(RingInput.Timeout(it + c.ringMaxMs)) } }
     private val ui = MutableStateFlow(RingUiState())
     val state: StateFlow<RingUiState> = ui.asStateFlow()
+
+    /**
+     * App language of the current ring (RING_START `localeTag`, T28 D9); null = device. A start rebuilt from the book
+     * (sticky restart, adopt without a request) keeps the last known one: after `:ring` died that is the device language.
+     * Read by AlarmActivity on the main thread.
+     */
+    @Volatile
+    var localeTag: String? = null
+        private set
 
     // ------------------------------------------------------------------ entry points (any thread)
 
@@ -202,6 +212,11 @@ class RingSession private constructor(context: Context) {
         )
 
     private fun applyInput(input: RingInput) {
+        when (input) {
+            is RingInput.Start -> localeTag = input.s.localeTag
+            is RingInput.Update -> localeTag = input.s.localeTag
+            else -> Unit
+        }
         val (next, fx) =
             try {
                 RingSessionMachine.reduce(machine, input, c, locale())
@@ -266,7 +281,7 @@ class RingSession private constructor(context: Context) {
             }
             is RingFx.PostNotification -> {
                 val trip = machine.tripId ?: return
-                RingNotifications.post(ctx, RingNotifications.ringing(ctx, trip, f.content, firstOfSession = !notificationPosted))
+                RingNotifications.post(ctx, RingNotifications.ringing(strings(), trip, f.content, firstOfSession = !notificationPosted))
                 notificationPosted = true
                 // This process plays now: the backup notification of the trip (if any) goes.
                 backup.cancel(trip)
@@ -369,10 +384,14 @@ class RingSession private constructor(context: Context) {
             snoozeS = rc?.snoozeS?.takeIf { it > 0 } ?: c.snoozeSDefault,
             launchUi = launchUi,
             resumeStartedAtWallMs = r.startedAtWallMs,
+            localeTag = localeTag,
         )
     }
 
-    private fun locale(): Locale = ctx.resources.configuration.locales[0] ?: Locale.getDefault()
+    private fun locale(): Locale = AppLocale.localeWith(ctx, localeTag)
+
+    /** Strings of this ring's language; never the language file (D9). */
+    private fun strings(): Context = AppLocale.localizedWith(ctx, localeTag)
 
     private fun RingFactsStore.readQuiet(tripId: String): RingFactsRecord? =
         try {

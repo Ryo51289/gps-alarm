@@ -41,6 +41,8 @@ dependencies:
   logging: ^1.3.0
   # @immutable for the pure Dart domain types (T22). Pinned by the Flutter SDK.
   meta: any
+  # App version on screen 12 (T28 D15).
+  package_info_plus: ^10.2.2
   path: ^1.9.0
   path_provider: ^2.1.6
   # Trip defaults and alarm preferences (T25 A5; T28 writes them).

@@ -98,3 +98,31 @@ Future<void> seedW01(ProviderContainer container) => seedData(
     sampleRecord(id: 'hue', destination: kGaHue, startedAtMs: 10),
   ],
 );
+
+/// A finished trip of the native queue (T28); defaults: on time, 498 km.
+FinishedTripMsg finishedTrip(
+  String id, {
+  TripOutcomeMsg outcome = TripOutcomeMsg.onTime,
+  int startedAtMs = 1600000000000,
+  int endedAtMs = 1700000500000,
+  int? alarmAtMs = 1700000400000,
+  AlarmReasonMsg? alarmReason = AlarmReasonMsg.distance,
+  int? dismissedAtMs = 1700000450000,
+  int snoozeCount = 0,
+  int travelledM = 498000,
+  VehicleKindMsg vehicleGuess = VehicleKindMsg.train,
+}) => FinishedTripMsg(
+  tripId: id,
+  outcome: outcome,
+  endReason: outcome == TripOutcomeMsg.cancelled
+      ? EndReasonMsg.userStop
+      : EndReasonMsg.dismissed,
+  endedAtMs: endedAtMs,
+  startedAtMs: startedAtMs,
+  alarmAtMs: alarmAtMs,
+  alarmReason: alarmReason,
+  dismissedAtMs: dismissedAtMs,
+  snoozeCount: snoozeCount,
+  travelledM: travelledM,
+  vehicleGuess: vehicleGuess,
+);

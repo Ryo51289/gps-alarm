@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:napstop/core/design/nap_icons.dart';
@@ -13,7 +14,9 @@ import 'package:napstop/core/design/widgets/nap_switch_row.dart';
 /// [trailing] is capped at half the row width (inside the padding), so a
 /// long value or badge wraps instead of overflowing at large text scales.
 /// The row reports intrinsic sizes, so it also works inside
-/// `IntrinsicWidth`/`IntrinsicHeight` (AlertDialog, SimpleDialog).
+/// `IntrinsicWidth`/`IntrinsicHeight` (AlertDialog, SimpleDialog). When
+/// leading + trailing + chevron do not fit, debug builds report it like a
+/// `Row` ("overflowed", T28 N2).
 final class NapListRow extends StatelessWidget {
   const new({
     required this.title,
@@ -167,10 +170,18 @@ final class _RowLayout
   }
 }
 
-typedef _Layout = ({Size size, Map<_Slot, Size> sizes, BoxConstraints title});
+/// [used]: gaps plus every slot but the title (the title gets the rest).
+typedef _Layout = ({
+  Size size,
+  Map<_Slot, Size> sizes,
+  BoxConstraints title,
+  double used,
+});
 
 final class _RenderRowLayout extends RenderBox
-    with SlottedContainerRenderObjectMixin<_Slot, RenderBox> {
+    with
+        SlottedContainerRenderObjectMixin<_Slot, RenderBox>,
+        DebugOverflowIndicatorMixin {
   new({required this._gap, required this._textDirection});
 
   double _gap;
@@ -209,23 +220,27 @@ final class _RenderRowLayout extends RenderBox
 
   static double _cap(double width) => width.isFinite ? width / 2 : width;
 
-  // Intrinsics: the row is as wide as its children plus the gaps.
+  /// Width the slots ask for beyond the row in the last layout (N2).
+  double _overflow = 0;
+
+  // Intrinsics: the row is as wide as its children plus the gaps, and at
+  // least twice its trailing: layout caps trailing at half the width, so at
+  // `max(sum, 2 * trailing)` trailing gets its full width and the title keeps
+  // at least its own (T28 N1).
 
   @override
   double computeMinIntrinsicWidth(double height) =>
-      _gaps +
-      children.fold<double>(
-        0,
-        (sum, child) => sum + child.getMinIntrinsicWidth(height),
-      );
+      _intrinsicWidth((child) => child.getMinIntrinsicWidth(height));
 
   @override
   double computeMaxIntrinsicWidth(double height) =>
-      _gaps +
-      children.fold<double>(
-        0,
-        (sum, child) => sum + child.getMaxIntrinsicWidth(height),
-      );
+      _intrinsicWidth((child) => child.getMaxIntrinsicWidth(height));
+
+  double _intrinsicWidth(double Function(RenderBox child) widthOf) {
+    final sum = _gaps + children.fold<double>(0, (sum, c) => sum + widthOf(c));
+    final trailing = childForSlot(_Slot.trailing);
+    return trailing == null ? sum : math.max(sum, 2 * widthOf(trailing));
+  }
 
   @override
   double computeMinIntrinsicHeight(double width) =>
@@ -295,6 +310,7 @@ final class _RenderRowLayout extends RenderBox
       size: constraints.constrain(Size(width, height)),
       sizes: sizes,
       title: title,
+      used: used,
     );
   }
 
@@ -319,6 +335,8 @@ final class _RenderRowLayout extends RenderBox
   void performLayout() {
     final layout = _layout(constraints, ChildLayoutHelper.layoutChild);
     size = layout.size;
+    final maxWidth = constraints.maxWidth;
+    _overflow = maxWidth.isFinite ? math.max(0, layout.used - maxWidth) : 0;
     final rtl = _textDirection == TextDirection.rtl;
     var x = 0.0;
     for (final slot in _slots) {
@@ -350,6 +368,22 @@ final class _RenderRowLayout extends RenderBox
         (child.parentData! as BoxParentData).offset + offset,
       );
     }
+    // Debug only, like RenderFlex: the slots run past the end (text
+    // direction) of the row.
+    assert(() {
+      if (_overflow > precisionErrorTolerance) {
+        final overflowRect = _textDirection == TextDirection.rtl
+            ? Rect.fromLTWH(-_overflow, 0, size.width + _overflow, 0)
+            : Rect.fromLTWH(0, 0, size.width + _overflow, 0);
+        paintOverflowIndicator(
+          context,
+          offset,
+          Offset.zero & size,
+          overflowRect,
+        );
+      }
+      return true;
+    }(), 'debug overflow indicator');
   }
 
   @override

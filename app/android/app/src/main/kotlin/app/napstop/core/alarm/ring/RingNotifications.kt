@@ -13,13 +13,16 @@ import app.napstop.core.alarm.RingContent
 import app.napstop.core.alarm.RingIntents
 import app.napstop.core.alarm.RingNotificationBuilder
 
-/** The ring service notification, id 1202 on `napstop_alarm` (spec T16 D10, §5.9). */
+/**
+ * The ring service notification, id 1202 on `napstop_alarm` (spec T16 D10, §5.9). [ringing] takes the strings Context
+ * of the ring's language (`AppLocale.localizedWith(ctx, session.localeTag)`, T28).
+ */
 object RingNotifications {
     const val ID_RING_FGS = 1202
     private const val TAG = "NapStopRing"
 
     /** First notification of startForeground, before the session knows the trip: generic title, FSI to AlarmActivity. */
-    fun placeholder(ctx: Context): Notification {
+    fun placeholder(ctx: Context, strings: Context = ctx): Notification {
         AlarmChannels.ensure(ctx)
         val activity =
             PendingIntent.getActivity(
@@ -30,7 +33,7 @@ object RingNotifications {
             )
         return NotificationCompat.Builder(ctx, AlarmChannels.ALARM)
             .setSmallIcon(R.drawable.ic_stat_napstop)
-            .setContentTitle(ctx.getString(R.string.notif_alarm_public))
+            .setContentTitle(strings.getString(R.string.notif_alarm_public))
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

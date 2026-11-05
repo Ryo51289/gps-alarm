@@ -8,19 +8,23 @@ import app.napstop.R
 import app.napstop.core.trip.host.TripNotifications
 import java.util.Locale
 
-/** Pre-alert (spec T16 D20): channel `napstop_prealert` (DEFAULT, no sound, light vibration), from the main process. */
+/**
+ * Pre-alert (spec T16 D20): channel `napstop_prealert` (DEFAULT, no sound, light vibration), from the main process.
+ * Strings in the app language ([AppLocale], T28).
+ */
 class PreAlertNotifier(context: Context, private val locale: () -> Locale) {
     private val ctx = context.applicationContext
     private val nm: NotificationManager? get() = ctx.getSystemService(NotificationManager::class.java)
 
     fun post(r: PreAlertRequest) {
         try {
-            AlarmChannels.ensure(ctx)
-            val text = RingStrings.text(ctx, RingCopy.preAlert(r, locale()))
+            val res = AppLocale.localized(ctx)
+            AlarmChannels.ensure(ctx, res)
+            val text = RingStrings.text(res, RingCopy.preAlert(r, locale()))
             val publicVersion =
                 NotificationCompat.Builder(ctx, AlarmChannels.PRE_ALERT)
                     .setSmallIcon(R.drawable.ic_stat_napstop)
-                    .setContentTitle(ctx.getString(R.string.notif_tracking_public))
+                    .setContentTitle(res.getString(R.string.notif_tracking_public))
                     .build()
             val n =
                 NotificationCompat.Builder(ctx, AlarmChannels.PRE_ALERT)

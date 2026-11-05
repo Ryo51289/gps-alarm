@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:napstop/core/bridge/core_api.g.dart';
 import 'package:napstop/core/preferences/alarm_preferences.dart';
+import 'package:napstop/core/preferences/display_preferences.dart';
 import 'package:napstop/core/preferences/trip_settings.dart';
 import 'package:napstop/core/storage/key_value_store.dart';
 import 'package:napstop/core/storage/shared_preferences_key_value_store.dart';
@@ -18,6 +19,12 @@ abstract final class PreferenceKeys {
   static const String tripPreAlert = 'tripDefaults.preAlert';
   static const String tripAlarmStyle = 'tripDefaults.alarmStyle';
   static const String tripDismiss = 'tripDefaults.dismiss';
+
+  /// T28: `system` | `vi` | `en`.
+  static const String displayLanguage = 'display.language';
+
+  /// T28: `system` | `light` | `dark`.
+  static const String displayTheme = 'display.theme';
 }
 
 /// Global alarm settings and defaults for new trips. Each missing, invalid
@@ -85,6 +92,30 @@ final class PreferencesRepository {
           ) ??
           d.dismissMethod,
     ).normalized();
+  }
+
+  /// Language and theme (T28 §4.1).
+  Future<DisplayPreferences> loadDisplayPreferences() async {
+    const d = DisplayPreferences.defaults;
+    return DisplayPreferences(
+      language:
+          _byName(
+            AppLanguage.values,
+            await _string(PreferenceKeys.displayLanguage),
+          ) ??
+          d.language,
+      theme:
+          _byName(
+            AppThemeChoice.values,
+            await _string(PreferenceKeys.displayTheme),
+          ) ??
+          d.theme,
+    );
+  }
+
+  Future<void> saveDisplayPreferences(DisplayPreferences p) async {
+    await _kv.setString(PreferenceKeys.displayLanguage, p.language.name);
+    await _kv.setString(PreferenceKeys.displayTheme, p.theme.name);
   }
 
   Future<void> saveAlarmPreferences(AlarmPreferences p) async {

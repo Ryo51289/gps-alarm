@@ -30,6 +30,8 @@ void main() {
       AppRoutes.home,
       AppRoutes.history,
       AppRoutes.settings,
+      // T28: child of /settings (= AppRoutes.tripDefaults), spec T28 §4.4.
+      'trip-defaults',
       AppRoutes.onboarding,
       AppRoutes.batteryGuide,
       AppRoutes.destination,
@@ -39,6 +41,7 @@ void main() {
       AppRoutes.overshoot,
     });
     expect(AppRoutes.history, '/trips');
+    expect(AppRoutes.tripDefaults, '${AppRoutes.settings}/trip-defaults');
     expect(
       AppRoutes.destinationPick,
       '/destination?mode=$kDestinationModePick',

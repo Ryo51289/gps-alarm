@@ -9,7 +9,11 @@ import android.net.Uri
 import android.util.Log
 import app.napstop.R
 
-/** Notification channels of the alarm (spec T16 §5.9). Idempotent; called in both processes. */
+/**
+ * Notification channels of the alarm (spec T16 §5.9). Idempotent; called in both processes. Channel names follow the app
+ * language (T28 D10): the main process passes [AppLocale.localized] strings and so also renames existing channels; `:ring`
+ * (which does not know the language for sure) passes none and only creates missing channels.
+ */
 object AlarmChannels {
     const val ALARM = "napstop_alarm"
     const val BACKUP = "napstop_alarm_backup"
@@ -20,30 +24,35 @@ object AlarmChannels {
 
     private const val TAG = "NapStopAlarm"
 
-    fun ensure(context: Context) {
+    fun ensure(context: Context, strings: Context? = null) {
         val ctx = context.applicationContext
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+        val res = strings ?: ctx
+        val rename = strings != null
+        fun create(channel: NotificationChannel) {
+            if (rename || nm.getNotificationChannel(channel.id) == null) nm.createNotificationChannel(channel)
+        }
         try {
             nm.deleteNotificationChannel(INTERIM_REMOVED)
             // The ring service plays its own sound and vibration: the channel stays silent.
-            nm.createNotificationChannel(
-                NotificationChannel(ALARM, ctx.getString(R.string.notif_channel_alarm), NotificationManager.IMPORTANCE_HIGH).apply {
+            create(
+                NotificationChannel(ALARM, res.getString(R.string.notif_channel_alarm), NotificationManager.IMPORTANCE_HIGH).apply {
                     setSound(null, null)
                     enableVibration(false)
                     setShowBadge(false)
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
                 },
             )
-            nm.createNotificationChannel(
-                NotificationChannel(BACKUP, ctx.getString(R.string.notif_channel_alarm_backup), NotificationManager.IMPORTANCE_HIGH).apply {
+            create(
+                NotificationChannel(BACKUP, res.getString(R.string.notif_channel_alarm_backup), NotificationManager.IMPORTANCE_HIGH).apply {
                     setSound(backupSoundUri(ctx), alarmAttributes())
                     enableVibration(true)
                     vibrationPattern = VibrationPatterns.STRONG.timingsMs
                     setShowBadge(false)
                 },
             )
-            nm.createNotificationChannel(
-                NotificationChannel(PRE_ALERT, ctx.getString(R.string.notif_channel_prealert), NotificationManager.IMPORTANCE_DEFAULT).apply {
+            create(
+                NotificationChannel(PRE_ALERT, res.getString(R.string.notif_channel_prealert), NotificationManager.IMPORTANCE_DEFAULT).apply {
                     setSound(null, null)
                     enableVibration(true)
                     vibrationPattern = VibrationPatterns.PRE_ALERT

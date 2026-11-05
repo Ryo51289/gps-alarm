@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/app/app.dart';
 import 'package:napstop/app/clock.dart';
+import 'package:napstop/app/flavor.dart';
 import 'package:napstop/app/locales.dart';
 import 'package:napstop/app/router/app_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
@@ -73,6 +74,10 @@ class AppHarness {
 /// [stationCatalog] replaces the real dataset of screen 2 (T23).
 /// [keyValueStore] holds the preferences (T25); empty by default.
 /// [batteryGuides] replaces the real guides of screens 0 and 9 (T21).
+/// [useApp] pumps the real `NapStopApp` instead (T28): language and theme
+/// follow screen 12, and `AppBackgroundTasks` runs (history sync, native
+/// language); [locale], [theme], [textScale] and [fontFamily] are then
+/// ignored.
 Future<AppHarness> pumpAppHarness(
   WidgetTester tester, {
   List<Override> overrides = const [],
@@ -90,6 +95,7 @@ Future<AppHarness> pumpAppHarness(
   Future<StationCatalog> Function()? stationCatalog,
   KeyValueStore? keyValueStore,
   Future<BatteryGuideCatalog> Function()? batteryGuides,
+  bool useApp = false,
 }) async {
   tester.view
     ..physicalSize = size
@@ -135,6 +141,18 @@ Future<AppHarness> pumpAppHarness(
   final themeData = fontFamily == null
       ? NapThemes.of(theme)
       : NapThemes.of(theme, fontFamily: fontFamily);
+  if (useApp) {
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const NapStopApp(flavor: AppFlavor.dev),
+      ),
+    );
+    if (settle) {
+      await tester.pumpAndSettle();
+    }
+    return AppHarness(container: container, bridge: fake, db: database);
+  }
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,

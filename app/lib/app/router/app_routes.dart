@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
+import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 
 /// Route paths (T22 §3.1). Paths are a contract: later tasks never change
 /// them; new sub-paths are announced in their spec.
@@ -15,6 +16,9 @@ abstract final class AppRoutes {
 
   /// Screen 12, shell branch 2.
   static const String settings = '/settings';
+
+  /// Screen 12 > "Mặc định cho chuyến mới" (T28 §4.4), full screen.
+  static const String tripDefaults = '/settings/trip-defaults';
 
   /// Screen 0 (T21).
   static const String onboarding = '/onboarding';
@@ -57,6 +61,13 @@ extension AppNavigation on BuildContext {
   /// Screen 3 prefilled with [draft].
   Future<void> openAlarmSettings(TripDraft draft) =>
       push<void>(AppRoutes.alarmSettings, extra: draft);
+
+  /// Screen 3 with full arguments (T28: simulation entry of screen 12).
+  Future<void> openAlarmSettingsWith(AlarmSettingsArgs args) =>
+      push<void>(AppRoutes.alarmSettings, extra: args);
+
+  /// Screen 12 > defaults for new trips (T28).
+  Future<void> openTripDefaults() => push<void>(AppRoutes.tripDefaults);
 
   /// Screen 4. Uses `go`: Back does not return to the previous screen.
   void openTracking() => go(AppRoutes.tracking);

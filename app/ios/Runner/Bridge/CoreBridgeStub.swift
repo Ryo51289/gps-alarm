@@ -337,8 +337,18 @@ final class AlarmHostApiStub: AlarmHostApi {
     false
   }
 
-  // TODO(T28): store in UserDefaults "napstop.appLocale" (nil removes it).
-  func setAppLocale(languageTag: String?) throws {}
+  /// UserDefaults key read by T17 for AlarmKit / notification strings (T28 §6.3).
+  static let appLocaleKey = "napstop.appLocale"
+
+  /// T28: 'vi' | 'en' is stored; nil or any other value removes the key (= device language).
+  func setAppLocale(languageTag: String?) throws {
+    let tag = languageTag?.trimmingCharacters(in: .whitespaces)
+    if tag == "vi" || tag == "en" {
+      UserDefaults.standard.set(tag, forKey: Self.appLocaleKey)
+    } else {
+      UserDefaults.standard.removeObject(forKey: Self.appLocaleKey)
+    }
+  }
 }
 
 /// Event channel tripUpdates: keeps the sink while Dart listens and replays the

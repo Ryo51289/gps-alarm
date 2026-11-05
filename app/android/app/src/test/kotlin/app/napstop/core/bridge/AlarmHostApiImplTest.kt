@@ -9,7 +9,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** T16 AA1 (errors over the real Pigeon channel), AA3 (preview rules). */
+/** T16 AA1 (errors over the real Pigeon channel), AA3 (preview rules); T28 K03 (setAppLocale). */
 class AlarmHostApiImplTest {
     private class FakePreview : SoundPreview {
         val plays = ArrayList<Triple<String, Float, Long>>()
@@ -90,5 +90,30 @@ class AlarmHostApiImplTest {
         assertEquals(2, p.stops)
         api.stopPreview()
         assertEquals(3, p.stops)
+    }
+
+    @Test
+    fun k03_setAppLocaleParsesThenStores() {
+        val stored = ArrayList<String?>()
+        val api = AlarmHostApiImpl(FakePreview(), ringActive = { false }, setLocale = { stored += it })
+        api.setAppLocale("en")
+        api.setAppLocale("xx")
+        api.setAppLocale(null)
+        api.setAppLocale(" vi ")
+        assertEquals(listOf("en", null, null, "vi"), stored)
+
+        val failing = AlarmHostApiImpl(FakePreview(), ringActive = { false }, setLocale = { throw IllegalStateException("/data/x en") })
+        val e = runCatching { failing.setAppLocale("en") }.exceptionOrNull() as FlutterError
+        assertEquals("internal", e.code)
+        assertEquals("IllegalStateException", e.message)
+
+        // Through the generated handler and codec.
+        val engine = FakeEngine()
+        AlarmHostApi.setUp(engine, AlarmHostApiImpl(FakePreview(), ringActive = { false }, setLocale = { stored += it }))
+        assertEquals(listOf(null), engine.call("setAppLocale", listOf("en")))
+        assertEquals(listOf(null), engine.call("setAppLocale", listOf(null)))
+        assertEquals(listOf("en", null, null, "vi", "en", null), stored)
+        // The default (JVM registrar) does nothing and never throws.
+        AlarmHostApiImpl(FakePreview(), ringActive = { false }).setAppLocale("en")
     }
 }

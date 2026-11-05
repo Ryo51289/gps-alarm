@@ -1,4 +1,6 @@
 // In-memory KeyValueStore for tests (T25). Not a test file.
+import 'dart:async';
+
 import 'package:napstop/core/storage/key_value_store.dart';
 
 class FakeKeyValueStore implements KeyValueStore {
@@ -45,4 +47,45 @@ class FakeKeyValueStore implements KeyValueStore {
 
   @override
   Future<void> setInt(String key, int value) => _set(key, value);
+}
+
+/// [FakeKeyValueStore] with delays; [log] shows how calls interleave.
+class SlowKeyValueStore extends FakeKeyValueStore {
+  new({this.readDelay = Duration.zero, this.writeDelay = Duration.zero});
+
+  final Duration readDelay;
+  final Duration writeDelay;
+  final List<String> log = [];
+
+  /// When set, every read waits for it.
+  Completer<void>? readGate;
+
+  Future<T> _slowRead<T>(Future<T> Function() read) async {
+    await Future<void>.delayed(readDelay);
+    await readGate?.future;
+    final value = await read();
+    return value;
+  }
+
+  Future<void> _slowWrite(String key, Future<void> Function() write) async {
+    log.add('start $key');
+    await Future<void>.delayed(writeDelay);
+    await write();
+    log.add('end $key');
+  }
+
+  @override
+  Future<String?> getString(String key) =>
+      _slowRead(() => super.getString(key));
+
+  @override
+  Future<int?> getInt(String key) => _slowRead(() => super.getInt(key));
+
+  @override
+  Future<void> setString(String key, String value) =>
+      _slowWrite(key, () => super.setString(key, value));
+
+  @override
+  Future<void> setInt(String key, int value) =>
+      _slowWrite(key, () => super.setInt(key, value));
 }
