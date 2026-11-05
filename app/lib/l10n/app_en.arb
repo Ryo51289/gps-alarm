@@ -536,5 +536,7 @@
   "alarmKitTitleCheck": "Check if you've reached {destination}",
   "alarmKitTitleFallback": "You may be near {destination}",
   "alarmKitStop": "Stop",
-  "alarmKitRingFailed": "Couldn't set the alarm. Open NapStop now."
+  "alarmKitRingFailed": "Couldn't set the alarm. Open NapStop now.",
+  "iosLocationUsage": "NapStop uses your location to wake you before your stop, even when the screen is locked. Your location never leaves your phone.",
+  "iosAlarmKitUsage": "NapStop sets an alarm to wake you before your stop, even when your phone is on Silent."
 }

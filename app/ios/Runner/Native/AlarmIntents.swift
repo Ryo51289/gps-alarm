@@ -41,7 +41,7 @@ struct NapStopStopIntent: LiveActivityIntent {
     let id = UUID(uuidString: alarmID)
     // Order tested on Linux (StopIntentFlow): (1) on disk before anything else (T10 §7.2), (2) stop on iOS 26.0,
     // (3) hand over to the runtime, also when (1) failed.
-    await StopIntentFlow.perform(
+    let written = await StopIntentFlow.perform(
       rec,
       write: { try RuntimeHost.appendRingEventSync($0) },
       stopSystemAlarm: {
@@ -57,6 +57,9 @@ struct NapStopStopIntent: LiveActivityIntent {
           ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
         await host.onStopIntent(r)
       })
+    if let journal = RuntimeHost.shared?.journal {
+      StopIntentFlow.recordWriteFailure(written: written, journal)  // review T17 R4-2
+    }
     return .result()
   }
 }

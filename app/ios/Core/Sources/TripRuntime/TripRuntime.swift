@@ -766,6 +766,11 @@ public actor TripRuntime: LocationSink {
                     keep = p
                     continue
                 }
+                if l == nil && p.targetAtWallMs <= nowWall() {
+                    // Review T17 R4-1: the previous `stale` slot with the list unreadable again. Not due yet → it cannot be
+                    // ringing, cancel is enough; due → it may be ringing, stop it first.
+                    await ports.alarms.stop(id: p.alarmId, channel: p.channel)
+                }
                 await ports.alarms.cancel(id: p.alarmId, channel: p.channel)
                 expectedStops.insert(p.alarmId)
             }

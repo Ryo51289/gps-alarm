@@ -24,7 +24,7 @@ final class DeviceStatusStubTests: XCTestCase {
       (1.01, nil), (-0.01, nil), (.nan, nil), (.infinity, nil),
     ]
     for (level, pct) in cases {
-      let status = CoreBridgeStub.deviceStatus(batteryLevel: level, batteryState: .unplugged)
+      let status = DeviceBridge.deviceStatus(batteryLevel: level, batteryState: .unplugged)
       XCTAssertEqual(status.batteryPct, pct, "level \(level)")
     }
   }
@@ -35,12 +35,12 @@ final class DeviceStatusStubTests: XCTestCase {
     ]
     for (state, charging) in cases {
       XCTAssertEqual(
-        CoreBridgeStub.deviceStatus(batteryLevel: 0.5, batteryState: state).charging, charging)
+        DeviceBridge.deviceStatus(batteryLevel: 0.5, batteryState: state).charging, charging)
     }
   }
 
   func testOnlyBatteryIsKnownOnIOS() {
-    let status = CoreBridgeStub.deviceStatus(batteryLevel: 0.5, batteryState: .full)
+    let status = DeviceBridge.deviceStatus(batteryLevel: 0.5, batteryState: .full)
     XCTAssertNil(status.alarmVolumePct)
     XCTAssertNil(status.alarmMuted)
     XCTAssertNil(status.priorityAllowsAlarms)
@@ -150,6 +150,112 @@ final class T17MsgMapperTests: XCTestCase {
       XCTAssertEqual(e.message, "Boom")
     } catch {
       XCTFail("\(error)")
+    }
+  }
+}
+
+// T17.1 PC02–PC04 (docs/specs/T17.1.md): IOSPermissionHostApi on a fake probe, settings pages, backup exclusion.
+// Run on CI macOS (Simulator); typechecked on WSL by hand only (see the T17.1 Implementation notes).
+
+import NapStopIOS
+
+/// `requestLocation` waits until the test releases it.
+final class GatedProbe: PermissionProbing, @unchecked Sendable {
+  private let lock = NSLock()
+  private var waiting: CheckedContinuation<Void, Never>?
+
+  func readings() async -> PermissionReadings {
+    PermissionReadings(
+      location: .whenInUse, accuracy: .full, servicesEnabled: true, notifications: .authorized,
+      alarmKit: .unavailable)
+  }
+
+  func requestLocation(timeoutMs: Int64) async {
+    await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
+      lock.lock()
+      waiting = c
+      lock.unlock()
+    }
+  }
+
+  func requestNotifications() async {}
+  func requestAlarmKit() async {}
+
+  func lastKnown() async -> (fix: RawFix?, authorized: Bool, servicesEnabled: Bool) {
+    (nil, true, true)
+  }
+
+  func distancesM(from fix: RawFix, to pairs: [Double]) -> [Double] { [] }
+
+  func isWaiting() -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return waiting != nil
+  }
+
+  func release() {
+    lock.lock()
+    let c = waiting
+    waiting = nil
+    lock.unlock()
+    c?.resume()
+  }
+}
+
+final class T171PermissionTests: XCTestCase {
+  private let device = DeviceInfoMsg(
+    platform: .ios, manufacturer: "Apple", brand: "Apple", model: "iPhone", osVersion: "26.0",
+    androidSdkInt: nil, iosMajor: 26)
+
+  func testPC02SecondRequestWhileOneRunsIsRefused() async throws {
+    let probe = GatedProbe()
+    let api = IOSPermissionHostApi(probe: probe, device: device, openURL: { _ in })
+    let first = Task { try await api.request(kind: .location) }
+    for _ in 0..<400 where !probe.isWaiting() {
+      try await Task.sleep(nanoseconds: 5_000_000)
+    }
+    XCTAssertTrue(probe.isWaiting())
+    do {
+      _ = try await api.request(kind: .notifications)
+      XCTFail("no error")
+    } catch let e as PigeonError {
+      XCTAssertEqual(e.code, "request-in-progress")
+    }
+    probe.release()
+    let status = try await first.value
+    XCTAssertEqual(status.location, .whileInUse)
+    XCTAssertEqual(status.precise, .granted)
+    XCTAssertEqual(status.alarmKit, .notApplicable)
+    // Free again once the first one returned.
+    let again = try await api.request(kind: .notifications)
+    XCTAssertEqual(again.notifications, .granted)
+  }
+
+  func testPC03OpenSettingsTargets() throws {
+    var opened: [String] = []
+    let api = IOSPermissionHostApi(probe: GatedProbe(), device: device, openURL: { opened.append($0.absoluteString) })
+    for target in SettingsTargetMsg.allCases {
+      let expected = target == .appDetails || target == .notifications
+      XCTAssertEqual(try api.openSettings(target: target), expected, "\(target)")
+    }
+    XCTAssertEqual(
+      opened, [UIApplication.openSettingsURLString, UIApplication.openNotificationSettingsURLString])
+  }
+
+  func testPC04BackupExclusionMarksTheDirectory() throws {
+    // The same call as AppDelegate (acceptance criterion 5: napstop_db and napstop_trip).
+    let names = ["napstop_db", "napstop_trip"]
+    let result = BackupExclusion.excludeAppSupportSubdirectories(names)
+    XCTAssertEqual(result, ["napstop_db": true, "napstop_trip": true])
+    let support = try FileManager.default.url(
+      for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+    for name in names {
+      let url = support.appendingPathComponent(name, isDirectory: true)
+      var isDir: ObjCBool = false
+      XCTAssertTrue(FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), name)
+      XCTAssertTrue(isDir.boolValue, name)
+      let values = try url.resourceValues(forKeys: [.isExcludedFromBackupKey])
+      XCTAssertEqual(values.isExcludedFromBackup, true, name)
     }
   }
 }

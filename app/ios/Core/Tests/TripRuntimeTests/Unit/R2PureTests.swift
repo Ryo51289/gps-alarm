@@ -171,4 +171,62 @@ struct R4Tests {
         #expect(onDiskAtHandOver.value == 1)
         #expect(w.store.finished["t1"]?.endReason == "DISMISSED")
     }
+
+    /// Review T17 R4-1: two re-schedules in a row, the list unreadable right after each new slot is set. The first keeps
+    /// the replaced slot A as `stale`; the second retires A. `dueBeforeSecond` moves the wall clock past A's time first.
+    private static func staleRetiredWithListUnreadable(dueBeforeSecond: Bool) async
+        -> (a: AlarmSlotRec, b: AlarmSlotRec, w: World) {
+        let w = World()
+        #expect(await RuntimeUnitTests.started(w) == .started)
+        let a = w.store.currentLedger.current!
+        let alarms = w.alarms
+        alarms.onSchedule = { _ in alarms.listUnreadable = true }
+        await w.runtime.onClockChanged()  // A → B; the list read after scheduling B fails → A kept as `stale`
+        alarms.listUnreadable = false
+        await w.settle()
+        let b = w.store.currentLedger.current!
+        #expect(w.store.currentLedger.stale?.alarmId == a.alarmId)
+        if dueBeforeSecond {
+            w.time.shiftWall(a.targetAtWallMs - w.time.wallMs() + 1_000)  // A's time has passed (no tick: still listed)
+        }
+        w.log.clear()
+        await w.runtime.onClockChanged()  // B → C; the list fails again after scheduling C
+        alarms.onSchedule = nil
+        alarms.listUnreadable = false
+        await w.settle()
+        return (a, b, w)
+    }
+
+    @Test("R4-1 list unreadable twice, previous stale slot not due yet: cancel only, no stop")
+    func staleNotDueCancelOnly() async {
+        let (a, b, w) = await Self.staleRetiredWithListUnreadable(dueBeforeSecond: false)
+        #expect(w.alarms.cancels.contains(a.alarmId))
+        #expect(!w.alarms.stops.contains(a.alarmId))
+        #expect(w.store.currentLedger.stale?.alarmId == b.alarmId, "the slot just replaced is kept (#10)")
+        #expect(!w.alarms.all.contains { $0.id == a.alarmId })
+    }
+
+    @Test("R4-1 list unreadable twice, previous stale slot already due: stop, then cancel")
+    func staleDueStopThenCancel() async {
+        let (a, b, w) = await Self.staleRetiredWithListUnreadable(dueBeforeSecond: true)
+        #expect(w.alarms.stops.contains(a.alarmId))
+        #expect(w.alarms.cancels.contains(a.alarmId))
+        let ops = w.log.ops
+        let pairs = zip(ops, ops.dropFirst()).contains { $0 == "stop" && $1 == "cancel" }
+        #expect(pairs, "stop immediately followed by cancel: \(ops)")
+        #expect(!w.alarms.stops.contains(b.alarmId), "the slot kept as stale is not stopped")
+        #expect(w.store.currentLedger.stale?.alarmId == b.alarmId)
+        #expect(!w.alarms.all.contains { $0.id == a.alarmId })
+    }
+
+    @Test("R4-2 StopIntent: a failed write is journaled as stop_intent{written:false}, a good one is not")
+    func stopIntentWriteFailureJournal() {
+        let j = RecordingJournal()
+        StopIntentFlow.recordWriteFailure(written: true, j)
+        #expect(j.all.isEmpty)
+        StopIntentFlow.recordWriteFailure(written: false, j)
+        #expect(j.all.count == 1)
+        #expect(j.all.first?.ev == "stop_intent")
+        #expect(j.all.first?.fields == ["written": "false"])
+    }
 }

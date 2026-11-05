@@ -22,6 +22,10 @@
 		D17A000D2EC6000100A0B001 /* MsgMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A00092EC6000100A0B001 /* MsgMapper.swift */; };
 		D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A000A2EC6000100A0B001 /* AlarmIntents.swift */; };
 		D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A000B2EC6000100A0B001 /* DiagIntents.swift */; };
+		D17B00012EC7000100A0B001 /* IOSPermissionHostApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17B00052EC7000100A0B001 /* IOSPermissionHostApi.swift */; };
+		D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17B00062EC7000100A0B001 /* DeviceBridge.swift */; };
+		D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = D17B000A2EC7000100A0B001 /* InfoPlist.strings */; };
+		D17B00042EC7000100A0B001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -74,6 +78,11 @@
 		D17A00092EC6000100A0B001 /* MsgMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MsgMapper.swift; sourceTree = "<group>"; };
 		D17A000A2EC6000100A0B001 /* AlarmIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmIntents.swift; sourceTree = "<group>"; };
 		D17A000B2EC6000100A0B001 /* DiagIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagIntents.swift; sourceTree = "<group>"; };
+		D17B00052EC7000100A0B001 /* IOSPermissionHostApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSPermissionHostApi.swift; sourceTree = "<group>"; };
+		D17B00062EC7000100A0B001 /* DeviceBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBridge.swift; sourceTree = "<group>"; };
+		D17B00072EC7000100A0B001 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		D17B00082EC7000100A0B001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +146,8 @@
 				97C146FD1CF9000F007C117D /* Assets.xcassets */,
 				97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */,
 				97C147021CF9000F007C117D /* Info.plist */,
+				D17B000A2EC7000100A0B001 /* InfoPlist.strings */,
+				D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
@@ -153,6 +164,8 @@
 			children = (
 				D14B00022EC5000100A0B001 /* CoreApi.g.swift */,
 				D14B00032EC5000100A0B001 /* CoreBridgeStub.swift */,
+				D17B00062EC7000100A0B001 /* DeviceBridge.swift */,
+				D17B00052EC7000100A0B001 /* IOSPermissionHostApi.swift */,
 				D17A00092EC6000100A0B001 /* MsgMapper.swift */,
 				D17A00082EC6000100A0B001 /* RealTripBackend.swift */,
 			);
@@ -187,6 +200,7 @@
 			packageProductDependencies = (
 				D17A00122EC6000100A0B001 /* Trip */,
 				D17A00132EC6000100A0B001 /* TripRuntime */,
+				D17B000B2EC7000100A0B001 /* NapStopIOS */,
 			);
 			productName = RunnerTests;
 			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
@@ -245,6 +259,7 @@
 			knownRegions = (
 				en,
 				Base,
+				vi,
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
@@ -277,6 +292,8 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+				D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */,
+				D17B00042EC7000100A0B001 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -338,6 +355,8 @@
 				D17A000C2EC6000100A0B001 /* RealTripBackend.swift in Sources */,
 				D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */,
 				D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */,
+				D17B00012EC7000100A0B001 /* IOSPermissionHostApi.swift in Sources */,
+				D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -366,6 +385,15 @@
 				97C147001CF9000F007C117D /* Base */,
 			);
 			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+		D17B000A2EC7000100A0B001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				D17B00072EC7000100A0B001 /* vi */,
+				D17B00082EC7000100A0B001 /* en */,
+			);
+			name = InfoPlist.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -739,6 +767,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
 			productName = TripRuntime;
+		};
+		D17B000B2EC7000100A0B001 /* NapStopIOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
+			productName = NapStopIOS;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

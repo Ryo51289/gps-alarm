@@ -94,3 +94,17 @@ Tests/TripRuntimeTests/         Support (fakes, World, TraceRun, RuntimeFixtures
 - Typecheck without a Mac (WSL, Swift 6.4.1 + xtool Darwin SDK 27.1): build `Trip`, `TripRuntime` with `swiftc -emit-module`
   and typecheck `NapStopIOS` + Runner for `arm64-apple-ios16.0` and `arm64-apple-ios16.0-simulator`; the exact commands are in
   the T17 Implementation notes until T01.2 adds `app/ios/scripts/typecheck-wsl.sh`.
+
+## T17.1: permissions, last-known distance, backup, privacy manifest
+
+Spec: `docs/specs/T17.1.md`. Pure parts in `Sources/TripRuntime/Permissions.swift` (`PermissionMapper` = T21 §9,
+`LastKnownMath` = port of the Kotlin one, `PermissionRequestGate`, the `PermissionProbing` port); Apple reads and prompts in
+`Sources/NapStopIOS/PermissionProbe.swift`; `Sources/NapStopIOS/BackupExclusion.swift` marks `Application Support/napstop_db/`
+and `napstop_trip/` `isExcludedFromBackup` at every launch. The Runner side is `Runner/Bridge/IOSPermissionHostApi.swift`
+(+ `DeviceBridge.swift`). Tests: `--filter PermissionsTests`, `--filter PlistStringsTests` (ARB = `Runner/*.lproj/InfoPlist.strings`
+= `Info.plist`, privacy manifest).
+
+- The permission dialogs use the device language, or the app's own language in iOS Settings › NapStop › Language; the language
+  chosen inside NapStop (screen 12, `setAppLocale`) does not change them (iOS reads `InfoPlist.strings` itself).
+- On iOS the screen 0 flags are a JSON file `napstop_db/onboarding.json` (Dart `FileKeyValueStore`), not `NSUserDefaults`, so they
+  stay out of backups like on Android.

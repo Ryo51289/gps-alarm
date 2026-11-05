@@ -16,3 +16,11 @@ public enum StopIntentFlow {
         return written
     }
 }
+
+extension StopIntentFlow {
+    /// Review T17 R4-2: when step (1) failed, the diagnostics journal says so (device runs IM02/IM04). Only the flag:
+    /// no ids, no data.
+    public static func recordWriteFailure(written: Bool, _ journal: RuntimeJournal) {
+        if !written { journal.record("stop_intent", ["written": "false"]) }
+    }
+}

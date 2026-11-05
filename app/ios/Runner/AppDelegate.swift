@@ -1,6 +1,7 @@
 import Flutter
 import GoogleMaps
 import NapStopIOS
+import TripRuntime
 import UIKit
 
 @main
@@ -17,8 +18,12 @@ import UIKit
     if let key = MapsConfig.apiKey() {
       GMSServices.provideAPIKey(key)
     }
+    // T17.1 D10: keep the database (destination coordinates, screen 0 flags) and the runtime files out of backups. At
+    // every launch, before Flutter opens the database; a failure never blocks the launch.
+    let excluded = BackupExclusion.excludeAppSupportSubdirectories(["napstop_db", "napstop_trip"])
     // T17: the trip runtime exists before Flutter, also when iOS launches the app in the background (StopIntent).
-    RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
+    let host = RuntimeHost.bootstrap(options: AlarmIntents.options(), stopIntentFactory: AlarmIntents.factory)
+    host.journal.record("backup_exclusion", excluded.mapValues { $0 ? "ok" : "failed" })
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

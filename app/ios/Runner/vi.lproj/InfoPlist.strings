@@ -1,0 +1,4 @@
+/* Usage strings of Info.plist, Vietnamese (source). Keep in sync with app_vi.arb (iosLocationUsage, iosAlarmKitUsage)
+   and Info.plist; checked by PU07 (docs/specs/T17.1.md §4). */
+"NSLocationWhenInUseUsageDescription" = "NapStop dùng vị trí để đánh thức bạn khi sắp tới nơi, kể cả khi màn hình đang khoá. Vị trí không rời khỏi máy.";
+"NSAlarmKitUsageDescription" = "NapStop đặt báo thức để đánh thức bạn trước khi tới nơi, kể cả khi máy đang Im lặng.";

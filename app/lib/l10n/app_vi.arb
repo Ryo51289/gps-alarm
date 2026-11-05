@@ -2814,5 +2814,13 @@
   "alarmKitRingFailed": "Chưa đặt được báo thức. Mở NapStop ngay.",
   "@alarmKitRingFailed": {
     "description": "iOS native (AlarmKit/notification), keep in sync with NativeCopy.swift. Notice when no channel could ring the alarm (T17 §5.6.3)."
+  },
+  "iosLocationUsage": "NapStop dùng vị trí để đánh thức bạn khi sắp tới nơi, kể cả khi màn hình đang khoá. Vị trí không rời khỏi máy.",
+  "@iosLocationUsage": {
+    "description": "iOS Info.plist usage string, keep in sync with Runner/*.lproj/InfoPlist.strings. NSLocationWhenInUseUsageDescription (T17.1 §4)."
+  },
+  "iosAlarmKitUsage": "NapStop đặt báo thức để đánh thức bạn trước khi tới nơi, kể cả khi máy đang Im lặng.",
+  "@iosAlarmKitUsage": {
+    "description": "iOS Info.plist usage string, keep in sync with Runner/*.lproj/InfoPlist.strings. NSAlarmKitUsageDescription (T17.1 §4)."
   }
 }

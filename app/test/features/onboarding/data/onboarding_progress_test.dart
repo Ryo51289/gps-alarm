@@ -1,11 +1,16 @@
-// U22: first-run flag (T21 §6.5).
+// U22: first-run flag (T21 §6.5). PD02: iOS store (T17.1).
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:napstop/app/router/app_routes.dart';
+import 'package:napstop/core/db/connection.dart';
+import 'package:napstop/core/storage/file_key_value_store.dart';
 import 'package:napstop/core/storage/key_value_store.dart';
+import 'package:napstop/core/storage/shared_preferences_key_value_store.dart';
 import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences_android/shared_preferences_android.dart';
 
 import '../../../helpers/fake_key_value_store.dart';
@@ -63,6 +68,50 @@ void main() {
       isNot(isA<SharedPreferencesAsyncAndroidOptions>()),
     );
   });
+
+  test(
+    'PD02 iOS keeps the flags in napstop_db/onboarding.json (T17.1 D11)',
+    () async {
+      final tmp = Directory.systemTemp.createTempSync('napstop_support_');
+      addTearDown(() => tmp.deleteSync(recursive: true));
+      final ios = createOnboardingStore(
+        platform: TargetPlatform.iOS,
+        supportDirectory: () async => tmp,
+      );
+      expect(ios, isA<FileKeyValueStore>());
+      final file = await (ios as FileKeyValueStore).file;
+      expect(
+        file.path,
+        p.join(tmp.path, kDatabaseDirName, kOnboardingFileName),
+      );
+      expect(kDatabaseDirName, 'napstop_db');
+      expect(kOnboardingFileName, 'onboarding.json');
+      // The flag goes through the file, round trip.
+      expect(await isOnboardingCompleted(ios), isFalse);
+      await markOnboardingCompleted(ios);
+      expect(file.existsSync(), isTrue);
+      expect(
+        await isOnboardingCompleted(
+          createOnboardingStore(
+            platform: TargetPlatform.iOS,
+            supportDirectory: () async => tmp,
+          ),
+        ),
+        isTrue,
+      );
+      // A corrupt file shows screen 0 again.
+      file.writeAsStringSync('{');
+      expect(await isOnboardingCompleted(ios), isFalse);
+
+      // Android (and the other platforms) stay on SharedPreferences.
+      for (final platform in [TargetPlatform.android, TargetPlatform.linux]) {
+        expect(
+          createOnboardingStore(platform: platform),
+          isA<SharedPreferencesKeyValueStore>(),
+        );
+      }
+    },
+  );
 
   group('startupLocation (T21 CQ1)', () {
     test(

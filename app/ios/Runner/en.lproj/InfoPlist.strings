@@ -1,0 +1,4 @@
+/* Usage strings of Info.plist, English. Keep in sync with app_en.arb (iosLocationUsage, iosAlarmKitUsage); checked by
+   PU07 (docs/specs/T17.1.md §4). */
+"NSLocationWhenInUseUsageDescription" = "NapStop uses your location to wake you before your stop, even when the screen is locked. Your location never leaves your phone.";
+"NSAlarmKitUsageDescription" = "NapStop sets an alarm to wake you before your stop, even when your phone is on Silent.";
