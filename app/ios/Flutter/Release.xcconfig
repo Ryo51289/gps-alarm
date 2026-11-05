@@ -1,3 +1,6 @@
 #include "Generated.xcconfig"
 // Maps/Places key, gitignored (T23 D3); see Secrets.xcconfig.example.
 #include? "Secrets.xcconfig"
+// Diagnostics flag for CI test IPAs (T01.2 D6): only the ios-device job writes it, with
+// SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) NAPSTOP_DIAG. Gitignored; store builds (T40) never have it.
+#include? "Diag.xcconfig"

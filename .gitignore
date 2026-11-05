@@ -33,6 +33,8 @@ GoogleService-Info.plist
 # Maps/Places keys (T23): app/android/secrets.properties, app/ios/Flutter/Secrets.xcconfig
 secrets.properties
 Secrets.xcconfig
+# CI diagnostics flag for test IPAs (T01.2 D6), written by the ios-device job only
+app/ios/Flutter/Diag.xcconfig
 
 # Claude Code local settings
 .claude/settings.local.json

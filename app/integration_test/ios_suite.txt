@@ -1,0 +1,6 @@
+# iOS integration tests run by the ios-sim job of .github/workflows/ios-compile.yml (docs/specs/T01.2.md D10).
+# One test per line: <file relative to app/> [lat,lng]
+# With lat,lng the job first runs `xcrun simctl location <udid> set <lat>,<lng>` (public fixture points only; the
+# result summary shows the file name, never the point). Lines starting with # and empty lines are ignored.
+# Each file is a separate `flutter test <file> -d <udid>` run (15 min limit); a failing file does not stop the next.
+integration_test/ios_smoke_test.dart
