@@ -32,18 +32,27 @@ need_jq() {
   command -v jq >/dev/null 2>&1 || die "ci-sim.sh needs jq"
 }
 
+# "<version> <path>" for release bundles only, oldest first: Xcode_26.4.1.app, Xcode_26.6.app; Xcode_27.0_beta_2.app
+# is skipped. A function, not a loop inside "$( )": bash 3.2 (macOS /bin/bash) ends a command substitution at the
+# ")" of a case pattern (first CI run, 06/11: "x: unbound variable"). No `sort -V` either (not in every BSD sort):
+# sort on zero-padded numeric fields instead.
+list_xcodes() {
+  local root="$1" x ver a b c
+  for x in "$root"/Xcode_*.app; do
+    [ -d "$x" ] || continue
+    ver="${x##*/Xcode_}"
+    ver="${ver%.app}"
+    case "$ver" in
+      '' | *[!0-9.]*) continue ;;
+    esac
+    IFS=. read -r a b c _ <<<"$ver.."
+    printf '%05d %05d %05d %s %s\n' "$((10#${a:-0}))" "$((10#${b:-0}))" "$((10#${c:-0}))" "$ver" "$x"
+  done | sort -k1,1n -k2,2n -k3,3n | cut -d ' ' -f 4-
+}
+
 cmd_xcode() {
   local root="${NAPSTOP_XCODE_ROOT:-/Applications}" list pick ver path id
-  # "<version> <path>" for release bundles only: Xcode_26.6.app, Xcode_26.4.1.app; Xcode_27.0_beta_2.app is skipped.
-  list="$(
-    for x in "$root"/Xcode_*.app; do
-      [ -d "$x" ] || continue
-      ver="${x##*/Xcode_}"
-      ver="${ver%.app}"
-      case "$ver" in '' | *[!0-9.]*) continue ;; esac
-      echo "$ver $x"
-    done | sort -V -k1,1
-  )"
+  list="$(list_xcodes "$root")"
   pick="$(awk '$1 ~ /^26(\.|$)/' <<<"$list" | tail -n 1)"
   if [ -z "$pick" ]; then
     pick="$(awk '{ split($1, v, "."); if (v[1] + 0 >= 26) print }' <<<"$list" | tail -n 1)"
