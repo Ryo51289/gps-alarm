@@ -1,0 +1,400 @@
+✔ Test "S06 cosDeg bit-exact with tracegen at 7 points; |cosDeg − Foundation.cos| ≤ 1e-15 on [−90, 90] step 0.01" passed after 16.067 seconds.
+✔ Test "U20 TIME 20 zone at eta 1800; TIME 30 never; SMART at eta 1800" passed after 18.600 seconds.
+✔ Test "U64 armed only at the first fix: start at 4 km, out to 6 km and back → no PreAlert; start at 6 km → PreAlert at 5 km" passed after 18.600 seconds.
+✔ Test "U82 predictedAlarmAt: DISTANCE, TIME, SMART (both branches, slow), LOST, battery, null cases, deadline" passed after 18.600 seconds.
+✔ Test "U01 distanceM equals tracegen (6 pairs, bit-exact, so within ± 1e-6 m) and is symmetric by bits" passed after 18.600 seconds.
+✔ Test "Remote Config blank: \u00A0 \u2007 \u3000 \t blank (defaults, not malformed); \u200B, \uFEFF, \u0085 not blank (malformed)" passed after 18.600 seconds.
+✔ Test "C16-ENDED (review #13): pre-C16 ENDED snapshot with snoozeUntilMs = X → reduce(any input)/restore(any status) leave state unchanged, view keeps X, no events" passed after 18.600 seconds.
+✔ Test "allowFallbackFirst V14 also for a number; V15 with killSweep (no config.kill); V16 when the only alarm expect has ringNow true" passed after 18.600 seconds.
+✔ Test "C12 blank set mirror of T12T: blank → defaults; not blank → malformed; only RFC 8259 whitespace around an object" passed after 18.600 seconds.
+✔ Test "U21 trip starting at d 4 km (DISTANCE 1000) or with preAlertEnabled = false: no PreAlert, Alarm still comes" passed after 18.600 seconds.
+✔ Test "Remote Config blank: isBlank(scalar) equals the JVM set for every BMP scalar; no supplementary scalar is blank" passed after 18.600 seconds.
+✔ Test "P02 is exempted only by allowFallbackFirst = true: same first Alarm(ringNow=false) fails P02 with the flag false or absent" passed after 18.600 seconds.
+✔ Test "Corrupt snapshot (review #3): fallback FAILED with emittedAtMs null → Tick / fix re-request the fallback at once; events and view = Kotlin" passed after 18.600 seconds.
+✔ Test "C16-ENDED (review #13): engine-made ENDED state with snoozeUntilMs forced to X behaves the same (Tick, restore MISSING)" passed after 18.600 seconds.
+✔ Test "U99 GAP-1 (T10.4, was gap1Pin): Tick exactly at predicted keeps a wake-up (S + 2 511 000); the next one rings GPS_LOST" passed after 18.600 seconds.
+✔ Test "C16-ENDED mirror of T12T: ENDED (S + 10 s) with snoozeUntilMs = S + 60 s unchanged by every input/restore at S + 20 s, also after decode(encode)" passed after 18.600 seconds.
+✔ Test "U19 DISTANCE zone: thr 500 / 1000 / 10 000 → 3000 / 5000 / 50 000 m" passed after 18.600 seconds.
+✔ Test "U56 no event payload and no TripView field is named lat/lng/latitude/longitude (Mirror)" passed after 18.600 seconds.
+✔ Test "Corrupt snapshot (review #4): gps LOST with gpsLostAtMs null → good fix recovers without GpsRecovered; Tick rings GPS_LOST; = Kotlin" passed after 18.600 seconds.
+✔ Test "C16 contrast mirror of T12T: TRACKING (20 km) with a stale snoozeUntilMs from a snapshot is normalised by the next Step" passed after 18.600 seconds.
+✔ Test "U100 GAP-2 (T10.4, was gap2Pin): policy shortened in the Step keeps c2 and Tick(now) silent; GPS_LOST at 2 601 s (Doze) / 2 605 s (5 s ticks)" passed after 18.600 seconds.
+✔ Test "U16 shortDistanceWarning (integer formula) for the 10 T10 pairs" passed after 18.600 seconds.
+✔ Test "U80 description / debugDescription / String(reflecting:) / dump never print coordinates; error messages have no values" passed after 18.600 seconds.
+✔ Test "U81 TIME 15, established, ground 0.4 (etaS null), k 2: Alarm(TIME) once d ≤ 300" passed after 18.600 seconds.
+✔ Test "U18 SMART slow: 12 km/h d 2600 no, 2500 SMART_SLOW_DISTANCE; 16 km/h stays slow; 17.1 leaves; smartFloorM 3000 → slowDistM 3000" passed after 18.624 seconds.
+✔ Test "U17 SMART: 60 km/h, etaS 599 → SMART_TIME; smartTargetS 300 + slow 5 km/h, 11 km/h, etaS 400, d 990 → SMART_DISTANCE" passed after 18.624 seconds.
+✔ Test "U57 first fix already inside the zone (d 800, DISTANCE 1000) → Alarm(DISTANCE) at that Step" passed after 18.624 seconds.
+✔ Test "U15 TIME 15: etaS 900.0 alarms (TIME), 900.5 does not" passed after 18.624 seconds.
+✔ Test "U14 DISTANCE 1000: dSmooth 1000.0 alarms (DISTANCE), 1000.01 does not" passed after 18.624 seconds.
+✔ Test "T132P canon/fnv self-check (Kotlin and Swift print Doubles differently; bit patterns do not)" passed after 18.624 seconds.
+✔ Test "U58 TIME 15, not established, hint BUS, d 4 km: etaS = 4000·1.2/(20/3.6) + 20 ≈ 884 → alarm at once" passed after 18.624 seconds.
+✔ Test "T132P round-3d guard still blocks a wrong-wording OVERSHOOT after a chord when one accepted outlier fakes lag-2 (= Kotlin)" passed after 18.624 seconds.
+✔ Test "U28 while lost a rejected fix does not recover; a good fix does" passed after 18.624 seconds.
+✔ Test "T132P snapshot minDChord adversarial decode and restore paths (= Kotlin)" passed after 18.624 seconds.
+✔ Test "U26 lost 120 s, acc 8, closingV 15: isEstimated, distanceErrorM 458, distanceM 1800 lower" passed after 18.624 seconds.
+✔ Test "U23 DENSE, last fix t0: Tick t0+59 nothing, t0+60 GpsLost(NO_FIX_TIMEOUT)" passed after 18.624 seconds.
+✔ Test "T132P chord bits pinned for the U113 cases and chords with dLng != 0 and destLat != 0 (= Kotlin)" passed after 18.624 seconds.
+✔ Test "U86 ACQUIRING + SERVICES_OFF then first fix; OK + PERMISSION_REVOKED then SERVICES_OFF then fix (I7)" passed after 18.624 seconds.
+✔ Test "U24 just switched SPARSE → DENSE, last fix requested at 180 s: no GpsLost until 540 s after it (C2)" passed after 18.624 seconds.
+✔ Test "U27 LocationAvailability(PERMISSION_REVOKED) when etaS = 900 → GpsLost + Alarm(GPS_LOST) in the same Step" passed after 18.624 seconds.
+✔ Test "U25 lost, etaS 1260, closingV 15: Alarm(GPS_LOST) at the first 5 s tick with etaS < 1200 (65 s later)" passed after 18.624 seconds.
+✔ Test "U66 medianHi: [null, 3, 5] → 5; [4, null] → 4; [null, null] → null (recentSpeed falls back to ground 2)" passed after 18.624 seconds.
+✔ Test "U71 lost while stopped at 60 km (train 15 m/s, k 1.2): GpsLost at lostAfterS, predicted constant ± 1 ms, Alarm(GPS_LOST) at tick 3660" passed after 18.624 seconds.
+✔ Test "U09 blend: null EMA takes the sample; then 10 + 10·5/305" passed after 18.624 seconds.
+✔ Test "U63 lost, DISTANCE 1000: (a) eta 1100, dNow 5000 alarm; (b) eta 1300, dNow 900 alarm; (c) eta 1300, dNow 5000 none" passed after 18.624 seconds.
+✔ Test "U62 minOrNull(null, 5, 3) = 3; minOrNull(null, null) = null" passed after 18.624 seconds.
+✔ Test "S05 a * b + c is not contracted into an FMA: contractionProbe(0.1, 10, −1) == 0.0 (args read at runtime)" passed after 18.624 seconds.
+✔ Test "U29 battery 20 %, prior 2 %/h, predicted alarm in 9 h → LowBatteryRisk(20, 450, 555) once" passed after 18.624 seconds.
+✔ Test "S04 kotlinToLong / kotlinToInt saturate like Kotlin and never trap" passed after 18.624 seconds.
+✔ Test "U33 observed rate: 21 → 20 % in 30 min = 2 %/h; 21 → 21 → prior" passed after 18.624 seconds.
+✔ Test "MathUtil (T12) max(0.0, −0.0) = 0.0 and min(−0.0, 0.0) = −0.0 by bits; roundHalfUp(2.5) = 3; floorMs(0.0009999) = 0" passed after 18.624 seconds.
+✔ Test "U32 BATTERY_ALARM_EARLIER at 18 % → alarm at 15 %; MAX_SAVING → SPARSE 360, MEDIUM 60, DENSE 5; (b) AT_5 before risk → no risk; (c) MAX_SAVING then EARLIER → SPARSE 180" passed after 18.624 seconds.
+✔ Test "U79 (a) lost + 5 % → LOW_BATTERY (not GPS_LOST); (b) 13 % + EARLIER → threshold 12; (c) start at 4 %, then 3 % → no alarm" passed after 18.624 seconds.
+✔ Test "U31 TRACKING 6 % then 5 % → Alarm(LOW_BATTERY, batteryPct 5); (b) BATTERY_ALARM_AT_5 chosen at 20 % → same" passed after 18.624 seconds.
+✔ Test "U30 charging 6 % then 5 %: no risk, no alarm" passed after 18.624 seconds.
+✔ Test "U34 alarmed (ringing), minD 300, then 400 → 800 → 1350 at 40 km/h → Overshoot(pastM 1050), no new Alarm; (b) DISTANCE 2000, minD 1500" passed after 18.624 seconds.
+✔ Test "U03 thresholds: DISTANCE 150 / 10001, TIME 4 / missing fail; DISTANCE 200 and 10000 valid; T12 C11 order and messages" passed after 18.624 seconds.
+✔ Test "U38 d down to 290 → Arrived(290) once, phase unchanged" passed after 18.624 seconds.
+✔ Test "U37 DISTANCE 500 not alarmed: 900, 800, 1100, 2000 (180 s) at 40 km/h → Alarm(OVERSHOOT) + Overshoot, phase OVERSHOT" passed after 18.624 seconds.
+✔ Test "U78 (a) silenced then overshoot → Alarm(OVERSHOOT, ringNow) + Overshoot; (b) still ringing → only Overshoot; (c) ends 3600 s after Alarm(OVERSHOOT)" passed after 18.624 seconds.
+✔ Test "U89 (a) FallbackFired → SNOOZE → SNOOZE_END rings + SUPERSEDED; (b) RANG → silenced → overshoot rings; (c) fallback ringing blocks; (d) no trip-wide flag; (e) P07(i)" passed after 18.624 seconds.
+✔ Test "U35 8 km/h, or not strictly increasing → no Overshoot; (b) fast boundary 5.0 m/s vs 18 km/h; (c) minD == nearRadius exactly" passed after 18.624 seconds.
+✔ Test "U65 21 → 20 % after 1 199 999 ms → null (prior); after 1 200 000 ms → 3 %/h" passed after 18.624 seconds.
+✔ Test "U77 PASSED_CLOSEST at 1850 (closest 1200, 18 km/h); negatives (minD 3100, 8 km/h, +500, not strict, already alarmed); R2-4" passed after 18.624 seconds.
+✔ Test "S13 osSim queue is FIFO; FallbackScheduled(x) → CONFIRMED; P07(ii) checked after the queue; no records after ENDED" passed after 18.624 seconds.
+✔ Test "U36 as U34 but DISMISS first → ENDED, no Overshoot" passed after 18.624 seconds.
+✔ Test "U94 TIME 30, far floor now + 600 s at N; no emission N+5…N+15 s; N + 20 s first near-zone Step → N + 650 000 (T10.3); TIME alarm first" passed after 18.968 seconds.
+✔ Test "U87 near zone T = 300: raise to X / X + 30 s (near); lower only ≥ 30 s above the upper edge and ≥ 60 s after the last emission" passed after 18.968 seconds.
+✔ Test "U122 preV lifts dead reckoning to the measured ground speed while LOST before established (a)–(e)" passed after 18.968 seconds.
+✔ Test "U93 fallbackPredictedAt / fallbackTarget: TRAIN floor wins (a), loses (b), disabled (c), TIME (d), LOST (e), no fix (f)" passed after 18.968 seconds.
+✔ Test "U124 passAnchorD is written right after minDChord, round-trips, a missing key reads nil and a wrong type fails" passed after 18.968 seconds.
+✔ Test "U74 F2 (a) ±20 → 1 emission; (b) ±40 → 7; (c) ±20 then P − 100 → 2; (d) drift → 17 + 1 (P + 660)" passed after 18.968 seconds.
+✔ Test "U42 far zone: shift 20 s null; earlier 40 s now; later 40 s after 30 s null / 61 s target; FAILED 59 / 60 s (even in quiet)" passed after 18.968 seconds.
+✔ Test "U73 F1 (a) 20 phases from P − 3600 s → final P + 30 s; (b) 09:30 run: 11 emissions (T10: 5); (c) start in the near zone" passed after 18.968 seconds.
+✔ Test "U123 g a REANCHOR clears the mark" passed after 18.968 seconds.
+✔ Test "U120 d e the A10 builder rings before the pre-alert zone, a zero-speed state rings by the hint floor" passed after 18.968 seconds.
+✔ Test "U123 e f one fix away from a parked vehicle does not ring, two consecutive ones do" passed after 18.968 seconds.
+✔ Test "U40 fallbackTarget (predictedFb = predicted): far zone early part, near zone P + 30 s, lead floor, T10 override" passed after 18.968 seconds.
+✔ Test "TR37-neg train_hn_dh/distance_1000_killsweep with T10 parameters: some k rings after arrival" passed after 18.969 seconds.
+✔ Test "U123 h the mark is the minimum seen, turning back does not ring, moving away again does (pinned)" passed after 18.968 seconds.
+✔ Test "U97 (b) 1 000 random (now, predicted, E) with the T10 override: bit-identical to the T10.1 expression" passed after 18.968 seconds.
+✔ Test "U41 fb = now + 25 s: quiet window blocks any change except the T10.5 urgent later shift (+120 s with predicted > now + 30 s)" passed after 18.968 seconds.
+✔ Test "U123 c d d2 poor fixes never set the mark, the mark comes with the first good fix" passed after 18.968 seconds.
+✔ Test "U119 lostLongAtS the long-loss mark W of C25 (a)–(h), hex printed for the Kotlin comparison" passed after 18.968 seconds.
+✔ Test "U95 F3 sweep: constant speed 2…20 m/s, TRAIN and COACH: far-zone margin ≥ 540 s, no quiet ETA, no early fallback, final P + 30 s" passed after 18.968 seconds.
+✔ Test "U120 g a snapshot round trip and restore PENDING in the middle of the loss gives the uninterrupted event sequence" passed after 18.968 seconds.
+✔ Test "StartStep C3: SamplingPolicyChanged(DENSE) then FallbackAlarmChanged(start + 10 980 000, ETA); C4 event fields from the view; C5" passed after 18.968 seconds.
+✔ Test "U120 a c f the long-loss rule rings GPS_LOST at lostLongAt + 1 s from a wake-up Tick, constant prediction, off is T12.2" passed after 18.968 seconds.
+✔ Test "U43 TRACKING with a target, then Alarm(ringNow) → FallbackAlarmChanged(null, SUPERSEDED) once, no ETA afterwards" passed after 18.968 seconds.
+✔ Test "U123 i a fake minD from one outlier then a parked vehicle with GNSS jitter never rings, 400 runs" passed after 18.969 seconds.
+✔ Test "T132 d (= T122 d) no wake-up storm at tier boundaries with GPS OK, with and without a sliding battery forecast" passed after 18.968 seconds.
+✔ Test "T132 b repro (= T122): passed the destination in a GPS gap, first fix 29 s before F and 3.1 km beyond → OVERSHOOT 10 s after the fix" passed after 18.968 seconds.
+✔ Test "U121 GPS lost for more than 1 h with a changing true speed: the long-loss rule W bounds the GPS_LOST lateness (T122 c flipped)" passed after 18.968 seconds.
+✔ Test "U120 b a fix in the middle of the loss recomputes lostLongAt from the new fix (pinned)" passed after 18.969 seconds.
+✔ Test "AU13 Runner/Sounds: 3 PCM 44.1 kHz files of 28.0–29.5 s = whole loops of the upsampled Android sources; script rebuilds" passed after 18.973 seconds.
+✔ Test "U72 600 s stop with jittering speed-less fixes: one stop, EMA unchanged, stop ends at the first fix > 50 m from the anchor" passed after 18.968 seconds.
+✔ Test "U115 (= T122 b tunnel) destination passed inside a tunnel, first fix <= 90 s before the fallback: no TIMEOUT, alarm <= 2 fix periods after the gap" passed after 18.968 seconds.
+✔ Test "U115 variant (= T122, RK20 d): one IMPLAUSIBLE fix inside the gap in 10 % of runs, TIMEOUT count recorded (3 of 32)" passed after 18.968 seconds.
+✔ Test "U61 established by Doppler but every pair has last.acc > 50 and a small displacement → closing null → k = prior" passed after 18.968 seconds.
+✔ Test "U10 short stop (25 s) is blended into the EMA: blend(blend(·, 0, 25), sample, 5)" passed after 18.968 seconds.
+✔ Test "U13 etaS: d 9000, v 15, k 1.2, penalty 20 → 740; v 0.4 → null" passed after 18.968 seconds.
+✔ Test "U60 sample gap: 900 s updates the EMA with dt 900, 901 s does not (Doppler and displacement branches)" passed after 18.968 seconds.
+✔ Test "U12 route factor k: ground 20 with closing 16 / 25 / −1 → 1.25 / 1.0 / 2.0; not established → 1.2" passed after 18.968 seconds.
+✔ Test "U114 w passed in the gap then turning back towards the destination rings DISTANCE at 1 km, no overshoot" passed after 18.968 seconds.
+✔ Test "U114 aa the chord flag survives parking jitter and is cleared by an observed fix closer than the chord" passed after 18.968 seconds.
+✔ Test "U114 j creeping away after the gap rings OVERSHOOT at the 3rd fix (round 3c)" passed after 18.968 seconds.
+✔ Test "U114 f g h no gap, already alarmed, not yet passed" passed after 18.968 seconds.
+✔ Test "U11 long stop (300 s) is skipped: EMA unchanged, ETA after restart = ETA before (same d)" passed after 18.968 seconds.
+✔ Test "U114 a a2 a3 b passed the destination in a GPS gap, OVERSHOOT once moving away is confirmed or the vehicle stands" passed after 18.968 seconds.
+✔ Test "U114 m a stop from before the gap does not count as standing at the first fix after it" passed after 18.968 seconds.
+✔ Test "U114 ab an outlier accepted after a rejected one is not a GPS-gap chord fix (round 3f)" passed after 18.968 seconds.
+✔ Test "U114 c d e 300 m beyond rings DISTANCE, TIME and SMART their mode reason, off-route PASSED_CLOSEST once moving away" passed after 18.968 seconds.
+✔ Test "U85 progress 0.6, alarmMarkerProgress 0.9 (DISTANCE 1000) / 0.12 (TIME 15, closingV 10); distanceErrorM 8 for acc 7.6" passed after 18.968 seconds.
+✔ Test "U123 a b a slow pass of an off-route destination rings PASSED_CLOSEST from the slow-vehicle net, off is silent (U114 o p p2)" passed after 18.969 seconds.
+✔ Test "U114 t parked after the gap with random jitter of 20 m, 200 deterministic sets ring OVERSHOOT within 120 s" passed after 18.969 seconds.
+✔ Test "U113 (support) javaHex = Java Double.toHexString" passed after 18.969 seconds.
+✔ Test "U114 ac STALE and INACCURATE fixes inside the gap keep the chord fix" passed after 18.969 seconds.
+✔ Test "U07 four consistent fixes 5 km away: +15, +30 dropped; +45 REANCHOR (recent = [it], minD = its d); +60 accepted" passed after 18.969 seconds.
+✔ Test "U114 x one outlier fix lowering minD during a normal approach does not ring OVERSHOOT (round 3d)" passed after 18.969 seconds.
+✔ Test "U114 ad one IMPLAUSIBLE fix inside the gap makes the first fix after it a plain fix (T12.1 rule, pinned)" passed after 18.969 seconds.
+✔ Test "U114 i bypass entering from the far side is not an overshoot, DISTANCE rings at 1 km" passed after 18.969 seconds.
+✔ Test "U114 y z normal tracking, stuck before the destination with one outlier fix, is the T12.1 rule (no OVERSHOOT)" passed after 18.969 seconds.
+✔ Test "U06 three 3.3 km jumps within 10 s are dropped; next good fix accepted; dSmooth does not jump" passed after 18.969 seconds.
+✔ Test "U114 v bypass entering from the far side then standing rings a wrong-wording OVERSHOOT (RK20 a, accepted)" passed after 18.969 seconds.
+✔ Test "T133 c (Kotlin T123 c) a T12.2 snapshot (no passAnchorD, no T10.6 params) decodes with the defaults and rings W early" passed after 18.969 seconds.
+✔ Test "U114 q r s u parked after the gap with poor fixes, repeated or alternating coordinates, or crawling away rings OVERSHOOT at the 3rd fix" passed after 18.969 seconds.
+✔ Test "U59 sliding reject window; no REANCHOR if pair (0,1) not plausible; REANCHOR while stopped clears stop, keeps EMA" passed after 18.969 seconds.
+✔ Test "U04 fix age 60 000 ms accepted, 60 001 ms dropped (no GpsRecovered, droppedFixes + 1)" passed after 18.969 seconds.
+✔ Test "T133 a (Kotlin T123 a) W rings exactly at last fix + gpsLostLongS, not one millisecond earlier" passed after 18.969 seconds.
+✔ Test "U05 accuracy gate: d 1 km acc 150 drop; d 50 km acc 1500 accept; d 50 km acc 2500 drop" passed after 18.969 seconds.
+✔ Test "U114 n after an alarm stopped ringing a parked vehicle does not re-ring by notCloser, the trip ends after alarmMaxActiveS" passed after 18.969 seconds.
+✔ Test "U114 k gps still OK with no Tick during the gap, moving away rings OVERSHOOT (time term of gapFix)" passed after 18.969 seconds.
+✔ Test "U113 chordClosest distance from the destination to the GPS-gap chord, only inside the segment (hex file for Kotlin)" passed after 18.969 seconds.
+✔ Test "T133 b (Kotlin T123 b) gpsLostLongS 1801 moves the floor by one second, 0 turns W off entirely (any hint factor)" passed after 18.969 seconds.
+✔ Test "T133 e (Kotlin T123 e) slowAway boundaries: rise exactly passedClosestSlowRiseM counts, the second-to-last value decides" passed after 18.969 seconds.
+✔ Test "T132 a (= T122 a) restore while GPS lost then the first fix 0 to 150 s before the fallback: one alarm, no double ring, moved later" passed after 18.970 seconds.
+✔ Test "U114 l gps LOST from location services off with fixes less than lostAfterS apart still lowers minD by the chord" passed after 18.969 seconds.
+✔ Test "T133 d (Kotlin T123 d) passAnchorD boundaries: accuracy equal to speedSampleMaxAccM is good, open gap at exactly openNeedM" passed after 18.969 seconds.
+✔ Test "T133 f (Kotlin T123 f) Remote Config values out of range or of the wrong type are rejected one by one, default kept" passed after 18.969 seconds.
+✔ Test "U105 a fuzz is deterministic (seeds 7, 77, 777)" passed after 19.023 seconds.
+✔ Test "U105 b Doze loop from 200 fuzz prefixes rings before the deadline from a wake-up Tick, and the trip ends" passed after 19.023 seconds.
+✔ Test "U90 (T10 override 0.1/1800/0) fallback at tick 1440 is S + 6 687 000 as in T10.1" passed after 19.023 seconds.
+✔ Test "T134 a (Kotlin T113) TR40 timeline per case and sampling mode: no alarm inside the gap, first alarm in g_end + 25" passed after 19.023 seconds.
+✔ Test "T132P parity fuzz 2000 random trips (chords at destLat != 0, outliers, wake-ups, restores) per-Step transcript (= Kotlin)" passed after 19.033 seconds.
+✔ Test "T134 c (Kotlin T113) TR40 Doze model gives the same first alarm as the normal run" passed after 19.030 seconds.
+✔ Test "U39 tierOf with hysteresis; ACQUIRING / ALARMING → DENSE; not established → ≥ MEDIUM; emitted only on change" passed after 19.030 seconds.
+✔ Test "U62 tierOf(null, MEDIUM) = MEDIUM; lost at DENSE with T = 5000 keeps DENSE" passed after 19.030 seconds.
+✔ Test "U91 brake → stop → restart sample: cvGuard [12, 7.875], GpsLost 1980, Alarm(GPS_LOST) 7680 / 11 580 / 14 160 for N = 2 / 1 / 0" passed after 19.030 seconds.
+✔ Test "U90 brake sample before GPS loss: cvGuard [12, 12], GpsLost at 1440, predicted constant, Alarm(GPS_LOST) 7200 (N = 0: 11 100)" passed after 19.030 seconds.
+✔ Test "T134 d (Kotlin T113) TR40 process killed inside the gap - relaunch before or after GPS returns, or never" passed after 19.030 seconds.
+✔ Test "T134 e (Kotlin T113) TR40 measured - alarm silenced inside the gap, then the coach passes the destination" passed after 19.030 seconds.
+✔ Test "U92 no change to old behaviour: (a) GPS OK uses EMA 7.875; (b) not established; (c) accelerating; (d) N = 3; (e) no guard update; (f) closingVOf" passed after 19.039 seconds.
+✔ Test "U96 c8: lost TRACKING, predicted N + 2 000 000: fb N + 700 000 → N + 610 000; fb N + 1 950 000 → c4 N + 1 101 000 (T10.4); ALARMING no c8" passed after 19.049 seconds.
+✔ Test "U08 dSmooth: d 2000, 900 (jump), 1980 within 12 s → 1980; with two elements {2000, 900} → 2000" passed after 19.061 seconds.
+✔ Test "U102 T10.4: c3 and c4 are moved by wakeGuardMs and only count boundaries not yet crossed" passed after 19.061 seconds.
+✔ Test "U111 a Doze fuzz (= T121): no fix in Doze, fallback always scheduled OK, no kill → engine always rings first (700 trips)" passed after 19.061 seconds.
+✔ Test "U70 wakeAt (a)–(h): acquire, NEVER_ACQUIRED, OK, LOST, SNOOZED, ALARMING, FAILED (c7), ENDED" passed after 19.061 seconds.
+✔ Test "T131 seed 26 (= T121 note #3, flipped by T10.5): the fix 29 s before F moves the fallback later (W off); with T10.6 the OS fallback rings while dead" passed after 19.061 seconds.
+✔ Test "T131 early Tick (= T121): a Tick delivered up to 998 ms before wakeAtMs still rings when GPS is lost (every mode, 14 361 probes)" passed after 19.061 seconds.
+✔ Test "U114 af a chord farther than the observed minD keeps the flag false, no OVERSHOOT when standing after the gap" passed after 19.061 seconds.
+✔ Test "U107 b c d A10 outside the scope (= T121): TIME 21/25 and SMART slow 1.5 pre-alert 61 s before GPS_LOST; SMART slow 1.41 and DISTANCE none" passed after 19.061 seconds.
+✔ Test "T131 kd = Kotlin Double.toString on the shapes used in the t121 files" passed after 19.061 seconds.
+✔ Test "U106 a b (= T121): GPS OK and stopped with T just above a boundary asks for no wake-up storm (1 Tick to GpsLost; 0 in a 20-min stop)" passed after 19.061 seconds.
+✔ Test "U70 (i) SNOOZED + fb FAILED: c7 is still a candidate (C13)" passed after 19.062 seconds.
+✔ Test "U107 a A10 (= T121): TIME/SMART pre-alert during GPS loss lands on the near-zone wake-up P − 599 s (etaS 1799), GPS_LOST at P + 1 s" passed after 19.062 seconds.
+✔ Test "U125 O1 repro (= T122): stopped 1.9 km before the destination, one outlier fix at 800 m, fixes every 30 s → DISTANCE at 480 m" passed after 19.061 seconds.
+✔ Test "U111 c Doze fuzz (= T121): fixes at wake-ups, battery, FallbackScheduled failures, kills/restores → invariants, liveness, urgent later shift" passed after 19.062 seconds.
+✔ Test "U125 O1c (= T122 O1c) first outlier dropped by the platform instead of rejected: wrong-wording count (RK20 c), run by run = T10.6 off" passed after 19.061 seconds.
+✔ Test "U111 d Doze fuzz (= T121): no fix in Doze with battery, FallbackScheduled failures, kills/restores (seeds 701–1400)" passed after 19.062 seconds.
+✔ Test "T131 GPS OK, no new fix (= T121): dead reckoning wake-up at P + 1 s rings the mode alarm before c2 (240 sets)" passed after 19.061 seconds.
+✔ Test "T132 e (= T122 e) fuzz of the urgent later shift path: no double ring, one alarm, I1–I7 I10–I14 at every Step, emissions = fallbackTarget" passed after 19.063 seconds.
+✔ Test "U125 O1 (= T122 O1) stuck in traffic before the destination with an outlier fix: wrong-wording OVERSHOOT count = HEAD (14), run by run = T10.6 off" passed after 19.062 seconds.
+✔ Test "U125 O1b (= T122 O1b) stop-and-go traffic with the engine's own sampling policy and one outlier fix: 0 wrong wording" passed after 19.061 seconds.
+✔ Test "U125 O3 (= T122 O3) stopped in a covered station before the destination, coordinates alternating between two sources" passed after 19.061 seconds.
+✔ Test "U114 ae a REANCHOR below 1 km after a chord fix clears the flag, no OVERSHOOT on a slow crawl away (T10.6: PASSED_CLOSEST)" passed after 19.061 seconds.
+✔ Test "U44 Sources/Trip: no transcendental functions, FMA, imports, bare min/max, Dictionary/Set/random/clock, logging; Int( only in conversion files" passed after 19.061 seconds.
+✔ Test "U125 O4 slow crawl away after an off-route pass and a vehicle reversing before the destination" passed after 19.061 seconds.
+✔ Test "U125 O2 (= T122 O2) normal approach fuzz: wrong wording only with outliers, TIMEOUT only without good fixes (RK22 c)" passed after 19.061 seconds.
+✔ Test "U50 alarmed snapshot (ALARMING, ringing) + RANG / PENDING / MISSING / UNKNOWN → no Alarm(ringNow=true)" passed after 19.062 seconds.
+✔ Test "U127 m after an alarm a chord through the destination then a loop around it at 3 100 m - no Overshoot until really past" passed after 19.061 seconds.
+✔ Test "U127 e bypass entering from the far side after an alarm - no Overshoot while approaching or standing, re-ring once really past" passed after 19.061 seconds.
+✔ Test "U84 (e) R3-1: SNOOZED + MISSING before until → REQUESTED; FallbackScheduled ok → CONFIRMED; at until SNOOZE_END + SUPERSEDED; (f) C6 merged order" passed after 19.061 seconds.
+✔ Test "U49 not alarmed, target T: RANG; UNKNOWN after/before T; PENDING; MISSING after/before T; MISSING without target" passed after 19.062 seconds.
+✔ Test "U127 a b c after a GPS_LOST alarm the chord proves came near and the usual overshoot rule re-rings, Overshoot only, or supersedes the snooze" passed after 19.061 seconds.
+✔ Test "U75 DISMISSED: (a) TRACKING → Alarm(FALLBACK, false) + TripEnded(DISMISSED, ON_TIME); (b) SNOOZED → SNOOZE_END + SNOOZED; (c) ALARMING 2 h → not ALARM_UNANSWERED" passed after 19.062 seconds.
+✔ Test "U127 d a vehicle parked beyond the destination after the chime stopped does not re-ring, MISSED after alarmMaxActiveS" passed after 19.061 seconds.
+✔ Test "U127 f process killed in the gap, restore RANG - after AlarmSilenced as (a), else as (b), snapshot round trip keeps the chord" passed after 19.062 seconds.
+✔ Test "U129 alarmedChordD is written right after passAnchorD, round-trips, a missing key reads nil and a wrong type fails" passed after 19.061 seconds.
+✔ Test "Fixture directory loads (17 traces, 64 cases, 303 runs after T11.3)" passed after 19.061 seconds.
+✔ Test "U127 n snapshot round trip and restore PENDING after any Step of (a) continues the same (t, events, view)" passed after 19.062 seconds.
+✔ Test "U127 l isGapFix truth table over phase, overshootAtMs, alarm, L, gps and the time term" passed after 19.062 seconds.
+✔ Test "U127 g h i j k not passed, a stop from before the gap kept, OVERSHOT, an IMPLAUSIBLE fix, and the time term" passed after 19.061 seconds.
+✔ Test "allowFallbackFirst (T11.2 V14–V16): non-bool fails parsing; with kill / without an expect alarm ringNow=false is a config error" passed after 19.061 seconds.
+✔ Test "U84 SNOOZED + MISSING before / after / within 30 s of snoozeUntil; SNOOZED + UNKNOWN due; repeated Tick silent" passed after 19.062 seconds.
+✔ Test "U104 I14: Tick at the state's own now emits nothing and changes nothing (start, ACQUIRING, TRACKING, FAILED, SNOOZED, ALARMING, OVERSHOT, restore)" passed after 19.061 seconds.
+✔ Test "U103 P08: GPS lost and only wake-up Ticks: every mode rings 1 s after the predicted time, before the fallback" passed after 19.061 seconds.
+✔ Test "Parity #5: targetTier in ENDED → nil (policy kept)" passed after 19.062 seconds.
+✔ Test "IdCoverage: TR01–TR35, TR37, TR38 in fixture testIds; TR36 in NegativeSweepTests, TR39 in DozeModelTests, TR43 in TR43ReRingTests" passed after 19.110 seconds.
+✔ Test "U101 T10.4 §4.8: policyIntervalAtLastFixS is the longest interval in force since the last fix was requested" passed after 19.185 seconds.
+✔ Test "Parity #6: blank Remote Config string = Kotlin isBlank (U+001C–U+001F, NBSP blank; U+0085 not blank)" passed after 19.251 seconds.
+✔ Test "IdCoverage: U01–U129 and S01–S16 have a test whose name starts with the ID" passed after 19.351 seconds.
+✔ Test "Parity #3: fb FAILED without emittedAtMs (hand-edited snapshot) → nextFallbackAt re-requests at once (as Kotlin)" passed after 19.404 seconds.
+✔ Test "Parity #7: JSON error rule names and offsets (UTF-16) as the Kotlin parser" passed after 19.507 seconds.
+✔ Test "Parity #4 / C17: GpsRecovered only when gpsLostAtMs is set; gpsLostAtMs cleared afterwards" passed after 19.783 seconds.
+✔ Test "IdCoverage self-check: an ID is matched with a word boundary (U100–U105 do not declare U10)" passed after 20.389 seconds.
+✔ Test "U112 a b far-zone later shift is immediate when the alarm already set is within Q + minInterval" passed after 21.358 seconds.
+✔ Test "U109 b with only 9 s left the fallback stays and rings early (pinned remainder)" passed after 21.762 seconds.
+✔ Test "U109 a a fix in the quiet window showing a stop moves the fallback later and the engine rings first" passed after 23.376 seconds.
+✔ Test "U109 c a charging battery sample removing batteryAt inside the quiet window moves the fallback to the far zone" passed after 23.376 seconds.
+✔ Test "U108 nextFallbackAt urgent later shift inside the quiet window (K1, K2 bounds, min shift, far zone, FAILED, emit)" passed after 23.376 seconds.
+✔ Test "U110 harness I4 accepts the urgent later shift and counts it, rejects the K2, K1 and min-shift cases" passed after 23.376 seconds.
+✔ Test "U112 c d seed 746 pattern: a fix after a GPS loss showing the vehicle far moves a near fallback 63 s or 33 s away" passed after 23.376 seconds.
+✔ Test "U106 c d e f wakeAt takes c3 from min(wakeBasisAt, wakeBatteryAt), near-zone and c4 from wakeBasisAt only" passed after 23.376 seconds.
+✔ Test "S14 policy-j07 delays the first SPARSE-gated delivery by exactly 35 s versus j00; later ones follow intervalS" passed after 23.376 seconds.
+✔ Test "S07 every enum: jsonName ↔ init?(jsonName:) round-trips; FallbackStatus.notSet is "NONE"; unknown names → nil" passed after 23.376 seconds.
+✔ Test "U106 g wakeBasisAt is deadlineAt when sliding or without estimate, predictedNoBattery otherwise, nil when alarmed" passed after 23.377 seconds.
+✔ Test "U98 C16: snoozeUntilMs is null after every exit from SNOOZED (a)–(h); (i) MISSING before until stays SNOOZED with RESYNC" passed after 23.375 seconds.
+✔ Test "S12 harness configuration errors fail (not skip): rejected params, action while dead, sweep with sparse 182, run anchor never occurs, killSweep without alarm" passed after 23.373 seconds.
+✔ Test "S11 must-understand: unknown key in cases[i], config, config.params, expect[0].window.notBefore, killSweep.earlyFrom, forbidAfter[0].after fails with the key path; unknown key in truth ignored" passed after 23.373 seconds.
+✔ Test "S09 GPX coach_dn_langco_tunnel: 337 points, sample 0, gap [1175, 1535); train_longstop_nospd has points without spd" passed after 23.369 seconds.
+✔ Test "S08 SHA-256 FIPS 180-4 vectors: "", "abc", 448-bit message, 1 000 000 × a" passed after 23.367 seconds.
+✔ Test "S10 IsoTime: three valid instants; offsets / missing Z rejected" passed after 23.367 seconds.
+✔ Test "U83 ALARMING (engine) + FallbackFired → no events, alarmRinging; OVERSHOT + FallbackFired → no events" passed after 23.365 seconds.
+✔ Test "U45 SNOOZE → Snoozed(now + 60 s) + FallbackAlarmChanged(now + 90 s, SNOOZE); +59 s nothing; +60 s Alarm(SNOOZE_END, ringNow, snoozeAllowed false)" passed after 23.366 seconds.
+✔ Test "U88 markRing: (a) clamp + 1 h from the real ring time; (b) overshoot while the fallback rings; (c) SNOOZED; (d) restore RANG/UNKNOWN; (e) ALARMING; (f) future firedAtMs" passed after 23.365 seconds.
+✔ Test "U46 after SNOOZE_END a second SNOOZE is ignored (maxSnoozes 1), still ALARMING" passed after 23.365 seconds.
+✔ Test "U45 (b) R3-1: after SNOOZE status REQUESTED; FallbackScheduled(ok=false) → FAILED; other time → unchanged; SNOOZE_END → SUPERSEDED, NONE" passed after 23.365 seconds.
+✔ Test "U48 TRACKING + FallbackFired → Alarm(FALLBACK, ringNow=false), no SUPERSEDED; later fix in zone does not ring" passed after 23.365 seconds.
+✔ Test "U76 (a) TIMEOUT at startedAt + maxTripDurationS; (b) never a fix → TIMEOUT at 4 h, distanceM null; (c) then ALARM_UNANSWERED after 3600 s" passed after 23.365 seconds.
+✔ Test "U47 outcomes ON_TIME / SNOOZED / MISSED / CANCELLED; summary alarmAtMs = first Alarm, dismissedAtMs = DISMISS (null for STOP)" passed after 23.364 seconds.
+✔ Test "U68 maxSnoozes 2 → snoozeAllowed true, true, false; maxSnoozes 0 → false and SNOOZE ignored" passed after 23.365 seconds.
+✔ Test "U111 b Doze fuzz (= T121): from trip start, random FallbackScheduled failures (15 %) and kills/restores (50 %) → invariants, liveness" passed after 23.379 seconds.
+✔ Test "U126 a Doze fuzz lateness off vs T10.6, long-loss alarms, late > 1800 s classes and the review seeds" passed after 23.381 seconds.
+✔ Suite "T17.1 Plist strings" passed after 25.492 seconds.
+✔ Suite "SimPure" passed after 25.492 seconds.
+✔ Suite "RuntimeRound3Pure" passed after 25.492 seconds.
+✔ Suite "RuntimePure" passed after 25.493 seconds.
+✔ Suite "TesterT17Pure" passed after 25.493 seconds.
+✔ Suite "RuntimeRound2Pure" passed after 25.493 seconds.
+✔ Suite "T17.1 Permissions" passed after 25.493 seconds.
+✔ Suite "T17.1 LastKnownMath parity with Kotlin" passed after 25.493 seconds.
+✔ Suite "ClockAndHistoryTests" passed after 25.493 seconds.
+✔ Suite "EngineParamsFactoryTests" passed after 25.493 seconds.
+✔ Suite "MiniJsonTests" passed after 25.493 seconds.
+✔ Suite "SnapshotCodecTests" passed after 25.493 seconds.
+✔ Test "S16 transcripts are deterministic when generated twice in parallel" passed after 25.489 seconds.
+✔ Test "TR39 Doze model on the gpsGaps cases alarms from the engine like the normal run" passed after 25.490 seconds.
+✔ Suite "PreAlertRuleTests" passed after 25.493 seconds.
+✔ Suite "PredictedAlarmAtTest" passed after 25.493 seconds.
+✔ Suite "TesterT13Tests" passed after 25.493 seconds.
+✔ Suite "PrivacyTest" passed after 25.493 seconds.
+✔ Suite "TripRulesTests" passed after 25.493 seconds.
+✔ Suite "ModeRulesTests" passed after 25.493 seconds.
+✔ Suite "TesterT132ParityTests" passed after 25.510 seconds.
+✔ Suite "GpsMonitorTests" passed after 25.510 seconds.
+✔ Suite "MathUtilTests" passed after 25.510 seconds.
+✔ Suite "BatteryRuleTests" passed after 25.510 seconds.
+✔ Suite "OvershootDetectorTests" passed after 25.510 seconds.
+✔ Suite "TripConfigValidationTests" passed after 25.510 seconds.
+✔ Suite "OsSimTests" passed after 25.510 seconds.
+✔ Test "TR36 stopgap 36 phases with lostSpeedGuardUpdates = 0, gpsLostLongS = 0: at least one phase misses the TR30 window" passed after 25.504 seconds.
+✔ Suite "FallbackPlannerTests" passed after 25.510 seconds.
+✔ Suite "T106Tests" passed after 25.510 seconds.
+✔ Suite "StartStepTest" passed after 25.510 seconds.
+✔ Suite "SpeedEstimatorTests" passed after 25.510 seconds.
+✔ Suite "ViewTest" passed after 25.510 seconds.
+✔ Test "U126 b e1 e2 fuzz lateness off vs T10.6, late > 1800 s classes and long-loss alarms" passed after 25.505 seconds.
+✔ Test "U105 a fuzz: 1 000 seeded trips keep the safety invariants, I13 and I14 at every Step (no GAP exemption)" passed after 25.503 seconds.
+✔ Suite "FixFilterTests" passed after 25.511 seconds.
+✔ Suite "TesterT133Tests" passed after 25.511 seconds.
+✔ Suite "LostSpeedGuardTests" passed after 25.511 seconds.
+✔ Suite "SamplingPlannerTests" passed after 25.511 seconds.
+✔ Suite "WakePlannerTests" passed after 25.517 seconds.
+✔ Suite "DistanceSmootherTests" passed after 25.530 seconds.
+✔ Suite "TesterT131Tests" passed after 25.531 seconds.
+✔ Suite "TesterT132OvershootTests" passed after 25.531 seconds.
+✔ Suite "SourceScanTest" passed after 25.531 seconds.
+✔ Suite "RestoreTests" passed after 25.531 seconds.
+✔ Suite "T107Tests" passed after 25.531 seconds.
+✔ Suite "Round2Tests" passed after 25.531 seconds.
+✔ Suite "WakeGuardT104Tests" passed after 25.531 seconds.
+✔ Test "TR01–TR35, TR37, TR38 · P01 P02 P03 P04 P06 P07 · fixture case" with 64 test cases passed after 25.522 seconds.
+✔ Suite "IdCoverageTests" passed after 25.531 seconds.
+✔ Suite "T105Tests" passed after 25.563 seconds.
+✔ Suite "SwiftSpecificTests" passed after 25.566 seconds.
+✔ Suite "AlarmLifecycleTests" passed after 25.566 seconds.
+✔ Test "U01 (T12) cosDeg(90.0001) stops the process (Kotlin throws IllegalArgumentException)" passed after 25.563 seconds.
+✔ Test "T135 f2 relaunch after the GPS returned while the OS chime still rings - Overshoot only, no second ring" passed after 25.559 seconds.
+✔ Suite "DozeModelTests" passed after 25.608 seconds.
+✔ Suite "TesterT132Tests" passed after 25.608 seconds.
+✔ Suite "FuzzT104Tests" passed after 25.608 seconds.
+✔ Test "U116 a the GPS-gap chord goes through a fixture destination only on TR40 traces" passed after 25.601 seconds.
+✔ Test "U117 the notCloser term of the overshoot rule never holds on a fixture run without an earlier GPS-gap chord" passed after 25.601 seconds.
+✔ Suite "NegativeSweepTests" passed after 25.608 seconds.
+✔ Test "T135 k process killed right after the chord fix in ALARMING - the re-ring survives the restart" passed after 25.606 seconds.
+✔ Suite "TraceSuite" passed after 25.619 seconds.
+✔ Test "TR43 g g2 parked beyond the destination after the gap - no re-ring once the chime stopped, OVERSHOOT before any alarm" passed after 26.072 seconds.
+✔ Suite "GeoTests" passed after 26.110 seconds.
+✔ Test "IU41 pendingFinished sorted, ack, survives a new process" passed after 26.125 seconds.
+✔ Suite "T105GapTests" passed after 26.129 seconds.
+✔ Test "TR43 a b c alarm rang in the gap - chime stopped re-rings OVERSHOOT, still ringing gives Overshoot only, snoozed supersedes" passed after 26.137 seconds.
+✔ Test "TR43 d e f process killed in the gap, relaunch before or after the GPS returns" passed after 26.186 seconds.
+✔ Suite "TR43ReRingTests" passed after 26.199 seconds.
+✔ Test "T134 b (Kotlin T113) TR40 every policy phase (36) keeps the first alarm in g_end + 25" passed after 26.194 seconds.
+✔ Test "T135 s1 s1b s2 s3 snoozed, chord fix after snoozeUntil - still ringing gives Overshoot only, stopped chime re-rings OVERSHOOT" passed after 26.204 seconds.
+✔ Suite "TesterT134Tests" passed after 26.217 seconds.
+✔ Test "IU16 second start refused at once while the first waits; third start works after the first fails" passed after 26.217 seconds.
+✔ Test "IU17 start: TripStateUpdate before the answer, ledger, one fallback at the deadline, a timer" passed after 26.334 seconds.
+✔ Test "U128 loop routes after an alarm - no wrong-wording Overshoot except L1, the real overshoot after the arrival" passed after 26.351 seconds.
+✔ Test "IU39 timer: Tick at the real delivery time; awake tick ≤ 60 s after the last step" passed after 26.358 seconds.
+✔ Test "SIU12 simulated start: ACQUIRING published, keep-alive session once, no system alarm, ledger + meta simulated" passed after 26.362 seconds.
+✔ Suite "T107LoopTests" passed after 26.363 seconds.
+✔ Test "IU38 clock change: the slot moves to toWall(target) on the new wall, new before old" passed after 26.363 seconds.
+✔ Test "IU33 StopIntent of an unknown/ended trip: cancel that alarm, endedTripIds, active trip untouched" passed after 26.363 seconds.
+✔ Test "Single-sample trace: starts, delivers the sample once, then runs on engine wakes only" passed after 26.366 seconds.
+✔ Test "A second start while a simulated trip runs (real or simulated) is refused trip-active; the simulated trip goes on" passed after 26.367 seconds.
+✔ Test "IU23 old slot rings while re-scheduling: one ring, new slot cancelled, FallbackFired once" passed after 26.366 seconds.
+✔ Test "IU22 new slot before cancelling the old one; schedule failure keeps the old slot and reports ok=false" passed after 26.366 seconds.
+✔ Test "IU44 availability: revoked → PERMISSION_REVOKED, back → AVAILABLE; services off; reduced accuracy is fine" passed after 26.366 seconds.
+✔ Test "IU12 now on AlarmKit fails, notification channel works: no AlarmSilenced" passed after 26.366 seconds.
+✔ Test "IU20 persistNow returns after its budget while the write is slow; the write still completes" passed after 26.366 seconds.
+✔ Test "V2-6 cancelSlots with an unreadable list still cancels the ledger slots" passed after 26.366 seconds.
+✔ Test "R4-1 list unreadable twice, previous stale slot not due yet: cancel only, no stop" passed after 26.369 seconds.
+✔ Test "R4-1 list unreadable twice, previous stale slot already due: stop, then cancel" passed after 26.369 seconds.
+✔ Test "Clock change with a dead current slot and a live stale slot: the live slot is moved, not left at the old wall time" passed after 26.369 seconds.
+✔ Test "AU08b launch action expires after 10 min; route back of an unknown trip writes tripId only, cancels, markEnded" passed after 26.371 seconds.
+✔ Test "IU46 now alerting cancels the guard and the ledger forgets it; the next ringNow Step arms a guard first" passed after 26.370 seconds.
+✔ Test "ring: persistNow before the now alarm, guard slot armed, then cancelled when now alerts" passed after 26.369 seconds.
+✔ Test "AlarmKit drops the now alarm before it rings: the guard slot wakes the user ≤ lag after the decision, once" passed after 26.372 seconds.
+✔ Test "IU37 addListener replays one state; nothing after TripEnded" passed after 26.374 seconds.
+✔ Test "IU48 clock change while ALARMING with the guard cancelled: nothing is scheduled" passed after 26.376 seconds.
+✔ Test "AU05 snooze on a ringing fallback slot the runtime has not seen: FallbackFired first, then Snoozed" passed after 26.390 seconds.
+✔ Test "Snooze intent delivered twice for the same alarm: one Snoozed, the until + 30 s slot stays, no AlarmSilenced" passed after 26.390 seconds.
+✔ Test "Reboot mid-trip (new boot id, wall moved on), user opens the app: alarms intact → PENDING, tracking again, no ring" passed after 26.390 seconds.
+✔ Test "StopIntentFlow through the runtime: the ring event is on disk before the runtime handles it" passed after 26.443 seconds.
+✔ Test "Snooze intent killed after its write, before stop (alarm still ringing); the user then taps Stop: DISMISSED, nothing rings again" passed after 26.443 seconds.
+✔ Test "AU07b the snooze intent launches the process in the background (restore pending): snoozed once, at once, no ring" passed after 26.443 seconds.
+✔ Suite "RuntimeRound4" passed after 26.448 seconds.
+✔ Test "Requests: now/fallback/guard carry the D1 button and the sound file of the settings" passed after 26.446 seconds.
+✔ Test "StopIntent whose ring event could not be written (disk error): the running trip still ends, nothing rings again" passed after 26.446 seconds.
+✔ Test "IU15 TripEnded(DISMISSED): stop alerting, cancel scheduled, writeFinished before deleteActive, idle" passed after 26.446 seconds.
+✔ Test "SIU11 bad id, missing asset, broken GPX, slow store: simulation-unavailable + code; nothing started or written" passed after 26.481 seconds.
+✔ Test "IU31 + IU32 background relaunch without StopIntent: settle 2 s → headless + interrupted once; app active → tracking" passed after 26.481 seconds.
+✔ Test "IU30b StopIntent after the settle time: restore first (headless, R2 step 1 → silenced), still no now, one ring" passed after 26.483 seconds.
+✔ Test "AU04 snooze intent, app alive: write → stop → SNOOZE; slot at until + 30 s without button; SNOOZE_END without button" passed after 26.485 seconds.
+✔ Test "IU18 start refusals: codes, details order; no files, no alarms, idle" passed after 26.484 seconds.
+✔ Test "T135 RK20e loop route - alarm before the gap, chord cuts within 1 km, vehicle still approaching" passed after 26.480 seconds.
+✔ Test "AU07 process died after the snooze intent wrote its event: background relaunch → RANG → SNOOZE; slot until + 30 s" passed after 26.486 seconds.
+✔ Test "#9 unreadable engine facts at restore: restored as UNKNOWN, the trip can be stopped, a new trip can start" passed after 26.484 seconds.
+✔ Suite "TesterT135Tests" passed after 26.488 seconds.
+✔ Test "Snooze intent killed after write + stop, before the hand-over; the user opens the app 5 min later: snoozed once, SNOOZE_END rings within a minute, once" passed after 26.487 seconds.
+✔ Test "H1 StopIntent 2 s after the ring decision of queued fixes: no "now" alarm at all, trip DISMISSED, one ring" passed after 26.487 seconds.
+✔ Test "IU13 both channels fail: AlarmSilenced, guard ≤ now + 30 s, ringFailed, retry guard after 30 s" passed after 26.487 seconds.
+✔ Test "IU14 + IU40 snooze: stop the ringing alarm, slot at until + 30 s, SNOOZE_END rings, second snooze no-op" passed after 26.487 seconds.
+✔ Test "Held ring: the StopIntent record reaches the disk before the hold ends, its hand-over after: no "now" alarm at all" passed after 26.489 seconds.
+✔ Test "AU06 snooze intent the engine refuses (no snooze left): no Snoozed, AlarmSilenced, nothing rings at once" passed after 26.489 seconds.
+✔ Test "IU26 alerting alarm vanishes without a StopIntent → AlarmSilenced after 3 s; with one → nothing" passed after 26.490 seconds.
+✔ Test "V2-2 (1) unreadable list at ring time: ring + guard (no stale ringingNow); (2) snooze before the now alarm rang forgets it" passed after 26.492 seconds.
+✔ Test "SIU22 rearm: a due timer delivered 1 s late is not re-armed by 10 other commands; its delivery is handled" passed after 26.494 seconds.
+✔ Test "IU30 S3 bug #1: ensureLoaded in the background, StopIntent 40 ms / 1 900 ms later → no location, no now, DISMISSED, one ring" passed after 26.493 seconds.
+✔ Test "Review #3: route back of a lost trip (F2) — its other slots are stopped/cancelled, nothing of it rings later" passed after 26.497 seconds.
+✔ Test "IU42 battery read at onTimer: one sample per change, LOW_BATTERY rings once" passed after 26.495 seconds.
+✔ Test "IU30c Flutter calls while the background restore waits (D13) answer only after the StopIntent" passed after 26.499 seconds.
+✔ Test "Trace that ends far from the destination (3 samples, 30 km away) at 60×: the trip does not stall, a ring still comes" passed after 26.501 seconds.
+✔ Test "H2 no StopIntent: the held ring is scheduled STOP_INTENT_GRACE_MS after the decision, once; Flutter snooze drops it" passed after 26.503 seconds.
+✔ Test "IU43 snapshot writes failing never delay the ring; warnings name the type only" passed after 26.502 seconds.
+✔ Suite "RuntimeUnit" passed after 26.507 seconds.
+✔ Test "AU08 route back on the OVERSHOOT alarm: launch action written before DISMISS; consume once" passed after 26.505 seconds.
+✔ Test "Route-back intent killed after writing the launch action, before DISMISS: the restore keeps that launch action (pastM)" passed after 26.505 seconds.
+✔ Test "SIU16 terminate snapshot of a simulated trip: no interrupted notice" passed after 26.506 seconds.
+✔ Test "SIU16 snapshot lost + ledger activeSimulated: forgotten, no notice (= SM17)" passed after 26.506 seconds.
+✔ Test "AU09 process died after the route-back intent wrote its event: DISMISSED → TripEnded; launch action written" passed after 26.506 seconds.
+✔ Suite "T172" passed after 26.508 seconds.
+✔ Test "SIU15 virtual fallback due while TRACKING: one AlarmKit fallback at nowWall + 5 s, lastFired, one FallbackFired" passed after 26.523 seconds.
+✔ Test "Route-back intent killed before the launch action was written: TTL counts from the tap, also through a later restore" passed after 26.524 seconds.
+✔ Suite "TesterT172" passed after 26.527 seconds.
+✔ Test "SIU13 a simulated trip gets no BatterySample / LocationAvailability; real fixes are dropped" passed after 26.528 seconds.
+✔ Test "SIU18 coach_dn_langco_tunnel distance_1000_gps_lost at 60×: Alarm(GPS_LOST) in [1175, 1265] (= SM22)" passed after 26.528 seconds.
+✔ Test "SIU14 coach_gb_phuly_overshoot at 60×: 1× before the Alarm Step is planned; snooze = 60 s real (= SM15)" passed after 26.623 seconds.
+✔ Test "SIU21 6000×, the command with the alarm Step 2 s late: nothing past T_alarm in it, clock back at T_alarm, silence before overshoot" passed after 26.631 seconds.
+✔ Test "A slot kept as `stale` (list unreadable while re-scheduling) is not orphaned by the next re-schedule" passed after 26.636 seconds.
+✔ Suite "TesterT17Runtime" passed after 26.640 seconds.
+✔ Test "SIU19 dismiss while virtual events are due: they run first, then DISMISS at ≥ their time (D5)" passed after 26.650 seconds.
+✔ Test "SIU16 simulated trip ALARMING, process dies: the next load ends it quietly (background and active) (= SM16)" with 2 test cases passed after 26.652 seconds.
+✔ Test "D6b "now" scheduled but never alerting: the virtual slot is dropped at T_ring, the guard still rings at +30 s real" passed after 26.654 seconds.
+✔ Test "SIU20 the ring guard of a simulated trip is in process: no system alarm; when due it tries "now" again" passed after 26.667 seconds.
+✔ Suite "SimRuntime" passed after 26.670 seconds.
+✔ Test "Catch-up split into many commands (limit 3 events) with a 30 s late timer at 600×: same engine sequence as ITR30" passed after 26.869 seconds.
+✔ Suite "TesterT181" passed after 26.873 seconds.
+✔ Test "ITR32 app suspended 10/30 min in the final phases" with 2 test cases passed after 27.623 seconds.
+✔ Test "P05 303 transcripts match fixtures/p05/manifest.json (run set, lines, sha256) + S15 samples byte-exact" passed after 28.061 seconds.
+✔ Suite "P05ManifestTests" passed after 28.066 seconds.
+✔ Test "SIU17 train_hn_dh distance_1000 at 60×: PreAlert, Alarm(DISTANCE) windows, ≈ 561.7 s real (= SM20)" passed after 28.202 seconds.
+✔ Test "ITR30 + ITR30p: base traces through the runtime, first alarm = Kotlin L30" with 12 test cases passed after 31.721 seconds.
+✔ Suite "RuntimeTrace" passed after 31.723 seconds.
+✔ Test "ITR31 process-death sweep every 300 s: branches a, b, c, c′, d" with 12 test cases passed after 56.696 seconds.
+✔ Suite "RuntimeKillSuspend" passed after 56.699 seconds.
+✔ Test "SIU10 same engine sequence at 1/10/60/600/6000× with a 0–2 s late timer, = ITR30 (anti T18.2)" with 12 test cases passed after 64.273 seconds.
+✔ Suite "SimTrace" passed after 64.277 seconds.
+✔ Test run with 418 tests in 69 suites passed after 64.277 seconds.
