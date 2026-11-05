@@ -322,8 +322,11 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
+          # No parallel testing: it runs on "Clone 1 of …" and leaves the selected device shut down, so the
+          # integration step found no device (first sim run, 06/11).
           bash ios/scripts/ci-sim.sh timeout 900 xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner \
-            -destination "id=$UDID" -resultBundlePath "$RUNNER_TEMP/xctest.xcresult" CODE_SIGNING_ALLOWED=NO \
+            -destination "id=$UDID" -parallel-testing-enabled NO \
+            -resultBundlePath "$RUNNER_TEMP/xctest.xcresult" CODE_SIGNING_ALLOWED=NO \
             2>&1 | tee "$RUNNER_TEMP/xctest.log"
 
       # Runs after a failed XCTest too: one paid run should report both.
@@ -333,8 +336,9 @@ jobs:
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
-          # The app is installed now (XCTest); a grant that needed it can succeed.
-          bash ios/scripts/ci-sim.sh grant "$UDID" "$IOS_BUNDLE_ID" 2>&1 | tee -a "$RUNNER_TEMP/result/ios-sim/simctl-prepare.txt" || true
+          # Boot again (xcodebuild may have shut the device down) and grant: the app is installed now (XCTest), so a
+          # grant that needed it can succeed.
+          bash ios/scripts/ci-sim.sh prepare "$UDID" "$IOS_BUNDLE_ID" 2>&1 | tee -a "$RUNNER_TEMP/result/ios-sim/simctl-prepare.txt" || true
           results="$RUNNER_TEMP/it-results.tsv"
           : > "$results"
           failed=0
