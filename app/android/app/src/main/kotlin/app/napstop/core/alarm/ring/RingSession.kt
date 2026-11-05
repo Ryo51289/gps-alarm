@@ -49,6 +49,8 @@ data class RingUiState(
     /** "Xem đường quay lại" was pressed: the activity dismisses the keyguard and opens MainActivity. */
     val routeBack: Boolean = false,
     val startedAtElapsedMs: Long = 0L,
+    /** T27: metres past the destination (overshoot screen), kept after the ring ends for "Xem đường quay lại". */
+    val overshootPastM: Int? = null,
 )
 
 /**
@@ -262,6 +264,7 @@ class RingSession private constructor(context: Context) {
                     RingUiState(
                         phase = machine.phase, tripId = machine.tripId, content = f.content, method = f.method, banner = f.banner,
                         startedAtElapsedMs = ui.value.startedAtElapsedMs.takeIf { ui.value.tripId == machine.tripId && it > 0 } ?: SystemClock.elapsedRealtime(),
+                        overshootPastM = machine.overshootPastM,
                     )
             }
             is RingFx.PostNotification -> {

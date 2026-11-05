@@ -1,15 +1,24 @@
 package app.napstop.core.bridge
 
+import app.napstop.core.alarm.LaunchActions
 import app.napstop.core.alarm.SoundPreview
 import io.flutter.plugin.common.BinaryMessenger
 import java.nio.ByteBuffer
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** T16 AA1 (errors over the real Pigeon channel), AA3 (preview rules). */
+/** T16 AA1 (errors over the real Pigeon channel), AA3 (preview rules); T27 K03 (launch action, native alarm screen). */
+@OptIn(ExperimentalCoroutinesApi::class)
 class AlarmHostApiImplTest {
     private class FakePreview : SoundPreview {
         val plays = ArrayList<Triple<String, Float, Long>>()
@@ -90,5 +99,72 @@ class AlarmHostApiImplTest {
         assertEquals(2, p.stops)
         api.stopPreview()
         assertEquals(3, p.stops)
+    }
+
+    @Test
+    fun k03_launchActionAndShowAlarmScreen() =
+        runTest {
+            var slot: LaunchActions.Action? = LaunchActions.parse(LaunchActions.OVERSHOOT_ROUTE, "t-1", 1200)
+            val shown = ArrayList<String>()
+            var answer: () -> Boolean = { true }
+            val api =
+                AlarmHostApiImpl(
+                    FakePreview(),
+                    ringActive = { false },
+                    consumeLaunch = { slot.also { slot = null } },
+                    showAlarm = { id ->
+                        shown += id
+                        answer()
+                    },
+                )
+            assertEquals(LaunchActionMsg(LaunchActionKindMsg.OVERSHOOT_ROUTE, "t-1", 1200L), api.consumeLaunchAction())
+            assertNull(api.consumeLaunchAction())
+            slot = LaunchActions.parse(LaunchActions.OVERSHOOT_ROUTE, "t-2", null)
+            assertEquals(LaunchActionMsg(LaunchActionKindMsg.OVERSHOOT_ROUTE, "t-2", null), api.consumeLaunchAction())
+
+            assertTrue(api.showAlarmScreen("t-1"))
+            answer = { false }
+            assertFalse(api.showAlarmScreen("t-1"))
+            answer = { throw IllegalStateException("Ga Đồng Hới") }
+            assertFalse("a throwing start is false, not a Pigeon error", api.showAlarmScreen("t-1"))
+            assertFalse(api.showAlarmScreen("bad/id"))
+            assertFalse(api.showAlarmScreen(""))
+            assertEquals("an invalid id never reaches showAlarm", listOf("t-1", "t-1", "t-1"), shown)
+
+            // Defaults (registrar JVM tests): nothing.
+            val bare = AlarmHostApiImpl(FakePreview(), ringActive = { false })
+            assertNull(bare.consumeLaunchAction())
+            assertFalse(bare.showAlarmScreen("t-1"))
+
+            // A failing slot read: `internal` + class name only.
+            val broken = AlarmHostApiImpl(FakePreview(), ringActive = { false }, consumeLaunch = { throw IllegalStateException("t-1 1200") })
+            val e = runCatching { broken.consumeLaunchAction() }.exceptionOrNull() as FlutterError
+            assertEquals("internal", e.code)
+            assertEquals("IllegalStateException", e.message)
+        }
+
+    @Test
+    fun k03_throughTheGeneratedHandlers() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        try {
+            val engine = FakeEngine()
+            var slot: LaunchActions.Action? = LaunchActions.parse(LaunchActions.OVERSHOOT_ROUTE, "t-1", 1500)
+            AlarmHostApi.setUp(
+                engine,
+                AlarmHostApiImpl(
+                    FakePreview(),
+                    ringActive = { false },
+                    consumeLaunch = { slot.also { slot = null } },
+                    showAlarm = { throw IllegalStateException("Ga Đồng Hới 21.0") },
+                ),
+            )
+            assertEquals(listOf(LaunchActionMsg(LaunchActionKindMsg.OVERSHOOT_ROUTE, "t-1", 1500L)), engine.call("consumeLaunchAction", null))
+            assertEquals(listOf(null), engine.call("consumeLaunchAction", null))
+            val reply = engine.call("showAlarmScreen", listOf("t-1"))!!
+            assertEquals(listOf(false), reply)
+            assertEquals(listOf(false), engine.call("showAlarmScreen", listOf("bad/id")))
+        } finally {
+            Dispatchers.resetMain()
+        }
     }
 }

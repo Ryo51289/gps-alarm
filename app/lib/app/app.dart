@@ -4,6 +4,7 @@ import 'package:napstop/app/flavor.dart';
 import 'package:napstop/app/locales.dart';
 import 'package:napstop/app/router/app_router.dart';
 import 'package:napstop/core/design/theme/nap_themes.dart';
+import 'package:napstop/features/alarm/presentation/alarm_ui_coordinator.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Brand name, not translated (CLAUDE.md); the only display string outside
@@ -27,6 +28,9 @@ class NapStopApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: kAppSupportedLocales,
       routerConfig: ref.watch(appRouterProvider),
+      // T27 §6: launch actions of the native alarm screen and the fallback
+      // of screen 5, above every route.
+      builder: (context, child) => AlarmUiCoordinator(child: child!),
     );
   }
 }

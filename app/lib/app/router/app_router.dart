@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/app/router/app_shell.dart';
 import 'package:napstop/app/router/placeholder_screen.dart';
+import 'package:napstop/features/alarm/domain/route_back.dart';
+import 'package:napstop/features/alarm/presentation/alarm_fallback_screen.dart';
+import 'package:napstop/features/alarm/presentation/overshoot_screen.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/battery_guide/presentation/battery_guide_screen.dart';
@@ -100,8 +103,32 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
         ),
       ),
       fullScreen(AppRoutes.tracking, (l) => l.appScreenTrackingTitle),
-      fullScreen(AppRoutes.alarm, (l) => l.appScreenAlarmTitle),
-      fullScreen(AppRoutes.overshoot, (l) => l.appScreenOvershootTitle),
+      // T27 §5: the Flutter fallback of screen 5, pushed by
+      // AlarmUiCoordinator over the current screen (D10).
+      GoRoute(
+        path: AppRoutes.alarm,
+        parentNavigatorKey: rootNavigatorKey,
+        redirect: (_, state) => isValidTripId(state.uri.queryParameters['trip'])
+            ? null
+            : AppRoutes.home,
+        builder: (context, state) => AlarmFallbackScreen(
+          // A new trip id is a new screen state.
+          key: ValueKey(state.uri.queryParameters['trip']),
+          tripId: state.uri.queryParameters['trip']!,
+        ),
+      ),
+      // T27 §5: screen 8 after the alarm was dismissed (D9: reached by `go`).
+      GoRoute(
+        path: AppRoutes.overshoot,
+        parentNavigatorKey: rootNavigatorKey,
+        redirect: (_, state) =>
+            OvershootArgs.fromUri(state.uri) == null ? AppRoutes.home : null,
+        builder: (context, state) => OvershootScreen(
+          // Another launch action while screen 8 shows: a fresh state.
+          key: ValueKey(OvershootArgs.fromUri(state.uri)),
+          args: OvershootArgs.fromUri(state.uri)!,
+        ),
+      ),
     ],
   );
 }

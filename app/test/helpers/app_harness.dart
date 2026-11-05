@@ -19,6 +19,7 @@ import 'package:napstop/core/db/db_providers.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/storage/key_value_store.dart';
 import 'package:napstop/core/storage/shared_preferences_key_value_store.dart';
+import 'package:napstop/features/alarm/presentation/alarm_ui_coordinator.dart';
 import 'package:napstop/features/battery_guide/data/battery_guide_providers.dart';
 import 'package:napstop/features/battery_guide/domain/battery_guide.dart';
 import 'package:napstop/features/destination/data/destination_providers.dart';
@@ -73,6 +74,8 @@ class AppHarness {
 /// [stationCatalog] replaces the real dataset of screen 2 (T23).
 /// [keyValueStore] holds the preferences (T25); empty by default.
 /// [batteryGuides] replaces the real guides of screens 0 and 9 (T21).
+/// [alarmUi] adds the `AlarmUiCoordinator` of `NapStopApp` (T27); off by
+/// default so the bridge calls of other screens' tests stay as they were.
 Future<AppHarness> pumpAppHarness(
   WidgetTester tester, {
   List<Override> overrides = const [],
@@ -90,6 +93,7 @@ Future<AppHarness> pumpAppHarness(
   Future<StationCatalog> Function()? stationCatalog,
   KeyValueStore? keyValueStore,
   Future<BatteryGuideCatalog> Function()? batteryGuides,
+  bool alarmUi = false,
 }) async {
   tester.view
     ..physicalSize = size
@@ -151,7 +155,7 @@ Future<AppHarness> pumpAppHarness(
           child: MediaQuery(
             data: MediaQuery.of(context)
                 .copyWith(textScaler: TextScaler.linear(textScale)),
-            child: child!,
+            child: alarmUi ? AlarmUiCoordinator(child: child!) : child!,
           ),
         ),
       ),

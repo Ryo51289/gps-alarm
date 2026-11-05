@@ -299,10 +299,16 @@ class FakeCoreBridge implements CoreBridge {
       _answer('setBatteryChoice', null, () {});
 
   @override
-  Future<void> dismiss(String tripId) => _answer('dismiss', null, () {});
+  Future<void> dismiss(String tripId) {
+    dismissCalls.add(tripId);
+    return _answer('dismiss', dismissError, () {});
+  }
 
   @override
-  Future<void> snooze(String tripId) => _answer('snooze', null, () {});
+  Future<void> snooze(String tripId) {
+    snoozeCalls.add(tripId);
+    return _answer('snooze', snoozeError, () {});
+  }
 
   @override
   Future<List<FinishedTripMsg>> pendingFinishedTrips() =>
@@ -429,18 +435,48 @@ class FakeCoreBridge implements CoreBridge {
   final List<String> showAlarmScreenCalls = [];
   final List<String?> setAppLocaleCalls = [];
 
+  /// Thrown by [consumeLaunchAction] / [showAlarmScreen] / [dismiss] /
+  /// [snooze] when set (T27).
+  Object? consumeLaunchActionError;
+  Object? showAlarmScreenError;
+  Object? dismissError;
+  Object? snoozeError;
+
+  /// When set, [consumeLaunchAction] waits for it, then reads
+  /// [launchAction] (T27 W12).
+  Completer<void>? consumeLaunchGate;
+
+  /// Arguments of every [dismiss] / [snooze] call (T27).
+  final List<String> dismissCalls = [];
+  final List<String> snoozeCalls = [];
+
   @override
-  Future<LaunchActionMsg?> consumeLaunchAction() =>
-      _answer('consumeLaunchAction', null, () {
-        final action = launchAction;
-        launchAction = null;
-        return action;
-      });
+  Future<LaunchActionMsg?> consumeLaunchAction() {
+    LaunchActionMsg? take() {
+      final action = launchAction;
+      launchAction = null;
+      return action;
+    }
+
+    final gate = consumeLaunchGate;
+    if (gate == null) {
+      return _answer('consumeLaunchAction', consumeLaunchActionError, take);
+    }
+    calls.add('consumeLaunchAction');
+    return gate.future.then((_) {
+      final error = consumeLaunchActionError;
+      return error == null ? take() : Future<LaunchActionMsg?>.error(error);
+    });
+  }
 
   @override
   Future<bool> showAlarmScreen(String tripId) {
     showAlarmScreenCalls.add(tripId);
-    return _answer('showAlarmScreen', null, () => showAlarmScreenResult);
+    return _answer(
+      'showAlarmScreen',
+      showAlarmScreenError,
+      () => showAlarmScreenResult,
+    );
   }
 
   @override

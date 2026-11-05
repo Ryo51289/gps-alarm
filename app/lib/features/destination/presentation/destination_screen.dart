@@ -81,6 +81,23 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     ref
         .read(_provider.notifier)
         .setLanguage(Localizations.localeOf(context).languageCode);
+    // T27 D11: a `go` (screen 4 or 8) or a `replace` removes this route,
+    // which stays mounted for the transition (longer than the Places
+    // debounce): stop at once. Covered by a sheet or screen 3, the route
+    // is still active and nothing changes here.
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isActive) {
+      _controller.cancelPending();
+    }
+  }
+
+  /// Screen 2 leaves the tree however it goes (a `go` to screen 4 or 8,
+  /// a `replace`): nothing typed may still reach Google afterwards (T27
+  /// D11, review T23 round 3 #10). Idempotent.
+  @override
+  void deactivate() {
+    _controller.cancelPending();
+    super.deactivate();
   }
 
   @override

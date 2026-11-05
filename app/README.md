@@ -215,6 +215,23 @@ adb exec-out run-as app.napstop.dev cat no_backup/napstop_ring/journal_ring.ndjs
 adb shell pidof app.napstop.dev:ring                                      # pid process chuông
 ```
 
+## Màn 5 dự phòng + màn 8 sau khi tắt (T27)
+
+Spec: `docs/specs/T27.md`. Màn báo thức lúc kêu vẫn là `AlarmActivity` native (T16 D8). Flutter có `AlarmUiCoordinator`
+(`lib/features/alarm`, gắn ở `MaterialApp.router(builder:)`): đọc launch action `overshootRoute` qua
+`AlarmHostApi.consumeLaunchAction` (frame đầu + mỗi lần `resumed`; khe `LaunchActions` sống 10 phút) → `go('/overshoot?trip=…
+&past=…&open=1')`; chỉ khi app `resumed` mà chuông kêu ≥ 4 s và `showAlarmScreen` không phủ được thì mới `push('/alarm?trip=…')`
+(màn dự phòng, luôn có thanh vuốt). Màn 8 mở Google Maps bằng Maps URL (`url_launcher`), toạ độ đích đọc từ drift.
+
+```bash
+flutter test test/features/alarm                                           # U01–U10, W01–W23
+cd android && ./gradlew :app:testDevDebugUnitTest --tests "*LaunchActions*" --tests "*AlarmHostApiImpl*"   # K01–K05
+# Giả "Xem đường quay lại" (app dev, chuyến <id> có trong lịch sử thì có nút chỉ đường; > 48 h thì không tự mở Maps).
+# Bắt buộc napstop.atWallMs (giờ của máy, ≤ 10 phút trước); intent hệ thống trả lại khi dựng lại activity
+# (process chết, mở từ Recents) bị bỏ qua:
+adb shell am start -n app.napstop.dev/app.napstop.MainActivity --es napstop.launch overshootRoute --es napstop.tripId <id> --ei napstop.pastM 900 --el napstop.atWallMs "$(adb shell date +%s)000"
+```
+
 ## Chế độ giả lập (T18)
 
 - Trace đóng gói: `assets/sim/<id>.gpx` (bản sao từng byte của `fixtures/traces`, 6 trace gốc T02) + `catalog.json`,

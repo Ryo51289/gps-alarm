@@ -81,8 +81,8 @@ void main() {
       (AppRoutes.batteryGuide, 'Giữ app chạy khi bạn ngủ'),
       (AppRoutes.destination, 'Chọn điểm đến'),
       (AppRoutes.tracking, 'Đang theo dõi'),
-      (AppRoutes.alarm, 'Báo thức'),
-      (AppRoutes.overshoot, 'Đã đi quá trạm'),
+      // T27: /alarm and /overshoot are real screens that need a query
+      // (test/features/alarm/overshoot_screen_test.dart W10).
     ]) {
       h.router.go(path);
       await tester.pumpAndSettle();

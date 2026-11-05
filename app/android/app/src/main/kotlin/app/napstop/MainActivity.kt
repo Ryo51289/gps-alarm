@@ -1,8 +1,8 @@
 package app.napstop
 
 import android.content.Intent
+import android.os.Bundle
 import app.napstop.core.alarm.LaunchActions
-import app.napstop.core.alarm.RingIntents
 import app.napstop.core.alarm.SoundPreviewPlayer
 import app.napstop.core.bridge.BridgeRegistrar
 import app.napstop.core.trip.host.AppVisibilityTracker
@@ -15,6 +15,15 @@ import kotlinx.coroutines.launch
 
 class MainActivity : FlutterActivity() {
     private var bridge: BridgeRegistrar.Registration? = null
+
+    // Review T27 #1: the intent of this creation is the task's original one given back by the system (process death,
+    // Recents), not a new tap on "Xem đường quay lại". Cleared after the first onStart.
+    private var replayedIntent = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        replayedIntent = LaunchActions.isReplay(savedInstanceState != null, intent?.flags ?: 0)
+        super.onCreate(savedInstanceState)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -41,13 +50,14 @@ class MainActivity : FlutterActivity() {
     override fun onStart() {
         super.onStart()
         AppVisibilityTracker.onActivityStarted()
-        onVisible(intent)
+        onVisible(intent, replayed = replayedIntent)
+        replayedIntent = false
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        onVisible(intent)
+        onVisible(intent, replayed = false)
     }
 
     override fun onStop() {
@@ -57,16 +67,23 @@ class MainActivity : FlutterActivity() {
         super.onStop()
     }
 
-    private fun onVisible(intent: Intent?) {
+    private fun onVisible(intent: Intent?, replayed: Boolean) {
         val resumeTripId = intent?.getStringExtra(TripNotifications.EXTRA_RESUME_TRIP_ID)
         intent?.removeExtra(TripNotifications.EXTRA_RESUME_TRIP_ID)
-        // T16 §4.5: "Xem đường quay lại" opened the app; T27 reads the action on the Flutter side.
-        // MainActivity is exported (launcher): only the known action with a valid trip id is kept.
+        // T16 §4.5, T27 D4: "Xem đường quay lại" opened the app; Flutter takes the action through consumeLaunchAction.
+        // Stored here (onStart / onNewIntent), before onResume. MainActivity is exported (launcher): only the known
+        // action with a valid trip id, tapped less than 10 min ago and not replayed by the system, is kept.
         intent?.getStringExtra(LaunchActions.EXTRA_LAUNCH)?.let { action ->
-            val trip = RingIntents.validTripId(intent.getStringExtra(LaunchActions.EXTRA_TRIP_ID))
-            if (action == LaunchActions.OVERSHOOT_ROUTE && trip != null) LaunchActions.set(action, trip)
+            val pastM = if (intent.hasExtra(LaunchActions.EXTRA_PAST_M)) intent.getIntExtra(LaunchActions.EXTRA_PAST_M, -1) else null
+            val atWallMs = if (intent.hasExtra(LaunchActions.EXTRA_AT_WALL_MS)) intent.getLongExtra(LaunchActions.EXTRA_AT_WALL_MS, 0L) else null
+            LaunchActions.fromIntent(
+                action, intent.getStringExtra(LaunchActions.EXTRA_TRIP_ID), pastM, atWallMs,
+                nowWallMs = System.currentTimeMillis(), restored = replayed, intentFlags = intent.flags,
+            )?.let(LaunchActions::set)
             intent.removeExtra(LaunchActions.EXTRA_LAUNCH)
             intent.removeExtra(LaunchActions.EXTRA_TRIP_ID)
+            intent.removeExtra(LaunchActions.EXTRA_PAST_M)
+            intent.removeExtra(LaunchActions.EXTRA_AT_WALL_MS)
         }
         val host = RuntimeHost.get(this)
         // T16 D8, §5.11: a ring that is on is shown by the native alarm screen, over the Flutter UI.
