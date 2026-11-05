@@ -1,0 +1,74 @@
+[
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 33701969,
+    "trace": "train_hn_dh",
+    "case": "distance_1000"
+  },
+  {
+    "reason": "TIME",
+    "atMsRel": 32874567,
+    "trace": "train_hn_dh",
+    "case": "time_15"
+  },
+  {
+    "reason": "SMART_TIME",
+    "atMsRel": 33178907,
+    "trace": "train_hn_dh",
+    "case": "smart"
+  },
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 7186221,
+    "trace": "coach_md_tb",
+    "case": "distance_1000"
+  },
+  {
+    "reason": "TIME",
+    "atMsRel": 6365000,
+    "trace": "coach_md_tb",
+    "case": "time_15"
+  },
+  {
+    "reason": "SMART_TIME",
+    "atMsRel": 6530000,
+    "trace": "coach_md_tb",
+    "case": "smart"
+  },
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 2251884,
+    "trace": "bus_hn_brt01",
+    "case": "distance_500"
+  },
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 2155000,
+    "trace": "bus_hn_brt01",
+    "case": "distance_1000"
+  },
+  {
+    "reason": "GPS_LOST",
+    "atMsRel": 1230000,
+    "trace": "coach_dn_langco_tunnel",
+    "case": "distance_1000_gps_lost"
+  },
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 2341289,
+    "trace": "coach_gb_phuly_overshoot",
+    "case": "distance_1000_overshoot"
+  },
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 2341289,
+    "trace": "coach_gb_phuly_overshoot",
+    "case": "distance_1000_overshoot_silenced"
+  },
+  {
+    "reason": "DISTANCE",
+    "atMsRel": 2155000,
+    "trace": "bus_hn_brt01_noisy",
+    "case": "distance_1000_noisy"
+  }
+]

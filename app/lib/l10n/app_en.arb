@@ -532,5 +532,9 @@
   "overshootSimulatedNote": "Simulated trip: directions start from your real location",
   "alarmOpenAlarmScreen": "Open alarm screen",
   "alarmFallbackNote": "The alarm screen didn't appear. You can stop the alarm here.",
-  "alarmActionFailed": "That didn't work. Try again."
+  "alarmActionFailed": "That didn't work. Try again.",
+  "alarmKitTitleCheck": "Check if you've reached {destination}",
+  "alarmKitTitleFallback": "You may be near {destination}",
+  "alarmKitStop": "Stop",
+  "alarmKitRingFailed": "Couldn't set the alarm. Open NapStop now."
 }

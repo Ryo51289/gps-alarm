@@ -15,6 +15,13 @@
 		D14B00042EC5000100A0B001 /* CoreApi.g.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14B00022EC5000100A0B001 /* CoreApi.g.swift */; };
 		D14B00052EC5000100A0B001 /* CoreBridgeStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14B00032EC5000100A0B001 /* CoreBridgeStub.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		D17A00052EC6000100A0B001 /* Trip in Frameworks */ = {isa = PBXBuildFile; productRef = D17A00022EC6000100A0B001 /* Trip */; };
+		D17A00062EC6000100A0B001 /* TripRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = D17A00032EC6000100A0B001 /* TripRuntime */; };
+		D17A00072EC6000100A0B001 /* NapStopIOS in Frameworks */ = {isa = PBXBuildFile; productRef = D17A00042EC6000100A0B001 /* NapStopIOS */; };
+		D17A000C2EC6000100A0B001 /* RealTripBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A00082EC6000100A0B001 /* RealTripBackend.swift */; };
+		D17A000D2EC6000100A0B001 /* MsgMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A00092EC6000100A0B001 /* MsgMapper.swift */; };
+		D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A000A2EC6000100A0B001 /* AlarmIntents.swift */; };
+		D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A000B2EC6000100A0B001 /* DiagIntents.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
@@ -63,6 +70,10 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D14B00022EC5000100A0B001 /* CoreApi.g.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreApi.g.swift; sourceTree = "<group>"; };
 		D14B00032EC5000100A0B001 /* CoreBridgeStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeStub.swift; sourceTree = "<group>"; };
+		D17A00082EC6000100A0B001 /* RealTripBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealTripBackend.swift; sourceTree = "<group>"; };
+		D17A00092EC6000100A0B001 /* MsgMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MsgMapper.swift; sourceTree = "<group>"; };
+		D17A000A2EC6000100A0B001 /* AlarmIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmIntents.swift; sourceTree = "<group>"; };
+		D17A000B2EC6000100A0B001 /* DiagIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagIntents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +82,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
+				D17A00052EC6000100A0B001 /* Trip in Frameworks */,
+				D17A00062EC6000100A0B001 /* TripRuntime in Frameworks */,
+				D17A00072EC6000100A0B001 /* NapStopIOS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,6 +143,7 @@
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				D14B00012EC5000100A0B001 /* Bridge */,
+				D17A00102EC6000100A0B001 /* Native */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -138,8 +153,19 @@
 			children = (
 				D14B00022EC5000100A0B001 /* CoreApi.g.swift */,
 				D14B00032EC5000100A0B001 /* CoreBridgeStub.swift */,
+				D17A00092EC6000100A0B001 /* MsgMapper.swift */,
+				D17A00082EC6000100A0B001 /* RealTripBackend.swift */,
 			);
 			path = Bridge;
+			sourceTree = "<group>";
+		};
+		D17A00102EC6000100A0B001 /* Native */ = {
+			isa = PBXGroup;
+			children = (
+				D17A000A2EC6000100A0B001 /* AlarmIntents.swift */,
+				D17A000B2EC6000100A0B001 /* DiagIntents.swift */,
+			);
+			path = Native;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -158,6 +184,10 @@
 				331C8086294A63A400263BE5 /* PBXTargetDependency */,
 			);
 			name = RunnerTests;
+			packageProductDependencies = (
+				D17A00122EC6000100A0B001 /* Trip */,
+				D17A00132EC6000100A0B001 /* TripRuntime */,
+			);
 			productName = RunnerTests;
 			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -180,6 +210,9 @@
 			name = Runner;
 			packageProductDependencies = (
 				78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */,
+				D17A00022EC6000100A0B001 /* Trip */,
+				D17A00032EC6000100A0B001 /* TripRuntime */,
+				D17A00042EC6000100A0B001 /* NapStopIOS */,
 			);
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
@@ -216,6 +249,7 @@
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
 				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage" */,
+				D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */,
 			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
@@ -300,6 +334,10 @@
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				D14B00042EC5000100A0B001 /* CoreApi.g.swift in Sources */,
 				D14B00052EC5000100A0B001 /* CoreBridgeStub.swift in Sources */,
+				D17A000D2EC6000100A0B001 /* MsgMapper.swift in Sources */,
+				D17A000C2EC6000100A0B001 /* RealTripBackend.swift in Sources */,
+				D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */,
+				D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -398,6 +436,11 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AlarmKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.napstop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -580,9 +623,15 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AlarmKit,
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.napstop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG NAPSTOP_DIAG";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -601,6 +650,11 @@
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-weak_framework",
+					AlarmKit,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.napstop;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -650,12 +704,41 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
 		};
+		D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Core;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlutterGeneratedPluginSwiftPackage;
+		};
+		D17A00022EC6000100A0B001 /* Trip */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
+			productName = Trip;
+		};
+		D17A00032EC6000100A0B001 /* TripRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
+			productName = TripRuntime;
+		};
+		D17A00042EC6000100A0B001 /* NapStopIOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
+			productName = NapStopIOS;
+		};
+		D17A00122EC6000100A0B001 /* Trip */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
+			productName = Trip;
+		};
+		D17A00132EC6000100A0B001 /* TripRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D17A00012EC6000100A0B001 /* XCLocalSwiftPackageReference "Core" */;
+			productName = TripRuntime;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -66,3 +66,31 @@ Warnings check: `swift build --build-tests -Xswiftc -warnings-as-errors` (`--ena
 `P05ManifestTests` generates the 303 transcripts, compares the run set, line counts and SHA-256 with
 `fixtures/p05/manifest.json` (written by Kotlin, T12) and the 3 samples byte for byte. Mismatching runs are written to
 `<reportDir>/p05-mismatch/`. To hunt a difference: `app/ios/Core/scripts/p05-diff.sh [run …]` (Git Bash).
+
+## T17: trip runtime (`TripRuntime`, `NapStopIOS`)
+
+Spec: `docs/specs/T17.md`. `TripRuntime` is Foundation-only (Swift 6 mode) and runs on Linux; `NapStopIOS` holds the
+Apple code inside `#if os(iOS)` (Swift 5 mode) and is an empty module on Linux.
+
+```
+Sources/TripRuntime/            actor TripRuntime (FIFO command queue), TripClock, FixMapper/FixThrottle/LocationRequestMapper,
+                                EffectPlanner + RingFactsReader, AlarmUpdateInterpreter/LedgerReconciler/RestorePlanner,
+                                AlarmLedger, StoredTrip (+ TripMeta, codec, RuntimeStore port), SnapshotWriter, FinishedRecord
+                                (+ EngineFacts: snapshot fields the runtime reads), TripConfigValidator, BridgeDTO, NativeCopy
+                                (+ NoticeFormatter), RuntimeConstants, Ports (+ RuntimeOptions), SystemAlarms
+Sources/NapStopIOS/             CoreLocationSession, SystemAlarmsIOS (AlarmKit, notifications, router, id registry, diag fake),
+                                FileRuntimeStore, IOSPorts (time, app state, device env, wake timer, background tasks),
+                                IOSTripNotifier (+ FileJournal), RuntimeHost
+Tests/TripRuntimeTests/         Support (fakes, World, TraceRun, RuntimeFixtures), Unit (IU), Trace (ITR30, ITR30p, ITR33)
+```
+
+- Run: the same `scripts/test-wsl.sh` (`--filter RuntimeTraceTests`, `--filter PureUnitTests`, `--filter RuntimeUnitTests`).
+- ITR30p reads `fixtures/runtime/first-alarms.json`, written by the Kotlin test `RuntimeFirstAlarmExportTest`
+  (`fixtures/runtime/README.md`). ITR33 writes `<report dir>/ios-ak-rate/*.txt` (information only).
+- Diagnostics (journal, fake alarm port) are compiled in `NapStopIOS` but off unless the Runner passes
+  `RuntimeHost.Options(diagnostics:fakeAlarms:)` (it does so only under `NAPSTOP_DIAG`). Journal:
+  `Documents/napstop_diag/journal.ndjson` (Files app / Apple Devices). Shortcuts in DIAG builds: "NapStop: thử đặt lại báo dày"
+  (`DiagFallbackStressIntent`, IM06) and "NapStop: thử báo ngay" (`DiagRingNowIntent`).
+- Typecheck without a Mac (WSL, Swift 6.4.1 + xtool Darwin SDK 27.1): build `Trip`, `TripRuntime` with `swiftc -emit-module`
+  and typecheck `NapStopIOS` + Runner for `arm64-apple-ios16.0` and `arm64-apple-ios16.0-simulator`; the exact commands are in
+  the T17 Implementation notes until T01.2 adds `app/ios/scripts/typecheck-wsl.sh`.

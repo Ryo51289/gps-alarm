@@ -76,3 +76,80 @@ final class DeviceStatusStubTests: XCTestCase {
     }
   }
 }
+
+// T17 IC03 (spec docs/specs/T17.md): MsgMapper copies BridgeDTO into Pigeon; StartOutcome → PigeonError.
+// Runs on CI macOS (Simulator); typechecked on WSL only.
+
+import Trip
+import TripRuntime
+
+final class T17MsgMapperTests: XCTestCase {
+  func testStateCopiesEveryField() throws {
+    let cfg = TripConfig(
+      tripId: "t1", destLat: 16.8163, destLng: 107.1003, mode: .distance, distanceThresholdM: 1000,
+      timeThresholdMin: nil, preAlertEnabled: false, vehicleHint: .coach)
+    let view = try TripEngine.start(config: cfg, params: .defaults, nowMs: 1_000).view
+    let dto = BridgeMapper.state(view: view, batteryChoice: .batteryAlarmAt5)
+    let m = MsgMapper.state(dto)
+    XCTAssertEqual(m.tripId, "t1")
+    XCTAssertEqual(m.atMs, dto.atMs)
+    XCTAssertEqual(m.phase, .acquiring)
+    XCTAssertEqual(m.gps, .noFixYet)
+    XCTAssertEqual(m.locationCause, .available)
+    XCTAssertEqual(m.samplingTier, dto.samplingTier.map(MsgMapper.tier))
+    XCTAssertEqual(m.fallbackStatus, MsgMapper.fallback(dto.fallbackStatus))
+    XCTAssertEqual(m.fallbackAtMs, dto.fallbackAtMs)
+    XCTAssertEqual(m.batteryChoice, .alarmAt5)
+    XCTAssertEqual(m.vehicleGuess, MsgMapper.vehicle(dto.vehicleGuess))
+    XCTAssertEqual(m.travelledM, dto.travelledM)
+    XCTAssertEqual(MsgMapper.fallback(.notSet), .notSet)
+    XCTAssertEqual(MsgMapper.reason(.smartSlowDistance), .smartSlowDistance)
+  }
+
+  func testUpdatesKeepClassAndOrder() {
+    let rec = FinishedRecord(
+      tripId: "t1", outcome: "ON_TIME", endReason: "DISMISSED", endedAtMs: 9, startedAtMs: 1, alarmAtMs: 5,
+      alarmReason: "DISTANCE", dismissedAtMs: 9, snoozeCount: 0, travelledM: 10, vehicleGuess: "BUS")
+    let fin = BridgeMapper.finished(rec)!
+    let msgs = [
+      TripUpdateDTO.alarm(
+        tripId: "t1", atMs: 5, reason: .distance, ringNow: true, snoozeAllowed: true, distanceM: 900, etaS: nil,
+        batteryPct: nil),
+      .tripEnded(atMs: 9, trip: fin),
+    ].map(MsgMapper.msg)
+    XCTAssertTrue(msgs[0] is AlarmMsg)
+    XCTAssertEqual((msgs[1] as? TripEndedMsg)?.trip.outcome, .onTime)
+    XCTAssertEqual((msgs[1] as? TripEndedMsg)?.trip.endReason, .dismissed)
+  }
+
+  func testConfigRoundTrip() {
+    let c = TripConfigMsg(
+      tripId: "t1", destinationName: "Ga Huế", mode: .time, distanceThresholdM: nil, timeThresholdMin: 15,
+      preAlertEnabled: true, vehicleHint: .train,
+      alarm: AlarmSettingsMsg(
+        soundId: "default", volume: 0.5, rampUp: false, vibration: .strong, flash: true, preferHeadphones: true,
+        dismissMethod: .math),
+      engineParamsJson: nil)
+    XCTAssertEqual(MsgMapper.config(MsgMapper.meta(c)), c)
+  }
+
+  func testRejectedOutcomeIsPigeonError() {
+    XCTAssertNil(RealTripBackend.error(.started))
+    let e = RealTripBackend.error(.rejected(code: "permission-missing", message: nil, details: ["precise", "alarmChannel"]))
+    XCTAssertEqual(e?.code, "permission-missing")
+    XCTAssertEqual(e?.details as? [String], ["precise", "alarmChannel"])
+  }
+
+  func testUnexpectedErrorBecomesInternalWithTypeName() async {
+    struct Boom: Error {}
+    do {
+      _ = try await CoreBridgeStub.guarded { () async throws -> Int in throw Boom() }
+      XCTFail("no error")
+    } catch let e as PigeonError {
+      XCTAssertEqual(e.code, "internal")
+      XCTAssertEqual(e.message, "Boom")
+    } catch {
+      XCTFail("\(error)")
+    }
+  }
+}

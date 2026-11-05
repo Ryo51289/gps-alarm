@@ -35,6 +35,20 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>NapStop đặt báo thức để đánh thức bạn trước khi tới nơi, kể cả khi máy đang Im lặng.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>NapStop dùng vị trí để đánh thức bạn khi sắp tới nơi, kể cả khi màn hình đang khoá. Vị trí không rời khỏi máy.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
