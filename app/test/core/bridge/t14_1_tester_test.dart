@@ -77,7 +77,8 @@ void main() {
   });
 
   group('DeviceStatusMsg wire layout', () {
-    test('six fields in spec order, filter required', () {
+    // T26 §9 appended headphonesConnected as the seventh field.
+    test('seven fields in spec order, filter required', () {
       final full = DeviceStatusMsg(
         batteryPct: 15,
         charging: true,
@@ -85,6 +86,7 @@ void main() {
         alarmMuted: false,
         interruptionFilter: InterruptionFilterMsg.priority,
         priorityAllowsAlarms: false,
+        headphonesConnected: true,
       );
       expect(full.encode(), [
         15,
@@ -93,6 +95,7 @@ void main() {
         false,
         InterruptionFilterMsg.priority,
         false,
+        true,
       ]);
       final empty = DeviceStatusMsg(
         interruptionFilter: InterruptionFilterMsg.unknown,
@@ -103,6 +106,7 @@ void main() {
         null,
         null,
         InterruptionFilterMsg.unknown,
+        null,
         null,
       ]);
     });
@@ -115,6 +119,7 @@ void main() {
         'alarmMuted',
         'interruptionFilter',
         'priorityAllowsAlarms',
+        'headphonesConnected',
       ];
       for (final path in [
         'android/app/src/main/kotlin/app/napstop/core/bridge/CoreApi.g.kt',

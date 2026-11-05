@@ -91,6 +91,9 @@ enum PlatformMsg { android, ios }
 /// T14.1: NotificationManager.getCurrentInterruptionFilter(). iOS: unknown.
 enum InterruptionFilterMsg { unknown, all, priority, alarms, none }
 
+/// T27: why MainActivity was opened by the native alarm screen. Append only.
+enum LaunchActionKindMsg { overshootRoute }
+
 // ------------------------------------------------- trip config (Dart -> native)
 
 /// Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
@@ -419,6 +422,7 @@ class DeviceStatusMsg {
     this.alarmMuted,
     required this.interruptionFilter,
     this.priorityAllowsAlarms,
+    this.headphonesConnected,
   });
 
   int? batteryPct; // 0..100
@@ -427,6 +431,8 @@ class DeviceStatusMsg {
   bool? alarmMuted; // Android isStreamMute(STREAM_ALARM); iOS null
   InterruptionFilterMsg interruptionFilter;
   bool? priorityAllowsAlarms; // Android 30+, only when filter == priority
+  // T26 §9: a wired/Bluetooth/USB headphone output is connected. iOS null.
+  bool? headphonesConnected;
 }
 
 /// T23: Maps/Places configuration of this build. apiKey null = no key
@@ -461,6 +467,16 @@ class BackgroundCheckMsg {
   int? firedAtMs; // when the receiver ran; null = not yet
   bool? screenOnAtFire; // PowerManager.isInteractive() at fire time
   bool exact; // true: setExactAndAllowWhileIdle; false: setAndAllowWhileIdle
+}
+
+/// T27: one launch action (T16 LaunchActions), consumed once. No coordinates:
+/// Dart reads the destination from drift by [tripId] (T14 D5).
+class LaunchActionMsg {
+  LaunchActionMsg({required this.kind, required this.tripId, this.pastM});
+
+  LaunchActionKindMsg kind;
+  String tripId; // [A-Za-z0-9_-]{1,64}, checked natively
+  int? pastM; // Overshoot.pastM at dismissal, 0..1000000 m; null = unknown
 }
 
 // --------------------------------------------------------------------- APIs
@@ -561,6 +577,22 @@ abstract class AlarmHostApi {
   void previewSound(String soundId, double volume);
 
   void stopPreview();
+
+  /// T27: returns and clears the launch action MainActivity was opened with
+  /// (T16 §4.5), or null (none, expired after 10 min, iOS).
+  @async
+  LaunchActionMsg? consumeLaunchAction();
+
+  /// T27: brings the native alarm screen of [tripId] to the front when its
+  /// ring is live. false = not ringing / could not start it / iOS.
+  /// Never throws for those cases.
+  @async
+  bool showAlarmScreen(String tripId);
+
+  /// T28: language of native strings (tracking/alarm notifications, alarm
+  /// screen in `:ring`). 'vi' | 'en'; null = follow the device. Any other
+  /// value is treated as null. Cheap; never throws.
+  void setAppLocale(String? languageTag);
 }
 
 @EventChannelApi()

@@ -466,6 +466,17 @@ enum class InterruptionFilterMsg(val raw: Int) {
   }
 }
 
+/** T27: why MainActivity was opened by the native alarm screen. Append only. */
+enum class LaunchActionKindMsg(val raw: Int) {
+  OVERSHOOT_ROUTE(0);
+
+  companion object {
+    fun ofRaw(raw: Int): LaunchActionKindMsg? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
 /**
  * Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
  * (T10 §2.1); used by AlarmController (T16/T17).
@@ -1572,7 +1583,8 @@ data class DeviceStatusMsg (
   val alarmVolumePct: Long? = null,
   val alarmMuted: Boolean? = null,
   val interruptionFilter: InterruptionFilterMsg,
-  val priorityAllowsAlarms: Boolean? = null
+  val priorityAllowsAlarms: Boolean? = null,
+  val headphonesConnected: Boolean? = null
 )
  {
   companion object {
@@ -1583,7 +1595,8 @@ data class DeviceStatusMsg (
       val alarmMuted = pigeonVar_list[3] as Boolean?
       val interruptionFilter = pigeonVar_list[4] as InterruptionFilterMsg
       val priorityAllowsAlarms = pigeonVar_list[5] as Boolean?
-      return DeviceStatusMsg(batteryPct, charging, alarmVolumePct, alarmMuted, interruptionFilter, priorityAllowsAlarms)
+      val headphonesConnected = pigeonVar_list[6] as Boolean?
+      return DeviceStatusMsg(batteryPct, charging, alarmVolumePct, alarmMuted, interruptionFilter, priorityAllowsAlarms, headphonesConnected)
     }
   }
   fun toList(): List<Any?> {
@@ -1594,6 +1607,7 @@ data class DeviceStatusMsg (
       alarmMuted,
       interruptionFilter,
       priorityAllowsAlarms,
+      headphonesConnected,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -1604,7 +1618,7 @@ data class DeviceStatusMsg (
       return true
     }
     val other = other as DeviceStatusMsg
-    return CoreApiPigeonUtils.deepEquals(this.batteryPct, other.batteryPct) && CoreApiPigeonUtils.deepEquals(this.charging, other.charging) && CoreApiPigeonUtils.deepEquals(this.alarmVolumePct, other.alarmVolumePct) && CoreApiPigeonUtils.deepEquals(this.alarmMuted, other.alarmMuted) && CoreApiPigeonUtils.deepEquals(this.interruptionFilter, other.interruptionFilter) && CoreApiPigeonUtils.deepEquals(this.priorityAllowsAlarms, other.priorityAllowsAlarms)
+    return CoreApiPigeonUtils.deepEquals(this.batteryPct, other.batteryPct) && CoreApiPigeonUtils.deepEquals(this.charging, other.charging) && CoreApiPigeonUtils.deepEquals(this.alarmVolumePct, other.alarmVolumePct) && CoreApiPigeonUtils.deepEquals(this.alarmMuted, other.alarmMuted) && CoreApiPigeonUtils.deepEquals(this.interruptionFilter, other.interruptionFilter) && CoreApiPigeonUtils.deepEquals(this.priorityAllowsAlarms, other.priorityAllowsAlarms) && CoreApiPigeonUtils.deepEquals(this.headphonesConnected, other.headphonesConnected)
   }
 
   override fun hashCode(): Int {
@@ -1615,10 +1629,11 @@ data class DeviceStatusMsg (
     result = 31 * result + CoreApiPigeonUtils.deepHash(this.alarmMuted)
     result = 31 * result + CoreApiPigeonUtils.deepHash(this.interruptionFilter)
     result = 31 * result + CoreApiPigeonUtils.deepHash(this.priorityAllowsAlarms)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.headphonesConnected)
     return result
   }
   override fun toString(): String {
-    return "DeviceStatusMsg(batteryPct=$batteryPct, charging=$charging, alarmVolumePct=$alarmVolumePct, alarmMuted=$alarmMuted, interruptionFilter=$interruptionFilter, priorityAllowsAlarms=$priorityAllowsAlarms)"
+    return "DeviceStatusMsg(batteryPct=$batteryPct, charging=$charging, alarmVolumePct=$alarmVolumePct, alarmMuted=$alarmMuted, interruptionFilter=$interruptionFilter, priorityAllowsAlarms=$priorityAllowsAlarms, headphonesConnected=$headphonesConnected)"
   }
 }
 
@@ -1733,6 +1748,56 @@ data class BackgroundCheckMsg (
     return "BackgroundCheckMsg(scheduledAtMs=$scheduledAtMs, dueAtMs=$dueAtMs, firedAtMs=$firedAtMs, screenOnAtFire=$screenOnAtFire, exact=$exact)"
   }
 }
+
+/**
+ * T27: one launch action (T16 LaunchActions), consumed once. No coordinates:
+ * Dart reads the destination from drift by [tripId] (T14 D5).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class LaunchActionMsg (
+  val kind: LaunchActionKindMsg,
+  val tripId: String,
+  val pastM: Long? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): LaunchActionMsg {
+      val kind = pigeonVar_list[0] as LaunchActionKindMsg
+      val tripId = pigeonVar_list[1] as String
+      val pastM = pigeonVar_list[2] as Long?
+      return LaunchActionMsg(kind, tripId, pastM)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      kind,
+      tripId,
+      pastM,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as LaunchActionMsg
+    return CoreApiPigeonUtils.deepEquals(this.kind, other.kind) && CoreApiPigeonUtils.deepEquals(this.tripId, other.tripId) && CoreApiPigeonUtils.deepEquals(this.pastM, other.pastM)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.kind)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.tripId)
+    result = 31 * result + CoreApiPigeonUtils.deepHash(this.pastM)
+    return result
+  }
+  override fun toString(): String {
+    return "LaunchActionMsg(kind=$kind, tripId=$tripId, pastM=$pastM)"
+  }
+}
 private open class CoreApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -1837,108 +1902,118 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
         }
       }
       149.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
-          AlarmSettingsMsg.fromList(it)
+        (readValue(buffer) as Long?)?.let {
+          LaunchActionKindMsg.ofRaw(it.toInt())
         }
       }
       150.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripConfigMsg.fromList(it)
+          AlarmSettingsMsg.fromList(it)
         }
       }
       151.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          SimulationMsg.fromList(it)
+          TripConfigMsg.fromList(it)
         }
       }
       152.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripStateMsg.fromList(it)
+          SimulationMsg.fromList(it)
         }
       }
       153.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ActiveTripMsg.fromList(it)
+          TripStateMsg.fromList(it)
         }
       }
       154.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          FinishedTripMsg.fromList(it)
+          ActiveTripMsg.fromList(it)
         }
       }
       155.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripStateUpdateMsg.fromList(it)
+          FinishedTripMsg.fromList(it)
         }
       }
       156.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PreAlertMsg.fromList(it)
+          TripStateUpdateMsg.fromList(it)
         }
       }
       157.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          AlarmMsg.fromList(it)
+          PreAlertMsg.fromList(it)
         }
       }
       158.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          SnoozedMsg.fromList(it)
+          AlarmMsg.fromList(it)
         }
       }
       159.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          GpsLostMsg.fromList(it)
+          SnoozedMsg.fromList(it)
         }
       }
       160.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          GpsRecoveredMsg.fromList(it)
+          GpsLostMsg.fromList(it)
         }
       }
       161.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          LowBatteryRiskMsg.fromList(it)
+          GpsRecoveredMsg.fromList(it)
         }
       }
       162.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          OvershootMsg.fromList(it)
+          LowBatteryRiskMsg.fromList(it)
         }
       }
       163.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          ArrivedMsg.fromList(it)
+          OvershootMsg.fromList(it)
         }
       }
       164.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          TripEndedMsg.fromList(it)
+          ArrivedMsg.fromList(it)
         }
       }
       165.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PermissionStatusMsg.fromList(it)
+          TripEndedMsg.fromList(it)
         }
       }
       166.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          DeviceInfoMsg.fromList(it)
+          PermissionStatusMsg.fromList(it)
         }
       }
       167.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          DeviceStatusMsg.fromList(it)
+          DeviceInfoMsg.fromList(it)
         }
       }
       168.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          MapsConfigMsg.fromList(it)
+          DeviceStatusMsg.fromList(it)
         }
       }
       169.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
+          MapsConfigMsg.fromList(it)
+        }
+      }
+      170.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
           BackgroundCheckMsg.fromList(it)
+        }
+      }
+      171.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          LaunchActionMsg.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -2026,88 +2101,96 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
         stream.write(148)
         writeValue(stream, value.raw.toLong())
       }
-      is AlarmSettingsMsg -> {
+      is LaunchActionKindMsg -> {
         stream.write(149)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is TripConfigMsg -> {
+      is AlarmSettingsMsg -> {
         stream.write(150)
         writeValue(stream, value.toList())
       }
-      is SimulationMsg -> {
+      is TripConfigMsg -> {
         stream.write(151)
         writeValue(stream, value.toList())
       }
-      is TripStateMsg -> {
+      is SimulationMsg -> {
         stream.write(152)
         writeValue(stream, value.toList())
       }
-      is ActiveTripMsg -> {
+      is TripStateMsg -> {
         stream.write(153)
         writeValue(stream, value.toList())
       }
-      is FinishedTripMsg -> {
+      is ActiveTripMsg -> {
         stream.write(154)
         writeValue(stream, value.toList())
       }
-      is TripStateUpdateMsg -> {
+      is FinishedTripMsg -> {
         stream.write(155)
         writeValue(stream, value.toList())
       }
-      is PreAlertMsg -> {
+      is TripStateUpdateMsg -> {
         stream.write(156)
         writeValue(stream, value.toList())
       }
-      is AlarmMsg -> {
+      is PreAlertMsg -> {
         stream.write(157)
         writeValue(stream, value.toList())
       }
-      is SnoozedMsg -> {
+      is AlarmMsg -> {
         stream.write(158)
         writeValue(stream, value.toList())
       }
-      is GpsLostMsg -> {
+      is SnoozedMsg -> {
         stream.write(159)
         writeValue(stream, value.toList())
       }
-      is GpsRecoveredMsg -> {
+      is GpsLostMsg -> {
         stream.write(160)
         writeValue(stream, value.toList())
       }
-      is LowBatteryRiskMsg -> {
+      is GpsRecoveredMsg -> {
         stream.write(161)
         writeValue(stream, value.toList())
       }
-      is OvershootMsg -> {
+      is LowBatteryRiskMsg -> {
         stream.write(162)
         writeValue(stream, value.toList())
       }
-      is ArrivedMsg -> {
+      is OvershootMsg -> {
         stream.write(163)
         writeValue(stream, value.toList())
       }
-      is TripEndedMsg -> {
+      is ArrivedMsg -> {
         stream.write(164)
         writeValue(stream, value.toList())
       }
-      is PermissionStatusMsg -> {
+      is TripEndedMsg -> {
         stream.write(165)
         writeValue(stream, value.toList())
       }
-      is DeviceInfoMsg -> {
+      is PermissionStatusMsg -> {
         stream.write(166)
         writeValue(stream, value.toList())
       }
-      is DeviceStatusMsg -> {
+      is DeviceInfoMsg -> {
         stream.write(167)
         writeValue(stream, value.toList())
       }
-      is MapsConfigMsg -> {
+      is DeviceStatusMsg -> {
         stream.write(168)
         writeValue(stream, value.toList())
       }
-      is BackgroundCheckMsg -> {
+      is MapsConfigMsg -> {
         stream.write(169)
+        writeValue(stream, value.toList())
+      }
+      is BackgroundCheckMsg -> {
+        stream.write(170)
+        writeValue(stream, value.toList())
+      }
+      is LaunchActionMsg -> {
+        stream.write(171)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2544,6 +2627,23 @@ interface AlarmHostApi {
   /** Settings screen preview, USAGE_ALARM on Android (T16). */
   fun previewSound(soundId: String, volume: Double)
   fun stopPreview()
+  /**
+   * T27: returns and clears the launch action MainActivity was opened with
+   * (T16 §4.5), or null (none, expired after 10 min, iOS).
+   */
+  suspend fun consumeLaunchAction(): LaunchActionMsg?
+  /**
+   * T27: brings the native alarm screen of [tripId] to the front when its
+   * ring is live. false = not ringing / could not start it / iOS.
+   * Never throws for those cases.
+   */
+  suspend fun showAlarmScreen(tripId: String): Boolean
+  /**
+   * T28: language of native strings (tracking/alarm notifications, alarm
+   * screen in `:ring`). 'vi' | 'en'; null = follow the device. Any other
+   * value is treated as null. Cheap; never throws.
+   */
+  fun setAppLocale(languageTag: String?)
 
   companion object {
     /** The codec used by AlarmHostApi. */
@@ -2579,6 +2679,60 @@ interface AlarmHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               api.stopPreview()
+              listOf(null)
+            } catch (exception: Throwable) {
+              CoreApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.AlarmHostApi.consumeLaunchAction$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.consumeLaunchAction())
+              } catch (exception: Throwable) {
+                CoreApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.AlarmHostApi.showAlarmScreen$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val tripIdArg = args[0] as String
+            CoroutineScope(Dispatchers.Main).launch {
+              val wrapped: List<Any?> = try {
+                listOf(api.showAlarmScreen(tripIdArg))
+              } catch (exception: Throwable) {
+                CoreApiPigeonUtils.wrapError(exception)
+              }
+              reply.reply(wrapped)
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.AlarmHostApi.setAppLocale$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val languageTagArg = args[0] as String?
+            val wrapped: List<Any?> = try {
+              api.setAppLocale(languageTagArg)
               listOf(null)
             } catch (exception: Throwable) {
               CoreApiPigeonUtils.wrapError(exception)

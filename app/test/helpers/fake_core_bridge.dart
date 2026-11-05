@@ -72,6 +72,7 @@ DeviceStatusMsg deviceStatusMsg({
   bool? alarmMuted = false,
   InterruptionFilterMsg interruptionFilter = InterruptionFilterMsg.all,
   bool? priorityAllowsAlarms,
+  bool? headphonesConnected,
 }) => DeviceStatusMsg(
   batteryPct: batteryPct,
   charging: charging,
@@ -79,6 +80,7 @@ DeviceStatusMsg deviceStatusMsg({
   alarmMuted: alarmMuted,
   interruptionFilter: interruptionFilter,
   priorityAllowsAlarms: priorityAllowsAlarms,
+  headphonesConnected: headphonesConnected,
 );
 
 TripStateMsg tripState({
@@ -416,6 +418,36 @@ class FakeCoreBridge implements CoreBridge {
 
   @override
   Future<void> stopPreview() => _answer('stopPreview', null, () {});
+
+  /// Returned once by [consumeLaunchAction] (then cleared), like native (T27).
+  LaunchActionMsg? launchAction;
+
+  /// Returned by [showAlarmScreen] (T27).
+  bool showAlarmScreenResult = false;
+
+  /// Arguments of every [showAlarmScreen] / [setAppLocale] call.
+  final List<String> showAlarmScreenCalls = [];
+  final List<String?> setAppLocaleCalls = [];
+
+  @override
+  Future<LaunchActionMsg?> consumeLaunchAction() =>
+      _answer('consumeLaunchAction', null, () {
+        final action = launchAction;
+        launchAction = null;
+        return action;
+      });
+
+  @override
+  Future<bool> showAlarmScreen(String tripId) {
+    showAlarmScreenCalls.add(tripId);
+    return _answer('showAlarmScreen', null, () => showAlarmScreenResult);
+  }
+
+  @override
+  Future<void> setAppLocale(String? languageTag) {
+    setAppLocaleCalls.add(languageTag);
+    return _answer('setAppLocale', null, () {});
+  }
 }
 
 /// One [FakeCoreBridge.startTrip] call.

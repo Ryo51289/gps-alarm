@@ -50,6 +50,10 @@ final _calls = <String, Future<Object?> Function(CoreBridge)>{
   'PermissionHostApi.cancelBackgroundCheck': (b) => b.cancelBackgroundCheck(),
   'AlarmHostApi.previewSound': (b) => b.previewSound('chime', 0.5),
   'AlarmHostApi.stopPreview': (b) => b.stopPreview(),
+  // T26/T27/T28 Pigeon step 0.
+  'AlarmHostApi.consumeLaunchAction': (b) => b.consumeLaunchAction(),
+  'AlarmHostApi.showAlarmScreen': (b) => b.showAlarmScreen('t1'),
+  'AlarmHostApi.setAppLocale': (b) => b.setAppLocale('en'),
 };
 
 void _handle(String name, List<Object?> Function(List<Object?> args) reply) {

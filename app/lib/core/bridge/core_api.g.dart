@@ -167,6 +167,9 @@ enum PlatformMsg { android, ios }
 /// T14.1: NotificationManager.getCurrentInterruptionFilter(). iOS: unknown.
 enum InterruptionFilterMsg { unknown, all, priority, alarms, none }
 
+/// T27: why MainActivity was opened by the native alarm screen. Append only.
+enum LaunchActionKindMsg { overshootRoute }
+
 /// Alarm presentation (PRD §4 "Báo thức"). Not part of the engine config
 /// (T10 §2.1); used by AlarmController (T16/T17).
 class AlarmSettingsMsg {
@@ -1539,6 +1542,7 @@ class DeviceStatusMsg {
     this.alarmMuted,
     required this.interruptionFilter,
     this.priorityAllowsAlarms,
+    this.headphonesConnected,
   });
 
   int? batteryPct;
@@ -1553,6 +1557,8 @@ class DeviceStatusMsg {
 
   bool? priorityAllowsAlarms;
 
+  bool? headphonesConnected;
+
   List<Object?> _toList() {
     return <Object?>[
       batteryPct,
@@ -1561,6 +1567,7 @@ class DeviceStatusMsg {
       alarmMuted,
       interruptionFilter,
       priorityAllowsAlarms,
+      headphonesConnected,
     ];
   }
 
@@ -1577,6 +1584,7 @@ class DeviceStatusMsg {
       alarmMuted: result[3] as bool?,
       interruptionFilter: result[4]! as InterruptionFilterMsg,
       priorityAllowsAlarms: result[5] as bool?,
+      headphonesConnected: result[6] as bool?,
     );
   }
 
@@ -1594,7 +1602,8 @@ class DeviceStatusMsg {
         _deepEquals(alarmVolumePct, other.alarmVolumePct) &&
         _deepEquals(alarmMuted, other.alarmMuted) &&
         _deepEquals(interruptionFilter, other.interruptionFilter) &&
-        _deepEquals(priorityAllowsAlarms, other.priorityAllowsAlarms);
+        _deepEquals(priorityAllowsAlarms, other.priorityAllowsAlarms) &&
+        _deepEquals(headphonesConnected, other.headphonesConnected);
   }
 
   @override
@@ -1603,7 +1612,7 @@ class DeviceStatusMsg {
 
   @override
   String toString() {
-    return 'DeviceStatusMsg(batteryPct: $batteryPct, charging: $charging, alarmVolumePct: $alarmVolumePct, alarmMuted: $alarmMuted, interruptionFilter: $interruptionFilter, priorityAllowsAlarms: $priorityAllowsAlarms)';
+    return 'DeviceStatusMsg(batteryPct: $batteryPct, charging: $charging, alarmVolumePct: $alarmVolumePct, alarmMuted: $alarmMuted, interruptionFilter: $interruptionFilter, priorityAllowsAlarms: $priorityAllowsAlarms, headphonesConnected: $headphonesConnected)';
   }
 }
 
@@ -1734,6 +1743,58 @@ class BackgroundCheckMsg {
   }
 }
 
+/// T27: one launch action (T16 LaunchActions), consumed once. No coordinates:
+/// Dart reads the destination from drift by [tripId] (T14 D5).
+class LaunchActionMsg {
+  LaunchActionMsg({required this.kind, required this.tripId, this.pastM});
+
+  LaunchActionKindMsg kind;
+
+  String tripId;
+
+  int? pastM;
+
+  List<Object?> _toList() {
+    return <Object?>[kind, tripId, pastM];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static LaunchActionMsg decode(Object result) {
+    result as List<Object?>;
+    return LaunchActionMsg(
+      kind: result[0]! as LaunchActionKindMsg,
+      tripId: result[1]! as String,
+      pastM: result[2] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! LaunchActionMsg || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(kind, other.kind) &&
+        _deepEquals(tripId, other.tripId) &&
+        _deepEquals(pastM, other.pastM);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'LaunchActionMsg(kind: $kind, tripId: $tripId, pastM: $pastM)';
+  }
+}
+
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -1801,68 +1862,74 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is InterruptionFilterMsg) {
       buffer.putUint8(148);
       writeValue(buffer, value.index);
-    } else if (value is AlarmSettingsMsg) {
+    } else if (value is LaunchActionKindMsg) {
       buffer.putUint8(149);
-      writeValue(buffer, value.encode());
-    } else if (value is TripConfigMsg) {
+      writeValue(buffer, value.index);
+    } else if (value is AlarmSettingsMsg) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    } else if (value is SimulationMsg) {
+    } else if (value is TripConfigMsg) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    } else if (value is TripStateMsg) {
+    } else if (value is SimulationMsg) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    } else if (value is ActiveTripMsg) {
+    } else if (value is TripStateMsg) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    } else if (value is FinishedTripMsg) {
+    } else if (value is ActiveTripMsg) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    } else if (value is TripStateUpdateMsg) {
+    } else if (value is FinishedTripMsg) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    } else if (value is PreAlertMsg) {
+    } else if (value is TripStateUpdateMsg) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    } else if (value is AlarmMsg) {
+    } else if (value is PreAlertMsg) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    } else if (value is SnoozedMsg) {
+    } else if (value is AlarmMsg) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    } else if (value is GpsLostMsg) {
+    } else if (value is SnoozedMsg) {
       buffer.putUint8(159);
       writeValue(buffer, value.encode());
-    } else if (value is GpsRecoveredMsg) {
+    } else if (value is GpsLostMsg) {
       buffer.putUint8(160);
       writeValue(buffer, value.encode());
-    } else if (value is LowBatteryRiskMsg) {
+    } else if (value is GpsRecoveredMsg) {
       buffer.putUint8(161);
       writeValue(buffer, value.encode());
-    } else if (value is OvershootMsg) {
+    } else if (value is LowBatteryRiskMsg) {
       buffer.putUint8(162);
       writeValue(buffer, value.encode());
-    } else if (value is ArrivedMsg) {
+    } else if (value is OvershootMsg) {
       buffer.putUint8(163);
       writeValue(buffer, value.encode());
-    } else if (value is TripEndedMsg) {
+    } else if (value is ArrivedMsg) {
       buffer.putUint8(164);
       writeValue(buffer, value.encode());
-    } else if (value is PermissionStatusMsg) {
+    } else if (value is TripEndedMsg) {
       buffer.putUint8(165);
       writeValue(buffer, value.encode());
-    } else if (value is DeviceInfoMsg) {
+    } else if (value is PermissionStatusMsg) {
       buffer.putUint8(166);
       writeValue(buffer, value.encode());
-    } else if (value is DeviceStatusMsg) {
+    } else if (value is DeviceInfoMsg) {
       buffer.putUint8(167);
       writeValue(buffer, value.encode());
-    } else if (value is MapsConfigMsg) {
+    } else if (value is DeviceStatusMsg) {
       buffer.putUint8(168);
       writeValue(buffer, value.encode());
-    } else if (value is BackgroundCheckMsg) {
+    } else if (value is MapsConfigMsg) {
       buffer.putUint8(169);
+      writeValue(buffer, value.encode());
+    } else if (value is BackgroundCheckMsg) {
+      buffer.putUint8(170);
+      writeValue(buffer, value.encode());
+    } else if (value is LaunchActionMsg) {
+      buffer.putUint8(171);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1933,47 +2000,52 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : InterruptionFilterMsg.values[value];
       case 149:
-        return AlarmSettingsMsg.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : LaunchActionKindMsg.values[value];
       case 150:
-        return TripConfigMsg.decode(readValue(buffer)!);
+        return AlarmSettingsMsg.decode(readValue(buffer)!);
       case 151:
-        return SimulationMsg.decode(readValue(buffer)!);
+        return TripConfigMsg.decode(readValue(buffer)!);
       case 152:
-        return TripStateMsg.decode(readValue(buffer)!);
+        return SimulationMsg.decode(readValue(buffer)!);
       case 153:
-        return ActiveTripMsg.decode(readValue(buffer)!);
+        return TripStateMsg.decode(readValue(buffer)!);
       case 154:
-        return FinishedTripMsg.decode(readValue(buffer)!);
+        return ActiveTripMsg.decode(readValue(buffer)!);
       case 155:
-        return TripStateUpdateMsg.decode(readValue(buffer)!);
+        return FinishedTripMsg.decode(readValue(buffer)!);
       case 156:
-        return PreAlertMsg.decode(readValue(buffer)!);
+        return TripStateUpdateMsg.decode(readValue(buffer)!);
       case 157:
-        return AlarmMsg.decode(readValue(buffer)!);
+        return PreAlertMsg.decode(readValue(buffer)!);
       case 158:
-        return SnoozedMsg.decode(readValue(buffer)!);
+        return AlarmMsg.decode(readValue(buffer)!);
       case 159:
-        return GpsLostMsg.decode(readValue(buffer)!);
+        return SnoozedMsg.decode(readValue(buffer)!);
       case 160:
-        return GpsRecoveredMsg.decode(readValue(buffer)!);
+        return GpsLostMsg.decode(readValue(buffer)!);
       case 161:
-        return LowBatteryRiskMsg.decode(readValue(buffer)!);
+        return GpsRecoveredMsg.decode(readValue(buffer)!);
       case 162:
-        return OvershootMsg.decode(readValue(buffer)!);
+        return LowBatteryRiskMsg.decode(readValue(buffer)!);
       case 163:
-        return ArrivedMsg.decode(readValue(buffer)!);
+        return OvershootMsg.decode(readValue(buffer)!);
       case 164:
-        return TripEndedMsg.decode(readValue(buffer)!);
+        return ArrivedMsg.decode(readValue(buffer)!);
       case 165:
-        return PermissionStatusMsg.decode(readValue(buffer)!);
+        return TripEndedMsg.decode(readValue(buffer)!);
       case 166:
-        return DeviceInfoMsg.decode(readValue(buffer)!);
+        return PermissionStatusMsg.decode(readValue(buffer)!);
       case 167:
-        return DeviceStatusMsg.decode(readValue(buffer)!);
+        return DeviceInfoMsg.decode(readValue(buffer)!);
       case 168:
-        return MapsConfigMsg.decode(readValue(buffer)!);
+        return DeviceStatusMsg.decode(readValue(buffer)!);
       case 169:
+        return MapsConfigMsg.decode(readValue(buffer)!);
+      case 170:
         return BackgroundCheckMsg.decode(readValue(buffer)!);
+      case 171:
+        return LaunchActionMsg.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2459,6 +2531,74 @@ class AlarmHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+  }
+
+  /// T27: returns and clears the launch action MainActivity was opened with
+  /// (T16 §4.5), or null (none, expired after 10 min, iOS).
+  Future<LaunchActionMsg?> consumeLaunchAction() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.AlarmHostApi.consumeLaunchAction$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
+    return pigeonVar_replyValue as LaunchActionMsg?;
+  }
+
+  /// T27: brings the native alarm screen of [tripId] to the front when its
+  /// ring is live. false = not ringing / could not start it / iOS.
+  /// Never throws for those cases.
+  Future<bool> showAlarmScreen(String tripId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.AlarmHostApi.showAlarmScreen$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[tripId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// T28: language of native strings (tracking/alarm notifications, alarm
+  /// screen in `:ring`). 'vi' | 'en'; null = follow the device. Any other
+  /// value is treated as null. Cheap; never throws.
+  Future<void> setAppLocale(String? languageTag) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.napstop.AlarmHostApi.setAppLocale$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[languageTag],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

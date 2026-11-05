@@ -110,6 +110,7 @@ class DeviceStatusReader internal constructor(
             alarmMuted = alarmMuted,
             interruptionFilter = filter,
             priorityAllowsAlarms = priorityAllowsAlarms,
+            headphonesConnected = null, // TODO(T26): AudioManager outputs via HeadphoneTypes.
         )
     }
 

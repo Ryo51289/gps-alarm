@@ -21,6 +21,15 @@ class AlarmHostApiImpl(
         }
 
     override fun stopPreview() = BridgeGuard.callSync { preview.stop() }
+
+    // TODO(T27): LaunchActions.consume() -> LaunchActionMsg.
+    override suspend fun consumeLaunchAction(): LaunchActionMsg? = null
+
+    // TODO(T27): AlarmController.showAlarmScreen.
+    override suspend fun showAlarmScreen(tripId: String): Boolean = false
+
+    // TODO(T28): AppLocale.set(appContext, languageTag).
+    override fun setAppLocale(languageTag: String?) = Unit
 }
 
 /** No sound (JVM tests of the registrar). */

@@ -163,6 +163,19 @@ class CoreBridge {
 
   Future<void> stopPreview() => _guard(_alarm.stopPreview);
 
+  /// T27: the launch action of the native alarm screen, consumed once.
+  Future<LaunchActionMsg?> consumeLaunchAction() =>
+      _guard(_alarm.consumeLaunchAction);
+
+  /// T27: native alarm screen of [tripId] to the front; false when not
+  /// possible.
+  Future<bool> showAlarmScreen(String tripId) =>
+      _guard(() => _alarm.showAlarmScreen(tripId));
+
+  /// T28: language of native strings ('vi' | 'en'; null = device).
+  Future<void> setAppLocale(String? languageTag) =>
+      _guard(() => _alarm.setAppLocale(languageTag));
+
   Future<T> _guard<T>(Future<T> Function() call) async {
     try {
       return await call();

@@ -102,7 +102,8 @@ final class CoreBridgeStub {
       alarmVolumePct: nil,
       alarmMuted: nil,
       interruptionFilter: .unknown,
-      priorityAllowsAlarms: nil
+      priorityAllowsAlarms: nil,
+      headphonesConnected: nil
     )
   }
 
@@ -325,6 +326,19 @@ final class AlarmHostApiStub: AlarmHostApi {
   func previewSound(soundId: String, volume: Double) throws {}
 
   func stopPreview() throws {}
+
+  /// T27: no launch actions on iOS (T17).
+  func consumeLaunchAction() async throws -> LaunchActionMsg? {
+    nil
+  }
+
+  /// T27: no native alarm screen on iOS yet (T17).
+  func showAlarmScreen(tripId: String) async throws -> Bool {
+    false
+  }
+
+  // TODO(T28): store in UserDefaults "napstop.appLocale" (nil removes it).
+  func setAppLocale(languageTag: String?) throws {}
 }
 
 /// Event channel tripUpdates: keeps the sink while Dart listens and replays the
