@@ -4,6 +4,7 @@ import 'package:napstop/app/flavor.dart';
 import 'package:napstop/app/locales.dart';
 import 'package:napstop/app/router/app_router.dart';
 import 'package:napstop/core/design/theme/nap_themes.dart';
+import 'package:napstop/features/tracking/presentation/trip_launch_scope.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Brand name, not translated (CLAUDE.md); the only display string outside
@@ -27,6 +28,8 @@ class NapStopApp extends ConsumerWidget {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: kAppSupportedLocales,
       routerConfig: ref.watch(appRouterProvider),
+      // T26 D12: screen 4 when the app opens or returns with a running trip.
+      builder: (context, child) => TripLaunchScope(child: child!),
     );
   }
 }

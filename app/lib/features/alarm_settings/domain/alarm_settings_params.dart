@@ -26,6 +26,8 @@ const List<_IntSpec> _specs = [
   (key: 'lowBatteryEarlierPct', min: 5, max: 40),
   (key: 'snoozeS', min: 30, max: 600),
   (key: 'maxSnoozes', min: 0, max: 3),
+  // T26 D11: screen 6 text "Còn dưới {minutes} phút là báo thức kêu luôn".
+  (key: 'gpsLostAlarmEtaS', min: 300, max: 3600),
 ];
 
 @immutable
@@ -45,6 +47,7 @@ final class AlarmSettingsParams {
     this.lowBatteryEarlierPct = 15,
     this.snoozeS = 60,
     this.maxSnoozes = 1,
+    this.gpsLostAlarmEtaS = 1200,
   });
 
   /// Reads [json] like `EngineParamsFactory.fromOverrides` (T10 §5, T12
@@ -107,6 +110,7 @@ final class AlarmSettingsParams {
           values['lowBatteryEarlierPct'] ?? d.lowBatteryEarlierPct,
       snoozeS: values['snoozeS'] ?? d.snoozeS,
       maxSnoozes: values['maxSnoozes'] ?? d.maxSnoozes,
+      gpsLostAlarmEtaS: values['gpsLostAlarmEtaS'] ?? d.gpsLostAlarmEtaS,
     );
   }
 
@@ -126,6 +130,9 @@ final class AlarmSettingsParams {
   final int lowBatteryEarlierPct;
   final int snoozeS;
   final int maxSnoozes;
+
+  /// T10 §5: while GPS is lost, an estimated ETA below this rings (T26).
+  final int gpsLostAlarmEtaS;
 
   int expectedSpeedKmh(VehicleKindMsg vehicle) => switch (vehicle) {
     VehicleKindMsg.train => expectedSpeedKmhTrain,
@@ -150,7 +157,8 @@ final class AlarmSettingsParams {
       other.lowBatteryAlarmPct == lowBatteryAlarmPct &&
       other.lowBatteryEarlierPct == lowBatteryEarlierPct &&
       other.snoozeS == snoozeS &&
-      other.maxSnoozes == maxSnoozes;
+      other.maxSnoozes == maxSnoozes &&
+      other.gpsLostAlarmEtaS == gpsLostAlarmEtaS;
 
   @override
   int get hashCode => Object.hash(
@@ -168,6 +176,7 @@ final class AlarmSettingsParams {
     lowBatteryEarlierPct,
     snoozeS,
     maxSnoozes,
+    gpsLostAlarmEtaS,
   );
 
   @override

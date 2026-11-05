@@ -2,13 +2,14 @@ package app.napstop.core.bridge
 
 import android.app.NotificationManager
 import android.os.BatteryManager
+import app.napstop.core.alarm.HeadphoneTypes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** K04: DeviceStatusReader with injected sources (T14.1 O2, spec T21 §4.6). */
+/** K04: DeviceStatusReader with injected sources (T14.1 O2, spec T21 §4.6); K01: headphones (T26 §9). */
 class DeviceStatusReaderTest {
     private class FakeSources(
         var extras: Map<String, Int>? =
@@ -22,6 +23,7 @@ class DeviceStatusReaderTest {
         var muted: Boolean? = false,
         var filter: Int? = NotificationManager.INTERRUPTION_FILTER_PRIORITY,
         var categories: Int? = NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS,
+        var outputs: List<Int>? = listOf(HeadphoneTypes.TYPE_BUILTIN_SPEAKER, HeadphoneTypes.TYPE_WIRED_HEADSET),
     ) : DeviceStatusSources {
         var failing: String? = null
         var policyCalls = 0
@@ -46,6 +48,8 @@ class DeviceStatusReaderTest {
             policyCalls++
             return maybeThrow("policy", categories)
         }
+
+        override fun outputDeviceTypes(): List<Int>? = maybeThrow("headphones", outputs)
     }
 
     private val warnings = mutableListOf<String>()
@@ -60,6 +64,7 @@ class DeviceStatusReaderTest {
             alarmMuted = false,
             interruptionFilter = InterruptionFilterMsg.PRIORITY,
             priorityAllowsAlarms = true,
+            headphonesConnected = true,
         )
 
     @Test
@@ -79,6 +84,7 @@ class DeviceStatusReaderTest {
                 "mute" to full.copy(alarmMuted = null),
                 "filter" to full.copy(interruptionFilter = InterruptionFilterMsg.UNKNOWN, priorityAllowsAlarms = null),
                 "policy" to full.copy(priorityAllowsAlarms = null),
+                "headphones" to full.copy(headphonesConnected = null),
             )
         for ((item, msg) in expected) {
             warnings.clear()
@@ -91,7 +97,7 @@ class DeviceStatusReaderTest {
 
     @Test
     fun k04NullSourcesReadAsUnknown() {
-        val sources = FakeSources(extras = null, volume = null, muted = null, filter = null)
+        val sources = FakeSources(extras = null, volume = null, muted = null, filter = null, outputs = null)
         val msg = reader(sources).read()
         assertEquals(DeviceStatusMsg(interruptionFilter = InterruptionFilterMsg.UNKNOWN), msg)
         assertEquals(0, sources.policyCalls)
@@ -116,5 +122,22 @@ class DeviceStatusReaderTest {
         val sources = FakeSources(filter = NotificationManager.INTERRUPTION_FILTER_ALL)
         assertNull(reader(sources, sdk = 34).read().priorityAllowsAlarms)
         assertEquals(0, sources.policyCalls)
+    }
+
+    @Test
+    fun k01HeadphonesFromTheOutputDevices() {
+        val cases =
+            mapOf(
+                listOf(HeadphoneTypes.TYPE_BUILTIN_SPEAKER, HeadphoneTypes.TYPE_WIRED_HEADSET) to true,
+                listOf(HeadphoneTypes.TYPE_BUILTIN_SPEAKER, HeadphoneTypes.TYPE_BLUETOOTH_A2DP) to true,
+                listOf(HeadphoneTypes.TYPE_USB_HEADSET) to true,
+                listOf(HeadphoneTypes.TYPE_BUILTIN_EARPIECE, HeadphoneTypes.TYPE_BUILTIN_SPEAKER) to false,
+                emptyList<Int>() to false,
+            )
+        for ((outputs, expected) in cases) {
+            val msg = reader(FakeSources(outputs = outputs)).read()
+            assertEquals("$outputs", full.copy(headphonesConnected = expected), msg)
+        }
+        assertTrue(warnings.isEmpty())
     }
 }

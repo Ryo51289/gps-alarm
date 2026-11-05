@@ -1466,6 +1466,422 @@
   "@alarmSettingsErrorTimeout": {
     "description": "Screen 3 error banner: startTrip did not answer in time; the trip may still have started. Retry checks first."
   },
+  "trackingEstimating": "Đang ước tính · sai số ±{error}",
+  "@trackingEstimating": {
+    "description": "Screen 6: estimated position line with the error (T10 §10). error is a formatted distance with unit.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingAcquiring": "Đang tìm vị trí…",
+  "@trackingAcquiring": {
+    "description": "Screen 4 headline while the first GPS fix is awaited."
+  },
+  "trackingDistanceLeading": "Còn",
+  "@trackingDistanceLeading": {
+    "description": "Screen 4: small word before the big distance (\"Còn 152 km\")."
+  },
+  "trackingApprox": "~{value}",
+  "@trackingApprox": {
+    "description": "Screen 4/6: approximate value (estimated distance or ETA). value is already formatted with its unit.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingDurationH": "{hours} giờ",
+  "@trackingDurationH": {
+    "description": "Duration in whole hours (screen 4 ETA).",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingDurationHm": "{hours} giờ {minutes} phút",
+  "@trackingDurationHm": {
+    "description": "Duration in hours and minutes (screen 4 ETA).",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingArrivalAt": "Dự kiến tới lúc {time}",
+  "@trackingArrivalAt": {
+    "description": "Screen 4: expected arrival clock time (real trips only). time is a formatted clock time.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingSpeed": "{speed} km/h",
+  "@trackingSpeed": {
+    "description": "Screen 4: current speed, whole km/h. Hidden while estimating.",
+    "placeholders": {
+      "speed": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingAlarmAt": "Dự kiến báo lúc {time}",
+  "@trackingAlarmAt": {
+    "description": "Screen 4: expected alarm clock time (real trips only).",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingAlarmIn": "Dự kiến báo sau {duration}",
+  "@trackingAlarmIn": {
+    "description": "Screen 4: expected time until the alarm (simulated trips). duration is formatted.",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingUpdatedAgo": "Cập nhật {minutes} phút trước",
+  "@trackingUpdatedAgo": {
+    "description": "Screen 4: the latest trip view is older than 3 minutes (real trips).",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingProgressA11y": "Đã đi {percent}%. Mốc báo ở {marker}%.",
+  "@trackingProgressA11y": {
+    "description": "Screen 4, screen reader: progress bar with the alarm marker.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      },
+      "marker": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingProgressA11yNoMarker": "Đã đi {percent}%.",
+  "@trackingProgressA11yNoMarker": {
+    "description": "Screen 4, screen reader: progress bar without a marker.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingMarkerLabel": "Báo",
+  "@trackingMarkerLabel": {
+    "description": "Screen 4: label under the alarm marker of the progress bar."
+  },
+  "trackingGpsGood": "GPS tốt",
+  "@trackingGpsGood": {
+    "description": "Screen 4 status tile: GPS fix is good."
+  },
+  "trackingGpsAccuracy": "±{error}",
+  "@trackingGpsAccuracy": {
+    "description": "Screen 4 status tile: GPS accuracy. error is a formatted distance with unit.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingGpsSearching": "Đang tìm GPS",
+  "@trackingGpsSearching": {
+    "description": "Screen 4 status tile: no GPS fix yet."
+  },
+  "trackingGpsLost": "Mất GPS",
+  "@trackingGpsLost": {
+    "description": "Screen 4/6 status tile: GPS lost."
+  },
+  "trackingGpsEstimatingShort": "Đang ước tính",
+  "@trackingGpsEstimatingShort": {
+    "description": "Screen 6 status tile subtitle: position estimated."
+  },
+  "trackingGpsNoPermission": "Mất quyền",
+  "@trackingGpsNoPermission": {
+    "description": "Screen 4 status tile: location permission missing."
+  },
+  "trackingGpsOff": "Định vị tắt",
+  "@trackingGpsOff": {
+    "description": "Screen 4 status tile: location services off."
+  },
+  "trackingBatteryPct": "Pin {percent}%",
+  "@trackingBatteryPct": {
+    "description": "Screen 4 status tile: battery level.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingBattery": "Pin",
+  "@trackingBattery": {
+    "description": "Screen 4 status tile: battery, level unknown."
+  },
+  "trackingBatteryCharging": "Đang sạc",
+  "@trackingBatteryCharging": {
+    "description": "Screen 4 battery tile subtitle: charging."
+  },
+  "trackingBatteryRisk": "Có thể không đủ",
+  "@trackingBatteryRisk": {
+    "description": "Screen 4 battery tile subtitle: battery may not last the trip."
+  },
+  "trackingBatteryEnough": "Đủ tới nơi",
+  "@trackingBatteryEnough": {
+    "description": "Screen 4 battery tile subtitle: battery is enough."
+  },
+  "trackingBatteryLow": "Pin yếu",
+  "@trackingBatteryLow": {
+    "description": "Screen 4 battery tile subtitle: battery at or below the alarm threshold."
+  },
+  "trackingBatteryAt": "Báo khi {percent}%",
+  "@trackingBatteryAt": {
+    "description": "Screen 4 battery tile subtitle: screen 7 choice \"alarm at N%\".",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingBatteryEarlier": "Báo sớm hơn",
+  "@trackingBatteryEarlier": {
+    "description": "Screen 4 battery tile subtitle: screen 7 choice \"earlier alarm\"."
+  },
+  "trackingHeadphones": "Tai nghe",
+  "@trackingHeadphones": {
+    "description": "Screen 4 status tile: headphones."
+  },
+  "trackingHeadphonesOn": "Đã cắm",
+  "@trackingHeadphonesOn": {
+    "description": "Screen 4 headphones tile subtitle: connected."
+  },
+  "trackingHeadphonesOff": "Chưa cắm",
+  "@trackingHeadphonesOff": {
+    "description": "Screen 4 headphones tile subtitle: not connected."
+  },
+  "trackingHeadphonesSpeaker": "Chưa cắm · sẽ kêu loa",
+  "@trackingHeadphonesSpeaker": {
+    "description": "Screen 4 headphones tile subtitle: a headphones-only alarm without headphones rings on the speaker (T16 A05)."
+  },
+  "trackingAlarmStyle": "Báo thức",
+  "@trackingAlarmStyle": {
+    "description": "Screen 4 status tile title when the headphone state is unknown: shows the alarm style instead."
+  },
+  "trackingGpsLostTitle": "Mất tín hiệu GPS",
+  "@trackingGpsLostTitle": {
+    "description": "Screen 6 warning banner title."
+  },
+  "trackingGpsLostBody": "NapStop đang ước tính theo tốc độ cuối, sai số ±{error}. Còn dưới {minutes} phút là báo thức kêu luôn.",
+  "@trackingGpsLostBody": {
+    "description": "Screen 6 warning banner text. error is a formatted distance with unit; minutes is gpsLostAlarmEtaS in minutes.",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingGpsLostBodyNoError": "NapStop đang ước tính theo tốc độ cuối. Còn dưới {minutes} phút là báo thức kêu luôn.",
+  "@trackingGpsLostBodyNoError": {
+    "description": "Screen 6 warning banner text when the error is unknown.",
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingNoGpsBody": "Để máy gần cửa sổ, đừng để trong balo. Báo thức dự phòng vẫn kêu theo giờ ước tính.",
+  "@trackingNoGpsBody": {
+    "description": "Screen 4 warning banner text: no GPS fix yet (title gpsNotAcquired)."
+  },
+  "trackingBackupStillRings": "Báo thức dự phòng vẫn kêu theo giờ ước tính, nhưng có thể lệch.",
+  "@trackingBackupStillRings": {
+    "description": "Screen 4 danger banner text under a location problem."
+  },
+  "trackingOpenSettings": "Mở Cài đặt",
+  "@trackingOpenSettings": {
+    "description": "Screen 4 banner button: open the system settings."
+  },
+  "trackingTurnOnLocation": "Bật định vị",
+  "@trackingTurnOnLocation": {
+    "description": "Screen 4 banner button: open the location settings."
+  },
+  "trackingAlarmRinging": "Đang báo thức",
+  "@trackingAlarmRinging": {
+    "description": "Screen 4 card title while the alarm rings."
+  },
+  "trackingAlarmRingingHint": "Tắt trên màn hình báo thức.",
+  "@trackingAlarmRingingHint": {
+    "description": "Screen 4 card hint while the alarm rings: it is turned off on the native alarm screen."
+  },
+  "trackingAlarmSilenced": "Báo thức đã tự ngừng",
+  "@trackingAlarmSilenced": {
+    "description": "Screen 4 card title after the alarm stopped ringing on its own."
+  },
+  "trackingSnoozedTitle": "Đang báo lại",
+  "@trackingSnoozedTitle": {
+    "description": "Screen 4 card title while snoozed."
+  },
+  "trackingSnoozeIn": "Báo lại sau {time}",
+  "@trackingSnoozeIn": {
+    "description": "Screen 4: snooze countdown. time is m:ss.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingSnoozeInA11y": "Báo lại sau {seconds} giây",
+  "@trackingSnoozeInA11y": {
+    "description": "Screen 4, screen reader: snooze countdown in seconds.",
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "trackingPreview": "Nghe thử báo thức",
+  "@trackingPreview": {
+    "description": "Screen 4 button: play the alarm sound for a few seconds."
+  },
+  "trackingPreviewStop": "Dừng nghe thử",
+  "@trackingPreviewStop": {
+    "description": "Screen 4 button: stop the sound test."
+  },
+  "trackingDismiss": "Tắt báo thức — tôi đã tỉnh",
+  "@trackingDismiss": {
+    "description": "Screen 4 button: end the alarm after it stopped ringing or while snoozed."
+  },
+  "trackingStop": "Dừng theo dõi",
+  "@trackingStop": {
+    "description": "Screen 4 danger button and confirm button: stop the trip."
+  },
+  "trackingStopConfirmTitle": "Dừng theo dõi chuyến này?",
+  "@trackingStopConfirmTitle": {
+    "description": "Screen 4 stop confirmation sheet title."
+  },
+  "trackingStopConfirmBody": "NapStop sẽ không báo thức cho chuyến tới {destination}.",
+  "@trackingStopConfirmBody": {
+    "description": "Screen 4 stop confirmation sheet text. destination is the place name.",
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
+  "trackingStopConfirmNo": "Tiếp tục theo dõi",
+  "@trackingStopConfirmNo": {
+    "description": "Screen 4 stop confirmation sheet: cancel."
+  },
+  "trackingActionFailed": "Chưa thực hiện được. Thử lại.",
+  "@trackingActionFailed": {
+    "description": "Screen 4/7 snackbar: a bridge call failed."
+  },
+  "trackingLoadFailed": "Không đọc được chuyến đi.",
+  "@trackingLoadFailed": {
+    "description": "Screen 4: the running trip could not be read."
+  },
+  "trackingEndedDismissed": "Đã tắt báo thức. Chúc bạn xuống xe an toàn.",
+  "@trackingEndedDismissed": {
+    "description": "Snackbar on screen 1 after the alarm was turned off."
+  },
+  "trackingEndedStopped": "Đã dừng theo dõi.",
+  "@trackingEndedStopped": {
+    "description": "Snackbar on screen 1 after the trip was stopped."
+  },
+  "trackingEndedOther": "Chuyến đi đã kết thúc.",
+  "@trackingEndedOther": {
+    "description": "Snackbar on screen 1 when the trip ended for another reason."
+  },
+  "trackingBatteryChoose": "Chọn cách",
+  "@trackingBatteryChoose": {
+    "description": "Screen 4 battery banner button: open screen 7."
+  },
+  "batterySheetTitle": "Pin có thể không đủ tới nơi",
+  "@batterySheetTitle": {
+    "description": "Screen 7 sheet title; also the screen 4 battery banner title."
+  },
+  "batterySheetSubtitle": "Pin còn {percent}%. Chọn cách để NapStop vẫn kịp đánh thức bạn.",
+  "@batterySheetSubtitle": {
+    "description": "Screen 7 sheet subtitle with the battery level.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "batterySheetSubtitleNoPct": "Chọn cách để NapStop vẫn kịp đánh thức bạn.",
+  "@batterySheetSubtitleNoPct": {
+    "description": "Screen 7 sheet subtitle, battery level unknown."
+  },
+  "batterySheetEstimate": "Pin còn dùng được khoảng {available}, cần khoảng {needed}.",
+  "@batterySheetEstimate": {
+    "description": "Screen 7: battery estimate. available and needed are formatted durations.",
+    "placeholders": {
+      "available": {
+        "type": "String"
+      },
+      "needed": {
+        "type": "String"
+      }
+    }
+  },
+  "batteryMaxSavingTitle": "Tiết kiệm tối đa",
+  "@batteryMaxSavingTitle": {
+    "description": "Screen 7 option title."
+  },
+  "batteryMaxSavingBody": "Lấy vị trí thưa hơn khi còn xa. Lúc gần tới vẫn theo dõi kỹ.",
+  "@batteryMaxSavingBody": {
+    "description": "Screen 7 option text: maximum saving."
+  },
+  "batteryAt5Title": "Báo sớm khi pin còn {percent}%",
+  "@batteryAt5Title": {
+    "description": "Screen 7 option title: alarm when the battery reaches the threshold.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryAt5Body": "Chưa tới mà pin còn {percent}% thì báo thức kêu ngay, kèm lý do.",
+  "@batteryAt5Body": {
+    "description": "Screen 7 option text: alarm at the threshold.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryEarlierTitle": "Báo sớm hơn, khi pin còn {percent}%",
+  "@batteryEarlierTitle": {
+    "description": "Screen 7 option title: earlier battery alarm.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "batteryEarlierBody": "Dư thời gian để cắm sạc hoặc tự canh trạm.",
+  "@batteryEarlierBody": {
+    "description": "Screen 7 option text: earlier alarm."
+  },
+  "batterySheetApply": "Áp dụng",
+  "@batterySheetApply": {
+    "description": "Screen 7 primary button: apply the choice."
+  },
   "notifChannelTracking": "Theo dõi chuyến đi",
   "@notifChannelTracking": {
     "description": "Android notification channel name: ongoing trip notification. Native notification (T15 §8), keep in sync with res/values/strings.xml."
