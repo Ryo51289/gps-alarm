@@ -14,6 +14,7 @@ import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
 import 'package:napstop/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:napstop/features/settings/presentation/settings_screen.dart';
 import 'package:napstop/features/settings/presentation/trip_defaults_screen.dart';
+import 'package:napstop/features/tracking/presentation/tracking_screen.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Navigator of the full-screen routes; they cover the bottom navigation.
@@ -104,7 +105,11 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
           args: AlarmSettingsArgs.fromExtra(state.extra)!,
         ),
       ),
-      fullScreen(AppRoutes.tracking, (l) => l.appScreenTrackingTitle),
+      GoRoute(
+        path: AppRoutes.tracking,
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, _) => const TrackingScreen(),
+      ),
       fullScreen(AppRoutes.alarm, (l) => l.appScreenAlarmTitle),
       fullScreen(AppRoutes.overshoot, (l) => l.appScreenOvershootTitle),
     ],

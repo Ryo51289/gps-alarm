@@ -90,6 +90,7 @@ Future<AppHarness> pumpAppHarness(
   Size size = kHarnessSize,
   String? fontFamily,
   DateTime? now,
+  DateTime Function()? clock,
   Future<void> Function(ProviderContainer container)? seed,
   bool settle = true,
   Future<StationCatalog> Function()? stationCatalog,
@@ -113,7 +114,8 @@ Future<AppHarness> pumpAppHarness(
         ref.onDispose(database.close);
         return database;
       }),
-      clockProvider.overrideWithValue(() => fixedNow),
+      // [clock] (T26): a moving clock for countdowns; else [now], fixed.
+      clockProvider.overrideWithValue(clock ?? () => fixedNow),
       appRouterProvider.overrideWith((ref) {
         final router = createAppRouter(initialLocation: initialLocation);
         ref.onDispose(router.dispose);
@@ -141,9 +143,14 @@ Future<AppHarness> pumpAppHarness(
   final themeData = fontFamily == null
       ? NapThemes.of(theme)
       : NapThemes.of(theme, fontFamily: fontFamily);
+  // A new container gets a new scope element: pumped over a previous
+  // harness ("app restart"), a reused scope would keep the old container's
+  // vsync and leave the new one on riverpod's default zero timer.
+  final scopeKey = ObjectKey(container);
   if (useApp) {
     await tester.pumpWidget(
       UncontrolledProviderScope(
+        key: scopeKey,
         container: container,
         child: const NapStopApp(flavor: AppFlavor.dev),
       ),
@@ -155,6 +162,7 @@ Future<AppHarness> pumpAppHarness(
   }
   await tester.pumpWidget(
     UncontrolledProviderScope(
+      key: scopeKey,
       container: container,
       child: MaterialApp.router(
         title: kAppName,

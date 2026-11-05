@@ -101,6 +101,11 @@ final class HistorySync {
       active = await _bridge.currentTrip();
     } on BridgeException {
       return; // The running trip is unknown: no orphan marking this time.
+    } on Object catch (error) {
+      // Same rule for any other failure (found by T26 W22 at the T26/T28
+      // merge): never mark orphans without knowing the running trip.
+      _log.warning('currentTrip failed: ${error.runtimeType}');
+      return;
     }
     final now = _nowMs();
     try {

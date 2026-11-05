@@ -308,28 +308,23 @@ void main() {
       expect(await subscribe(), [_state('t3', 8)]);
     });
 
-    test(
-      'R2-2 (known limitation, for T26): while every subscription is paused '
-      'a new subscriber starts with the state seen before the pause',
-      () async {
-        final items = <TripUpdateMsg>[];
-        final a = bridge.updates.listen(items.add);
-        subscriptions.add(a);
-        await pumpEventQueue();
-        a.pause();
-        await send(_state('t1', 2)); // buffered for A, not remembered yet
+    test('R2-2 fixed (T26): while every subscription is paused a new '
+        'subscriber starts with the latest state', () async {
+      final items = <TripUpdateMsg>[];
+      final a = bridge.updates.listen(items.add);
+      subscriptions.add(a);
+      await pumpEventQueue();
+      a.pause();
+      await send(_state('t1', 2)); // buffered for A, remembered anyway
 
-        final b = await subscribe();
-        expect(b, [replay], reason: 'stale until the next Step');
-        expect(b.first, isNot(_state('t1', 2)));
+      final b = await subscribe();
+      expect(b, [_state('t1', 2)], reason: 'the view seen during the pause');
 
-        a.resume();
-        await pumpEventQueue();
-        expect(items, [replay, _state('t1', 2)]);
-        // Once A has seen it, later subscribers get the newer state.
-        expect(await subscribe(), [_state('t1', 2)]);
-      },
-    );
+      a.resume();
+      await pumpEventQueue();
+      expect(items, [replay, _state('t1', 2)], reason: 'A keeps its buffer');
+      expect(await subscribe(), [_state('t1', 2)]);
+    });
 
     test('a native error event does not close the stream', () async {
       final items = <TripUpdateMsg>[];

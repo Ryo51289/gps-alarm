@@ -38,6 +38,10 @@ class CoreBridge {
   /// so later subscribers get the last one this bridge has seen. Never an old
   /// event, nothing once that trip's [TripEndedMsg] has arrived, and nothing
   /// left over after every subscriber has cancelled (review T14 M5).
+  ///
+  /// The latest view is remembered by one internal subscription that is
+  /// never paused, so a new subscriber gets it even while every other
+  /// subscription is paused (T14 F2, fixed in T26 §3.2).
   late final Stream<TripUpdateMsg> updates = _replayLatestState(
     _broadcast(_updatesFactory()),
   );
@@ -46,34 +50,44 @@ class CoreBridge {
   TripStateUpdateMsg? _latestState;
   int _subscribers = 0;
 
+  /// Feeds [_remember]; alive while [_subscribers] > 0. Registered before
+  /// every subscriber's own subscription, so the broadcast source delivers
+  /// each update to it first. Cancelled with the last subscriber.
+  // ignore: cancel_subscriptions
+  StreamSubscription<TripUpdateMsg>? _memory;
+
   static Stream<T> _broadcast<T>(Stream<T> s) =>
       s.isBroadcast ? s : s.asBroadcastStream();
 
   Stream<TripUpdateMsg> _replayLatestState(
     Stream<TripUpdateMsg> source,
   ) => Stream<TripUpdateMsg>.multi((controller) {
+    if (_subscribers++ == 0) {
+      // The first listener of the source: native starts sending (replay).
+      _memory = source.listen(_remember, onError: (Object _) {});
+    }
     final latest = _latestState;
     if (latest != null) {
       controller.add(latest);
     }
-    _subscribers++;
     final subscription = source.listen(
-      (update) {
-        _remember(update);
-        controller.add(update);
-      },
+      controller.add,
       onError: controller.addError,
       onDone: controller.closeSync,
     );
     controller
+      // Pausing a subscriber never pauses [_memory].
       ..onPause = subscription.pause
       ..onResume = subscription.resume
-      ..onCancel = () {
+      ..onCancel = () async {
         if (--_subscribers == 0) {
           // Native stops sending; the next first subscriber gets its replay.
+          final memory = _memory;
+          _memory = null;
           _latestState = null;
+          await memory?.cancel();
         }
-        return subscription.cancel();
+        await subscription.cancel();
       };
   }, isBroadcast: true);
 

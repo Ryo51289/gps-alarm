@@ -8,6 +8,7 @@ import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
 import android.util.Log
+import app.napstop.core.alarm.HeadphoneTypes
 
 /**
  * Platform reads of [DeviceStatusReader] (T14.1 O2, T21 D8). Each call may throw; the reader
@@ -28,6 +29,12 @@ interface DeviceStatusSources {
 
     /** Applied policy categories; only called when sdkInt >= 30 and the filter is priority. */
     fun consolidatedPriorityCategories(): Int?
+
+    /**
+     * `AudioDeviceInfo.getType()` of every output device (T26 §9); null = no AudioManager.
+     * Default null (unknown) keeps the older fakes of the T21/T14.1 tests compiling.
+     */
+    fun outputDeviceTypes(): List<Int>? = null
 }
 
 /** [DeviceStatusSources] on the real system services. */
@@ -57,11 +64,15 @@ class AndroidDeviceStatusSources(context: Context) : DeviceStatusSources {
         } else {
             null
         }
+
+    // API 23+ (A-AUD); minSdk is above it. Same source as T16's HeadsetMonitor.
+    override fun outputDeviceTypes(): List<Int>? =
+        audio?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)?.map { it.type }
 }
 
 /**
  * Real `PermissionHostApi.deviceStatus()` on Android (spec T14.1, T22 §8.1): battery,
- * alarm stream volume and Do Not Disturb, read on demand. No permission needed.
+ * alarm stream volume, Do Not Disturb and connected headphones (T26 §9), read on demand. No permission needed.
  * Every item is read on its own; one that cannot be read is null / unknown, so the
  * call never throws (a throw would go through Pigeon's wrapError with the stack trace).
  *
@@ -103,6 +114,10 @@ class DeviceStatusReader internal constructor(
                 null
             }
 
+        // T26 §9: wired / Bluetooth / USB / hearing-aid output (T16 HeadphoneTypes).
+        val headphonesConnected =
+            readOrNull("headphones") { sources.outputDeviceTypes()?.any(HeadphoneTypes::isHeadphone) }
+
         return DeviceStatusMsg(
             batteryPct = battery.pct,
             charging = battery.charging,
@@ -110,7 +125,7 @@ class DeviceStatusReader internal constructor(
             alarmMuted = alarmMuted,
             interruptionFilter = filter,
             priorityAllowsAlarms = priorityAllowsAlarms,
-            headphonesConnected = null, // TODO(T26): AudioManager outputs via HeadphoneTypes.
+            headphonesConnected = headphonesConnected,
         )
     }
 

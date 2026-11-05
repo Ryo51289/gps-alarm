@@ -8,6 +8,7 @@ import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 
 import '../helpers/app_harness.dart';
+import '../helpers/fake_core_bridge.dart';
 import '../helpers/trip_fixtures.dart';
 
 void main() {
@@ -77,13 +78,18 @@ void main() {
   });
 
   testWidgets('full-screen routes cover the bottom navigation', (tester) async {
-    final h = await pumpAppHarness(tester);
+    // T26: screen 4 shows the running trip (without one it goes home).
+    final h = await pumpAppHarness(
+      tester,
+      bridge: FakeCoreBridge(active: activeTrip()),
+    );
     for (final (path, title) in [
       // T21: real screens 0 and 9 (first-run layout of screen 0 via go).
       (AppRoutes.onboarding, 'Để không bao giờ lỡ trạm'),
       (AppRoutes.batteryGuide, 'Giữ app chạy khi bạn ngủ'),
       (AppRoutes.destination, 'Chọn điểm đến'),
-      (AppRoutes.tracking, 'Đang theo dõi'),
+      // T26: real screen 4, titled with the destination.
+      (AppRoutes.tracking, 'Ga Huế'),
       (AppRoutes.alarm, 'Báo thức'),
       (AppRoutes.overshoot, 'Đã đi quá trạm'),
     ]) {

@@ -368,7 +368,10 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pump();
     expect(h.location, AppRoutes.alarmSettings);
-    bridge.startTripGate!.complete();
+    // T26: screen 4 is real now and reads the started trip (native snapshot).
+    bridge
+      ..active = activeTrip(tripId: kTestTripId)
+      ..startTripGate!.complete();
     await tester.pumpAndSettle();
     expect(h.location, AppRoutes.tracking);
     expect(bridge.callCount('startTrip'), 1);

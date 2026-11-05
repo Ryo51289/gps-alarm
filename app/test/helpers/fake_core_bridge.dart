@@ -269,7 +269,20 @@ class FakeCoreBridge implements CoreBridge {
     ));
     final gate = startTripGate;
     if (gate == null) {
-      return _answer('startTrip', startTripError, () {});
+      return _answer('startTrip', startTripError, () {
+        // T26: like native, a started trip is in the snapshot (screen 4
+        // reads it). Gated (late) answers leave [active] to the test.
+        if (startTripSetsActive) {
+          active ??= ActiveTripMsg(
+            config: config,
+            state: tripState(
+              tripId: config.tripId,
+              phase: TripPhaseMsg.acquiring,
+            ),
+            simulation: simulation,
+          );
+        }
+      });
     }
     calls.add('startTrip');
     return gate.future.then((_) {
@@ -279,7 +292,10 @@ class FakeCoreBridge implements CoreBridge {
   }
 
   @override
-  Future<void> stopTrip(String tripId) => _answer('stopTrip', null, () {});
+  Future<void> stopTrip(String tripId) {
+    stopTripCalls.add(tripId);
+    return _action('stopTrip', stopTripError);
+  }
 
   @override
   Future<ActiveTripMsg?> currentTrip() {
@@ -295,11 +311,46 @@ class FakeCoreBridge implements CoreBridge {
   }
 
   @override
-  Future<void> setBatteryChoice(String tripId, BatteryChoiceMsg choice) =>
-      _answer('setBatteryChoice', null, () {});
+  Future<void> setBatteryChoice(String tripId, BatteryChoiceMsg choice) {
+    batteryChoiceCalls.add((tripId: tripId, choice: choice));
+    return _action('setBatteryChoice', setBatteryChoiceError);
+  }
 
   @override
-  Future<void> dismiss(String tripId) => _answer('dismiss', null, () {});
+  Future<void> dismiss(String tripId) {
+    dismissCalls.add(tripId);
+    return _action('dismiss', dismissError);
+  }
+
+  // ------------------------------------------------------------ T26
+
+  /// A successful, ungated [startTrip] sets [active] when it is null.
+  bool startTripSetsActive = true;
+
+  /// Arguments of [stopTrip], [dismiss], [setBatteryChoice] and
+  /// [previewSound], in order.
+  final List<String> stopTripCalls = [];
+  final List<String> dismissCalls = [];
+  final List<({String tripId, BatteryChoiceMsg choice})> batteryChoiceCalls =
+      [];
+  final List<({String soundId, double volume})> previewSoundCalls = [];
+
+  Object? stopTripError;
+  Object? dismissError;
+  Object? setBatteryChoiceError;
+  Object? previewSoundError;
+
+  /// When set, [stopTrip], [dismiss] and [setBatteryChoice] wait for it.
+  Completer<void>? actionGate;
+
+  Future<void> _action(String method, Object? error) {
+    final gate = actionGate;
+    if (gate == null) {
+      return _answer(method, error, () {});
+    }
+    calls.add(method);
+    return gate.future.then((_) => error == null ? null : Future.error(error));
+  }
 
   @override
   Future<void> snooze(String tripId) => _answer('snooze', null, () {});
@@ -441,8 +492,11 @@ class FakeCoreBridge implements CoreBridge {
 
   @override
   Future<void> previewSound(String soundId, double volume) {
+    // T28 previewCalls/previewError and T26 previewSoundCalls/previewSoundError
+    // record the same call (two test suites, merged).
     previewCalls.add((soundId: soundId, volume: volume));
-    return _answer('previewSound', previewError, () {});
+    previewSoundCalls.add((soundId: soundId, volume: volume));
+    return _answer('previewSound', previewError ?? previewSoundError, () {});
   }
 
   @override
