@@ -20,6 +20,7 @@ internal class StepWork(s: EngineState) {
     var minD: Double? = s.minD
     var minDChord: Boolean = s.minDChord
     var passAnchorD: Double? = s.passAnchorD
+    var alarmedChordD: Double? = s.alarmedChordD
     var last3: List<Double> = s.last3
     var ground: Double? = s.ground
     var closing: Double? = s.closing
@@ -60,7 +61,8 @@ internal class StepWork(s: EngineState) {
     fun toState(): EngineState = EngineState(
         snapshotVersion = 1, params = p, config = cfg, nowMs = now, startedAtMs = startedAtMs, phase = phase, gps = gps,
         locationCause = locationCause, last = last, stopAnchor = stopAnchor, recent = recent, rejects = rejects,
-        dSmooth = dSmooth, dStartM = dStartM, minD = minD, minDChord = minDChord, passAnchorD = passAnchorD, last3 = last3, ground = ground, closing = closing,
+        dSmooth = dSmooth, dStartM = dStartM, minD = minD, minDChord = minDChord, passAnchorD = passAnchorD,
+        alarmedChordD = alarmedChordD, last3 = last3, ground = ground, closing = closing,
         movingTimeS = movingTimeS, movingSamples = movingSamples, movingDistM = movingDistM, stopStartMs = stopStartMs,
         slow = slow, cvGuard = cvGuard, policy = policy, policyIntervalAtLastFixS = policyIntervalAtLastFixS,
         gpsLostAtMs = gpsLostAtMs, lostEmittedBeforeFirstFix = lostEmittedBeforeFirstFix, preAlertArmed = preAlertArmed,
@@ -139,7 +141,7 @@ internal fun initialState(config: TripConfig, params: EngineParams, nowMs: Long)
     snapshotVersion = 1, params = params, config = config, nowMs = nowMs, startedAtMs = nowMs,
     phase = TripPhase.ACQUIRING, gps = GpsStatus.NO_FIX_YET, locationCause = AvailabilityCause.AVAILABLE,
     last = null, stopAnchor = null, recent = emptyList(), rejects = emptyList(), dSmooth = null, dStartM = null, minD = null,
-    passAnchorD = null,
+    passAnchorD = null, alarmedChordD = null,
     last3 = emptyList(), ground = null, closing = null, movingTimeS = 0.0, movingSamples = 0, movingDistM = 0.0,
     stopStartMs = null, slow = false, cvGuard = emptyList(), policy = null, policyIntervalAtLastFixS = 0, gpsLostAtMs = null,
     lostEmittedBeforeFirstFix = false, preAlertArmed = false, preAlertFired = false, arrivedFired = false,
@@ -281,6 +283,7 @@ private fun applyFix(w: StepWork, f: LocationFix) {
             w.dSmooth = rec.d
             w.minD = rec.d
             w.minDChord = false
+            w.alarmedChordD = null // T10.7 round 2 (C31)
             w.last3 = listOf(rec.d)
             w.stopStartMs = null
             w.stopAnchor = null
@@ -291,16 +294,25 @@ private fun applyFix(w: StepWork, f: LocationFix) {
             // T10.5 round 3/3b (§4.11): first in ACCEPT, from the state before this fix (gps, lostAfterS, last). A chord through
             // the destination lowers minD and ends the stop from before the gap (the vehicle went along the chord).
             // T10.5 round 3f: not after a fix rejected as IMPLAUSIBLE since L (`rejects` read before ACCEPT cleared it).
+            // T10.7 (C30): also in ALARMING/SNOOZED (overshootAtMs == null). T10.7 round 2 (C31): after the first alarm the chord
+            // only proves "came near" (alarmedChordD); minD, minDChord and the stop are left alone, so "moved away > 1 km" is
+            // measured from observed fixes.
             val gap = noRejectsSincePrev &&
-                isGapFix(w.phase, w.alarm.atMs != null, w.gps, prev, rec, p, w.policyIntervalAtLastFixS, w.policy)
+                isGapFix(w.phase, w.overshootAtMs, w.gps, prev, rec, p, w.policyIntervalAtLastFixS, w.policy)
+            val notYet = (w.phase == TripPhase.ACQUIRING || w.phase == TripPhase.TRACKING) && w.alarm.atMs == null
             val dChord = if (gap) chordClosest(prev!!, rec, w.cfg) else null
             if (dChord != null) {
-                w.stopStartMs = null
-                w.stopAnchor = null
-                val m = w.minD
-                if (m == null || dChord < m) {
-                    w.minD = dChord
-                    w.minDChord = true // T10.5 round 3e
+                if (notYet) {
+                    w.stopStartMs = null
+                    w.stopAnchor = null
+                    val m = w.minD
+                    if (m == null || dChord < m) {
+                        w.minD = dChord
+                        w.minDChord = true // T10.5 round 3e
+                    }
+                } else {
+                    val a = w.alarmedChordD
+                    w.alarmedChordD = if (a == null) dChord else TMath.min(a, dChord)
                 }
             }
             if (prev != null) {
@@ -403,7 +415,7 @@ private fun runSteps3to9(w: StepWork) {
     }
     // 7. Overshoot.
     if (w.fixAccepted && isOvershoot(w)) {
-        val past = TMath.roundHalfUp(w.dSmooth!! - w.minD!!)
+        val past = TMath.roundHalfUp(w.dSmooth!! - nearD(w)!!) // T10.7 round 2 (C31): from the estimated closest point
         when (w.phase) {
             TripPhase.ALARMING ->
                 if (w.alarm.ringing) w.phase = TripPhase.OVERSHOT

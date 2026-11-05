@@ -538,7 +538,7 @@ class T106Test {
             val st = trackingState().copy(minD = 1234.5, minDChord = true, passAnchorD = anchor)
             val json = TripEngine.encodeSnapshot(st)
             val lit = anchor?.toString() ?: "null"
-            assertTrue(json.contains("\"minDChord\":true,\"passAnchorD\":$lit,\"last3\""), json.substringAfter("\"minDChord\"").take(60))
+            assertTrue(json.contains("\"minDChord\":true,\"passAnchorD\":$lit,\"alarmedChordD\":null,\"last3\""), json.substringAfter("\"minDChord\"").take(60))
             assertEquals(st, TripEngine.decodeSnapshot(json))
             val without = json.replace(",\"passAnchorD\":$lit", "")
             assertFalse(without.contains("passAnchorD"))

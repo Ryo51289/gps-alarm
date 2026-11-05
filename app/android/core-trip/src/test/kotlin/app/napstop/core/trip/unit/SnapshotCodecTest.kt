@@ -49,6 +49,7 @@ class SnapshotCodecTest {
             nowMs = S + rng.nextInt(100_000_000), last = fix(), stopAnchor = if (rng.nextBoolean()) fix() else null,
             recent = List(rng.nextInt(4)) { fix() }, rejects = List(rng.nextInt(4)) { fix() }, dSmooth = d(), dStartM = d(), minD = d(), minDChord = i % 2 == 0,
             passAnchorD = if (i % 3 == 1) null else d(), // T10.6 (U124): null and numbers interleaved
+            alarmedChordD = if (i % 4 < 2) null else i * 37.125 + 0.1, // T10.7 round 2 (U129): null and numbers interleaved
             last3 = List(rng.nextInt(4)) { d() }, ground = if (rng.nextBoolean()) d() else null, closing = d(), movingTimeS = d(),
             movingSamples = rng.nextInt(1000), movingDistM = d(), stopStartMs = if (rng.nextBoolean()) S + 5 else null, slow = rng.nextBoolean(),
             cvGuard = List(guardSizes[i % 4]) { d() }, policy = policy(SamplingTier.entries[rng.nextInt(3)]), gps = GpsStatus.entries[rng.nextInt(3)],
@@ -86,6 +87,10 @@ class SnapshotCodecTest {
                 val sc = s.copy(minDChord = chord, passAnchorD = anchor)
                 assertBitEqual(sc, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sc)))
                 assertEquals(anchor?.let { bits(it) }, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sc)).passAnchorD?.let { bits(it) })
+                // T10.7 round 2 (U129): alarmedChordD with the same values.
+                val sa = sc.copy(alarmedChordD = anchor)
+                assertBitEqual(sa, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sa)))
+                assertEquals(anchor?.let { bits(it) }, TripEngine.decodeSnapshot(TripEngine.encodeSnapshot(sa)).alarmedChordD?.let { bits(it) })
             }
         }
     }

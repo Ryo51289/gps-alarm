@@ -24,6 +24,7 @@ internal object SnapshotCodec {
         "minD" to dbl(s.minD),
         "minDChord" to jBool(s.minDChord),
         "passAnchorD" to dbl(s.passAnchorD),
+        "alarmedChordD" to dbl(s.alarmedChordD),
         "last3" to JArray(s.last3.map { jDbl(it) }),
         "ground" to dbl(s.ground),
         "closing" to dbl(s.closing),
@@ -138,6 +139,7 @@ internal object SnapshotCodec {
             minD = r.doubleOrNull("minD"),
             minDChord = r.boolOrFalse("minDChord"),
             passAnchorD = r.doubleOrNullIfMissing("passAnchorD"),
+            alarmedChordD = r.doubleOrNullIfMissing("alarmedChordD"), // T10.7 round 2: third named exception to C20
             last3 = r.array("last3").mapIndexed { i, v -> dblValue(v, "last3[$i]") },
             ground = r.doubleOrNull("ground"),
             closing = r.doubleOrNull("closing"),

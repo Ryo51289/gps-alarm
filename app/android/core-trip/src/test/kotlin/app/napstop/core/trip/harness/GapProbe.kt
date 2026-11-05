@@ -26,6 +26,8 @@ internal class GapProbe(
     val dChord: Double?,
     val standingTerm: Boolean,
     val dFixM: Double,
+    /** T10.7 (U116 a1/a1b): phase before the Step. */
+    val phase: TripPhase,
 ) {
     companion object {
         fun of(s0: EngineState, input: LocationFix, s1: Step): GapProbe? {
@@ -33,11 +35,11 @@ internal class GapProbe(
             val f = s1.state.last ?: return null
             if (f == l || f.fixAtMs != input.fixAtMs) return null
             val recovered = s1.events.any { it is GpsRecovered }
-            val gap = s0.rejects.isEmpty() && isGapFix(s0.phase, s0.alarm.atMs != null, s0.gps, l, f, s0.params, s0.policyIntervalAtLastFixS, s0.policy)
+            val gap = s0.rejects.isEmpty() && isGapFix(s0.phase, s0.overshootAtMs, s0.gps, l, f, s0.params, s0.policyIntervalAtLastFixS, s0.policy)
             val ch = chordProjection(l.lat, l.lng, f.lat, f.lng, s0.config)
             val dChord = if (gap && ch != null && ch.u > 0.0 && ch.u < 1.0) ch.distM else null
             val dFix = distanceM(f.lat, f.lng, s0.config.destLat, s0.config.destLng)
-            return GapProbe(input.atMs, recovered, gap, ch?.u, ch?.distM, dChord, standingTerm(s0, s1), dFix)
+            return GapProbe(input.atMs, recovered, gap, ch?.u, ch?.distM, dChord, standingTerm(s0, s1), dFix, s0.phase)
         }
 
         /** Round-3c `notCloser` term of the overshoot rule, evaluated with the phase/alarm before the Step and minD/dSmooth after. */

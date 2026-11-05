@@ -81,6 +81,8 @@ data class EngineState(
     val minDChord: Boolean = false,
     /** T10.6 (C27, C28): distance mark of the slow-vehicle passed-closest net, set only once already past the closest point. */
     val passAnchorD: Double? = null,
+    /** T10.7 round 2 (C31): smallest GPS-gap chord distance taken after the first alarm (ALARMING/SNOOZED); "came near" only. */
+    val alarmedChordD: Double? = null,
     val last3: List<Double>,
     val ground: Double?,
     val closing: Double?,

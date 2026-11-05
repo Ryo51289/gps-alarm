@@ -31,6 +31,7 @@ import app.napstop.core.trip.batteryAt
 import app.napstop.core.trip.estimate
 import app.napstop.core.trip.fallbackPredictedAt
 import app.napstop.core.trip.fallbackTarget
+import app.napstop.core.trip.harness.AlarmedChordCounter
 import app.napstop.core.trip.harness.Checks
 import app.napstop.core.trip.harness.RunKey
 import app.napstop.core.trip.harness.RunResult
@@ -146,6 +147,10 @@ class TesterT122Test {
         var steps = 0
         var lastInput = "start"
         var truthSpeed: ((Long) -> Double)? = null
+
+        /** T10.7 §10: signed true distance (ms → m) and the counter of chord fixes after an alarm (null = not counted). */
+        var truthD: ((Long) -> Double)? = null
+        var chord: AlarmedChordCounter? = null
         val believedStopOverLag = ArrayList<String>()
         var trace: StringBuilder? = null
 
@@ -177,6 +182,11 @@ class TesterT122Test {
             val prev = step
             val s = TripEngine.reduce(prev.state, input)
             if (input is LocationFix || input is BatterySample) noteInfo(prev, s)
+            if (input is LocationFix) {
+                chord?.onFix(tag, prev.state, input, s, truthD?.invoke(s.state.nowMs))?.let {
+                    v("T10.7 alarmed-chord Overshoot before the destination was passed: $it")
+                }
+            }
             return afterStep(prev, s, label, input)
         }
 
@@ -538,7 +548,15 @@ class TesterT122Test {
      * is [past] m beyond the destination when it leaves the gap at F − [x] s (first fix: unsigned distance, Doppler speed). Then
      * fixes every policy interval ([awake]) or none (Doze, only wake-ups).
      */
-    private fun scenarioB(config: TripConfig, past: Double, x: Double, awake: Boolean, fromStart: Boolean, implausibleInGap: Boolean = false): ResultB {
+    private fun scenarioB(
+        config: TripConfig,
+        past: Double,
+        x: Double,
+        awake: Boolean,
+        fromStart: Boolean,
+        implausibleInGap: Boolean = false,
+        chord: AlarmedChordCounter? = null,
+    ): ResultB {
         val key = "${config.mode}${config.distanceThresholdM ?: config.timeThresholdMin ?: ""} fromStart=$fromStart awake=$awake past=${past.toInt()} x=${x.toInt()}"
         val sim: Sim
         val gapStart: Long
@@ -568,6 +586,8 @@ class TesterT122Test {
         while (sim.advance(tf)) Unit
         val v2 = (d0 + past) / ((tf - fixAt0) / 1000.0)
         val truth = Truth(d0, fixAt0).also { it.segs += fixAt0 to v2 }
+        sim.truthD = truth::dAt
+        sim.chord = chord
         var lastFix = tf
         val rangBefore = sim.alarms.isNotEmpty()
         var periodMs: Long? = null
@@ -603,6 +623,9 @@ class TesterT122Test {
     @Test
     fun `U115 destination passed inside a tunnel, first fix at most 90 s before the fallback - no TIMEOUT, alarm a few fixes after the gap`() {
         val out = StringBuilder()
+        // T10.7 §10. Always 0 by construction (no fix is fed after the gap on "rang before the fix" runs): not evidence for T10.7,
+        // which U127, TR43 and T122 e1/e2 cover (review T12.4 nit #5).
+        val chord = AlarmedChordCounter()
         val viol = ArrayList<String>()
         val late = ArrayList<String>()
         val afterFix = ArrayList<String>()
@@ -613,7 +636,7 @@ class TesterT122Test {
             for (past in listOf(300.0, 1_000.0, 2_000.0, 2_900.0, 3_100.0, 3_500.0, 5_000.0, 10_000.0)) {
                 for (x in listOf(90.0, 60.0, 31.0, 29.0, 20.0, 10.0)) {
                     if (config.mode != AlarmMode.DISTANCE && (!fromStart || x == 60.0 || x == 20.0)) continue
-                    val r = scenarioB(config, past, x, awake, fromStart)
+                    val r = scenarioB(config, past, x, awake, fromStart, chord = chord)
                     out.append(r.line).append('\n')
                     viol += r.viol
                     if (r.reason == AlarmReason.TIMEOUT) timeouts++
@@ -628,6 +651,7 @@ class TesterT122Test {
                 }
             }
         }
+        AlarmedChordCounter.report("U115", chord)
         File(outDir, "t122-b-tunnel.txt").writeText(
             "violations=${viol.take(40)}\nTIMEOUT=$timeouts\nawake runs, first alarm − first fix after the gap (s → runs): $afterFixS\n" +
                 "over the bound (${afterFix.size}): $afterFix\n" +
@@ -647,6 +671,9 @@ class TesterT122Test {
     @Test
     fun `U115 variant one IMPLAUSIBLE fix inside the gap in 10 percent of runs - TIMEOUT count recorded (RK20 d)`() {
         val out = StringBuilder()
+        // T10.7 §10. Always 0 by construction (no fix is fed after the gap on "rang before the fix" runs): not evidence for T10.7,
+        // which U127, TR43 and T122 e1/e2 cover (review T12.4 nit #5).
+        val chord = AlarmedChordCounter()
         val viol = ArrayList<String>()
         val reasons = sortedMapOf<String, Int>()
         var timeouts = 0
@@ -658,7 +685,7 @@ class TesterT122Test {
                 for (x in listOf(90.0, 60.0, 31.0, 29.0, 20.0, 10.0)) {
                     if (config.mode != AlarmMode.DISTANCE && (!fromStart || x == 60.0 || x == 20.0)) continue
                     if (idx++ % 10 != 0) continue
-                    val r = scenarioB(config, past, x, awake, fromStart, implausibleInGap = true)
+                    val r = scenarioB(config, past, x, awake, fromStart, implausibleInGap = true, chord = chord)
                     runs++
                     out.append(r.line).append('\n')
                     viol += r.viol
@@ -667,6 +694,7 @@ class TesterT122Test {
                 }
             }
         }
+        AlarmedChordCounter.report("U115 variant", chord)
         File(outDir, "t122-b-tunnel-implausible.txt").writeText(
             "runs=$runs TIMEOUT=$timeouts firstAlarm=$reasons violations=${viol.take(40)}\n\n$out",
         )
@@ -915,6 +943,9 @@ class TesterT122Test {
 
     private class FuzzStats {
         var trips = 0
+
+        /** T10.7 §10: chord fixes after an alarm and the Overshoot events after them. */
+        val chord = AlarmedChordCounter()
         var steps = 0
         var urgent = 0
         var soon = 0
@@ -995,6 +1026,8 @@ class TesterT122Test {
         val resume = stopAt + (r.dbl(20.0, 1_500.0) * 1000).toLong()
         truth.segs += resume to c * r.dbl(0.5, 1.5)
         sim.truthSpeed = truth::speedAt
+        sim.truthD = truth::dAt
+        sim.chord = st.chord
         val fixP = r.dbl(0.3, 1.0)
         // Doze (60 %): from some time before the stop, a fix only at a wake-up Tick (probability fixInDozeP), as U111 withfix.
         val dozeAt = if (r.chance(0.6)) stopAt - r.int(1_800_000) else Long.MAX_VALUE
@@ -1090,6 +1123,8 @@ class TesterT122Test {
             else S + (r.dbl(0.0, 1.5) * tripS * 1000).toLong()
         } else null
         val sim = Sim(TripEngine.start(config, params, S), "e2 seed=$seed $mode thr=${config.distanceThresholdM}/${config.timeThresholdMin} d0=${d0.toInt()}", r, okP = 0.85, cancelLagMaxMs = 5_000)
+        sim.truthD = truth::dAt
+        sim.chord = st.chord
         var lastFix = S - 1_000_000L
         var batteryAtT = S
         var level = 20 + r.int(81)
@@ -1163,6 +1198,8 @@ class TesterT122Test {
         for (seed in 1L..6_000L) stopNearAlarm(seed, e1)
         val e2 = FuzzStats()
         for (seed in 10_001L..12_000L) dozeTrip(seed, e2)
+        AlarmedChordCounter.report("T122 e1", e1.chord)
+        AlarmedChordCounter.report("T122 e2", e2.chord)
         File(outDir, "t122-e-fuzz.txt").writeText(e1.text("e1 stop near the alarm boundary") + "\n" + e2.text("e2 Doze with fixes at wake-ups, kills"))
         assertTrue(e1.urgent + e2.urgent >= 150) { "the fuzz exercises the urgent later shift: ${e1.urgent} + ${e2.urgent}" }
         assertTrue(e1.viol.isEmpty() && e2.viol.isEmpty()) { "e1 ${e1.viol.take(5)}\ne2 ${e2.viol.take(5)}" }

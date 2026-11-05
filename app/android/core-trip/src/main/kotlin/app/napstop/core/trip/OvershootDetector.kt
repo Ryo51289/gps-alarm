@@ -5,7 +5,9 @@ import kotlin.math.sqrt
 
 // T10 §4.11: overshoot, passed-closest net, arrived. Only evaluated on a Step with an accepted fix.
 // T10.5 round 3/3b: destination passed inside a GPS gap (chord between the fix before the gap and the first fix after it lowers
-// minD; no immediate chord alarm, round 3b).
+// minD; no immediate chord alarm, round 3b). T10.7: also after an alarm (ALARMING/SNOOZED), so a chime that stopped by itself
+// re-rings OVERSHOOT by the usual rule (increasing && fast) when the vehicle passed the destination inside the gap (RK24).
+// T10.7 round 2 (C31): after the alarm the chord only proves "came near" (alarmedChordD → nearD), never "moved away 1 km".
 
 /** ACCEPT: minD and the last 3 dSmooth values. */
 internal fun updateMinDLast3(w: StepWork) {
@@ -27,10 +29,21 @@ internal fun isFast(w: StepWork): Boolean = recentSpeed(w) * 3.6 > w.p.overshoot
 private fun nearRadiusM(w: StepWork): Double =
     TMath.max(w.p.overshootNearMinM, if (w.cfg.mode == AlarmMode.DISTANCE) thrM(w.cfg) else 0).toDouble()
 
+/**
+ * T10.7 round 2 (C31): "came near" distance — minD, or min(minD, alarmedChordD) when a chord was taken after the first alarm
+ * (exactly minD, no call to min, when alarmedChordD is null).
+ */
+internal fun nearD(w: StepWork): Double? {
+    val m = w.minD ?: return null
+    val a = w.alarmedChordD ?: return m
+    return TMath.min(m, a)
+}
+
 internal fun isOvershoot(w: StepWork): Boolean {
     val p = w.p
     val minD = w.minD ?: return false
     val ds = w.dSmooth ?: return false
+    val nd = nearD(w)!!
     val phaseOk = w.phase == TripPhase.TRACKING || w.phase == TripPhase.ALARMING || w.phase == TripPhase.SNOOZED
     // T10.5 round 3b/3c: or, before any alarm, the vehicle is not getting closer: a stop in progress, or dSmooth not below its
     // value 2 fixes earlier (lag-2, also true for repeated or alternating coordinates of a parked vehicle with poor fixes).
@@ -40,7 +53,9 @@ internal fun isOvershoot(w: StepWork): Boolean {
     val notCloser = w.stopStartMs != null ||
         (l3.size == 3 && l3[2] >= l3[0] && TMath.min(l3[0], TMath.min(l3[1], l3[2])) - minD >= p.overshootOpenM.toDouble())
     val notYet = (w.phase == TripPhase.ACQUIRING || w.phase == TripPhase.TRACKING) && w.alarm.atMs == null
-    return w.overshootAtMs == null && phaseOk && minD < nearRadiusM(w) &&
+    // T10.7 round 2 (C31): (1) came near uses nearD (may come from a chord after the alarm); (2) moved away > 1 km uses minD
+    // (observed fixes, or a chord before any alarm), never alarmedChordD.
+    return w.overshootAtMs == null && phaseOk && nd < nearRadiusM(w) &&
         ds - minD >= p.overshootOpenM.toDouble() && ((increasing(l3) && isFast(w)) || (notYet && w.minDChord && notCloser))
 }
 
@@ -74,19 +89,23 @@ internal fun chordClosest(l: FixRec, f: FixRec, cfg: TripConfig): Double? {
 }
 
 /**
- * T10.5 round 3 `gapFix`: first accepted fix after a GPS gap, before any alarm. [gpsBefore], [policyIntervalAtLastFixS] and
- * [policy] are the values before step 2 changed them; [l] is `last` before this fix.
+ * T10.5 round 3 `gapFix`: first accepted fix after a GPS gap. [phase], [overshootAtMs], [gpsBefore],
+ * [policyIntervalAtLastFixS] and [policy] are the values before step 2 changed them; [l] is `last` before this fix.
+ * T10.7 (C30, RK24): also after an alarm (ALARMING/SNOOZED). T10.7 round 2 (C31): there the chord no longer lowers minD;
+ * it only records alarmedChordD (the "came close" half via nearD), the re-ring still needs increasing && fast against minD.
  */
 internal fun isGapFix(
     phase: TripPhase,
-    alarmed: Boolean,
+    overshootAtMs: Long?,
     gpsBefore: GpsStatus,
     l: FixRec?,
     f: FixRec,
     p: EngineParams,
     policyIntervalAtLastFixS: Int,
     policy: SamplingPolicy?,
-): Boolean = l != null && (phase == TripPhase.ACQUIRING || phase == TripPhase.TRACKING) && !alarmed &&
+): Boolean = l != null &&
+    (phase == TripPhase.ACQUIRING || phase == TripPhase.TRACKING || phase == TripPhase.ALARMING || phase == TripPhase.SNOOZED) &&
+    overshootAtMs == null &&
     (gpsBefore == GpsStatus.LOST || f.fixAtMs - l.fixAtMs >= lostAfterS(p, policyIntervalAtLastFixS, policy) * 1000L)
 
 private fun passedRadiusM(w: StepWork, e: Estimate): Double {

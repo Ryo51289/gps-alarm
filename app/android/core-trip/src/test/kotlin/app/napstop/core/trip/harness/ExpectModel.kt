@@ -85,11 +85,19 @@ internal class TraceModel(
     val cases: List<CaseEntry>,
     /** `truth.gpsGaps` as (fromT, toT) in seconds (TR39 selects traces with at least one; U116 a2 uses the end of the first). */
     val gpsGaps: List<Pair<Int, Int>> = emptyList(),
+    /** T10.7 TR43 (g)/(g2): samples transformed in memory by a test (never written to a file); null = read [gpxFile]. */
+    private val gpxOverride: GpxTrace? = null,
 ) {
     val gpsGapCount: Int get() = gpsGaps.size
 
+    /** Same trace with its samples replaced by [samples] (same times; TR43 (g)/(g2)). */
+    fun withSamples(samples: List<TraceSample>): TraceModel = TraceModel(
+        id, vehicle, gpxFile, startMs, intervalS, durationS, sampleCount, destLat, destLng, arrivalT, cases, gpsGaps,
+        GpxTrace(startMs, samples),
+    )
+
     val gpx: GpxTrace by lazy {
-        val g = Gpx.read(gpxFile, intervalS)
+        val g = gpxOverride ?: Gpx.read(gpxFile, intervalS)
         require(g.startMs == startMs && g.samples.size == sampleCount && g.samples.last().t == durationS) {
             "gpx/expect mismatch for $id"
         }

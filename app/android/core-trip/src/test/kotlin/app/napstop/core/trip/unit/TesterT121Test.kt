@@ -28,6 +28,7 @@ import app.napstop.core.trip.TripEngine
 import app.napstop.core.trip.TripPhase
 import app.napstop.core.trip.VehicleKind
 import app.napstop.core.trip.WAKE_GUARD_MS
+import app.napstop.core.trip.harness.AlarmedChordCounter
 import app.napstop.core.trip.harness.Checks
 import app.napstop.core.trip.harness.GapProbe
 import app.napstop.core.trip.lostAfterS
@@ -395,6 +396,9 @@ class TesterT121Test {
 
     private class FuzzStats {
         var trips = 0
+
+        /** T10.7 §10: chord fixes after an alarm and the Overshoot events after them. */
+        val alarmedChord = AlarmedChordCounter()
         var steps = 0
         var probes = 0
         val firstBy = sortedMapOf<String, Int>()
@@ -675,6 +679,10 @@ class TesterT121Test {
                         st.gapLines += "$tripTag t=${(t - S) / 1000.0} truthD=${dTruth.toInt()} chordMinD=$cm $kinds"
                         if (dTruth > 0.0) st.v("chord minD used before the destination was passed", st.gapLines.last())
                     }
+                    // T10.7 §10: a chord after the alarm (ALARMING/SNOOZED) followed by an Overshoot before the destination.
+                    st.alarmedChord.onFix(tripTag, s0, input, step, truth.dAt((t - S) / 1000.0))?.let {
+                        st.v("T10.7 alarmed-chord Overshoot before the destination was passed", it)
+                    }
                 }
                 if (input is LocationFix || input is BatterySample) lastInfo = infoStep(t, s0, step)
                 if (!rang && step.events.any { it is Alarm }) {
@@ -840,6 +848,7 @@ class TesterT121Test {
         val st = FuzzStats()
         for (seed in seeds) dozeTrip(seed, variant, okP, killP, battery, st, params = params)
         if (!write) return st
+        AlarmedChordCounter.report("U111 $name", st.alarmedChord)
         val late = st.lateVsTruth.sorted()
         val lateTxt = if (late.isEmpty()) "-" else "min ${late.first().toInt()} m, p05 ${late[late.size / 20].toInt()} m, median ${late[late.size / 2].toInt()} m, " +
             "rang after passing the threshold: ${late.count { it < 0 }}/${late.size}"

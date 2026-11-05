@@ -202,7 +202,8 @@ class T105GapTest {
         val f = fix(f0, -300.0)
         assertTrue(f.state.minD!! >= 299.0, "f minD ${f.state.minD}")
         assertEquals(AlarmReason.DISTANCE, f.events.filterIsInstance<Alarm>().single().reason, "f")
-        // (g) already alarmed (GPS_LOST while lost): no new Alarm, minD not lowered by the chord.
+        // (g) already alarmed (GPS_LOST while lost): no new Alarm at the first fix, minD not lowered by the chord. T10.7 round 2
+        // (C31): the chord after the alarm only goes to alarmedChordD ("came near", U127).
         val g0 = reproState().copy(
             phase = TripPhase.ALARMING,
             alarm = AlarmState.EMPTY.copy(atMs = n - 60_000, reason = AlarmReason.GPS_LOST, source = AlarmSource.ENGINE, lastRingAtMs = n - 60_000, ringing = true),
@@ -211,6 +212,8 @@ class T105GapTest {
         val g = fix(g0, -3_100.0)
         assertTrue(g.events.none { it is Alarm }, "g ${g.events}")
         assertTrue(g.state.minD!! >= 3_000.0, "g minD ${g.state.minD}")
+        assertTrue(g.state.alarmedChordD!! <= 1.0, "g alarmedChordD ${g.state.alarmedChordD}")
+        assertTrue(!g.state.minDChord, "g minDChord")
         // (h) not yet passed: 5 000 m on the same side (seed 26 pattern): no alarm, the urgent later shift as U109.
         val h = fix(reproState(), 5_000.0, spd = 0.8)
         assertTrue(h.events.none { it is Alarm }, "h ${h.events}")
@@ -729,6 +732,9 @@ class T105GapTest {
      * carries testId `TR40` in expect.json. (a1) non-TR40 traces: no probe with `dChord`. (a2) TR40 traces: every main run has
      * exactly one, at the first accepted fix after `gpsGaps[0]`, with 0 < u < 1, dChord < nearRadius of the case and
      * d_f − dChord ≥ overshootOpenM; on the `all` run at `g.end` with dChord 483.5 ± 0.5 m and u 0.797 ± 0.001. (a3) ≥ 6 traces.
+     * T10.7: (a1) by phase — only probes with phase ∈ {ACQUIRING, TRACKING}; (a1b) non-TR40 probes in ALARMING/SNOOZED with a
+     * dChord do not pass the destination meaningfully: dChord ≥ nearRadius || d_f − dChord < overshootOpenM (list in
+     * `u116-a1b.txt`).
      */
     @Test
     fun `U116 a the GPS-gap chord goes through a fixture destination only on TR40 traces`() {
@@ -738,16 +744,35 @@ class T105GapTest {
         val traces = probes.map { it.first.key.traceId }.toSortedSet()
         val lines = probes.joinToString("\n") { (o, g) ->
             "${o.key.run} t=${(g.atMs - o.startMs) / 1000.0} recovered=${g.recovered} gapFix=${g.gapFix} u=${g.u} chord=${g.chordM} " +
-                "dChord=${g.dChord} dFix=${g.dFixM} standingTerm=${g.standingTerm} tr40=${o.key.traceId in tr40}"
+                "dChord=${g.dChord} dFix=${g.dFixM} standingTerm=${g.standingTerm} tr40=${o.key.traceId in tr40} phase=${g.phase}"
         }
         File(outDir, "u116-gap.txt").writeText("traces=$traces probes=${probes.size} tr40=$tr40\n$lines\n")
         assertTrue(probes.any { it.second.recovered }, "no GpsRecovered Step on the fixtures?")
         assertTrue(traces.size >= 6, "(a3) traces with probes: $traces")
         assertTrue(tr40.isNotEmpty(), "(a2) no fixture case carries testId TR40")
 
-        // (a1)
-        val stray = probes.filter { it.second.dChord != null && it.first.key.traceId !in tr40 }
+        // (a1) T10.7: before any alarm only.
+        val notYet = setOf(TripPhase.ACQUIRING, TripPhase.TRACKING)
+        val stray = probes.filter { it.second.dChord != null && it.first.key.traceId !in tr40 && it.second.phase in notYet }
         assertTrue(stray.isEmpty()) { "(a1) chord through the destination on a non-TR40 trace: ${stray.take(10).map { it.first.key.run }}" }
+
+        // (a1b) T10.7: after an alarm (ALARMING/SNOOZED), the chord must not pass the destination meaningfully.
+        val alarmed = probes.filter {
+            it.second.dChord != null && it.first.key.traceId !in tr40 && (it.second.phase == TripPhase.ALARMING || it.second.phase == TripPhase.SNOOZED)
+        }
+        val a1bBad = ArrayList<String>()
+        val a1bLines = alarmed.map { (o, g) ->
+            val trace = tracesById.getValue(o.key.traceId)
+            val (cfg, p) = caseSetup(trace, trace.cases.first { it.id == o.key.caseId }.model!!, emptyMap())
+            val nearRadius = maxOf(p.overshootNearMinM, if (cfg.mode == AlarmMode.DISTANCE) cfg.distanceThresholdM ?: 0 else 0)
+            val dChord = g.dChord!!
+            val ok = dChord >= nearRadius || g.dFixM - dChord < p.overshootOpenM
+            val line = "${o.key.run} t=${(g.atMs - o.startMs) / 1000.0} phase=${g.phase} u=${g.u} dChord=$dChord dFix=${g.dFixM} ok=$ok"
+            if (!ok) a1bBad += line
+            line
+        }
+        File(outDir, "u116-a1b.txt").writeText("probes=${alarmed.size} bad=${a1bBad.size}\n${a1bLines.joinToString("\n")}\n")
+        assertTrue(a1bBad.isEmpty()) { "(a1b) chord passing the destination after an alarm on a non-TR40 trace: ${a1bBad.take(10)}" }
 
         // (a2)
         val bad = ArrayList<String>()
