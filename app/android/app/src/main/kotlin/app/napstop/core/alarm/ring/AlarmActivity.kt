@@ -333,12 +333,17 @@ class AlarmActivity : Activity() {
             return
         }
         val trip = tripId
+        // T27 D6: how far past the destination, for "Đã qua …" on screen 8 (read before finish).
+        val pastM = session.state.value.overshootPastM
         val open = {
             try {
                 startActivity(
                     Intent().setClassName(packageName, MAIN_ACTIVITY)
                         .putExtra(LaunchActions.EXTRA_LAUNCH, LaunchActions.OVERSHOOT_ROUTE)
                         .putExtra(LaunchActions.EXTRA_TRIP_ID, trip)
+                        .also { i -> if (pastM != null) i.putExtra(LaunchActions.EXTRA_PAST_M, pastM) }
+                        // Review T27 #1: MainActivity drops an action older than 10 min (a replayed task intent).
+                        .putExtra(LaunchActions.EXTRA_AT_WALL_MS, System.currentTimeMillis())
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
             } catch (e: Exception) {

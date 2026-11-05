@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
+import 'package:napstop/features/alarm/domain/route_back.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 
 /// Route paths (T22 §3.1). Paths are a contract: later tasks never change
@@ -39,10 +40,11 @@ abstract final class AppRoutes {
   /// Screen 4, with states 6 and 7 (T26).
   static const String tracking = '/tracking';
 
-  /// Screen 5 (T27).
+  /// Screen 5 (T27), the Flutter fallback: `/alarm?trip=<id>`.
   static const String alarm = '/alarm';
 
-  /// Screen 8 (T27).
+  /// Screen 8 (T27): `/overshoot?trip=<id>[&past=<m>][&open=1]`
+  /// (`OvershootArgs`).
   static const String overshoot = '/overshoot';
 }
 
@@ -71,6 +73,9 @@ extension AppNavigation on BuildContext {
 
   /// Screen 4. Uses `go`: Back does not return to the previous screen.
   void openTracking() => go(AppRoutes.tracking);
+
+  /// Screen 8 (T27 D9). Uses `go`: the trip is over, nothing to go back to.
+  void openOvershoot(OvershootArgs args) => go(args.toLocation());
 
   Future<void> openOnboarding() => push<void>(AppRoutes.onboarding);
 

@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import app.napstop.core.alarm.AppLocale
+import app.napstop.core.alarm.LaunchActions
 import app.napstop.core.alarm.SoundPreviewPlayer
 import app.napstop.core.bridge.permission.ActivityPermissionPrompter
 import app.napstop.core.bridge.permission.AndroidPermissionSources
@@ -58,7 +59,8 @@ object BridgeRegistrar {
                 backgroundChecks = BackgroundCheckScheduler(appContext),
                 warn = { Log.w(TAG, it) },
             )
-        // T16 §4.7: real sound preview; never over a ring that is on.
+        // T16 §4.7: real sound preview; never over a ring that is on. T27 §9: launch action slot and the native alarm
+        // screen; the activity is reached through the prompter, which forgets it on unregister.
         val host = RuntimeHost.get(appContext)
         // T28: read the language file once off the main thread, before the first notification needs it.
         host.scope.launch(Dispatchers.IO) { AppLocale.tag(appContext) }
@@ -67,6 +69,8 @@ object BridgeRegistrar {
                 SoundPreviewPlayer.get(appContext),
                 ringActive = host.alarm::ringActive,
                 setLocale = { tag -> AppLocale.set(appContext, tag) },
+                consumeLaunch = LaunchActions::consume,
+                showAlarm = { tripId -> prompter.activity?.let { host.alarm.showAlarmScreen(it, tripId) } ?: false },
             )
         return register(messenger, backend(appContext), permissionApi = permissionApi, prompter = prompter, alarmApi = alarmApi)
     }

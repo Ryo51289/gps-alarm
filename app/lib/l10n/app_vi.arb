@@ -2744,5 +2744,49 @@
         "type": "String"
       }
     }
+  },
+  "overshootPastUnknown": "Bạn đã đi quá điểm đến",
+  "@overshootPastUnknown": {
+    "description": "Screen 8 (T27): line when the distance past the stop is unknown; also the title when the trip is not in the history."
+  },
+  "overshootAlarmOff": "Đã tắt báo thức",
+  "@overshootAlarmOff": {
+    "description": "Screen 8 (T27): confirmation row, the alarm is off."
+  },
+  "overshootTrackingStopped": "Đã dừng theo dõi chuyến này",
+  "@overshootTrackingStopped": {
+    "description": "Screen 8 (T27): confirmation row, location tracking of this trip has stopped."
+  },
+  "overshootRouteBack": "Chỉ đường quay lại",
+  "@overshootRouteBack": {
+    "description": "Screen 8 (T27): main button, opens Google Maps directions back to the destination."
+  },
+  "overshootRouteBackHint": "Mở Google Maps, tính từ chỗ bạn đang ở",
+  "@overshootRouteBackHint": {
+    "description": "Screen 8 (T27): small hint under the directions button."
+  },
+  "overshootOpenMapsFailed": "Không mở được Google Maps. Thử lại sau giây lát.",
+  "@overshootOpenMapsFailed": {
+    "description": "Screen 8 (T27): snackbar when Google Maps (or the browser) could not be opened."
+  },
+  "overshootGoHome": "Về trang chủ",
+  "@overshootGoHome": {
+    "description": "Screen 8 (T27): secondary button, back to screen 1."
+  },
+  "overshootSimulatedNote": "Chuyến giả lập: đường đi tính từ vị trí thật của máy",
+  "@overshootSimulatedNote": {
+    "description": "Screen 8 (T27): note on a simulated trip; the directions start from the real device location."
+  },
+  "alarmOpenAlarmScreen": "Mở màn báo thức",
+  "@alarmOpenAlarmScreen": {
+    "description": "Flutter fallback of screen 5 (T27): button that brings the native alarm screen to the front."
+  },
+  "alarmFallbackNote": "Màn báo thức chưa hiện được. Bạn có thể tắt ngay tại đây.",
+  "@alarmFallbackNote": {
+    "description": "Flutter fallback of screen 5 (T27): why this screen is shown (the native alarm screen did not appear)."
+  },
+  "alarmActionFailed": "Chưa làm được. Thử lại.",
+  "@alarmActionFailed": {
+    "description": "Flutter fallback of screen 5 (T27): snackbar when stop / snooze / open alarm screen failed."
   }
 }

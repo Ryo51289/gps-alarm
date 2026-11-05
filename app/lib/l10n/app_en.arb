@@ -521,5 +521,16 @@
   "simStart": "Continue",
   "simCatalogError": "Couldn't load the simulated trips.",
   "simCatalogEmpty": "No simulated trips available.",
-  "historyStatsSemanticsNoAlarm": "{trips} trips in {monthName}, {km} km travelled, no alarms yet"
+  "historyStatsSemanticsNoAlarm": "{trips} trips in {monthName}, {km} km travelled, no alarms yet",
+  "overshootPastUnknown": "You've gone past your stop",
+  "overshootAlarmOff": "Alarm turned off",
+  "overshootTrackingStopped": "Tracking for this trip has stopped",
+  "overshootRouteBack": "Directions back",
+  "overshootRouteBackHint": "Opens Google Maps from where you are",
+  "overshootOpenMapsFailed": "Couldn't open Google Maps. Try again in a moment.",
+  "overshootGoHome": "Go to home",
+  "overshootSimulatedNote": "Simulated trip: directions start from your real location",
+  "alarmOpenAlarmScreen": "Open alarm screen",
+  "alarmFallbackNote": "The alarm screen didn't appear. You can stop the alarm here.",
+  "alarmActionFailed": "That didn't work. Try again."
 }

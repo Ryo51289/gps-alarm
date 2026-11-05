@@ -8,11 +8,29 @@ import 'package:napstop/core/bridge/core_bridge.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/features/tracking/presentation/tracking_screen.dart';
 
+import '../../../helpers/app_harness.dart';
 import '../../../helpers/fake_core_bridge.dart';
 import '../tracking_fixtures.dart';
 import '../tracking_harness.dart';
 
 final _sim = SimulationMsg(traceAsset: 'train_hn_dh', speedFactor: 60);
+
+/// The alarm of the default trip sounds ([ringing]); overshot when
+/// [overshootPastM] is set. What keeps the real screen 5 on screen.
+TripStateMsg _ringing({bool ringing = true, int? overshootPastM}) => stateMsg(
+  phase: overshootPastM == null ? TripPhaseMsg.alarming : TripPhaseMsg.overshot,
+  alarmRinging: ringing,
+  alarmReason: AlarmReasonMsg.distance,
+  distanceM: 900,
+  overshootPastM: overshootPastM,
+);
+
+/// Pumps frames without settling (the glow of screen 5 pulses forever).
+Future<void> _frames(WidgetTester tester, [int n = 6]) async {
+  for (var i = 0; i < n; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+}
 
 Future<void> _tap(WidgetTester tester, Finder f) async {
   await tester.ensureVisible(f);
@@ -485,34 +503,54 @@ void main() {
   testWidgets('no device status poll while covered by /alarm (review #7)', (
     tester,
   ) async {
-    final bridge = trackingBridge();
+    // The real screen 5 fallback (T27 §8) stays only while the alarm rings.
+    final bridge = trackingBridge(state: _ringing());
     final h = await pumpTracking(tester, bridge: bridge);
     unawaited(h.router.push<void>('${AppRoutes.alarm}?trip=$kTripId'));
-    await tester.pumpAndSettle();
+    await _frames(tester);
+    expect(h.location, AppRoutes.alarm);
     final covered = bridge.callCount('deviceStatus');
     await tester.pump(const Duration(seconds: 95));
+    expect(h.location, AppRoutes.alarm);
     expect(bridge.callCount('deviceStatus'), covered);
-    h.router.pop();
+    // The ring stops: screen 5 closes itself (T27 D10).
+    await emitState(tester, bridge, _ringing(ringing: false));
     await tester.pumpAndSettle();
+    expect(h.location, AppRoutes.tracking);
     expect(bridge.callCount('deviceStatus'), covered + 1, reason: 'on top');
     await tester.pump(const Duration(seconds: 31));
     expect(bridge.callCount('deviceStatus'), covered + 2);
   });
 
   group('W28 T27 contract: /alarm above screen 4', () {
-    testWidgets('ended while covered: nothing; after pop: home once', (
-      tester,
-    ) async {
-      final bridge = trackingBridge();
+    /// Records each new location of [h] (top route, with its query).
+    List<String> recordLocations(AppHarness h) {
+      final seen = <String>[];
+      void record() {
+        final uri = h.router.state.uri.toString();
+        if (seen.isEmpty || seen.last != uri) {
+          seen.add(uri);
+        }
+      }
+
+      h.router.routerDelegate.addListener(record);
+      addTearDown(() => h.router.routerDelegate.removeListener(record));
+      return seen;
+    }
+
+    testWidgets('ended in the foreground: screen 5 closes itself, then home '
+        'once', (tester) async {
+      final bridge = trackingBridge(state: _ringing());
       final h = await pumpTracking(tester, bridge: bridge);
       unawaited(h.router.push<void>('${AppRoutes.alarm}?trip=$kTripId'));
-      await tester.pumpAndSettle();
+      await _frames(tester);
+      expect(h.location, AppRoutes.alarm);
+      final seen = recordLocations(h);
+      // Screen 4 and screen 5 both get it; screen 5 closes itself (T27 D10)
+      // and only then may screen 4 leave (D13): never a `go` over /alarm.
       bridge.emit(endedMsg());
       await tester.pumpAndSettle();
-      expect(h.location, AppRoutes.alarm);
-      expect(find.byType(SnackBar), findsNothing);
-      h.router.pop();
-      await tester.pumpAndSettle();
+      expect(seen, [AppRoutes.tracking, AppRoutes.home]);
       expect(h.location, AppRoutes.home);
       expect(
         find.text('Đã tắt báo thức. Chúc bạn xuống xe an toàn.'),
@@ -520,16 +558,58 @@ void main() {
       );
     });
 
-    testWidgets('replaced by /overshoot: stays there', (tester) async {
-      final bridge = trackingBridge();
+    testWidgets('ended while the native alarm screen covers the app: '
+        'nothing; after screen 5 closes: home once', (tester) async {
+      final bridge = trackingBridge(state: _ringing());
       final h = await pumpTracking(tester, bridge: bridge);
       unawaited(h.router.push<void>('${AppRoutes.alarm}?trip=$kTripId'));
+      await _frames(tester);
+      final seen = recordLocations(h);
+      // The native screen covers the app; the user stops the alarm there.
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      await _frames(tester);
+      bridge
+        ..active = null
+        ..emit(endedMsg());
+      await _frames(tester);
+      expect(h.location, AppRoutes.alarm);
+      expect(find.byType(SnackBar), findsNothing);
+      // Back in the app: screen 5 reads the trip again and closes itself
+      // (T27 review #4), then screen 4 leaves (D13).
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
+      expect(seen, [AppRoutes.tracking, AppRoutes.home]);
+      expect(
+        find.text('Đã tắt báo thức. Chúc bạn xuống xe an toàn.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('replaced by /overshoot: stays there', (tester) async {
+      // "Xem đường quay lại" on screen 5: the trip ends while dismiss() is
+      // on its way, then screen 5 `go`es to screen 8 (T27 §8, D9).
+      final bridge = trackingBridge(state: _ringing(overshootPastM: 1500))
+        ..actionGate = Completer<void>();
+      final h = await pumpTracking(tester, bridge: bridge);
+      unawaited(h.router.push<void>('${AppRoutes.alarm}?trip=$kTripId'));
+      await _frames(tester);
+      final seen = recordLocations(h);
+      await tester.ensureVisible(find.text('Xem đường quay lại'));
+      await _frames(tester, 2);
+      await tester.tap(find.text('Xem đường quay lại'));
+      await _frames(tester, 2);
+      expect(bridge.dismissCalls, [kTripId]);
       bridge.emit(endedMsg());
+      await _frames(tester);
+      expect(h.location, AppRoutes.alarm);
+      expect(find.byType(SnackBar), findsNothing);
+      bridge.actionGate!.complete();
       await tester.pumpAndSettle();
-      h.router.go('${AppRoutes.overshoot}?trip=$kTripId&past=1500&open=1');
-      await tester.pumpAndSettle();
-      expect(h.router.state.uri.path, AppRoutes.overshoot);
+      expect(
+        h.router.state.uri.toString(),
+        '${AppRoutes.overshoot}?trip=$kTripId&past=1500&open=1',
+      );
+      expect(seen, isNot(contains(AppRoutes.home)));
       expect(find.byType(SnackBar), findsNothing);
     });
   });

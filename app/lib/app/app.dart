@@ -6,6 +6,7 @@ import 'package:napstop/app/locales.dart';
 import 'package:napstop/app/router/app_router.dart';
 import 'package:napstop/core/design/theme/nap_themes.dart';
 import 'package:napstop/core/preferences/app_settings.dart';
+import 'package:napstop/features/alarm/presentation/alarm_ui_coordinator.dart';
 import 'package:napstop/features/tracking/presentation/trip_launch_scope.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
@@ -36,9 +37,13 @@ class NapStopApp extends ConsumerWidget {
       supportedLocales: kAppSupportedLocales,
       routerConfig: ref.watch(appRouterProvider),
       // History sync and the native language (T28 §3.2, §4.1); T26 D12:
-      // screen 4 when the app opens or returns with a running trip.
-      builder: (context, child) => AppBackgroundTasks(
-        child: TripLaunchScope(child: child ?? const SizedBox.shrink()),
+      // screen 4 when the app opens or returns with a running trip; T27 §6:
+      // launch actions of the native alarm screen and the fallback of
+      // screen 5, above every route.
+      builder: (context, child) => AlarmUiCoordinator(
+        child: AppBackgroundTasks(
+          child: TripLaunchScope(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/app/router/app_shell.dart';
-import 'package:napstop/app/router/placeholder_screen.dart';
+import 'package:napstop/features/alarm/domain/route_back.dart';
+import 'package:napstop/features/alarm/presentation/alarm_fallback_screen.dart';
+import 'package:napstop/features/alarm/presentation/overshoot_screen.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/battery_guide/presentation/battery_guide_screen.dart';
@@ -15,7 +17,6 @@ import 'package:napstop/features/onboarding/presentation/onboarding_screen.dart'
 import 'package:napstop/features/settings/presentation/settings_screen.dart';
 import 'package:napstop/features/settings/presentation/trip_defaults_screen.dart';
 import 'package:napstop/features/tracking/presentation/tracking_screen.dart';
-import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Navigator of the full-screen routes; they cover the bottom navigation.
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey(
@@ -26,14 +27,6 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey(
 /// [initialLocation] (screen 0 or 1) from a stored flag; no redirect. No route
 /// observer: route names never leave the device (T29 §2).
 GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
-  GoRoute fullScreen(String path, String Function(AppLocalizations l) title) =>
-      GoRoute(
-        path: path,
-        parentNavigatorKey: rootNavigatorKey,
-        builder: (context, _) =>
-            PlaceholderScreen(title: title(AppLocalizations.of(context))),
-      );
-
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: initialLocation,
@@ -110,8 +103,32 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, _) => const TrackingScreen(),
       ),
-      fullScreen(AppRoutes.alarm, (l) => l.appScreenAlarmTitle),
-      fullScreen(AppRoutes.overshoot, (l) => l.appScreenOvershootTitle),
+      // T27 §5: the Flutter fallback of screen 5, pushed by
+      // AlarmUiCoordinator over the current screen (D10).
+      GoRoute(
+        path: AppRoutes.alarm,
+        parentNavigatorKey: rootNavigatorKey,
+        redirect: (_, state) => isValidTripId(state.uri.queryParameters['trip'])
+            ? null
+            : AppRoutes.home,
+        builder: (context, state) => AlarmFallbackScreen(
+          // A new trip id is a new screen state.
+          key: ValueKey(state.uri.queryParameters['trip']),
+          tripId: state.uri.queryParameters['trip']!,
+        ),
+      ),
+      // T27 §5: screen 8 after the alarm was dismissed (D9: reached by `go`).
+      GoRoute(
+        path: AppRoutes.overshoot,
+        parentNavigatorKey: rootNavigatorKey,
+        redirect: (_, state) =>
+            OvershootArgs.fromUri(state.uri) == null ? AppRoutes.home : null,
+        builder: (context, state) => OvershootScreen(
+          // Another launch action while screen 8 shows: a fresh state.
+          key: ValueKey(OvershootArgs.fromUri(state.uri)),
+          args: OvershootArgs.fromUri(state.uri)!,
+        ),
+      ),
     ],
   );
 }

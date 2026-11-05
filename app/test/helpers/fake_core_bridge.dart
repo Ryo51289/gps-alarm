@@ -353,7 +353,10 @@ class FakeCoreBridge implements CoreBridge {
   }
 
   @override
-  Future<void> snooze(String tripId) => _answer('snooze', null, () {});
+  Future<void> snooze(String tripId) {
+    snoozeCalls.add(tripId);
+    return _answer('snooze', snoozeError, () {});
+  }
 
   /// The native queue of ended trips (T28), oldest first; [ackFinishedTrips]
   /// removes the acked ids like native does.
@@ -512,18 +515,46 @@ class FakeCoreBridge implements CoreBridge {
   final List<String> showAlarmScreenCalls = [];
   final List<String?> setAppLocaleCalls = [];
 
+  /// Thrown by [consumeLaunchAction] / [showAlarmScreen] / [snooze] when
+  /// set (T27); [dismiss] uses [dismissError] above (T26).
+  Object? consumeLaunchActionError;
+  Object? showAlarmScreenError;
+  Object? snoozeError;
+
+  /// When set, [consumeLaunchAction] waits for it, then reads
+  /// [launchAction] (T27 W12).
+  Completer<void>? consumeLaunchGate;
+
+  /// Arguments of every [snooze] call (T27); [dismiss] uses [dismissCalls].
+  final List<String> snoozeCalls = [];
+
   @override
-  Future<LaunchActionMsg?> consumeLaunchAction() =>
-      _answer('consumeLaunchAction', null, () {
-        final action = launchAction;
-        launchAction = null;
-        return action;
-      });
+  Future<LaunchActionMsg?> consumeLaunchAction() {
+    LaunchActionMsg? take() {
+      final action = launchAction;
+      launchAction = null;
+      return action;
+    }
+
+    final gate = consumeLaunchGate;
+    if (gate == null) {
+      return _answer('consumeLaunchAction', consumeLaunchActionError, take);
+    }
+    calls.add('consumeLaunchAction');
+    return gate.future.then((_) {
+      final error = consumeLaunchActionError;
+      return error == null ? take() : Future<LaunchActionMsg?>.error(error);
+    });
+  }
 
   @override
   Future<bool> showAlarmScreen(String tripId) {
     showAlarmScreenCalls.add(tripId);
-    return _answer('showAlarmScreen', null, () => showAlarmScreenResult);
+    return _answer(
+      'showAlarmScreen',
+      showAlarmScreenError,
+      () => showAlarmScreenResult,
+    );
   }
 
   /// Thrown by [setAppLocale] when set (T28 S11).

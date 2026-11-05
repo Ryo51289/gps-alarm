@@ -12,6 +12,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -113,6 +114,25 @@ class AlarmController(
             }
         }
     }
+
+    /**
+     * T27 §9 (Flutter AlarmUiCoordinator, D1): the ring of [tripId] is live → its AlarmActivity on top; true when the
+     * activity was started. The app is visible, so it may start an activity [A-BAL]. Never throws (false).
+     */
+    suspend fun showAlarmScreen(activity: Activity, tripId: String): Boolean =
+        try {
+            if (tripId !in withContext(Dispatchers.IO) { core.liveRings() }) {
+                false
+            } else {
+                withContext(Dispatchers.Main) { activity.startActivity(RingIntents.activity(activity, tripId)) }
+                true
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            warn("alarm activity failed (${e.javaClass.simpleName})")
+            false
+        }
 
     /** Debug: waits for queued book writes. */
     fun flush() = cached.flush()
