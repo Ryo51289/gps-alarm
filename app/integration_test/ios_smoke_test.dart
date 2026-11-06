@@ -6,6 +6,7 @@
 // Touches no permission dialog and logs no coordinates.
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:napstop/app/app.dart';
@@ -48,4 +49,55 @@ void main() {
     final pending = await CoreBridge().pendingFinishedTrips();
     expect(pending, isA<List<FinishedTripMsg>>());
   });
+
+  // Diagnostics for the CI log, no assertion: what the runtime would refuse
+  // (`BridgeException.toString` hides `details` on purpose). Prints state
+  // names and the `permission-missing` list only, never a position.
+  testWidgets('diag: permissions and startTrip probe', skip: _notIos, (
+    tester,
+  ) async {
+    final bridge = CoreBridge();
+    final s = await bridge.permissionStatus();
+    debugPrint(
+      'NAPSTOP_DIAG permissions: location=${s.location.name} '
+      'precise=${s.precise.name} services=${s.locationServicesEnabled} '
+      'notifications=${s.notifications.name} alarmKit=${s.alarmKit.name}',
+    );
+    final leftover = await bridge.currentTrip();
+    if (leftover != null) {
+      await bridge.stopTrip(leftover.config.tripId);
+    }
+    final tripId = 'diag-${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      // Far from every fixture point used by the suite: no alarm.
+      await bridge.startTrip(_probeConfig(tripId), destLat: 0.5, destLng: 0.5);
+      debugPrint('NAPSTOP_DIAG startTrip probe: accepted');
+      await bridge.stopTrip(tripId);
+    } on BridgeException catch (e) {
+      debugPrint(
+        'NAPSTOP_DIAG startTrip probe: rejected ${e.rawCode} '
+        'details=${e.details}',
+      );
+    }
+    final old = await bridge.pendingFinishedTrips();
+    await bridge.ackFinishedTrips([for (final t in old) t.tripId]);
+  });
 }
+
+TripConfigMsg _probeConfig(String tripId) => TripConfigMsg(
+  tripId: tripId,
+  destinationName: 'diag',
+  mode: AlarmModeMsg.distance,
+  distanceThresholdM: 1000,
+  preAlertEnabled: false,
+  vehicleHint: VehicleKindMsg.train,
+  alarm: AlarmSettingsMsg(
+    soundId: 'default',
+    volume: 0.8,
+    rampUp: true,
+    vibration: VibrationMsg.medium,
+    flash: false,
+    preferHeadphones: false,
+    dismissMethod: DismissMethodMsg.swipe,
+  ),
+);

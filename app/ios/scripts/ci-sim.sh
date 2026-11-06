@@ -8,7 +8,8 @@
 #   ci-sim.sh select                    print the UDID of an available iPhone on the newest iOS runtime (>= 26 preferred);
 #                                       the choice (name, runtime) goes to stderr
 #   ci-sim.sh prepare <udid> <bundle>   boot, wait, print `simctl help location|privacy`, then `grant`
-#   ci-sim.sh grant <udid> <bundle>     fake-alarm switch (T17 §5.13) + location permission; failures are warnings.
+#   ci-sim.sh grant <udid> <bundle>     fake-alarm switch (T17 §5.13, in the app container) + location permission;
+#                                       failures are warnings.
 #                                       Run again once the app is installed (the grant may need an installed app).
 #   ci-sim.sh location <udid> <lat,lng> set the simulated location
 #   ci-sim.sh timeout <seconds> <cmd...> run cmd with a time limit; on expiry the whole process group gets TERM, then
@@ -105,6 +106,8 @@ cmd_prepare() {
   xcrun simctl bootstatus "$udid" -b
   echo "--- xcrun simctl help location"
   xcrun simctl help location 2>&1 || true
+  echo "--- xcrun simctl help launch (SIMCTL_CHILD_ environment)"
+  xcrun simctl help launch 2>&1 | grep -i -A1 SIMCTL_CHILD || true
   echo "--- xcrun simctl help privacy"
   xcrun simctl help privacy 2>&1 || true
   echo "---"
@@ -112,11 +115,18 @@ cmd_prepare() {
 }
 
 cmd_grant() {
-  local udid="${1:?udid}" bundle="${2:?bundle id}"
-  if xcrun simctl spawn "$udid" defaults write "$bundle" napstop.diag.fakeAlarms -bool YES; then
-    echo "fakeAlarms: set for $bundle"
+  local udid="${1:?udid}" bundle="${2:?bundle id}" container
+  # The app reads UserDefaults from its data container; `spawn defaults write <bundle>` only writes the simulator's own
+  # domain. So write the container's plist (through the simulator's cfprefsd) once the app is installed. The runner
+  # also passes SIMCTL_CHILD_NAPSTOP_DIAG_FAKE_ALARMS=1 to `flutter test` (AppDelegate, NAPSTOP_DIAG Simulator builds).
+  if container="$(xcrun simctl get_app_container "$udid" "$bundle" data 2>/dev/null)" && [ -n "$container" ]; then
+    if xcrun simctl spawn "$udid" defaults write "$container/Library/Preferences/$bundle" napstop.diag.fakeAlarms -bool YES; then
+      echo "fakeAlarms: set in the app container of $bundle"
+    else
+      warn "could not set napstop.diag.fakeAlarms in the app container of $bundle"
+    fi
   else
-    warn "could not set napstop.diag.fakeAlarms for $bundle"
+    echo "fakeAlarms: $bundle not installed yet (container written after install; env switch at launch)"
   fi
   if xcrun simctl privacy "$udid" grant location "$bundle"; then
     echo "privacy grant location: ok for $bundle"

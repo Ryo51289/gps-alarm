@@ -1,11 +1,16 @@
 # iOS integration tests run by the ios-sim job of .github/workflows/ios-compile.yml (docs/specs/T01.2.md D10).
 # One test per line: <file relative to app/> [lat,lng]
-# With lat,lng the job first runs `xcrun simctl location <udid> set <lat>,<lng>` (public fixture points only; the
-# result summary shows the file name, never the point). Lines starting with # and empty lines are ignored.
-# Each file is a separate `flutter test <file> -d <udid>` run (15 min limit); a failing file does not stop the next.
+# The job runs one `flutter test` (one Xcode build) per distinct lat,lng: the files of a point run in a generated
+# entrypoint, in the order listed, after `xcrun simctl location <udid> set <lat>,<lng>` (public fixture points only;
+# the result summary shows file names, never a point). Files without a point run first, in the first group; add a point
+# only when the test needs it. The app stays installed between groups (--no-uninstall). Lines starting with # and
+# empty lines are ignored.
 integration_test/ios_smoke_test.dart
 integration_test/t17_ios_runtime_test.dart 17.4689199,106.5997285
-integration_test/t17_1_ios_permissions_test.dart 17.4800199,106.5997285
 integration_test/t17_2_ios_alarm_test.dart 17.4689199,106.5997285
 integration_test/t28_3_ios_ui_test.dart 17.4689199,106.5997285
-integration_test/t18_1_ios_simulation_test.dart 20.9495996,105.7476229
+# T18.1: simulated trips use the bundled trace; the keep-alive session drops real fixes (T18.1 D9), so no own point
+# (it was the destination of bus_hn_brt01 and cost a separate build).
+integration_test/t18_1_ios_simulation_test.dart
+# T17.1 PC05 needs a point 1.23 km from the station: its own group, last.
+integration_test/t17_1_ios_permissions_test.dart 17.4800199,106.5997285
