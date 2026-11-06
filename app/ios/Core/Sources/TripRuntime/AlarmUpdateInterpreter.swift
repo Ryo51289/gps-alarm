@@ -13,8 +13,11 @@ public enum AlarmAction: Sendable, Hashable {
 }
 
 public enum AlarmUpdateInterpreter {
+    /// `protectedIds` (T17.2.1 §3): rescue alarms of snooze ring events the runtime has not handled yet; never cancelled here
+    /// (the snooze handling takes or cancels them).
     public static func interpret(tripId: String?, prev: [SystemAlarmInfo], cur: [SystemAlarmInfo], ledger: AlarmLedger,
-                                 expectedStops: Set<String>, nowWallMs: Int64) -> [AlarmAction] {
+                                 expectedStops: Set<String>, nowWallMs: Int64,
+                                 protectedIds: Set<String> = []) -> [AlarmAction] {
         var out: [AlarmAction] = []
         var prevById: [String: SystemAlarmInfo] = [:]
         for p in prev { prevById[p.id] = p }
@@ -22,7 +25,8 @@ public enum AlarmUpdateInterpreter {
         for c in cur { curById[c.id] = c }
         var cancelled = Set<String>()
         func cancelScheduled(_ pred: (SystemAlarmInfo) -> Bool) {
-            for o in cur where o.tripId == tripId && o.state == .scheduled && pred(o) && !cancelled.contains(o.id) {
+            for o in cur where o.tripId == tripId && o.state == .scheduled && pred(o) && !cancelled.contains(o.id)
+                && !protectedIds.contains(o.id) {
                 cancelled.insert(o.id)
                 out.append(.cancel(id: o.id, channel: o.channel))
             }
@@ -57,9 +61,11 @@ public enum AlarmUpdateInterpreter {
 }
 
 public enum LedgerReconciler {
-    /// Runs before RestorePlanner. Returns the ledger to use and the system calls to make.
+    /// Runs before RestorePlanner. Returns the ledger to use and the system calls to make. T17.2.1 §3: a rescue alarm
+    /// (RESCUE_GENERATION) is never adopted as the newest slot; one of `protectedIds` (rescue of a snooze ring event not
+    /// handled yet) is left for the snooze handling, any other is an orphan and cancelled.
     public static func reconcile(_ ledger: AlarmLedger, list: [SystemAlarmInfo]?, activeTripId: String?, nowWallMs: Int64,
-                                 toTrip: (Int64) -> Int64)
+                                 protectedIds: Set<String> = [], toTrip: (Int64) -> Int64)
         -> (ledger: AlarmLedger, actions: [AlarmAction]) {
         guard let list else { return (ledger, []) }
         var l = ledger
@@ -71,7 +77,8 @@ public enum LedgerReconciler {
         if let trip = activeTripId {
             let slots = list.filter { $0.tripId == trip && $0.state == .scheduled && $0.kind != .now }
             let currentAlive = l.current.map { c in list.contains { $0.id == c.alarmId } } ?? false
-            if !currentAlive, let newest = slots.max(by: { $0.generation < $1.generation }) {
+            let candidates = slots.filter { $0.generation != RuntimeConstants.rescueGeneration }
+            if !currentAlive, let newest = candidates.max(by: { $0.generation < $1.generation }) {
                 // Process died between schedule() and the ledger write: adopt the newest slot.
                 let target = newest.fireAtWallMs ?? nowWallMs
                 l.current = AlarmSlotRec(alarmId: newest.id, kind: newest.kind, generation: newest.generation,
@@ -79,7 +86,7 @@ public enum LedgerReconciler {
                                          channel: newest.channel)
                 if newest.generation >= l.nextGeneration { l.nextGeneration = newest.generation + 1 }
             }
-            let keep = Set([l.current?.alarmId, l.stale?.alarmId].compactMap { $0 })
+            let keep = Set([l.current?.alarmId, l.stale?.alarmId].compactMap { $0 }).union(protectedIds)
             for s in slots where !keep.contains(s.id) { actions.append(.cancel(id: s.id, channel: s.channel)) }
             if var n = l.now, !n.confirmed, list.contains(where: { $0.id == n.alarmId }) {
                 n.confirmed = true

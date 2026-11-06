@@ -45,7 +45,7 @@ public final class RuntimeHost: @unchecked Sendable {
         return h
     }
 
-    static func localeTag() -> String {
+    public static func localeTag() -> String {
         NativeCopy.localeTag(stored: UserDefaults.standard.string(forKey: appLocaleKey), preferredLanguages: Locale.preferredLanguages)
     }
 
@@ -127,8 +127,14 @@ public final class RuntimeHost: @unchecked Sendable {
     /// StopIntent step (3): ensureLoaded + handling (§5.6.5).
     public func onStopIntent(_ e: RingEventRec) async { await runtime.onStopIntent(e) }
 
-    /// T17.2 §3.2 step (3) of NapStopSnoozeIntent.
-    public func onSnoozeIntent(_ e: RingEventRec) async { await runtime.onSnoozeIntent(e) }
+    /// T17.2.1 §2 step (3) of NapStopSnoozeIntent: the runtime's answer (the intent stops the ring only after it).
+    @discardableResult
+    public func onSnoozeIntent(_ e: RingEventRec) async -> SnoozeHandOverOutcome { await runtime.onSnoozeIntent(e) }
+
+    /// T17.2.1 §2.1: snooze values of `tripId` for the rescue alarm (defaults before the trip is loaded). Never waits.
+    public static func snoozeRescueParams(tripId: String) -> SnoozeRescueParams {
+        shared?.runtime.snoozeRescueParams(tripId: tripId) ?? .defaults
+    }
 
     /// T17.2 §3.2 step (3) of NapStopRouteBackIntent (launch action, then DISMISS).
     public func onRouteBackIntent(_ e: RingEventRec) async { await runtime.onRouteBackIntent(e) }

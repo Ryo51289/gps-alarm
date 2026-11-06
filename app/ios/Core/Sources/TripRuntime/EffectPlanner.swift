@@ -136,9 +136,10 @@ public enum EffectPlanner {
             }
         }
         var ended: TripEvent.TripEnded?
+        var snoozed = false
         for e in p.step.events {
             switch e {
-            case .snoozed: fx.append(.stopRinging(.snoozed))
+            case .snoozed: snoozed = true
             case let .preAlert(x):
                 fx.append(.notice(show: .preAlert(distanceM: x.distanceM, etaS: x.etaS, byDistance: p.meta.mode == .distance),
                                   clear: nil))
@@ -165,6 +166,9 @@ public enum EffectPlanner {
             default: break
             }
         }
+        // T17.2.1 §3: the ring stops only after the slot of the snooze end exists (a process death in between leaves the ring
+        // going, never "no alarm at all").
+        if snoozed { fx.append(.stopRinging(.snoozed)) }
         if view.fallbackStatus == .failed && p.prevView?.fallbackStatus != .failed {
             fx.append(.notice(show: .fallbackFailed, clear: nil))
         }

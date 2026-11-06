@@ -320,7 +320,12 @@ final class FakeStore: Locked, RuntimeStore, @unchecked Sendable {
     var currentLedger: AlarmLedger { locked { ledger } }
     func readRingEvents() -> [RingEventRec] { locked { events } }
     func appendRingEvent(_ e: RingEventRec) throws { locked { events.append(e); if events.count > 16 { events.removeFirst() } } }
-    func removeRingEvents(tripId: String) { locked { events.removeAll { $0.tripId == tripId } } }
+    /// T17.2.1 review #2: removing ring events fails silently (the file write behind `removeRingEvents` uses `try?`).
+    var failRemoveRingEvents = false
+    func removeRingEvents(tripId: String) {
+        if locked({ failRemoveRingEvents }) { return }
+        locked { events.removeAll { $0.tripId == tripId } }
+    }
 
     func writeFinished(_ r: FinishedRecord) throws {
         if locked({ failWriteFinished }) { throw ScheduleFailure() }

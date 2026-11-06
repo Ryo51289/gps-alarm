@@ -139,13 +139,27 @@ public struct RingEventRec: Sendable, Codable, Equatable {
     public let kind: SystemAlarmKind
     public let action: Action
     public let atWallMs: Int64
+    /// T17.2.1 §2: the rescue alarm the snooze intent schedules right after writing this record (snooze only). Optional
+    /// in JSON (written only when set): records of T17.2 decode with nil.
+    public let rescueAlarmId: String?
+    /// Wall time the rescue alarm fires at (tap + snoozeS + fallbackLagS).
+    public let rescueAtWallMs: Int64?
 
-    public init(tripId: String, alarmId: String, kind: SystemAlarmKind, action: Action, atWallMs: Int64) {
+    public init(tripId: String, alarmId: String, kind: SystemAlarmKind, action: Action, atWallMs: Int64,
+                rescueAlarmId: String? = nil, rescueAtWallMs: Int64? = nil) {
         self.tripId = tripId
         self.alarmId = alarmId
         self.kind = kind
         self.action = action
         self.atWallMs = atWallMs
+        self.rescueAlarmId = rescueAlarmId
+        self.rescueAtWallMs = rescueAtWallMs
+    }
+
+    /// The rescue alarm of a snooze record, when it has one.
+    public var rescue: (id: String, atWallMs: Int64)? {
+        guard action == .snooze, let id = rescueAlarmId, let at = rescueAtWallMs else { return nil }
+        return (id, at)
     }
 
     /// dismiss / routeBack end the trip; snooze does not.

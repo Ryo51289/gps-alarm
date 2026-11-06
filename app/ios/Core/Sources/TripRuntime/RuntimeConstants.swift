@@ -36,6 +36,14 @@ public struct RuntimeConstants: Sendable, Equatable {
     public var simTraceLoadBudgetMs: Int64 = 3_000
     /// T18.1 §5: virtual events handled by one timer command; the rest goes to a next command.
     public var simCatchUpMaxEvents: Int = 2_000
+    /// T17.2.1 §4: the rescue alarm of a snooze intent is taken as the engine's snooze slot only when its time is within
+    /// this of the slot target (wall); otherwise the runtime schedules a new slot first, then cancels the rescue.
+    public var rescueMatchMs: Int64 = 2_000
+    /// T17.2.1 §4: how long `NapStopSnoozeIntent` waits for the runtime before deciding whether to stop the ring.
+    public var snoozeHandoverBudgetMs: Int64 = 3_000
+
+    /// T17.2.1 §4: system generation of a rescue alarm (runtime slots start at 1).
+    public static let rescueGeneration: Int64 = 0
 
     public init() {}
     public static let `default` = RuntimeConstants()

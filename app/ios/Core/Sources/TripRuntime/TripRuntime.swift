@@ -74,6 +74,19 @@ final class TerminateCache: @unchecked Sendable {
     }
 }
 
+/// T17.2.1 §2.1: read-only copy of the running trip's snooze values for `NapStopSnoozeIntent` (it schedules the rescue
+/// alarm before the runtime is reached). Updated at every commit, cleared when the trip ends.
+final class RescueParamsCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: (tripId: String, params: SnoozeRescueParams)?
+    func set(_ v: (tripId: String, params: SnoozeRescueParams)?) {
+        lock.lock(); value = v; lock.unlock()
+    }
+    func get() -> (tripId: String, params: SnoozeRescueParams)? {
+        lock.lock(); defer { lock.unlock() }; return value
+    }
+}
+
 public actor TripRuntime: LocationSink {
     struct Job: Sendable { let run: @Sendable (isolated TripRuntime) async -> Void }
 
@@ -102,6 +115,7 @@ public actor TripRuntime: LocationSink {
     private nonisolated let queue: AsyncStream<Job>.Continuation
     private nonisolated let gate = StartGate()
     private nonisolated let terminateCache = TerminateCache()
+    private nonisolated let rescueCache = RescueParamsCache()
     private let writer: SnapshotWriter
 
     private var loaded = false
@@ -152,6 +166,28 @@ public actor TripRuntime: LocationSink {
     private var simContinueQueued = false
     /// D6 addendum (K4 #3 on the trip clock): trip time at which the "now" ring of the simulated trip counts as alerting.
     private var simNowAlertTripMs: Int64?
+
+    /// T17.2.1 §3: the rescue alarm of a snooze intent while its UserAction(SNOOZE) Step runs.
+    struct PendingRescue {
+        let id: String
+        let atWallMs: Int64
+        /// Wall time of the tap (the ring event).
+        let tapWallMs: Int64
+        /// The rescue as listed before the Step (nil: not listed or list unreadable).
+        let listed: SystemAlarmInfo?
+        /// Taken as the engine's snooze slot (ledger.current), or kept because a replacement could not be scheduled.
+        var adopted = false
+        /// `scheduleFallback` of the Step consumed it.
+        var used = false
+        /// The rescue rang while no process ran (restore): it is the snooze end of this snooze.
+        var fired: Bool { listed?.state == .alerting }
+    }
+
+    private var pendingRescue: PendingRescue?
+    /// A rescue alarm already ringing that was taken as the snooze slot: `stopRinging(.snoozed)` leaves it ringing.
+    private var keepRingingId: String?
+    /// Whether the last `applySnoozeEvent` snoozed (nil = not applied), for the snooze intent's answer.
+    private var snoozeApplied: Bool?
 
     public init(ports: RuntimePorts, constants: RuntimeConstants = .default, warn: @escaping @Sendable (String) -> Void) {
         self.ports = ports
@@ -226,8 +262,20 @@ public actor TripRuntime: LocationSink {
 
     public func onStopIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleStopIntent(e) } }
 
-    /// T17.2 §3.3: "Báo lại" on the AlarmKit alert (the intent wrote `e` and stopped the alarm first, D4).
-    public func onSnoozeIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleSnoozeIntent(e) } }
+    /// T17.2 §3.3, T17.2.1 §3: "Báo lại" on the AlarmKit alert. The intent wrote `e` and scheduled its rescue alarm
+    /// (`e.rescueAlarmId`); it stops the ring only after this answer (or its budget). Records without a rescue (T17.2
+    /// order: the alarm was stopped first) keep the T17.2 handling.
+    @discardableResult
+    public func onSnoozeIntent(_ e: RingEventRec) async -> SnoozeHandOverOutcome {
+        await submit { rt in await rt.handleSnoozeIntent(e) }
+    }
+
+    /// T17.2.1 §2.1: snooze values for the rescue alarm of `tripId`; the defaults when that trip is not loaded in this
+    /// process. Never waits for the queue.
+    public nonisolated func snoozeRescueParams(tripId: String) -> SnoozeRescueParams {
+        if let c = rescueCache.get(), c.tripId == tripId { return c.params }
+        return .defaults
+    }
 
     /// T17.2 §3.3: "Xem đường quay lại" on the AlarmKit alert: launch action first, then DISMISS (D7).
     public func onRouteBackIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleRouteBackIntent(e) } }
@@ -402,7 +450,7 @@ public actor TripRuntime: LocationSink {
         let list = await readList()
         if let list { lastList = list; prevUpdates = list }
         let r = LedgerReconciler.reconcile(ledger, list: list, activeTripId: s.meta.tripId, nowWallMs: nowWall(),
-                                           toTrip: { [self] w in self.toTripSync(w) })
+                                           protectedIds: pendingRescueIds(), toTrip: { [self] w in self.toTripSync(w) })
         ledger = r.ledger
         writeLedger()
         for act in r.actions { await perform(act) }
@@ -459,7 +507,9 @@ public actor TripRuntime: LocationSink {
         if let p = picked, p.action == .snooze {
             // T17.2 §3.4: the snooze tapped before the process died. ALARMING → UserAction(SNOOZE) at the tap time;
             // SNOOZED/ENDED → nothing. The alarm was stopped by the intent: no ring decision here.
-            if view.phase == .alarming || view.phase == .overshot { await applySnoozeEvent(p) }
+            if view.phase == .alarming || view.phase == .overshot { snoozeApplied = await applySnoozeEvent(p) }
+            // T17.2.1 §3: rescue alarms of these events not taken as the slot are cancelled.
+            await retireRescues(tripId: p.tripId)
             // Applied (or moot): a later restore must not read it again (RANG on SNOOZED would ring SNOOZE_END early).
             ports.store.removeRingEvents(tripId: p.tripId)
         } else if (view.phase == .alarming || view.phase == .overshot) && view.alarmRinging
@@ -856,6 +906,9 @@ public actor TripRuntime: LocationSink {
             ports.journal.record("sim_speed", ["to": "1.0"])
         }
         if let c = clock { terminateCache.set((a.meta, c.anchor, a.engine, step.view.phase)) }
+        rescueCache.set((a.meta.tripId, SnoozeRescueParams(snoozeS: a.params.snoozeS, fallbackLagS: a.params.fallbackLagS,
+                                                           soundFile: AlarmSoundCatalog.fileName(a.meta.alarm.soundId),
+                                                           destinationName: a.meta.destinationName)))
         ports.journal.record("step", ["phase": step.view.phase.jsonName, "gps": step.view.gps.jsonName,
                                       "tier": step.view.samplingPolicy?.tier.jsonName ?? "",
                                       "fbStatus": step.view.fallbackStatus.jsonName,
@@ -931,6 +984,9 @@ public actor TripRuntime: LocationSink {
                 // D6: a virtual slot, answered at once.
                 sim?.fallbackDueTripMs = t
                 feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: t, ok: true))
+            } else if let r = pendingRescue, !r.used {
+                pendingRescue?.used = true
+                await takeRescue(r, targetAtMs: t)
             } else {
                 await scheduleSlot(.fallback, targetAtMs: t, wallMs: toWall(t))
             }
@@ -1059,9 +1115,10 @@ public actor TripRuntime: LocationSink {
         }
     }
 
-    /// §5.6.2: new slot first, ledger, then cancel the old one (never an alerting one).
-    private func scheduleSlot(_ kind: SystemAlarmKind, targetAtMs: Int64, wallMs: Int64) async {
-        guard let a = active else { return }
+    /// §5.6.2: new slot first, ledger, then cancel the old one (never an alerting one). true = the new slot is set.
+    @discardableResult
+    private func scheduleSlot(_ kind: SystemAlarmKind, targetAtMs: Int64, wallMs: Int64) async -> Bool {
+        guard let a = active else { return false }
         let old = ledger.current
         let id = UUID().uuidString
         let g = ledger.nextGeneration
@@ -1073,7 +1130,7 @@ public actor TripRuntime: LocationSink {
         guard let ch = chans.first else {
             ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false", "err": "noChannel"])
             if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: false)) }
-            return
+            return false
         }
         // T17.2 D1: a guard slot gets the button of the ring it guards (the view is already the Step's view: its reason and
         // snooze rule); a fallback slot (or a guard without a ring) offers snooze while snoozes are left.
@@ -1093,11 +1150,19 @@ public actor TripRuntime: LocationSink {
             ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false",
                                         "err": String(describing: type(of: error))])
             if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: false)) }
-            return
+            return false
         }
         ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "true"])
-        ledger.current = AlarmSlotRec(alarmId: id, kind: kind, generation: g, targetAtMs: targetAtMs, targetAtWallMs: wallMs,
-                                      setAtWallMs: nowWall(), channel: ch)
+        await installSlot(AlarmSlotRec(alarmId: id, kind: kind, generation: g, targetAtMs: targetAtMs, targetAtWallMs: wallMs,
+                                       setAtWallMs: nowWall(), channel: ch), replacing: old)
+        if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: true)) }
+        return true
+    }
+
+    /// `slot` becomes `ledger.current`; every earlier slot is retired (cancelled, never a ringing one).
+    private func installSlot(_ slot: AlarmSlotRec, replacing old: AlarmSlotRec?) async {
+        let id = slot.alarmId
+        ledger.current = slot
         // Every earlier slot is replaced, the previous `stale` one too (tester T17 #1: overwriting `stale` orphaned it; a clock
         // change re-scheduling a live `stale` slot must retire it, not the dead `current`).
         let previous = [old, ledger.stale].compactMap { $0 }.filter { $0.alarmId != id }
@@ -1126,7 +1191,6 @@ public actor TripRuntime: LocationSink {
             ledger.stale = keep
             writeLedger()
         }
-        if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: true)) }
     }
 
     private func cancelSlots() async {
@@ -1152,6 +1216,8 @@ public actor TripRuntime: LocationSink {
         let nowId = ledger.now?.alarmId
         let mine = (list ?? []).filter { $0.tripId == a.meta.tripId || known.contains($0.id) }
         for x in mine {
+            // T17.2.1 §3: a rescue alarm that rang before this process is the snooze end of the snooze being applied.
+            if cause == .snoozed && x.id == keepRingingId { continue }
             if x.state == .alerting {
                 await ports.alarms.stop(id: x.id, channel: x.channel)
                 expectedStops.insert(x.id)
@@ -1166,6 +1232,15 @@ public actor TripRuntime: LocationSink {
             await ports.alarms.stop(id: s.alarmId, channel: s.channel)
             await ports.alarms.cancel(id: s.alarmId, channel: s.channel)
             expectedStops.insert(s.alarmId)
+        }
+        // T17.2.1 §3: rescue alarms of snooze events not handled yet (not listed: unreadable list or no registry ref).
+        if cause == .tripEnded {
+            let rescues = Set(ringEvents().filter { $0.tripId == a.meta.tripId }.compactMap { $0.rescue?.id })
+            for id in rescues.sorted() where !seen.contains(id) {
+                await ports.alarms.stop(id: id, channel: .alarmKit)
+                await ports.alarms.cancel(id: id, channel: .alarmKit)
+                expectedStops.insert(id)
+            }
         }
         if let n = ledger.now, !seen.contains(n.alarmId) {
             await ports.alarms.stop(id: n.alarmId, channel: n.channel)
@@ -1209,6 +1284,7 @@ public actor TripRuntime: LocationSink {
     private func endTrip(_ rec: FinishedRecord) async {
         guard let a = active else { return }
         terminateCache.set(nil)
+        rescueCache.set(nil)
         setMode(.ending)
         await stopRinging(.tripEnded)
         await ports.location.stop()
@@ -1445,7 +1521,8 @@ public actor TripRuntime: LocationSink {
         let list = adopt(raw)
         let tripId = restorePending ? nil : active?.meta.tripId
         let actions = AlarmUpdateInterpreter.interpret(tripId: tripId, prev: prevUpdates, cur: list, ledger: ledger,
-                                                       expectedStops: expectedStops, nowWallMs: nowWall())
+                                                       expectedStops: expectedStops, nowWallMs: nowWall(),
+                                                       protectedIds: pendingRescueIds())
         prevUpdates = list
         lastList = list
         for act in actions { await perform(act) }
@@ -1532,43 +1609,176 @@ public actor TripRuntime: LocationSink {
 
     // MARK: - Secondary button (T17.2 §3.3)
 
-    private func handleSnoozeIntent(_ e: RingEventRec) async {
+    private func handleSnoozeIntent(_ e: RingEventRec) async -> SnoozeHandOverOutcome {
         await load()
         await simSyncForInput()  // T18.1 D5
         expectedStops.insert(e.alarmId)
         let known = active?.meta.tripId == e.tripId
-        ports.journal.record("snooze_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false"])
+        ports.journal.record("snooze_intent", ["kind": e.kind.rawValue, "known": known ? "true" : "false",
+                                               "rescue": e.rescue == nil ? "false" : "true"])
         if known, restorePending {
             // As the StopIntent: in memory too; RestorePlanner plans RANG and the restore feeds UserAction(SNOOZE) (§3.4).
             memoryRingEvents.append(e)
+            snoozeApplied = nil
             await completeRestore()
             memoryRingEvents.removeAll { $0.tripId == e.tripId }
             ports.store.removeRingEvents(tripId: e.tripId)
-            return
+            return snoozeOutcome(snoozeApplied)
         }
         guard known, let a = active, let v = a.view, v.phase != .ended else {
-            // Unknown or ended trip: cancel that alarm only (an unknown trip is not known to have ended: no markEnded).
+            // Unknown or ended trip: cancel that alarm only (an unknown trip is not known to have ended: no markEnded), and
+            // the rescue alarm of the intent (T17.2.1 §3).
             await cancelIntentAlarm(e)
+            if let r = e.rescue {
+                let ch = (await readList())?.first { $0.id == r.id }?.channel ?? .alarmKit
+                await ports.alarms.cancel(id: r.id, channel: ch)
+                ports.journal.record("rescue", ["op": "cancel", "cause": "unknownTrip"])
+            }
             ports.store.removeRingEvents(tripId: e.tripId)
-            return
+            return .unknownTrip
         }
         await slotFiredFirst(e)
-        await applySnoozeEvent(e)
+        let snoozed = await applySnoozeEvent(e)
+        await retireRescues(tripId: e.tripId)
         ports.store.removeRingEvents(tripId: e.tripId)
+        return snoozeOutcome(snoozed)
+    }
+
+    /// T17.2.1 §2 step (3): what the intent learns. A SNOOZED trip has a slot for the snooze end (a repeated intent too).
+    private func snoozeOutcome(_ applied: Bool?) -> SnoozeHandOverOutcome {
+        guard let v = active?.view, v.phase != .ended else { return .unknownTrip }
+        if applied == true || v.phase == .snoozed { return .snoozed }
+        return .refused
     }
 
     /// D5, D6: UserAction(SNOOZE) at the tap time (never before the engine clock). Refused (no snoozes left, or an old
-    /// alarm) → the alarm the intent stopped is reported silenced; the engine stays ALARMING/OVERSHOT, nothing rings now.
-    private func applySnoozeEvent(_ e: RingEventRec) async {
-        guard let a = active, a.view?.phase != .ended else { return }
+    /// alarm): a T17.2 record (the intent stopped the alarm first) → the alarm is reported silenced; a T17.2.1 record (with
+    /// a rescue: the intent does not stop a refused snooze) → silenced only when the alarm is no longer ringing. The engine
+    /// stays ALARMING/OVERSHOT, nothing rings now. Returns whether the engine snoozed.
+    @discardableResult
+    private func applySnoozeEvent(_ e: RingEventRec) async -> Bool {
+        guard let a = active, a.view?.phase != .ended else { return false }
+        var rescue: PendingRescue?
+        if let r = e.rescue {
+            let list = await readList()
+            if let list { lastList = list }
+            rescue = PendingRescue(id: r.id, atWallMs: r.atWallMs, tapWallMs: e.atWallMs, listed: list?.first { $0.id == r.id })
+            if rescue?.fired == true { keepRingingId = r.id }
+        }
+        pendingRescue = rescue
         let engineNow = factsReader(a.engine)?.nowMs ?? nowTrip()
         let tap = toTrip(e.atWallMs)
         let step = await process(.userAction(atMs: max(engineNow, min(tap, nowTrip())), action: .snooze))
+        let used = pendingRescue
+        pendingRescue = nil
+        keepRingingId = nil
         let snoozed = step?.events.contains { if case .snoozed = $0 { return true }; return false } ?? false
-        if !snoozed, let v = active?.view, v.alarmRinging {
-            ports.journal.record("snooze_intent", ["refused": "true"])
+        if snoozed, let u = used, u.adopted, u.fired, let info = u.listed {
+            // §3 restore: the rescue rang while no process ran; it is this snooze's end ring (T17 R2: no ring again).
+            await perform(.fallbackFired(alarmId: u.id, kind: .fallback, generation: info.generation,
+                                         firedAtWallMs: info.fireAtWallMs ?? u.atWallMs))
+        }
+        if !snoozed, let r = e.rescue, let v = active?.view, v.phase == .alarming || v.phase == .overshot {
+            // The intent leaves a refused snooze ringing (§2 step 4). Review T17.2.1 #1: the intent may have stopped the ring
+            // anyway (its 3 s budget ran out before this answer), or the system did; then the rescue is the only alarm left
+            // and stays as the trip's slot (unless a live slot exists). Unreadable list: not known to ring → keep it too.
+            let l = await readList()
+            if let l { lastList = l }
+            let originalRinging = l.map { $0.contains { $0.id == e.alarmId && $0.state == .alerting } }
+            let rescueState = l?.first { $0.id == r.id }?.state
+            if originalRinging != true, l == nil || rescueState == .scheduled, EffectPlanner.liveSlot(ledger, list: l) == nil {
+                let g = ledger.nextGeneration
+                ledger.nextGeneration += 1
+                let ch = l?.first { $0.id == r.id }?.channel ?? .alarmKit
+                await installSlot(AlarmSlotRec(alarmId: r.id, kind: .fallback, generation: g, targetAtMs: toTrip(r.atWallMs),
+                                               targetAtWallMs: r.atWallMs, setAtWallMs: nowWall(), channel: ch),
+                                  replacing: ledger.current)
+                ports.journal.record("rescue", ["op": "keep", "cause": "refused"])
+            }
+            if v.alarmRinging {
+                let silenced = originalRinging == false
+                if !silenced { expectedStops.remove(e.alarmId) }  // a later disappearance goes the goneCheck way
+                ports.journal.record("snooze_intent", ["refused": "true", "silenced": silenced ? "true" : "false"])
+                if silenced { feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(tap, nowTrip()))) }
+            }
+        } else if !snoozed, e.rescue == nil, let v = active?.view, v.alarmRinging {
+            // T17.2 record: the intent stopped the alarm first.
+            ports.journal.record("snooze_intent", ["refused": "true", "silenced": "true"])
             feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(tap, nowTrip())))
         }
+        return snoozed
+    }
+
+    /// §3 "nhận alarm cứu làm khe": the slot of the snooze end at `t`. The rescue alarm is taken when it is scheduled within
+    /// RESCUE_MATCH_MS of the slot time (or already rang, restore); otherwise a new slot is scheduled first and the rescue
+    /// cancelled after (when the new one could not be scheduled, the rescue stays as the slot).
+    private func takeRescue(_ r: PendingRescue, targetAtMs t: Int64) async {
+        let wall = toWall(t)
+        let fresh = await readList()
+        if let fresh { lastList = fresh }
+        let info = fresh?.first { $0.id == r.id }
+        // Review T17.2.1 (reviewer suggestion, §4 note 7): a restore that ran late makes the engine's slot later than the
+        // rescue by that delay (the engine clock never goes back). The rescue keeps the "≤ 90 s after the tap" promise, so it
+        // is also taken when it is earlier by at most the restore delay (+ RESCUE_MATCH_MS). A longer snooze of the trip
+        // (Remote Config, SU04) is not explained by the delay: replaced as before.
+        let lateMs = max(0, nowWall() - r.tapWallMs)
+        let early = wall - r.atWallMs
+        let matches = early >= -constants.rescueMatchMs && early <= lateMs + constants.rescueMatchMs
+        if r.fired || (info?.state == .scheduled && matches && r.atWallMs > nowWall()) {
+            await adoptRescue(r, targetAtMs: t, channel: info?.channel ?? r.listed?.channel ?? .alarmKit)
+            ports.journal.record("rescue", ["op": "adopt", "fired": r.fired ? "true" : "false"])
+            feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: t, ok: true))
+            return
+        }
+        if await scheduleSlot(.fallback, targetAtMs: t, wallMs: wall) {
+            // The rescue is now an old slot: cancel it unless it may be ringing.
+            let due = r.atWallMs <= nowWall()
+            if info?.state == .scheduled || (fresh == nil && !due) {
+                await ports.alarms.cancel(id: r.id, channel: info?.channel ?? .alarmKit)
+                expectedStops.insert(r.id)
+            }
+            ports.journal.record("rescue", ["op": "replace", "listed": info == nil ? "false" : "true"])
+        } else if info?.state == .scheduled {
+            // No new slot: the rescue rings for this snooze (its time may differ from the engine's slot).
+            await adoptRescue(r, targetAtMs: t, channel: info?.channel ?? .alarmKit)
+            ports.journal.record("rescue", ["op": "keep"])
+        }
+    }
+
+    private func adoptRescue(_ r: PendingRescue, targetAtMs t: Int64, channel: AlarmChannelKind) async {
+        let g = ledger.nextGeneration
+        ledger.nextGeneration += 1
+        await installSlot(AlarmSlotRec(alarmId: r.id, kind: .fallback, generation: g, targetAtMs: t, targetAtWallMs: r.atWallMs,
+                                       setAtWallMs: nowWall(), channel: channel), replacing: ledger.current)
+        pendingRescue?.adopted = true
+    }
+
+    /// Rescue alarms of the ring events of `tripId` that are not the trip's slot: cancelled before the events are removed
+    /// (refused snooze, simulated trip, repeated intent, SNOOZED already). A ringing one is left alone.
+    private func retireRescues(tripId: String) async {
+        let slots = Set([ledger.current?.alarmId, ledger.stale?.alarmId, ledger.lastFired?.alarmId].compactMap { $0 })
+        let ids = Set(ringEvents().filter { $0.tripId == tripId }.compactMap { $0.rescue?.id }).subtracting(slots)
+        if ids.isEmpty { return }
+        let list = await readList()
+        if let list { lastList = list }
+        for id in ids.sorted() {
+            let x = list?.first { $0.id == id }
+            guard list == nil || x?.state == .scheduled else { continue }
+            await ports.alarms.cancel(id: id, channel: x?.channel ?? .alarmKit)
+            expectedStops.insert(id)
+            ports.journal.record("rescue", ["op": "cancel"])
+        }
+    }
+
+    /// §3: rescue alarms the snooze handling has not taken or cancelled yet (ring events on disk + in memory, and the one of
+    /// the Step running). Neither the reconciler nor the interpreter cancels them.
+    private func pendingRescueIds() -> Set<String> {
+        var ids = Set(ringEvents().compactMap { $0.rescue?.id })
+        if let r = pendingRescue, !r.adopted { ids.insert(r.id) }
+        // Review T17.2.1 #2: a rescue taken as the slot is a normal slot, even when its ring event could not be removed
+        // (otherwise K4 #3 would leave it scheduled next to the SNOOZE_END ring: a second ring).
+        ids.subtract([ledger.current?.alarmId, ledger.stale?.alarmId].compactMap { $0 })
+        return ids
     }
 
     private func handleRouteBackIntent(_ e: RingEventRec) async {

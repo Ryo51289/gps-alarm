@@ -88,18 +88,23 @@ struct NapStopSnoozeIntent: LiveActivityIntent {
   }
 
   func perform() async throws -> some IntentResult {
-    let rec = RingEventRec(
-      tripId: tripId, alarmId: alarmID, kind: SystemAlarmKind(rawValue: kind) ?? .fallback, action: .snooze,
-      atWallMs: RuntimeHost.nowWallMs())
-    // D4: (1) ring event on disk, (2) stop the alarm (the docs do not say a `.custom` button stops it; Code=0 is fine),
-    // (3) the runtime (UserAction(SNOOZE)).
-    let written = await StopIntentFlow.perform(
-      rec,
+    // T17.2.1 §2 (order tested on Linux, SnoozeIntentFlow): (1) ring event with the rescue id on disk, (2) the rescue
+    // alarm at tap + snooze + lag, (3) the runtime for at most SNOOZE_HANDOVER_BUDGET_MS, (4) stop the ring only when
+    // something rings for this snooze (the docs do not say whether a `.custom` button stops it; Code=0 is fine).
+    // The values come from the loaded trip, else the defaults (§2.1): the host is not created before (1).
+    let (rec, rescue) = SnoozeIntentFlow.prepare(
+      tripId: tripId, alarmId: alarmID, kind: SystemAlarmKind(rawValue: kind) ?? .fallback,
+      tapWallMs: RuntimeHost.nowWallMs(), rescueId: UUID().uuidString,
+      params: RuntimeHost.snoozeRescueParams(tripId: tripId), locale: RuntimeHost.localeTag())
+    let result = await SnoozeIntentFlow.perform(
+      rec, rescue: rescue, budgetMs: RuntimeConstants.default.snoozeHandoverBudgetMs,
       write: { try RuntimeHost.appendRingEventSync($0) },
+      schedule: { try await AlarmIntents.host().alarms.schedule($0) },
+      handOver: { r in await AlarmIntents.host().onSnoozeIntent(r) },
       stopSystemAlarm: { AlarmIntents.stopAlarm(alarmID) },
-      handOver: { r in await AlarmIntents.host().onSnoozeIntent(r) })
+      journal: HostJournal())
     if let journal = RuntimeHost.shared?.journal {
-      StopIntentFlow.recordWriteFailure(written: written, journal)
+      StopIntentFlow.recordWriteFailure(written: result.written, journal)
     }
     return .result()
   }
@@ -153,6 +158,14 @@ struct NapStopRouteBackIntent: LiveActivityIntent {
     // (e.g. already foreground or not allowed); AM03 checks what the device does.
     try? await continueInForeground(nil, alwaysConfirm: false)
     return .result()
+  }
+}
+
+/// The diagnostics journal of the host, looked up at each record (the snooze intent writes its ring event before the host
+/// exists in a freshly launched process).
+struct HostJournal: RuntimeJournal {
+  func record(_ event: String, _ fields: [String: String]) {
+    RuntimeHost.shared?.journal.record(event, fields)
   }
 }
 
