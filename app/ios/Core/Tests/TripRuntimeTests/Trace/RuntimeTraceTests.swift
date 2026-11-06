@@ -24,15 +24,19 @@ struct RuntimeTraceTests {
         let schedules: Int
         let cancels: Int
         let hours: Double
+        /// T17.3 NTR30: the world after the run (notification center, double rings).
+        let world: World
     }
 
     /// Runs one case; `#expect`s the ITR30 windows and invariants.
-    static func runCase(_ key: String) async throws -> Result {
+    /// `configure` (T17.3 NTR30): changes the world before the trip starts (e.g. the notification channel only).
+    static func runCase(_ key: String, configure: ((World) -> Void)? = nil) async throws -> Result {
         let parts = key.split(separator: "/").map(String.init)
         let trace = try RuntimeFixtures.read(parts[0])
         let c = try #require(trace.cases.first { $0.id == parts[1] })
         let world = World(startWall: trace.startMs)
         if let s = c.osRingMaxS { world.alarms.silenceAfterMs = Int64(s) * 1000 }
+        configure?(world)
         await world.listen()
         let meta = RuntimeFixtures.meta(trace, c)
         let slotViolations = Counter()
@@ -105,7 +109,7 @@ struct RuntimeTraceTests {
         #expect(world.store.activeTrip == nil)
         world.sleeper.releaseAll()
         return Result(firstAlarm: first, startMs: trace.startMs, schedules: schedules, cancels: cancels,
-                      hours: Double(trace.durationS) / 3600)
+                      hours: Double(trace.durationS) / 3600, world: world)
     }
 
     @Test("ITR30 + ITR30p: base traces through the runtime, first alarm = Kotlin L30", arguments: caseIds)

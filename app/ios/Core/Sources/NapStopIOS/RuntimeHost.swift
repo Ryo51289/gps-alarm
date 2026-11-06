@@ -110,7 +110,8 @@ public final class RuntimeHost: @unchecked Sendable {
             let mapper = AlarmKitSystemAlarms(registry: registry, intents: nil, stopLabel: { "" })
             alarmTask = Task.detached {
                 for await list in AlarmManager.shared.alarmUpdates {
-                    await rt.onSystemAlarms(mapper.map(list))
+                    // AlarmKit alarms only: the runtime keeps what it knows of the notification channel (T17.3).
+                    await rt.onSystemAlarms(mapper.map(list), channel: .alarmKit)
                 }
             }
         }

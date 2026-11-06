@@ -388,3 +388,42 @@ final class T172AlarmHostApiTests: XCTestCase {
     XCTAssertNil(UserDefaults.standard.string(forKey: RuntimeHost.appLocaleKey))
   }
 }
+
+// T17.3 NC02 (coder): the UNNotificationRequest of each planned request of the notification channel. Runs on CI macOS
+// (Simulator); not typechecked on WSL (RunnerTests needs XCTest).
+import UserNotifications
+
+final class T173NotificationRequestTests: XCTestCase {
+  private func requests(kind: SystemAlarmKind, fireIn: Int64, sound: String?) -> [UNNotificationRequest] {
+    let now: Int64 = 1_700_000_000_000
+    let r = SystemAlarmRequest(
+      id: "X", tripId: "t1", kind: kind, generation: 1, fireAtWallMs: now + fireIn, title: "Sắp tới Ga A",
+      channel: .notification, soundFile: sound)
+    return NotificationAlarmPlan.requests(r, nowWallMs: now).map { NotificationSystemAlarms.makeRequest($0) }
+  }
+
+  private func intervals(_ reqs: [UNNotificationRequest]) -> [Double?] {
+    reqs.map { ($0.trigger as? UNTimeIntervalNotificationTrigger)?.timeInterval }
+  }
+
+  func testFallbackSlotIsThreeTimeSensitiveRequestsThirtySecondsApart() {
+    let reqs = requests(kind: .fallback, fireIn: 600_000, sound: "alarm_horn.wav")
+    XCTAssertEqual(reqs.map { $0.identifier }, ["X#0", "X#1", "X#2"])
+    XCTAssertEqual(intervals(reqs), [600, 630, 660])
+    for q in reqs {
+      XCTAssertEqual(q.content.interruptionLevel, .timeSensitive)
+      XCTAssertEqual(q.content.title, "Sắp tới Ga A")
+      XCTAssertNotNil(q.content.sound)
+      XCTAssertEqual((q.trigger as? UNTimeIntervalNotificationTrigger)?.repeats, false)
+      XCTAssertEqual(q.content.userInfo["tripId"] as? String, "t1")
+      XCTAssertNil(q.content.userInfo["lat"])
+    }
+  }
+
+  func testNowAlarmFirstRequestHasNoTrigger() {
+    let reqs = requests(kind: .now, fireIn: 5_000, sound: nil)
+    XCTAssertNil(reqs[0].trigger)
+    XCTAssertEqual(intervals(reqs), [nil, 35, 65])
+    XCTAssertTrue(reqs.allSatisfy { $0.content.interruptionLevel == .timeSensitive })
+  }
+}

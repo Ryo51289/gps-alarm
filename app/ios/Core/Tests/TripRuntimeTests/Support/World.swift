@@ -105,7 +105,8 @@ final class World: @unchecked Sendable {
         var guardCount = 0
         while alarms.version != emittedVersion && guardCount < 20 {
             emittedVersion = alarms.version
-            await runtime.onSystemAlarms(alarms.all)
+            // alarmUpdates: AlarmKit alarms only (T17.3: notifications have no update stream).
+            await runtime.onSystemAlarms(alarms.alarmKitAll, channel: .alarmKit)
             await runtime.drain()
             guardCount += 1
         }

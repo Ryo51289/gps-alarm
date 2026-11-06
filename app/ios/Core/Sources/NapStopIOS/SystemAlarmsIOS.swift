@@ -1,5 +1,6 @@
-// System alarm channels (docs/specs/T17.md §4.2, D3, D4, D14, D22, §5.6.6): AlarmKit (iOS 26+), minimal notifications,
-// the router, and the id registry (AlarmKit's `Alarm` carries no metadata, so tripId/kind/generation are kept here).
+// System alarm channels (docs/specs/T17.md §4.2, D3, D4, D14, D22; T17.3): AlarmKit (iOS 26+), the notification channel,
+// and the diagnostics fake (the router is in TripRuntime since T17.3). AlarmKit's `Alarm` carries no metadata, so
+// tripId/kind/generation are kept in the id registry.
 #if os(iOS)
 import Foundation
 import Trip
@@ -104,9 +105,10 @@ public final class AlarmKitSystemAlarms: SystemAlarms, @unchecked Sendable {
         try? AlarmManager.shared.stop(id: uuid)
     }
 
-    public func list() async -> [SystemAlarmInfo]? {
+    public func list() async -> SystemAlarmList? {
+        // T17.3 D6: a read error is reported as unreadable (the router keeps the notification alarms).
         guard let alarms = try? AlarmManager.shared.alarms else { return nil }
-        return map(alarms)
+        return SystemAlarmList(items: map(alarms))
     }
 
     public func map(_ alarms: [Alarm]) -> [SystemAlarmInfo] {
@@ -129,78 +131,65 @@ public final class AlarmKitSystemAlarms: SystemAlarms, @unchecked Sendable {
 }
 #endif
 
-public enum AlarmChannelError: Error { case notAuthorized, badId, unavailable }
-
-/// Minimal notification channel (§5.6.6); T17.3 makes it a full Time Sensitive channel.
+/// The notification channel on the device (docs/specs/T17.3.md D1–D3, D7–D10): `NotificationAlarmChannel` (TripRuntime,
+/// tested on Linux) over the real UNUserNotificationCenter ([UN-CENTER]). No action buttons, no delegate (T17 §5.10).
 public final class NotificationSystemAlarms: SystemAlarms, @unchecked Sendable {
-    public init() {}
+    let channel: NotificationAlarmChannel
 
-    public func schedule(_ r: SystemAlarmRequest) async throws {
+    public init(budget: Int = RuntimeConstants.default.notifPendingBudget) {
+        channel = NotificationAlarmChannel(center: UNCenterPort(), now: { IOSTime().wallMs() }, budget: budget)
+    }
+
+    public func schedule(_ r: SystemAlarmRequest) async throws { try await channel.schedule(r) }
+    public func cancel(id: String, channel c: AlarmChannelKind) async { await channel.cancel(id: id, channel: c) }
+    public func stop(id: String, channel c: AlarmChannelKind) async { await channel.stop(id: id, channel: c) }
+    public func list() async -> SystemAlarmList? { await channel.list() }
+
+    /// NC02: the request of one plan. Sound: the T17.2 bundle file (< 30 s, PCM WAV, main bundle [UN-SOUND]) or the
+    /// default sound; `.timeSensitive` ([UN-TS]; without the capability, T40.1, the system treats it as `.active`).
+    public static func makeRequest(_ p: NotificationRequestPlan) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
-        content.title = r.title
-        content.sound = .default
+        content.title = p.title
+        content.sound = p.soundFile.map { UNNotificationSound(named: UNNotificationSoundName(rawValue: $0)) } ?? .default
         content.interruptionLevel = .timeSensitive
-        content.userInfo = ["tripId": r.tripId, "kind": r.kind.rawValue, "generation": String(r.generation),
-                            "fireAtWallMs": String(r.fireAtWallMs)]
-        let now = Int64((Date().timeIntervalSince1970 * 1000).rounded(.down))
-        let trigger: UNNotificationTrigger? = r.kind == .now
-            ? nil : UNTimeIntervalNotificationTrigger(timeInterval: max(1, Double(r.fireAtWallMs - now) / 1000), repeats: false)
-        try await UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: r.id, content: content, trigger: trigger))
+        content.userInfo = p.userInfo
+        let trigger = p.delayS.map { UNTimeIntervalNotificationTrigger(timeInterval: $0, repeats: false) }
+        return UNNotificationRequest(identifier: p.id, content: content, trigger: trigger)
     }
 
-    public func cancel(id: String, channel: AlarmChannelKind) async {
-        let c = UNUserNotificationCenter.current()
-        c.removePendingNotificationRequests(withIdentifiers: [id])
-        c.removeDeliveredNotifications(withIdentifiers: [id])
-    }
-
-    public func stop(id: String, channel: AlarmChannelKind) async { await cancel(id: id, channel: channel) }
-
-    static func info(_ id: String, _ userInfo: [AnyHashable: Any], _ state: SystemAlarmState) -> SystemAlarmInfo? {
-        guard let trip = userInfo["tripId"] as? String, let k = (userInfo["kind"] as? String).flatMap(SystemAlarmKind.init(rawValue:))
-        else { return nil }
-        return SystemAlarmInfo(id: id, tripId: trip, kind: k, generation: Int64(userInfo["generation"] as? String ?? "") ?? 0,
-                               state: state, fireAtWallMs: Int64(userInfo["fireAtWallMs"] as? String ?? ""),
-                               channel: .notification)
-    }
-
-    public func list() async -> [SystemAlarmInfo]? {
-        let c = UNUserNotificationCenter.current()
-        let pending = await c.pendingNotificationRequests()
-        let delivered = await c.deliveredNotifications()
-        return pending.compactMap { Self.info($0.identifier, $0.content.userInfo, .scheduled) }
-            + delivered.compactMap { Self.info($0.request.identifier, $0.request.content.userInfo, .other) }
+    /// String entries of a notification's userInfo (the alarm requests only carry strings).
+    static func strings(_ u: [AnyHashable: Any]) -> [String: String] {
+        var out: [String: String] = [:]
+        for (k, v) in u {
+            if let key = k as? String, let value = v as? String { out[key] = value }
+        }
+        return out
     }
 }
 
-/// Routes by `request.channel`; `list()` merges both channels.
-public final class SystemAlarmsRouter: SystemAlarms, @unchecked Sendable {
-    let alarmKit: SystemAlarms?
-    let notifications: SystemAlarms
+/// [UN-CENTER] `add(_:)`, `removePendingNotificationRequests(withIdentifiers:)`,
+/// `removeDeliveredNotifications(withIdentifiers:)`, `pendingNotificationRequests()`, `deliveredNotifications()`.
+final class UNCenterPort: NotificationCenterPort, @unchecked Sendable {
+    private var center: UNUserNotificationCenter { UNUserNotificationCenter.current() }
 
-    public init(alarmKit: SystemAlarms?, notifications: SystemAlarms) {
-        self.alarmKit = alarmKit
-        self.notifications = notifications
+    func add(_ request: NotificationRequestPlan) async throws {
+        try await center.add(NotificationSystemAlarms.makeRequest(request))
     }
 
-    private func pick(_ c: AlarmChannelKind) -> SystemAlarms? { c == .alarmKit ? alarmKit : notifications }
+    func removePending(_ ids: [String]) async { center.removePendingNotificationRequests(withIdentifiers: ids) }
 
-    public func schedule(_ r: SystemAlarmRequest) async throws {
-        guard let s = pick(r.channel) else { throw AlarmChannelError.unavailable }
-        try await s.schedule(r)
-    }
+    func removeDelivered(_ ids: [String]) async { center.removeDeliveredNotifications(withIdentifiers: ids) }
 
-    public func cancel(id: String, channel: AlarmChannelKind) async { await pick(channel)?.cancel(id: id, channel: channel) }
-    public func stop(id: String, channel: AlarmChannelKind) async { await pick(channel)?.stop(id: id, channel: channel) }
-
-    public func list() async -> [SystemAlarmInfo]? {
-        var out: [SystemAlarmInfo] = []
-        if let ak = alarmKit {
-            guard let l = await ak.list() else { return nil }
-            out += l
+    func pending() async -> [NotificationRecord] {
+        await center.pendingNotificationRequests().map {
+            NotificationRecord(id: $0.identifier, userInfo: NotificationSystemAlarms.strings($0.content.userInfo))
         }
-        out += await notifications.list() ?? []
-        return out
+    }
+
+    func delivered() async -> [NotificationRecord] {
+        await center.deliveredNotifications().map {
+            NotificationRecord(id: $0.request.identifier, userInfo: NotificationSystemAlarms.strings($0.request.content.userInfo))
+        }
     }
 }
 
@@ -263,7 +252,7 @@ public final class FakeSystemAlarmsIOS: SystemAlarms, @unchecked Sendable {
 
     public func stop(id: String, channel: AlarmChannelKind) async { await cancel(id: id, channel: channel) }
 
-    public func list() async -> [SystemAlarmInfo]? { withItems { Array($0.values) } }
+    public func list() async -> SystemAlarmList? { SystemAlarmList(items: withItems { Array($0.values) }) }
 
     func anyAlerting() -> Bool { withItems { $0.values.contains { $0.state == .alerting } } }
 }

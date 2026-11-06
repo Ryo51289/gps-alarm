@@ -121,6 +121,13 @@ public enum RestorePlanner {
         if let a = list.first(where: { $0.tripId == facts.tripId && $0.state == .alerting }) {
             return RestoreInfo(status: .rang, firedAtMs: a.fireAtWallMs.map(toTrip) ?? nowTripMs)
         }
+        // T17.3 §3: a fallback/guard slot of the ledger on the notification channel that was delivered (window over, still in
+        // Notification Center) rang while no process saw it; one the runtime already fed (lastFired) is not fed again.
+        let slotIds = Set([ledger.current?.alarmId, ledger.stale?.alarmId].compactMap { $0 })
+        if let d = list.first(where: { $0.tripId == facts.tripId && $0.channel == .notification && $0.state == .other
+            && $0.kind != .now && slotIds.contains($0.id) && $0.id != ledger.lastFired?.alarmId }) {
+            return RestoreInfo(status: .rang, firedAtMs: d.fireAtWallMs.map(toTrip) ?? nowTripMs)
+        }
         let fb = facts.fallbackTargetAtMs
         if fb != nil, let lf = ledger.lastFired, resolved(lf) > facts.nowMs {
             return RestoreInfo(status: .rang, firedAtMs: resolved(lf))

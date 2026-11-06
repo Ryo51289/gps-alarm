@@ -41,6 +41,8 @@ public struct RuntimeConstants: Sendable, Equatable {
     public var rescueMatchMs: Int64 = 2_000
     /// T17.2.1 §4: how long `NapStopSnoozeIntent` waits for the runtime before deciding whether to stop the ring.
     public var snoozeHandoverBudgetMs: Int64 = 3_000
+    /// T17.3 D7: pending notification requests the notification channel allows itself (system limit 64 per app [UN-64]).
+    public var notifPendingBudget: Int = 20
 
     /// T17.2.1 §4: system generation of a rescue alarm (runtime slots start at 1).
     public static let rescueGeneration: Int64 = 0

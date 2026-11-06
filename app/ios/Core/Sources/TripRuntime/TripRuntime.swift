@@ -105,6 +105,10 @@ public actor TripRuntime: LocationSink {
         case heldRing
         /// T18.1 D7: the ring guard of a simulated trip (in process, real time; never a system alarm).
         case simGuard
+        /// T17.3 D5: read `list()` for a notification-channel alarm (no `alarmUpdates` for notifications).
+        case notifPoll
+        /// T17.3 round 2 (tester bug #1): G2 retry due (fixes keep pushing the engine timer, so it needs its own entry).
+        case ringRetry
     }
 
     struct Deferred: Equatable { let dueWallMs: Int64; let kind: DeferredKind }
@@ -144,6 +148,8 @@ public actor TripRuntime: LocationSink {
     private var lastPersistWallMs: Int64 = 0
     private var batteryChoiceMem: UserActionKind?
     private var droppedPlatform = 0
+    /// T17.3 D5: a `.notifPoll` came due in this timer command.
+    private var notifPollDue = false
     /// Reads the engine-state facts at restore. Tests replace it (`setFactsReaderForTesting`) to check review #9.
     private var factsReader: @Sendable (EngineState) -> EngineFacts? = { EngineFacts.read($0) }
     /// Ring events handed over by a StopIntent in memory (also used when its disk write failed, tester T17 #2).
@@ -258,7 +264,11 @@ public actor TripRuntime: LocationSink {
 
     public func onTimer(generation: Int64) async { await submit { rt in await rt.handleTimer(generation) } }
 
-    public func onSystemAlarms(_ alarms: [SystemAlarmInfo]) async { await submit { rt in await rt.handleSystemAlarms(alarms) } }
+    /// `channel`: the update covers that channel only (AlarmKit `alarmUpdates`); the runtime keeps the alarms of the other
+    /// channels as it last read them (T17.3). nil = every channel.
+    public func onSystemAlarms(_ alarms: [SystemAlarmInfo], channel: AlarmChannelKind? = nil) async {
+        await submit { rt in await rt.handleSystemAlarms(alarms, channel: channel) }
+    }
 
     public func onStopIntent(_ e: RingEventRec) async { await submit { rt in await rt.handleStopIntent(e) } }
 
@@ -454,6 +464,14 @@ public actor TripRuntime: LocationSink {
         ledger = r.ledger
         writeLedger()
         for act in r.actions { await perform(act) }
+        // T17.3 D5: the polls of the notification alarms of the trip did not survive the process.
+        var notifFires = (list ?? []).filter { $0.channel == .notification && $0.tripId == s.meta.tripId }
+            .compactMap(\.fireAtWallMs)
+        if let n = ledger.now, n.channel == .notification { notifFires.append(n.fireAtWallMs) }
+        for slot in [ledger.current, ledger.stale].compactMap({ $0 }) where slot.channel == .notification {
+            notifFires.append(slot.targetAtWallMs)
+        }
+        for w in Set(notifFires).sorted() { addNotifPolls(w) }
         if appState == .active {
             await completeRestore()
         } else {
@@ -722,6 +740,7 @@ public actor TripRuntime: LocationSink {
                 ok = true
                 ports.journal.record("ak", ["op": "schedule", "kind": "fallback", "gen": "\(g)", "ok": "true", "sim": "true",
                                             "ch": ch.rawValue])
+                if ch == .notification { addNotifPolls(fire) }  // T17.3 D5
                 break
             } catch {
                 ports.journal.record("ak", ["op": "schedule", "kind": "fallback", "gen": "\(g)", "ok": "false", "sim": "true",
@@ -734,6 +753,7 @@ public actor TripRuntime: LocationSink {
             await ports.notifier.show(tripId: a.meta.tripId, .ringFailed, destinationName: a.meta.destinationName)
             ringRetryPending = true
             lastRingRetryWallMs = nowWall()
+            armRingRetry()
         }
         ports.journal.record("fb_fired", ["src": "sim"])
         feeds.append(.fallbackFired(atMs: at, firedAtMs: at))
@@ -1074,6 +1094,7 @@ public actor TripRuntime: LocationSink {
             ledger.now = NowRingRec(alarmId: id, generation: g, fireAtWallMs: fire, reason: req.reason.jsonName, confirmed: true,
                                     seenAlerting: false, channel: ch)
             writeLedger()
+            if ch == .notification { addNotifPolls(fire) }  // T17.3 D5
             ringRetryPending = false
             if sim != nil, let c = clock {
                 // D6 addendum: the "now" alarm alerts AK_NOW_LEAD_MS later, on the trip clock (1× by then, D8).
@@ -1086,6 +1107,7 @@ public actor TripRuntime: LocationSink {
             await ports.notifier.show(tripId: a.meta.tripId, .ringFailed, destinationName: a.meta.destinationName)
             ringRetryPending = true
             lastRingRetryWallMs = nowWall()
+            armRingRetry()
         }
         if trackingMode == .headless && okChannel != nil {
             addDeferred(nowWall() + constants.nowObserveHoldMs, .endBgTask(token: bg))
@@ -1097,9 +1119,35 @@ public actor TripRuntime: LocationSink {
     private func stateOf(_ id: String) -> SystemAlarmState? { lastList.first { $0.id == id }?.state }
 
     /// `alarms.list()` with alarms the ledger knows re-attributed to the trip when the id registry lost them (review #2).
+    /// T17.3 D6: an AlarmKit read error makes the list unreadable (as `nil` before T17.3) only for decisions that may involve
+    /// an AlarmKit alarm of the trip; a trip on the notification channel keeps a readable list.
     private func readList() async -> [SystemAlarmInfo]? {
+        guard let l = await readListFull() else { return nil }
+        if l.alarmKitUnreadable && dependsOnAlarmKit() { return nil }
+        return l.items
+    }
+
+    /// `alarms.list()` as read (items adopted).
+    private func readListFull() async -> SystemAlarmList? {
         guard let l = await ports.alarms.list() else { return nil }
-        return adopt(l)
+        return SystemAlarmList(items: adopt(l.items), alarmKitUnreadable: l.alarmKitUnreadable)
+    }
+
+    /// Whether the ledger (or a snooze rescue) refers to an AlarmKit alarm.
+    private func dependsOnAlarmKit() -> Bool {
+        if ledger.now?.channel == .alarmKit || ledger.current?.channel == .alarmKit || ledger.stale?.channel == .alarmKit {
+            return true
+        }
+        return pendingRescue != nil || ringEvents().contains { $0.rescue != nil }
+    }
+
+    /// T17.3 D5: polls of one notification-channel alarm (every ring + 1 s, end of its window + 1 s).
+    private func addNotifPolls(_ fireAtWallMs: Int64) {
+        let now = nowWall()
+        for t in NotificationAlarmPlan.pollTimes(fireAtWallMs) where t > now {
+            let d = Deferred(dueWallMs: t, kind: .notifPoll)
+            if !deferred.contains(d) { deferred.append(d) }
+        }
     }
 
     private func adopt(_ l: [SystemAlarmInfo]) -> [SystemAlarmInfo] {
@@ -1127,7 +1175,7 @@ public actor TripRuntime: LocationSink {
         let title = kind == .fallback
             ? NativeCopy.fallbackTitle(destinationName: a.meta.destinationName, locale: locale())
             : NativeCopy.alarmTitle(a.view?.alarmReason ?? .fallback, destinationName: a.meta.destinationName, locale: locale())
-        guard let ch = chans.first else {
+        guard !chans.isEmpty else {
             ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false", "err": "noChannel"])
             if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: false)) }
             return false
@@ -1140,19 +1188,30 @@ public actor TripRuntime: LocationSink {
             snoozeAllowed: v.map { $0.phase == .alarming && $0.snoozeCount < a.params.maxSnoozes } ?? false,
             snoozeCount: v?.snoozeCount ?? 0, maxSnoozes: a.params.maxSnoozes,
             snoozeMinutes: SecondaryActionPlanner.snoozeMinutes(a.params.snoozeS), constants: constants)
-        do {
-            try await ports.alarms.schedule(SystemAlarmRequest(id: id, tripId: a.meta.tripId, kind: kind, generation: g,
-                                                               fireAtWallMs: wallMs, title: title, channel: ch,
-                                                               secondary: secondary,
-                                                               soundFile: AlarmSoundCatalog.fileName(a.meta.alarm.soundId)))
-        } catch {
-            warn("alarm schedule failed (\(type(of: error)))")
-            ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false",
-                                        "err": String(describing: type(of: error))])
+        // T17.3 round 2 (tester observation): the next channel when one fails, as for the "now" alarm (§5.6.3 step 1).
+        var picked: AlarmChannelKind?
+        var lastError: Error?
+        for c in chans {
+            do {
+                try await ports.alarms.schedule(SystemAlarmRequest(id: id, tripId: a.meta.tripId, kind: kind, generation: g,
+                                                                   fireAtWallMs: wallMs, title: title, channel: c,
+                                                                   secondary: secondary,
+                                                                   soundFile: AlarmSoundCatalog.fileName(a.meta.alarm.soundId)))
+                picked = c
+                break
+            } catch {
+                lastError = error
+                ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false",
+                                            "err": String(describing: type(of: error)), "ch": c.rawValue])
+            }
+        }
+        guard let ch = picked else {
+            warn("alarm schedule failed (\(lastError.map { "\(type(of: $0))" } ?? "none"))")
             if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: false)) }
             return false
         }
-        ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "true"])
+        ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "true", "ch": ch.rawValue])
+        if ch == .notification { addNotifPolls(wallMs) }  // T17.3 D5
         await installSlot(AlarmSlotRec(alarmId: id, kind: kind, generation: g, targetAtMs: targetAtMs, targetAtWallMs: wallMs,
                                        setAtWallMs: nowWall(), channel: ch), replacing: old)
         if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: true)) }
@@ -1174,7 +1233,12 @@ public actor TripRuntime: LocationSink {
             if let l { lastList = l }
             var keep: AlarmSlotRec?
             for p in previous {
-                if l != nil && stateOf(p.alarmId) == .alerting { continue }  // never cancel a ringing slot (K4 #4)
+                if l != nil && stateOf(p.alarmId) == .alerting {
+                    // Never cancel a ringing slot (K4 #4). T17.3: no alarmUpdates tell the interpreter about a notification
+                    // slot, so read the list again right after this command (it cancels the new slot, obligation 4).
+                    if p.channel == .notification { addDeferred(nowWall(), .notifPoll) }
+                    continue
+                }
                 if l == nil && p.alarmId == old?.alarmId {
                     // Unreadable list: the slot just replaced may be ringing; keep it as `stale` to retire later (#10).
                     keep = p
@@ -1440,9 +1504,12 @@ public actor TripRuntime: LocationSink {
                 await drainFeeds()
             }
         }
-        if ledger.current?.channel == .notification || ledger.now?.channel == .notification,
-           let l = await readList() {
-            await interpretUpdates(l)
+        // No alarmUpdates for notifications: read the list at the D5 polls and while the ledger has a notification alarm.
+        let poll = notifPollDue || ledger.current?.channel == .notification || ledger.stale?.channel == .notification
+            || ledger.now?.channel == .notification
+        notifPollDue = false
+        if poll, let l = await readListFull() {
+            await interpretUpdates(l.items, covered: l.alarmKitUnreadable ? [.notification] : nil)
             await drainFeeds()
         }
         await ringRetryIfDue()
@@ -1455,16 +1522,36 @@ public actor TripRuntime: LocationSink {
         if nowWall() - lastRingRetryWallMs < constants.ringRetryMs { return }
         let list = await readList() ?? lastList
         lastList = list
-        if list.contains(where: { $0.tripId == a.meta.tripId && $0.state == .alerting }) { ringRetryPending = false; return }
-        if let c = ledger.current, list.contains(where: { $0.id == c.alarmId && $0.state == .scheduled }) { return }
-        lastRingRetryWallMs = nowWall()
+        if list.contains(where: { $0.tripId == a.meta.tripId && $0.state == .alerting }) {
+            // Round 2: a slot of the trip rings now; check again after it (IU13: it may go unanswered). Only an answer
+            // (stopRinging) or the "now" alarm alerting ends the retries.
+            lastRingRetryWallMs = nowWall()
+            armRingRetry()
+            return
+        }
         let at = nowWall() + Int64(a.params.fallbackLagS) * 1000
+        // T17.3 round 2 (tester bug #1): only a live slot ringing for this ring (by the guard time) makes a retry useless;
+        // an old fallback slot hours away, which the engine already dropped, does not.
+        if !EffectPlanner.needsGuard(live: EffectPlanner.liveSlot(ledger, list: list), nowWallMs: nowWall(), guardAtWallMs: at) {
+            // Review round 2 nit #1: that slot may ring unanswered and go; check again after it.
+            lastRingRetryWallMs = nowWall()
+            armRingRetry()
+            return
+        }
+        lastRingRetryWallMs = nowWall()
+        armRingRetry()  // again if this one fails too
         if sim != nil {
             // D7: the guard of a simulated trip is in process.
             if !deferred.contains(where: { $0.kind == .simGuard }) { armSimGuard(at) }
         } else {
             await scheduleSlot(.guardSlot, targetAtMs: toTrip(at), wallMs: at)
         }
+    }
+
+    /// G2 (T17 §5.6.3 step 3): the timer runs when the next retry is due.
+    private func armRingRetry() {
+        deferred.removeAll { $0.kind == .ringRetry }
+        addDeferred(lastRingRetryWallMs + constants.ringRetryMs, .ringRetry)
     }
 
     private func runDeferred(_ k: DeferredKind) async {
@@ -1482,6 +1569,10 @@ public actor TripRuntime: LocationSink {
             await ringHeld()
         case .simGuard:
             await simGuardDue()
+        case .notifPoll:
+            notifPollDue = true  // read once below, after the other due work (timerBody)
+        case .ringRetry:
+            break  // ringRetryIfDue runs below (timerBody)
         }
     }
 
@@ -1511,14 +1602,32 @@ public actor TripRuntime: LocationSink {
         }
     }
 
-    private func handleSystemAlarms(_ list: [SystemAlarmInfo]) async {
+    private func handleSystemAlarms(_ list: [SystemAlarmInfo], channel: AlarmChannelKind?) async {
         await load()
         await simSyncForInput()  // T18.1 D5
-        await interpretUpdates(list)
+        if let c = channel, c != .notification, ledgerHasNotification(), let fresh = await readListFull() {
+            // T17.3 round 2 (tester bug #2): an AlarmKit update while the ledger has a notification alarm. The notification
+            // alarms are read now, so one scheduled since the last poll (a guard slot of this ring) is seen and cancelled
+            // when the AlarmKit alarm alerts (K4 #3).
+            let notif = fresh.items.filter { $0.channel == .notification }
+            await interpretUpdates(list.filter { $0.channel == c } + notif, covered: nil)
+            return
+        }
+        await interpretUpdates(list, covered: channel.map { [$0] })
     }
 
-    private func interpretUpdates(_ raw: [SystemAlarmInfo]) async {
-        let list = adopt(raw)
+    private func ledgerHasNotification() -> Bool {
+        ledger.now?.channel == .notification || ledger.current?.channel == .notification
+            || ledger.stale?.channel == .notification
+    }
+
+    /// `covered`: the channels `raw` reports (nil = all). The alarms of the other channels are kept as last seen, so an
+    /// AlarmKit update (or an unreadable AlarmKit list) never makes a notification alarm look gone, and the reverse.
+    private func interpretUpdates(_ raw: [SystemAlarmInfo], covered: Set<AlarmChannelKind>? = nil) async {
+        var list = adopt(raw)
+        if let c = covered {
+            list = list.filter { c.contains($0.channel) } + prevUpdates.filter { !c.contains($0.channel) }
+        }
         let tripId = restorePending ? nil : active?.meta.tripId
         let actions = AlarmUpdateInterpreter.interpret(tripId: tripId, prev: prevUpdates, cur: list, ledger: ledger,
                                                        expectedStops: expectedStops, nowWallMs: nowWall(),

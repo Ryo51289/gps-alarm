@@ -135,7 +135,9 @@ final class FakeLocationSession: Locked, LocationSession, @unchecked Sendable {
 
 struct ScheduleFailure: Error {}
 
-/// System alarms with AlarmKit-like behaviour: scheduled → alerting at fireAt; alerting → gone after `silenceAfterMs`.
+/// System alarms. AlarmKit channel: scheduled → alerting at fireAt; alerting → gone after `silenceAfterMs`. Notification
+/// channel (T17.3): the real `NotificationAlarmChannel` over `FakeNotificationCenter` (3 requests delivered on time, no
+/// alarmUpdates: its changes never bump `version`), so `.notifPoll` is what makes the runtime see them.
 final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
     struct Entry {
         var info: SystemAlarmInfo
@@ -152,6 +154,15 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
     /// Throws for matching requests.
     var fail: ((SystemAlarmRequest) -> Bool)?
     var listUnreadable = false
+    /// T17.3 D6: the AlarmKit part of `list()` throws (the notification alarms are still listed).
+    var alarmKitUnreadable = false
+    /// T17.3: the notification center behind the notification channel.
+    let center: FakeNotificationCenter
+    private(set) var notifChannel: NotificationAlarmChannel!
+    /// Notification alarms already seen alerting (one transition each).
+    private var notifAlerted: Set<String> = []
+    /// T17.3 D7: schedule() refused with budgetExceeded.
+    private(set) var budgetRejections = 0
     /// T18.1 D6b test: matching alarms stay `scheduled` forever (AlarmKit never reports them alerting).
     var neverAlert: ((SystemAlarmInfo) -> Bool)?
     private(set) var scheduled: [SystemAlarmRequest] = []
@@ -177,14 +188,29 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
     /// Called between schedule() and its return (IU23).
     var onSchedule: ((SystemAlarmRequest) -> Void)?
 
-    init(log: OpLog, time: VirtualTime) {
+    init(log: OpLog, time: VirtualTime, notifBudget: Int = RuntimeConstants.default.notifPendingBudget) {
         self.log = log
         self.time = time
+        center = FakeNotificationCenter(time: time)
+        super.init()
+        notifChannel = NotificationAlarmChannel(center: center, now: { [time] in time.wallMs() }, budget: notifBudget)
     }
 
     func schedule(_ r: SystemAlarmRequest) async throws {
         log.add("schedule.\(r.kind.rawValue).\(r.channel.rawValue)")
         if let f = locked({ fail }), f(r) { throw ScheduleFailure() }
+        if r.channel == .notification {
+            do { try await notifChannel.schedule(r) } catch {
+                if (error as? AlarmChannelError) == .budgetExceeded { locked { budgetRejections += 1 } }
+                throw error
+            }
+            locked {
+                scheduled.append(r)
+                scheduleLog.append((r.kind, time.wallMs()))
+            }
+            locked { onSchedule }?(r)
+            return
+        }
         locked {
             scheduled.append(r)
             scheduleLog.append((r.kind, time.wallMs()))
@@ -199,6 +225,11 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
 
     func cancel(id: String, channel: AlarmChannelKind) async {
         log.add("cancel")
+        if channel == .notification {
+            locked { cancels.append(id) }
+            await notifChannel.cancel(id: id, channel: channel)
+            return
+        }
         locked {
             cancels.append(id)
             if entries.removeValue(forKey: id) != nil { version += 1 }
@@ -207,17 +238,40 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
 
     func stop(id: String, channel: AlarmChannelKind) async {
         log.add("stop")
+        if channel == .notification {
+            locked { stops.append(id) }
+            await notifChannel.stop(id: id, channel: channel)
+            return
+        }
         locked {
             stops.append(id)
             if entries.removeValue(forKey: id) != nil { version += 1 }
         }
     }
 
-    func list() async -> [SystemAlarmInfo]? { locked { listUnreadable ? nil : snapshotLocked() } }
+    func list() async -> SystemAlarmList? {
+        locked {
+            if listUnreadable { return nil }
+            if alarmKitUnreadable { return SystemAlarmList(items: notifInfos(), alarmKitUnreadable: true) }
+            return SystemAlarmList(items: snapshotLocked() + notifInfos())
+        }
+    }
 
     private func snapshotLocked() -> [SystemAlarmInfo] { order.compactMap { entries[$0]?.info } }
 
-    var all: [SystemAlarmInfo] { locked { snapshotLocked() } }
+    /// The notification alarms as the channel lists them (same pure mapping, synchronous).
+    private func notifInfos() -> [SystemAlarmInfo] {
+        let s = center.snapshot()
+        return NotificationAlarmList.infos(pending: s.pending, delivered: s.delivered, nowWallMs: time.wallMs())
+    }
+
+    var all: [SystemAlarmInfo] { locked { snapshotLocked() + notifInfos() } }
+
+    /// What AlarmKit `alarmUpdates` reports (World.settle).
+    var alarmKitAll: [SystemAlarmInfo] { locked { snapshotLocked() } }
+
+    /// T17.3 NU06: the user clears every notification of one logical alarm (delivered and the reps to come).
+    func userDismissNotifications(_ id: String) { center.removeLogical(id) }
 
     func scheduledRequests() -> [SystemAlarmRequest] { locked { scheduled } }
 
@@ -231,6 +285,12 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
                 if e.info.state == .alerting, let s = silenceAfterMs, let since = e.alertingSinceWall { w = since + s }
                 if let w { best = min(best ?? w, w) }
             }
+            // T17.3: the next delivery and the end of each alerting window (the list changes then, without an update).
+            let wall = time.wallMs()
+            var notif = notifInfos().filter { $0.state == .alerting }.compactMap { $0.fireAtWallMs }
+                .map { $0 + NotificationAlarmPlan.alertWindowMs }.filter { $0 > wall }
+            if let d = center.nextDeliveryWall() { notif.append(d) }
+            for w in notif { best = min(best ?? w, w) }
             return best.map { $0 - wallBaseOffset }
         }
     }
@@ -256,7 +316,14 @@ final class FakeSystemAlarms: Locked, SystemAlarms, @unchecked Sendable {
                 }
             }
             order.removeAll { entries[$0] == nil }
-            let ringing = Dictionary(grouping: entries.values.filter { $0.info.state == .alerting }, by: { $0.info.tripId })
+            let notif = notifInfos().filter { $0.state == .alerting }
+            for n in notif where !notifAlerted.contains(n.id) {
+                notifAlerted.insert(n.id)
+                alertingTransitions += 1
+                transitions.append((n.id, n.tripId, n.kind, n.fireAtWallMs ?? wall))
+            }
+            let ringingInfos = entries.values.filter { $0.info.state == .alerting }.map { $0.info } + notif
+            let ringing = Dictionary(grouping: ringingInfos, by: { $0.tripId })
             if ringing.values.contains(where: { $0.count > 1 }) { doubleRings += 1 }
             if changed { version += 1 }
         }
@@ -436,7 +503,13 @@ extension VirtualTime {
 extension FakeSystemAlarms {
     func copyState(from o: FakeSystemAlarms) {
         let s = o.locked { o.stateTuple }
-        locked { restore(s) }
+        let n = o.locked { (o.notifAlerted, o.budgetRejections) }
+        locked {
+            restore(s)
+            notifAlerted = n.0
+            budgetRejections = n.1
+        }
+        center.copyState(from: o.center)
     }
 }
 
@@ -444,5 +517,131 @@ extension FakeStore {
     func copyState(from o: FakeStore) {
         let s = o.locked { o.stateTuple }
         locked { restore(s) }
+    }
+}
+
+// MARK: - Notification center (T17.3)
+
+/// UNUserNotificationCenter on virtual time: a request is delivered at add + its delay (`trigger: nil` at once) and stays
+/// in Notification Center until removed; the same identifier replaces. `maxPending` = the most pending requests at once.
+final class FakeNotificationCenter: Locked, NotificationCenterPort, @unchecked Sendable {
+    struct Pending {
+        let rec: NotificationRecord
+        let deliverAtWall: Int64
+    }
+
+    let time: VirtualTime
+    private var pendingList: [Pending] = []
+    private var deliveredList: [NotificationRecord] = []
+    private var maxPendingSeen = 0
+    private var addedPlans: [NotificationRequestPlan] = []
+    /// Throws ScheduleFailure for matching requests (NU08).
+    var failAdd: ((NotificationRequestPlan) -> Bool)?
+    /// Every add/removePending/removeDelivered, in order ("add X#0", "removePending X#0,X#1,X#2", …).
+    private var ops: [String] = []
+
+    init(time: VirtualTime) { self.time = time }
+
+    private func deliverDueLocked() {
+        let now = time.wallMs()
+        let due = pendingList.filter { $0.deliverAtWall <= now }.sorted { $0.deliverAtWall < $1.deliverAtWall }
+        if due.isEmpty { return }
+        pendingList.removeAll { $0.deliverAtWall <= now }
+        deliveredList += due.map(\.rec)
+    }
+
+    func add(_ request: NotificationRequestPlan) async throws {
+        if let f = locked({ failAdd }), f(request) {
+            locked { ops.append("fail \(request.id)") }
+            throw ScheduleFailure()
+        }
+        locked {
+            deliverDueLocked()
+            pendingList.removeAll { $0.rec.id == request.id }
+            deliveredList.removeAll { $0.id == request.id }
+            let delay = request.delayS.map { Int64(($0 * 1000).rounded()) } ?? 0
+            pendingList.append(Pending(rec: NotificationRecord(id: request.id, userInfo: request.userInfo),
+                                       deliverAtWall: time.wallMs() + delay))
+            addedPlans.append(request)
+            ops.append("add \(request.id)")
+            deliverDueLocked()
+            maxPendingSeen = max(maxPendingSeen, pendingList.count)
+        }
+    }
+
+    func removePending(_ ids: [String]) async {
+        locked {
+            deliverDueLocked()
+            let s = Set(ids)
+            pendingList.removeAll { s.contains($0.rec.id) }
+            ops.append("removePending \(ids.joined(separator: ","))")
+        }
+    }
+
+    func removeDelivered(_ ids: [String]) async {
+        locked {
+            deliverDueLocked()
+            let s = Set(ids)
+            deliveredList.removeAll { s.contains($0.id) }
+            ops.append("removeDelivered \(ids.joined(separator: ","))")
+        }
+    }
+
+    func pending() async -> [NotificationRecord] { snapshot().pending }
+    func delivered() async -> [NotificationRecord] { snapshot().delivered }
+
+    func snapshot() -> (pending: [NotificationRecord], delivered: [NotificationRecord]) {
+        locked {
+            deliverDueLocked()
+            return (pendingList.map(\.rec), deliveredList)
+        }
+    }
+
+    func nextDeliveryWall() -> Int64? { locked { pendingList.map(\.deliverAtWall).min() } }
+
+    /// The user clears every notification of logical alarm `id` (and, in this fake, the reps still to come).
+    func removeLogical(_ id: String) {
+        locked {
+            deliverDueLocked()
+            pendingList.removeAll { NotificationAlarmPlan.parse($0.rec.id)?.logicalId == id }
+            deliveredList.removeAll { NotificationAlarmPlan.parse($0.id)?.logicalId == id }
+            ops.append("user \(id)")
+        }
+    }
+
+    /// Delivers one pending request now (NU07: a slot starts ringing while another command runs).
+    func deliverNow(_ requestId: String) {
+        locked {
+            guard let i = pendingList.firstIndex(where: { $0.rec.id == requestId }) else { return }
+            deliveredList.append(pendingList.remove(at: i).rec)
+        }
+    }
+
+    /// The user swipes away the delivered notifications of `id` only (the pending reps still come).
+    func removeDeliveredLogical(_ id: String) {
+        locked {
+            deliverDueLocked()
+            deliveredList.removeAll { NotificationAlarmPlan.parse($0.id)?.logicalId == id }
+        }
+    }
+
+    var maxPending: Int { locked { maxPendingSeen } }
+    var pendingCount: Int { snapshot().pending.count }
+    var plans: [NotificationRequestPlan] { locked { addedPlans } }
+    var opLog: [String] { locked { ops } }
+    /// Delivery time of each pending request (wall ms).
+    var pendingDeliveries: [String: Int64] {
+        locked { Dictionary(uniqueKeysWithValues: pendingList.map { ($0.rec.id, $0.deliverAtWall) }) }
+    }
+
+    func copyState(from o: FakeNotificationCenter) {
+        let s = o.locked { (o.pendingList, o.deliveredList, o.maxPendingSeen, o.addedPlans, o.ops) }
+        locked {
+            pendingList = s.0
+            deliveredList = s.1
+            maxPendingSeen = s.2
+            addedPlans = s.3
+            ops = s.4
+        }
     }
 }
