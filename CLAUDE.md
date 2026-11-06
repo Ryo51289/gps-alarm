@@ -21,7 +21,9 @@ App cho người đi xe khách / tàu đường dài: đặt điểm đến, ng�
   Time Sensitive notification)
 - **Cầu nối:** Pigeon (`app/pigeons/`)
 - **Trip Engine:** viết native 2 bản (Kotlin + Swift), dùng chung fixture trong `fixtures/traces/`
-- **Bản đồ:** Google Maps SDK; tìm kiếm ưu tiên dataset ga/bến offline, fallback Places Autocomplete
+- **Bản đồ:** iOS = Apple MapKit (PlatformView mỏng trong `NapStopIOS`); Android chưa có bản đồ, quyết ở T23.4;
+  tìm kiếm chỉ dùng dataset ga/bến offline. Không dùng Google Maps Platform / Places (bị chặn thanh toán ở VN —
+  `docs/architecture/adr/002-maps-replacement.md`). "Xem đường quay lại" vẫn mở app bản đồ bằng Google Maps URL (không khoá).
 - **Phụ trợ:** Firebase Crashlytics, Analytics (KHÔNG có vị trí), Remote Config
 
 ## Quy trình agent (bắt buộc cho mọi task trong `docs/TASKS.md`)
