@@ -1,6 +1,7 @@
 // T25 I01, I02: screen 3 starts a trip through the real platform channels
 // (real runtime; I02 a simulated trip, T18), on an emulator or device, dev
-// flavor, location granted. Forces the vi locale. Unlock the screen first:
+// flavor, location granted. Forces the vi locale and marks screen 0 done
+// (T21 flag, T28.2 #5). Unlock the screen first:
 //   flutter test integration_test/alarm_settings_start_test.dart -d <device-id>
 import 'dart:async';
 
@@ -17,7 +18,9 @@ import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_screen.dart';
 import 'package:napstop/features/home/presentation/home_screen.dart';
+import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
 import 'package:napstop/features/simulation/domain/sim_trace.dart';
+import 'package:napstop/features/tracking/presentation/tracking_screen.dart';
 import 'package:napstop/main.dart' as app;
 
 import 'support/sim_expectations.dart';
@@ -40,6 +43,14 @@ Future<void> _pumpUntil(WidgetTester tester, Finder finder) async {
   expect(finder, findsWidgets);
 }
 
+/// Pumps until [finder] is gone (a route transition finishing).
+Future<void> _pumpUntilGone(WidgetTester tester, Finder finder) async {
+  for (var i = 0; i < 100 && finder.evaluate().isNotEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(finder, findsNothing);
+}
+
 Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
@@ -53,6 +64,7 @@ Future<CoreBridge> _launch(WidgetTester tester) async {
     ..localesTestValue = const [Locale('vi', 'VN')]
     ..localeTestValue = const Locale('vi', 'VN');
   addTearDown(tester.platformDispatcher.clearAllTestValues);
+  await markOnboardingCompleted(createOnboardingStore());
   await app.main();
   await _pumpUntil(tester, find.byType(HomeScreen));
   final bridge = ProviderScope.containerOf(
@@ -85,8 +97,10 @@ void main() {
     await _tap(tester, find.text('Khoảng cách'));
     await _tap(tester, find.text('2 km'));
     await _tap(tester, find.text('Bắt đầu theo dõi'));
-    await _pumpUntil(tester, find.text('Đang theo dõi'));
-    expect(find.byType(AlarmSettingsScreen), findsNothing);
+    // Screen 4 (T26): opened only after StartSucceeded; screen 3 leaves the
+    // tree once the `go` transition is over.
+    await _pumpUntil(tester, find.byType(TrackingScreen));
+    await _pumpUntilGone(tester, find.byType(AlarmSettingsScreen));
 
     final trip = await bridge.currentTrip();
     expect(trip, isNotNull);

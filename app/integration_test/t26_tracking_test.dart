@@ -8,6 +8,9 @@
 //   flutter test integration_test/t26_tracking_test.dart -d <device-id>
 // The native alarm screen (AlarmActivity) may cover Flutter; finders still
 // work on the widget tree and the alarm is dismissed through the bridge (R4).
+// The trip result is read from TripEndedMsg on the APP's bridge (T28.2 #1):
+// since T28 the app's HistorySync drains and acks pendingFinishedTrips on
+// every TripEndedMsg, so the queue is already empty when the test looks.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,8 +39,18 @@ Future<void> _pumpUntil(
   expect(finder, findsWidgets);
 }
 
+/// A launched trip: the app's bridge, the trip id and every update the
+/// app's bridge delivered since screen 4 opened.
+typedef _Launched = ({
+  CoreBridge bridge,
+  String tripId,
+  List<TripUpdateMsg> received,
+});
+
 /// Starts a simulated trip, then the app: `TripLaunchScope` opens screen 4.
-Future<(CoreBridge, String)> _launchWithTrip(
+/// The setup bridge only calls methods before the app runs; updates are
+/// followed on the app's own bridge (one native sink, T28.2 #2).
+Future<_Launched> _launchWithTrip(
   WidgetTester tester, {
   required String traceId,
   required double speed,
@@ -66,8 +79,19 @@ Future<(CoreBridge, String)> _launchWithTrip(
   final bridge = ProviderScope.containerOf(
     tester.element(find.byType(TrackingScreen)),
   ).read(coreBridgeProvider);
-  return (bridge, tripId);
+  final received = <TripUpdateMsg>[];
+  final sub = bridge.updates.listen(received.add);
+  addTearDown(sub.cancel);
+  return (bridge: bridge, tripId: tripId, received: received);
 }
+
+/// The TripEndedMsg of the launched trip (the app acks the native queue).
+Future<FinishedTripMsg> _ended(_Launched l, {int from = 0}) async =>
+    (await waitForUpdate<TripEndedMsg>(
+      l.received,
+      from: from,
+      test: (m) => m.trip.tripId == l.tripId,
+    )).trip;
 
 Future<void> _finish(CoreBridge bridge, String tripId) async {
   final pending = await bridge.pendingFinishedTrips();
@@ -85,7 +109,7 @@ void main() {
     timeout: const Timeout(Duration(minutes: 4)),
     (tester) async {
       final handle = tester.ensureSemantics();
-      final (bridge, tripId) = await _launchWithTrip(
+      final (:bridge, :tripId, received: _) = await _launchWithTrip(
         tester,
         traceId: SimTraces.trainHnDh,
         speed: 600,
@@ -115,7 +139,7 @@ void main() {
     'I02 tunnel at 60x: estimated view without speed (screen 6)',
     timeout: const Timeout(Duration(minutes: 12)),
     (tester) async {
-      final (bridge, tripId) = await _launchWithTrip(
+      final (:bridge, :tripId, received: _) = await _launchWithTrip(
         tester,
         traceId: SimTraces.coachDnLangcoTunnel,
         speed: 60,
@@ -135,13 +159,18 @@ void main() {
   );
 
   testWidgets(
-    'I03 overshoot at 600x: "Đã qua điểm đến", dismiss → home',
+    'I03 overshoot at 60x: "Đã qua điểm đến", dismiss → home',
     timeout: const Timeout(Duration(minutes: 9)),
     (tester) async {
-      final (bridge, tripId) = await _launchWithTrip(
+      // 60x, not 600x (T28.2): at 600x the emulator often rings GPS_LOST
+      // within ~4 s (merge-phase3 #6, left to T18.2), the trip then runs at
+      // 1x from too early a trace second and the overshoot comes after the
+      // 8 min wait. The UI offers 60x at most anyway. After the first alarm
+      // the trip runs at 1x (T18 D3): overshoot ~265-340 s after it.
+      final launched = await _launchWithTrip(
         tester,
         traceId: SimTraces.coachGbPhulyOvershoot,
-        speed: 600,
+        speed: 60,
         prefix: 'i03',
       );
       await _pumpUntil(
@@ -150,24 +179,26 @@ void main() {
         timeout: const Duration(minutes: 8),
       );
       expect(find.textContaining('Đã qua '), findsWidgets);
+      final (:bridge, :tripId, :received) = launched;
+      final mark = received.length;
       await bridge.dismiss(tripId);
       await _pumpUntil(tester, find.byType(HomeScreen));
-      final pending = await bridge.pendingFinishedTrips();
-      expect(
-        pending.singleWhere((t) => t.tripId == tripId).outcome,
-        TripOutcomeMsg.missed,
-      );
+      final finished = await _ended(launched, from: mark);
+      expect(finished.outcome, TripOutcomeMsg.missed);
+      expect(finished.endReason, EndReasonMsg.dismissed);
       await _finish(bridge, tripId);
     },
   );
 
   testWidgets('I04 bus at 60x: stop with confirmation → home', (tester) async {
-    final (bridge, tripId) = await _launchWithTrip(
+    final launched = await _launchWithTrip(
       tester,
       traceId: SimTraces.busHnBrt01,
       speed: 60,
       prefix: 'i04',
     );
+    final (:bridge, :tripId, :received) = launched;
+    final mark = received.length;
     await tester.tap(find.text('Dừng theo dõi'));
     await tester.pumpAndSettle();
     await tester.tap(
@@ -179,8 +210,7 @@ void main() {
     await _pumpUntil(tester, find.byType(HomeScreen));
     expect(find.text('Đã dừng theo dõi.'), findsOneWidget);
     expect(await bridge.currentTrip(), isNull);
-    final pending = await bridge.pendingFinishedTrips();
-    final finished = pending.singleWhere((t) => t.tripId == tripId);
+    final finished = await _ended(launched, from: mark);
     expect(finished.endReason, EndReasonMsg.userStop);
     expect(finished.outcome, TripOutcomeMsg.cancelled);
     await _finish(bridge, tripId);

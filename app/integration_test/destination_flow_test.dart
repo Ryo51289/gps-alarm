@@ -1,12 +1,14 @@
 // T23 TI02: Home → search → "dong hoi" → Ga Đồng Hới → screen 3, on an
 // emulator or device, no API key needed (the map shows its placeholder).
 // Forces the vi locale, so the device language does not matter. A locked
-// screen still blocks the run (unlock the emulator first):
+// screen still blocks the run (unlock the emulator first). Screen 0 is
+// marked done first (T21 flag), so a fresh install opens Home (T28.2 #5):
 //   flutter test integration_test/destination_flow_test.dart -d <device-id>
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:napstop/features/destination/presentation/destination_screen.dart';
+import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
 import 'package:napstop/main.dart' as app;
 
 Future<void> _pumpUntil(WidgetTester tester, Finder finder) async {
@@ -26,6 +28,7 @@ void main() {
       ..localesTestValue = const [Locale('vi', 'VN')]
       ..localeTestValue = const Locale('vi', 'VN');
     addTearDown(tester.platformDispatcher.clearAllTestValues);
+    await markOnboardingCompleted(createOnboardingStore());
     await app.main();
     await _pumpUntil(tester, find.text('Tìm ga, bến xe, địa chỉ…'));
     await tester.tap(find.text('Tìm ga, bến xe, địa chỉ…').first);

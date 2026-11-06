@@ -200,6 +200,13 @@ cd android && ./gradlew :app:testDevDebugUnitTest                         # AA1�
 cd android && ./gradlew :app:connectedDevDebugAndroidTest                 # AI01–AI07 (UI Automator, cần emulator/máy)
 ```
 
+**Điều kiện máy cho instrumentation (T28.2 #7):** `AlarmUiTest.ai01_showsOverTheLockScreen` cần máy **có màn khoá** (kiểu vuốt
+là đủ). Lượt nào đã tắt màn khoá (`locksettings set-disabled true`, vd lượt T27) thì AI01 đỏ "keyguard still locked". Trước khi chạy:
+
+```bash
+adb shell locksettings set-disabled false   # bật lại màn khoá vuốt; kiểm: adb shell locksettings get-disabled → false
+```
+
 **Lệnh debug (cùng receiver ở trên, chuyến giả `debug-ring` nếu không ghi `--es tripId`):**
 
 ```bash
