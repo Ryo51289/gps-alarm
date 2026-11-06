@@ -1,0 +1,22 @@
+Xcode build done.                                           70.1s
+::group::✅ Passing tests
+✅ ios_smoke_test app starts
+✅ ios_smoke_test deviceInfo reports iOS
+✅ ios_smoke_test currentTrip answers
+✅ ios_smoke_test pendingFinishedTrips answers
+::group::✅ ios_smoke_test diag: permissions and startTrip probe
+NAPSTOP_DIAG permissions: location=whileInUse precise=granted services=true notifications=notDetermined alarmKit=notDetermined
+NAPSTOP_DIAG startTrip probe: accepted
+::group::✅ Passing tests
+✅ t18_1_ios_simulation_test SIC02 bus at 600x rings DISTANCE within 15 s, 5 runs out of 5
+✅ t18_1_ios_simulation_test SIC03 a stub id or an unknown trace is simulation-unavailable
+✅ t17_ios_runtime_test II01 start inside the alarm zone rings, dismiss ends on time
+✅ t17_ios_runtime_test II02 second start is refused while a trip runs
+✅ t17_ios_runtime_test II03 + II04 far trip: no simulation echoed, stopTrip ends it cancelled
+✅ t17_ios_runtime_test II05 a simulated trip with a stub id is simulation-unavailable
+✅ t17_2_ios_alarm_test AC04 now alarm: snooze button + default sound; snooze → SnoozedMsg
+✅ t28_3_ios_ui_test PI01 screen 12: no volume slider, iOS notes; "Nghe thử" horn plays
+::group::✅ t28_3_ios_ui_test PI02 alarm while the app is open: Flutter screen 5 within 6 s, no "Mở màn báo thức"; swipe → TripEndedMsg
+::group::✅ Passing tests
+✅ t28_3_ios_ui_test PI03 screen 8: "Chỉ đường quay lại" opens the Google Maps URL (T27 D8)
+🎉 15 tests passed.
