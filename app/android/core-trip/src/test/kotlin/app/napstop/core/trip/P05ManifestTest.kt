@@ -8,11 +8,11 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 
-/** P05 regression key (T12 §9.4): lines + SHA-256 of all main runs (303 after T11.3), and 3 byte-exact samples. */
+/** P05 regression key (T12 §9.4): lines + SHA-256 of all main runs (340 after T11.5), and 3 byte-exact samples. */
 class P05ManifestTest {
     private companion object {
-        /** 295 (T10.3/T11.2: 55 cases × 2 modes + 5 phase-swept cases × 37 runs) + 8 (T11.3: 4 case × all/policy). */
-        const val EXPECTED_RUNS = 303
+        /** 295 (T10.3/T11.2: 55 cases × 2 modes + 5 phase-swept cases × 37 runs) + 8 (T11.3: 4 case × all/policy) + 37 (T11.5: TR44, phase-swept). */
+        const val EXPECTED_RUNS = 340
     }
 
     private val manifestFile = File(Suite.p05Dir, "manifest.json")

@@ -100,7 +100,7 @@ void main() {
     };
 
     // T11.2 RK4: counts and version follow the current state (17 traces,
-    // 64 cases after T11.3; version = pubspec).
+    // 65 cases after T11.5; version = pubspec).
     test('generator.version equals the pubspec version everywhere', () {
       final pubspec = File('${packageDir.path}/pubspec.yaml')
           .readAsStringSync();
@@ -115,15 +115,15 @@ void main() {
       expect(kGeneratorVersion, version);
     });
 
-    test('64 final cases, none with samplingModes', () {
-      expect(all, hasLength(64));
+    test('65 final cases (T11.5: + TR44), none with samplingModes', () {
+      expect(all, hasLength(65));
       for (final MapEntry(:key, :value) in all.entries) {
         expect(value['status'], 'final', reason: key);
         expect(value.containsKey('samplingModes'), isFalse, reason: key);
       }
     });
 
-    test('policyPhaseSweep: true in exactly five cases', () {
+    test('policyPhaseSweep: true in exactly six cases (T11.5: + TR44)', () {
       expect(
         {
           for (final MapEntry(:key, :value) in all.entries)
@@ -136,6 +136,7 @@ void main() {
           'train_hn_dh_stopgap/distance_1000_killsweep': true,
           'coach_gb_phuly_overshoot/distance_1000_killsweep': true,
           'train_longstop/distance_1000_killsweep': true,
+          'coach_gb_phuly_overshoot/distance_1000_overshoot_ringing': true,
         },
       );
     });

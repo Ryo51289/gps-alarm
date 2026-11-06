@@ -25,6 +25,9 @@ import org.junit.jupiter.api.TestFactory
  * ring, the tracking notices and the finished record. The dump is written to `build/core-runtime/napstop/t18-parity/`
  * and its SHA-256 compared with `src/test/resources/t18/real_trip_parity.sha256`, produced by this same file on the
  * pre-T18 tree (HEAD 6f56349, T16). Only APIs that exist before T18 are used, so the file compiles on both trees.
+ * The line `coach_gb_phuly_overshoot/distance_1000_overshoot_ringing` (TR44, a case added by T11.5) was added by tester T12.5
+ * from the T10.8 tree after reading the dump: DISTANCE 2 341.289, Overshoot 2 625 without a ring, Alarm(OVERSHOOT, ringNow) at
+ * 2 941.289 = the auto-stop (osRingMaxS 600) of the first ring, no TripEnded before the user stop.
  *
  * A mismatch means a real trip now behaves differently from T15/T16: compare the dump with one made on the old tree.
  * If the change is intended (a later task), delete the golden file; the next run writes a new one and fails once.

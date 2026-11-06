@@ -67,6 +67,12 @@
   },
   {
     "reason": "DISTANCE",
+    "atMsRel": 2341289,
+    "trace": "coach_gb_phuly_overshoot",
+    "case": "distance_1000_overshoot_ringing"
+  },
+  {
+    "reason": "DISTANCE",
     "atMsRel": 2155000,
     "trace": "bus_hn_brt01_noisy",
     "case": "distance_1000_noisy"

@@ -13,7 +13,7 @@ Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [
 - Dữ liệu **tổng hợp**, không phải hành trình thật. Toạ độ ga/bến lấy từ © OpenStreetMap contributors, giấy phép
   [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
 
-## Mười bảy trace (64 case, tất cả `final`)
+## Mười bảy trace (65 case, tất cả `final`)
 
 | id | Mô tả | Kịch bản chính | Test T10 |
 |---|---|---|---|
@@ -30,7 +30,7 @@ Nguồn thiết kế: [`docs/specs/T02.md`](../../docs/specs/T02.md) §7 (v1), [
 | `coach_dn_langco_tunnel` | Xe khách Đà Nẵng → Lăng Cô qua hầm Hải Vân | Mất GPS 360 s trong hầm, đích ≈ 5 km sau cửa Bắc | TR05, TR27 |
 | `coach_dn_langco_shortgap` | Như trên, không mất GPS trong hầm | Mất GPS 120 s ở Hoà Khánh, khi còn > 20 km chim bay | TR13, TR27 |
 | `coach_dn_langco_neardest` | Đà Nẵng → Lăng Cô (nam) | Mất GPS 360 s trong hầm, đích ≈ 1,15 km chim bay sau cửa Bắc | TR14, TR27 |
-| `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | TR06, TR19, TR27, TR33, TR35, TR37 |
+| `coach_gb_phuly_overshoot` | Xe khách Giáp Bát → Phủ Lý, ngủ quên, xe chạy tiếp | Dừng 90 s ở đích rồi chạy tiếp ≈ 8 km | TR06, TR19, TR27, TR33, TR35, TR37, TR44 |
 | `coach_gb_phuly_offroute` | Như trên, đích dời 1,5 km khỏi đường | `destinationOffsetM: 1500` (phía nam), không bao giờ vào ngưỡng 1 km; xe đỗ ở bến đúng điểm gần đích nhất, báo dự phòng kêu lúc đỗ (`allowFallbackFirst`, T10.3) | TR38, TR27 |
 | `coach_gb_phuly_offroute_2k` | Như `coach_gb_phuly_offroute` (trùng từng mẫu GPX), đích dời 2 km | `destinationOffsetM: 2000`; báo `PASSED_CLOSEST` sau khi rời điểm gần nhất | TR32, TR27 |
 | `coach_gb_caugie_gappass` | Xe khách Giáp Bát → Cầu Giẽ (T11.3) | Kẹt xe 25 km/h tới Thường Tín rồi cao tốc 85 km/h; mất GPS 960 s từ Thường Tín, đi qua đích trong lúc mất GPS, GPS trở lại ≈ 4,6 km sau đích (T10.5 vòng 3/3b) | TR40, TR27 |

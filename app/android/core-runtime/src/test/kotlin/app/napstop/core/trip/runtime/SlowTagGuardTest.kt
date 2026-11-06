@@ -24,6 +24,8 @@ class SlowTagGuardTest {
             "T18TesterSimTest.kt#ts02_bundledTracesAtTheUiSpeed10xAndOddSpeeds",
             "SimTraceRuntimeTest.kt#sm19_bundledTracesAtThreeSpeedsGiveTheSameEvents",
             "T15TesterRuntimeTest.kt#wholeDiskHungStillRingsWithinTheReceiverBudget",
+            // Tester T12.5 (T10.8 repro sweep: 126 simulated runs at 60×, 10 s in the full run).
+            "T125TesterOvershootRingReproTest.kt#r1_simulated60xEveryRunWithAnOvershootWhileRingingGetsTheOvershootRing",
         )
 
         /** T01.1 §3.1: whole classes that always run in quick mode. */

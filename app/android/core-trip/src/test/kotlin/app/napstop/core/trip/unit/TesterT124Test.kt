@@ -236,14 +236,16 @@ class TesterT124Test {
     /**
      * Review T12.4 "Ghi chú cho tester" (SNOOZED + chord): the chord fix (2 980) comes after snoozeUntilMs, SNOOZE_END already rang.
      * After T10.7 vòng 2 the overshoot comes at 3 030 (`all`; measured rise 1 km), so each variant's chime timing is set against 3 030:
-     * (s1)  osRingMaxS 60, snooze 2 915 (until 2 975): SNOOZE_END 2 975 still rings at 3 030 (stops 3 035) → Overshoot only.
+     * (s1)  osRingMaxS 60, snooze 2 915 (until 2 975): SNOOZE_END 2 975 still rings at 3 030 → Overshoot only (no ring in that Step);
+     *       the chime stops at 3 035 → T10.8 (P1, PO 06/11/2026): exactly one Alarm(OVERSHOOT, ringNow=true) in the AlarmSilenced Step
+     *       at 3 035 (lastReason was SNOOZE_END). Before T10.8 nothing rang after SNOOZE_END.
      * (s1b) osRingMaxS 60, snooze 2 900 (until 2 960): SNOOZE_END 2 960 stops at 3 020, after the chord fix and before the overshoot →
      *       AlarmSilenced 3 020, then one re-ring OVERSHOOT (PO #18). This was s1 in Lần 1, when the overshoot came at 3 000.
-     * (s2)  snooze 2 900, no osRingMaxS (the chime never stops) → Overshoot only.
+     * (s2)  snooze 2 900, no osRingMaxS (the chime never stops) → Overshoot only, nothing after.
      * (s3)  osRingMaxS 60, snooze 2 840 (until 2 900): SNOOZE_END 2 900 stopped at 2 960, before the GPS returns → one re-ring OVERSHOOT.
      */
     @Test
-    fun `T124 s1 s1b s2 s3 snoozed, chord fix after snoozeUntil - still ringing gives Overshoot only, stopped chime re-rings OVERSHOOT`() {
+    fun `T124 s1 s1b s2 s3 snoozed, chord fix after snoozeUntil - overshoot while ringing rings OVERSHOOT when the chime stops (T10_8), stopped chime re-rings with the overshoot`() {
         val fails = ArrayList<String>()
         val gEnd = tr40.gpsGaps.first().second
         data class V(val id: String, val ringMax: Int?, val snoozeAt: Int, val ringingAtOvershoot: Boolean, val silencedAt: Int?)
@@ -279,8 +281,26 @@ class TesterT124Test {
                 if (!inWindow(ov?.t, gEnd, 60)) fails += "${x.tag} (${v.id}): overshoot ${x.overshoots.map { desc(it) }}, window [$gEnd, ${gEnd + 60}]"
                 val after = x.alarms.filter { it.t > until }
                 if (v.ringingAtOvershoot) {
-                    if (after.isNotEmpty()) fails += "${x.tag} (${v.id}): ${after.map { desc(it) }} after SNOOZE_END (chime still rings)"
                     if (ov != null && x.r.records[ov.rec].view?.alarmRinging != true) fails += "${x.tag} (${v.id}): alarmRinging false"
+                    if (v.ringMax == null) {
+                        // s2: the chime never stops → no AlarmSilenced → nothing rings after SNOOZE_END.
+                        if (after.isNotEmpty()) fails += "${x.tag} (${v.id}): ${after.map { desc(it) }} after SNOOZE_END (chime never stops)"
+                    } else {
+                        // s1, T10.8 P1: nothing in the overshoot Step; the chime stops at until + osRingMaxS → one OVERSHOOT ring there.
+                        val stopAt = until + v.ringMax
+                        val a = after.singleOrNull()
+                        val inp = a?.let { x.r.records[it.rec].input }
+                        if (a == null || (a.e as Alarm).reason != AlarmReason.OVERSHOOT || !a.e.ringNow || a.t != stopAt ||
+                            inp !is AlarmSilenced || ov == null || a.rec <= ov.rec
+                        ) {
+                            fails += "${x.tag} (${v.id}): after SNOOZE_END ${after.map { desc(it) }} (overshoot ${ov?.t}), " +
+                                "want one OVERSHOOT ringNow=true in the AlarmSilenced Step at $stopAt, after the overshoot (T10.8)"
+                        }
+                        if (ov != null && ov.t >= stopAt) fails += "${x.tag} (${v.id}): precondition: overshoot ${ov.t} not before the chime stops $stopAt"
+                        if (a != null && x.r.records[a.rec].view?.let { it.alarmRinging && it.alarmReason == AlarmReason.OVERSHOOT } != true) {
+                            fails += "${x.tag} (${v.id}): view after the OVERSHOOT ring is not ringing OVERSHOOT"
+                        }
+                    }
                 } else {
                     val a = after.singleOrNull()
                     if (a == null || (a.e as Alarm).reason != AlarmReason.OVERSHOOT || !a.e.ringNow || a.rec != ov?.rec) {

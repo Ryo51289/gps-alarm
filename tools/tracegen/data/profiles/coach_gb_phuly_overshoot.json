@@ -105,6 +105,21 @@
       "expect": [],
       "killSweep": {"from": {"t": 60}, "everyS": 60, "notAfter": {"anchor": "arrival"}, "earlyFrom": {"anchor": "straight<=1000"}, "statsOnly": true},
       "forbid": []
+    },
+    {
+      "id": "distance_1000_overshoot_ringing",
+      "status": "final",
+      "testIds": ["TR44"],
+      "config": {"mode": "distance", "thresholdM": 1000, "preAlert": true, "osRingMaxS": 600},
+      "policyPhaseSweep": true,
+      "expect": [
+        {"event": "alarm", "reason": "DISTANCE", "ringNow": true, "notBefore": {"anchor": "route<=1300"}, "notAfter": {"anchor": "route<=700"}, "ref": "T10 TR44: PRD §4 Chế độ khoảng cách; dung sai ±300 m (PRD §1)"},
+        {"event": "overshoot", "notBefore": {"anchor": "overshoot", "offsetS": -15}, "notAfter": {"anchor": "overshoot", "offsetS": 60}, "ref": "T10 TR44: PRD §4 Quá trạm; chuông đầu còn kêu nên chưa kêu lại (I1)"}
+      ],
+      "expectAfter": [
+        {"event": "alarm", "reason": "OVERSHOOT", "ringNow": true, "after": {"anchor": "event:alarm"}, "withinS": [600, 610], "ref": "T10.8 TR44: chuông đầu tự ngừng sau osRingMaxS khi đã quá trạm thì kêu lại một lần (PO P1, I15)"}
+      ],
+      "forbid": ["gpsLost", "tripEnded"]
     }
   ]
 }

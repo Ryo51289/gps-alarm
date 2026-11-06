@@ -1,6 +1,7 @@
 package app.napstop.core.trip.harness
 
 import app.napstop.core.trip.Alarm
+import app.napstop.core.trip.AlarmReason
 import app.napstop.core.trip.AlarmSilenced
 import app.napstop.core.trip.EngineParams
 import app.napstop.core.trip.EngineState
@@ -28,7 +29,7 @@ internal class TimedEvent(val t: Int, val rec: Int, val e: TripEvent)
 internal class UrgentShift(val t: Int, val atMs: Long, val prevTarget: Long, val newTarget: Long?, val predicted: Long)
 
 /**
- * Per-run checks of T12 §8.5 (expect*, forbid*, I1–I7, I10–I13, C16, P02 unless allowFallbackFirst). P07, I14, P08 and finite
+ * Per-run checks of T12 §8.5 (expect*, forbid*, I1–I7, I10–I13, I15, C16, P02 unless allowFallbackFirst). P07, I14, P08 and finite
  * state come from the runner (they need the engine state).
  */
 internal object Checks {
@@ -151,8 +152,8 @@ internal object Checks {
     }
 
     /**
-     * I1–I7, I10–I13 (T10 §3). I4 against the previous Step's view and the current Step's predictedAlarmAtMs, with the T10.5
-     * urgent-later-shift exception (counted by [urgentShifts]).
+     * I1–I7, I10–I13, I15 (T10 §3, T10.8 §2). I4 against the previous Step's view and the current Step's predictedAlarmAtMs,
+     * with the T10.5 urgent-later-shift exception (counted by [urgentShifts]).
      */
     fun invariants(r: RunResult, tag: String): List<String> {
         val f = ArrayList<String>()
@@ -217,6 +218,36 @@ internal object Checks {
         }
         if (preAlerts > 1) f += "I5: $preAlerts preAlerts ($tag)"
         if (overshoots > 1) f += "I6: $overshoots overshoots ($tag)"
+        f += i15(r.records, tag)
+        return f
+    }
+
+    /**
+     * I15 (T10.8 §2): at most one `Alarm(OVERSHOOT)` per trip; and when the trip entered OVERSHOT while ringing (an `Overshoot`
+     * Step without `Alarm(OVERSHOOT)`), the first later Step whose input is `AlarmSilenced` carries exactly one
+     * `Alarm(OVERSHOOT, ringNow=true)`, unless that Step ends the trip (alarmMaxActiveS, §4.12 step 3); a Step that ends the trip
+     * carries no `Alarm(OVERSHOOT)` (review T12.5 nit 1). Records of a dead engine
+     * (KILL) have no view and are skipped; nothing is recorded after ENDED.
+     */
+    fun i15(records: List<StepRecord>, tag: String): List<String> {
+        val f = ArrayList<String>()
+        var overshootAlarms = 0
+        var waitSilenced = false
+        for (rec in records) {
+            if (rec.view == null) continue
+            val ringsOvershoot = rec.events.filter { it is Alarm && it.reason == AlarmReason.OVERSHOOT }
+            overshootAlarms += ringsOvershoot.size
+            if (waitSilenced && rec.input is AlarmSilenced) {
+                waitSilenced = false
+                val ends = rec.events.any { it is TripEnded }
+                val ok = ringsOvershoot.size == 1 && (ringsOvershoot[0] as Alarm).ringNow
+                if (!ends && !ok) f += "I15: AlarmSilenced in OVERSHOT without Alarm(OVERSHOOT, ringNow=true) at t=${rec.t} ($tag)"
+                // Review T12.5 nit 1: past alarmMaxActiveS the Step ends the trip (step 3) and must not ring as well.
+                if (ends && ringsOvershoot.isNotEmpty()) f += "I15: AlarmSilenced Step rings OVERSHOOT and ends the trip at t=${rec.t} ($tag)"
+            }
+            if (rec.events.any { it is Overshoot } && ringsOvershoot.isEmpty()) waitSilenced = true
+        }
+        if (overshootAlarms > 1) f += "I15: $overshootAlarms Alarm(OVERSHOOT) ($tag)"
         return f
     }
 

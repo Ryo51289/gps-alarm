@@ -116,6 +116,34 @@ class HarnessSelfTest {
     }
 
     @Test
+    fun `I15 flags a second Alarm(OVERSHOOT) and a silent AlarmSilenced after an overshoot while ringing (T10_8)`() {
+        val t = trace(baseCase)
+        val (cfg, p) = caseSetup(t, t.cases[0].model!!, emptyMap())
+        val view = TripEngine.start(cfg, p, t.startMs).view
+        val ms = t.startMs
+        val dist = Alarm(ms, AlarmReason.DISTANCE, true, true, null, null, null)
+        val ov = Alarm(ms + 10_000, AlarmReason.OVERSHOOT, true, false, null, null, null)
+        val over = Overshoot(ms + 5_000, 1000)
+        fun rec(tS: Int, input: EngineInput?, vararg ev: TripEvent) = StepRecord(tS, input, "", ev.toList(), view)
+        val silenced = AlarmSilenced(ms + 10_000, ms + 10_000)
+        val head = listOf(rec(0, null, dist), rec(5, null, over))
+        assertEquals(emptyList<String>(), Checks.i15(head + rec(10, silenced, ov), "x"))
+        assertTrue(Checks.i15(head + rec(10, silenced), "x").single().startsWith("I15: AlarmSilenced"))
+        val ended = TripEnded(ms + 10_000, TripOutcome.MISSED, EndReason.ALARM_UNANSWERED, TripSummary(ms, ms, AlarmReason.DISTANCE, null, 0, 0, VehicleKind.COACH))
+        assertEquals(emptyList<String>(), Checks.i15(head + rec(10, silenced, ended), "x"))
+        // Review T12.5 nit 2: a re-ring that does not ring now does not count.
+        val ovLater = Alarm(ms + 10_000, AlarmReason.OVERSHOOT, false, false, null, null, null)
+        assertTrue(Checks.i15(head + rec(10, silenced, ovLater), "x").single().startsWith("I15: AlarmSilenced in OVERSHOT without"))
+        // Review T12.5 nit 1: the Step that ends the trip (alarmMaxActiveS) must not ring as well.
+        assertTrue(Checks.i15(head + rec(10, silenced, ov, ended), "x").single().startsWith("I15: AlarmSilenced Step rings OVERSHOOT and ends"))
+        // The wait is only armed by an Overshoot Step without Alarm(OVERSHOOT): after an Overshoot that rang (TRACKING → OVERSHOT,
+        // #18) a silent AlarmSilenced is not a failure.
+        assertEquals(emptyList<String>(), Checks.i15(listOf(rec(0, null, ov, over), rec(10, silenced)), "x"))
+        val twice = listOf(rec(0, null, ov, over), rec(10, silenced), rec(15, null, ov))
+        assertTrue(Checks.i15(twice, "x").single().startsWith("I15: 2 Alarm(OVERSHOOT)"))
+    }
+
+    @Test
     fun `rejected params and runtime anchors that never happen are configuration errors`() {
         val t = trace(
             with(extraConfig = "\"params\":{\"gpsLostMinS\":5}"),

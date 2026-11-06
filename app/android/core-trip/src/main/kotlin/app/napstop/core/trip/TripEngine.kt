@@ -233,12 +233,29 @@ private fun applyInput(w: StepWork, input: EngineInput): Boolean {
                 TripPhase.ENDED -> Unit
             }
         }
-        is AlarmSilenced ->
-            if (w.phase == TripPhase.ALARMING || w.phase == TripPhase.OVERSHOT) w.alarm = w.alarm.copy(ringing = false)
+        is AlarmSilenced -> onSilenced(w)
         is UserAction -> return applyUserAction(w, input.action)
         is Tick -> Unit
     }
     return false
+}
+
+/**
+ * AlarmSilenced (§3). T10.8 (C32): in OVERSHOT, when the alarm that was ringing at the overshoot (ALARMING, `ringing == true`
+ * → OVERSHOT, only `Overshoot`) stops, ring once more for OVERSHOOT. `lastReason ≠ OVERSHOOT` means "no overshoot ring yet":
+ * every other way into OVERSHOT marks OVERSHOOT. Not when step 3 is about to end the trip (alarmMaxActiveS since the last ring
+ * is over): the expiry is judged as before the input, so the trip ends ALARM_UNANSWERED without a ring.
+ */
+private fun onSilenced(w: StepWork) {
+    if (w.phase != TripPhase.ALARMING && w.phase != TripPhase.OVERSHOT) return
+    val a = w.alarm
+    val expired = w.now - (a.lastRingAtMs ?: w.now) >= w.p.alarmMaxActiveS * 1000L
+    if (w.phase == TripPhase.OVERSHOT && a.ringing && a.lastReason != AlarmReason.OVERSHOOT && !expired) {
+        markRing(w, AlarmReason.OVERSHOOT, w.now, true)
+        w.events += Alarm(w.now, AlarmReason.OVERSHOOT, true, false, null, null, null)
+    } else {
+        w.alarm = a.copy(ringing = false)
+    }
 }
 
 private fun applyUserAction(w: StepWork, action: UserActionKind): Boolean {

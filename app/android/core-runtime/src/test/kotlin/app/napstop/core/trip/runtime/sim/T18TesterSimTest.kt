@@ -50,7 +50,8 @@ import org.junit.jupiter.api.assertThrows
 
 /**
  * Tester T18, beyond the spec cases (risk areas of docs/reviews/T18.md "Ghi chú cho tester"):
- * - TS01: K11 (review minor #3) on the JVM with the T16 auto-stop of 300 s played: does an extra Alarm(OVERSHOOT) come?
+ * - TS01: K11 (review minor #3) on the JVM with the T16 auto-stop of 300 s played: since T10.8 (P1) exactly one Alarm(OVERSHOOT)
+ *   comes, at the auto-stop when the overshoot came while ringing, with the overshoot otherwise.
  * - TS02: SM19 at the UI speed 10× (SM19 only runs 1/60/600) and at odd speeds (2.5×, 37×, 250×).
  * - TS03–TS05: wake lock (110 min cap): one hold for a 1× trace longer than the cap; UI speeds fit under the cap; FGS
  *   failing → nothing held.
@@ -109,8 +110,19 @@ class T18TesterSimTest {
 
     // ---------------------------------------------------------------- TS01 K11 vs T16 auto-stop
 
-    /** (alarm t, overshoot t, real ms from ring start to overshoot, Alarm reasons) of K11 with the ring stopping after [ringMaxMs]. */
-    private data class K11(val alarmT: Int, val overshootT: Int, val realGapMs: Long, val reasons: List<AlarmReason>, val phaseAtOvershoot: TripPhase)
+    /**
+     * (alarm t, overshoot t, real ms from ring start to overshoot, Alarm reasons, phase at the overshoot, whether the Overshoot Step
+     * itself rang OVERSHOOT, real ms of each ringNow from the first ring start) of K11 with the ring stopping after [ringMaxMs].
+     */
+    private data class K11(
+        val alarmT: Int,
+        val overshootT: Int,
+        val realGapMs: Long,
+        val reasons: List<AlarmReason>,
+        val phaseAtOvershoot: TripPhase,
+        val overshootStepRang: Boolean,
+        val ringStartsMs: List<Long>,
+    )
 
     private fun k11(ringMaxMs: Long): K11 {
         var r: K11? = null
@@ -124,24 +136,34 @@ class T18TesterSimTest {
             assertEquals(StartOutcome.Started, d.start(trace.destLat, trace.destLng))
             var overWall: Long? = null
             var phase: TripPhase? = null
+            var overRang = false
             world.runtime.addListener { _, view, _, events ->
                 if (overWall == null && events.any { it is Overshoot }) {
                     overWall = world.time.wallMs()
                     phase = view.phase
+                    overRang = events.any { it is Alarm && it.reason == AlarmReason.OVERSHOOT }
                 }
             }
             d.runTo(trace.durationS)
             val alarms = world.events.map { it.second }.filterIsInstance<Alarm>()
             val over = world.events.first { it.second is Overshoot }.second
             val ringStart = world.alarm.ringNowCalls.first().atWallMs
-            r = K11(d.t(alarms.first().atMs), d.t(over.atMs), overWall!! - ringStart, alarms.map { it.reason }, phase!!)
+            r = K11(
+                d.t(alarms.first().atMs), d.t(over.atMs), overWall!! - ringStart, alarms.map { it.reason }, phase!!, overRang,
+                world.alarm.ringNowCalls.map { it.atWallMs - ringStart },
+            )
             world.kill()
         }
         return r!!
     }
 
+    /**
+     * T10.8 (P1, PO 06/11/2026, T16.2): K11 with the T16 auto-stop. When the overshoot comes while the DISTANCE ring still rings,
+     * the Overshoot Step does not ring; when the ring auto-stops (SILENCED) the trip rings OVERSHOOT once, as a new ring that
+     * starts exactly at the auto-stop. Before T10.8 this run ended with [DISTANCE] only (the T16.2 bug).
+     */
     @Test
-    fun ts01_k11OvershootComesBeforeTheT16AutoStop() {
+    fun ts01_k11OvershootWhileRingingRingsOvershootWhenTheT16AutoStopComes() {
         val ringMax = AlarmConstants().ringMaxMs
         assertEquals(300_000L, ringMax)
         val k = k11(ringMax)
@@ -150,16 +172,21 @@ class T18TesterSimTest {
         assertTrue(k.overshootT in 2_605..2_680, "overshoot at ${k.overshootT}")
         // After the alarm the trip runs at 1×: the real gap from the ring to the overshoot = trace gap.
         assertTrue(kotlin.math.abs(k.realGapMs - (k.overshootT - k.alarmT) * 1000L) <= 5_000, "real gap ${k.realGapMs}")
+        // Either way exactly one OVERSHOOT ring and never a third ring (the OVERSHOOT ring stops again after ringMax: no re-ring).
+        assertEquals(listOf(AlarmReason.DISTANCE, AlarmReason.OVERSHOOT), k.reasons, "$k")
         if (k.realGapMs < ringMax) {
-            assertEquals(listOf(AlarmReason.DISTANCE), k.reasons, "still ringing: no Alarm(OVERSHOOT)")
             assertEquals(TripPhase.OVERSHOT, k.phaseAtOvershoot)
+            assertFalse(k.overshootStepRang, "still ringing at the overshoot: no Alarm(OVERSHOOT) in that Step")
+            assertEquals(listOf(0L, ringMax), k.ringStartsMs, "OVERSHOOT rings at the auto-stop of the first ring: $k")
         } else {
-            assertEquals(listOf(AlarmReason.DISTANCE, AlarmReason.OVERSHOOT), k.reasons)
+            assertTrue(k.overshootStepRang, "ring stopped before the overshoot: re-ring with the overshoot (#18): $k")
         }
-        // Sensitivity: a ring that stops a little earlier than the gap (what a slower FGS start or a 1 s later
-        // overshoot on a device could look like) gives the second alarm: K11's "one AlarmMsg" only holds with margin.
+        // Sensitivity: a ring that stops a little earlier than the gap (what a slower FGS start or a 1 s later overshoot on a device
+        // could look like) rings OVERSHOOT with the overshoot (#18), not at the auto-stop: both orders give one OVERSHOOT ring.
         val early = k11(k.realGapMs - 5_000)
         assertEquals(listOf(AlarmReason.DISTANCE, AlarmReason.OVERSHOOT), early.reasons, "ring stopped before the overshoot: $early")
+        assertTrue(early.overshootStepRang, "ring stopped before the overshoot: OVERSHOOT in the Overshoot Step: $early")
+        assertEquals(listOf(0L, early.realGapMs), early.ringStartsMs, "second ring with the overshoot: $early")
     }
 
     // ---------------------------------------------------------------- TS02 SM19 at other speeds

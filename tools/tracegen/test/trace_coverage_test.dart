@@ -413,6 +413,20 @@ final Map<String, (List<String>, List<String>)> golden = {
     ['TR37'],
     killSweepCase(sweep: true, statsOnly: true),
   ),
+  // T11.5 TR44 (T10 "T10.8" §3): the first alarm still rings when the vehicle
+  // passes the destination (overshoot without an alarm), stops after
+  // osRingMaxS, then OVERSHOOT rings once; nothing ends the trip.
+  'coach_gb_phuly_overshoot/distance_1000_overshoot_ringing': (
+    ['TR44'],
+    [
+      'D1000 pa osRingMaxS=600',
+      'sweep=true',
+      'E alarm/DISTANCE/ringNow=true $_r1300',
+      'E overshoot $_ov',
+      'A alarm/OVERSHOOT/ringNow=true >event:alarm [600,610]',
+      '! gpsLost,tripEnded',
+    ],
+  ),
   // ---- new profiles (T11 §6.2)
   'bus_hn_slow/smart': (
     ['TR10'],
@@ -577,10 +591,11 @@ void main() {
 
   group('TG31 trace coverage (T10 TR ↔ T11 cases)', () {
     test(
-      '17 profiles, 64 cases, exactly the §5.4/§5.5 (+ T11.3 TR40) case list',
+      '17 profiles, 65 cases, exactly the §5.4/§5.5 (+ T11.3 TR40, T11.5 TR44) '
+      'case list',
       () {
         expect(ids, hasLength(17));
-        expect(golden, hasLength(64));
+        expect(golden, hasLength(65));
         expect(cases.keys.toSet(), golden.keys.toSet());
       },
     );
@@ -600,7 +615,7 @@ void main() {
     });
 
     test(
-      'every TR01–TR35, TR37, TR38 and TR40 is covered, TR36 has no case',
+      'every TR01–TR35, TR37, TR38, TR40 and TR44 is covered, TR36 has no case',
       () {
         final covered = <String, List<String>>{};
         for (final MapEntry(:key, :value) in cases.entries) {
@@ -613,6 +628,7 @@ void main() {
           'TR37',
           'TR38',
           'TR40',
+          'TR44',
         ];
         expect(covered.keys.toSet(), all.toSet());
         expect(covered.containsKey('TR36'), isFalse);
@@ -654,7 +670,7 @@ void main() {
       expect(restricted, isEmpty);
     });
 
-    test('policyPhaseSweep is true in exactly the five §5.8 cases', () {
+    test('policyPhaseSweep is true in the five §5.8 cases and TR44', () {
       final swept = [
         for (final MapEntry(:key, :value) in cases.entries)
           if (value['policyPhaseSweep'] == true) key,
@@ -665,6 +681,7 @@ void main() {
         'train_hn_dh_stopgap/distance_1000_killsweep',
         'coach_gb_phuly_overshoot/distance_1000_killsweep',
         'train_longstop/distance_1000_killsweep',
+        'coach_gb_phuly_overshoot/distance_1000_overshoot_ringing',
       });
     });
 
