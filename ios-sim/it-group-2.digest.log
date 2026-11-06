@@ -1,0 +1,7 @@
+Xcode build done.                                           73.5s
+::group::✅ Passing tests
+✅ t17_1_ios_permissions_test PC05 status() reads the granted location permission
+✅ t17_1_ios_permissions_test PC05 openSettings(locationServices) is false
+✅ t17_1_ios_permissions_test PC05 distancesFromLastKnownM: rounded distance to the station
+✅ t17_1_ios_permissions_test PC05 invalid pairs give null
+🎉 4 tests passed.
