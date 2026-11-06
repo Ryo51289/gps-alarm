@@ -1,7 +1,7 @@
 import Foundation
 @testable import Trip
 
-/// One main run of the fixture harness (303 after T11.3, like Kotlin `Suite.outcomes`) with the T10.5 diagnostics: the urgent
+/// One main run of the fixture harness (340 after T11.5, like Kotlin `Suite.outcomes`) with the T10.5 diagnostics: the urgent
 /// later shifts (I4 exception, T10.5 §6) and the GPS-gap chord probes (U116, U117).
 struct MainRunOutcome: Sendable {
     let run: String

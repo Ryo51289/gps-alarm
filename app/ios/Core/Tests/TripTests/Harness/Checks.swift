@@ -1,6 +1,6 @@
 @testable import Trip
 
-/// Per-run checks (T12 §8.5): expectations, forbids, invariants I1–I7, I10–I13, P02, P07, finite state.
+/// Per-run checks (T12 §8.5): expectations, forbids, invariants I1–I7, I10–I13, I15, P02, P07, finite state.
 /// I14 and P08 (T10.4) come from the runner (they need the engine state).
 enum Checks {
     static func matches(_ e: TripEvent, _ f: EventFilter) -> Bool {
@@ -162,7 +162,7 @@ enum Checks {
         return out
     }
 
-    /// I1–I7, I10–I13 (T10 §3; I4 as T12 §8.5 with the T10.5 urgent-later-shift exception, counted by `urgentShifts`).
+    /// I1–I7, I10–I13, I15 (T10 §3, T10.8 §2; I4 as T12 §8.5 with the T10.5 urgent-later-shift exception, counted by `urgentShifts`).
     static func invariants(_ r: Runner) -> [String] { invariants(r.records, r.params) }
 
     static func invariants(_ records: [StepRecord], _ params: EngineParams) -> [String] {
@@ -225,6 +225,41 @@ enum Checks {
         }
         if preAlerts > 1 { f.append("I5: \(preAlerts) preAlerts") }
         if overshoots > 1 { f.append("I6: \(overshoots) overshoots") }
+        f += i15(records)
+        return f
+    }
+
+    /// I15 (T10.8 §2): at most one `Alarm(OVERSHOOT)` per trip; and when the trip entered OVERSHOT while ringing (an `Overshoot`
+    /// Step without `Alarm(OVERSHOOT)`), the first later Step whose input is `AlarmSilenced` carries exactly one
+    /// `Alarm(OVERSHOOT, ringNow=true)`, unless that Step ends the trip (alarmMaxActiveS, §4.12 step 3); a Step that ends the trip
+    /// carries no `Alarm(OVERSHOOT)` (review T12.5 nit 1). KILL records (dead engine) are skipped; nothing is recorded after ENDED.
+    static func i15(_ records: [StepRecord]) -> [String] {
+        var f: [String] = []
+        var overshootAlarms = 0
+        var waitSilenced = false
+        for rec in records {
+            if case .kill = rec.input { continue }
+            var rings: [TripEvent.Alarm] = []
+            var ends = false, overshoot = false
+            for e in rec.events {
+                switch e {
+                case let .alarm(a) where a.reason == .overshoot: rings.append(a)
+                case .tripEnded: ends = true
+                case .overshoot: overshoot = true
+                default: break
+                }
+            }
+            overshootAlarms += rings.count
+            if waitSilenced, case let .input(x, _) = rec.input, case .alarmSilenced = x {
+                waitSilenced = false
+                let ok = rings.count == 1 && rings[0].ringNow
+                if !ends && !ok { f.append("I15: AlarmSilenced in OVERSHOT without Alarm(OVERSHOOT, ringNow=true) at t=\(rec.t)") }
+                // Review T12.5 nit 1: past alarmMaxActiveS the Step ends the trip (step 3) and must not ring as well.
+                if ends && !rings.isEmpty { f.append("I15: AlarmSilenced Step rings OVERSHOOT and ends the trip at t=\(rec.t)") }
+            }
+            if overshoot && rings.isEmpty { waitSilenced = true }
+        }
+        if overshootAlarms > 1 { f.append("I15: \(overshootAlarms) Alarm(OVERSHOOT)") }
         return f
     }
 

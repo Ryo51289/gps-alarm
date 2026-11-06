@@ -273,11 +273,13 @@ struct TesterT135Tests {
     }
 
     /// Kotlin `T124 s1 s1b s2 s3`: SNOOZED, the chord fix (2 980) after snoozeUntil; the overshoot at 3 030 (`all`):
-    /// (s1) osRingMaxS 60, snooze 2 915: SNOOZE_END 2 975 still rings at 3 030 (stops 3 035) → Overshoot only.
+    /// (s1) osRingMaxS 60, snooze 2 915: SNOOZE_END 2 975 still rings at 3 030 → Overshoot only (no ring in that Step); the chime
+    ///      stops at 3 035 → T10.8 (P1, PO 06/11/2026): exactly one Alarm(OVERSHOOT, ringNow=true) in the AlarmSilenced Step at
+    ///      3 035 (lastReason was SNOOZE_END). Before T10.8 nothing rang after SNOOZE_END (Kotlin tester T12.5 changed the same).
     /// (s1b) osRingMaxS 60, snooze 2 900: SNOOZE_END 2 960 stops at 3 020 → AlarmSilenced 3 020, one re-ring OVERSHOOT (PO #18).
-    /// (s2) snooze 2 900, the chime never stops → Overshoot only.
+    /// (s2) snooze 2 900, the chime never stops → Overshoot only, nothing after.
     /// (s3) osRingMaxS 60, snooze 2 840: SNOOZE_END 2 900 stopped at 2 960 → one re-ring OVERSHOOT.
-    @Test("T135 s1 s1b s2 s3 snoozed, chord fix after snoozeUntil - still ringing gives Overshoot only, stopped chime re-rings OVERSHOOT")
+    @Test("T135 s1 s1b s2 s3 snoozed, chord fix after snoozeUntil - overshoot while ringing rings OVERSHOOT when the chime stops (T10.8), stopped chime re-rings with the overshoot")
     func snoozed() async throws {
         let tr = try Self.tr40()
         let gEnd = TR43ReRingTests.gEnd
@@ -324,8 +326,28 @@ struct TesterT135Tests {
                 }
                 let after = x.alarms.filter { $0.t > until }
                 if v.ringingAtOvershoot {
-                    if !after.isEmpty { fails.append("\(x.tag) (\(v.id)): \(KW.klist(after.map(Self.desc))) after SNOOZE_END (chime still rings)") }
                     if let ov, !x.r.records[ov.rec].view.alarmRinging { fails.append("\(x.tag) (\(v.id)): alarmRinging false") }
+                    if let ringMax = v.ringMax {
+                        // s1, T10.8 P1: nothing in the overshoot Step; the chime stops at until + osRingMaxS → one OVERSHOOT ring there.
+                        let stopAt = until + ringMax
+                        let a = after.count == 1 ? after[0] : nil
+                        var silencedStep = false
+                        if let a, case .input(.alarmSilenced, _) = x.r.records[a.rec].input { silencedStep = true }
+                        if let al = Self.alarm(a), al.reason == .overshoot, al.ringNow, a!.t == stopAt, silencedStep, let ov, a!.rec > ov.rec {
+                        } else {
+                            fails.append("\(x.tag) (\(v.id)): after SNOOZE_END \(KW.klist(after.map(Self.desc))) (overshoot \(Self.s(ov?.t))), "
+                                         + "want one OVERSHOOT ringNow=true in the AlarmSilenced Step at \(stopAt), after the overshoot (T10.8)")
+                        }
+                        if let ov, ov.t >= stopAt {
+                            fails.append("\(x.tag) (\(v.id)): precondition: overshoot \(ov.t) not before the chime stops \(stopAt)")
+                        }
+                        if let a, !(x.r.records[a.rec].view.alarmRinging && x.r.records[a.rec].view.alarmReason == .overshoot) {
+                            fails.append("\(x.tag) (\(v.id)): view after the OVERSHOOT ring is not ringing OVERSHOOT")
+                        }
+                    } else if !after.isEmpty {
+                        // s2: the chime never stops → no AlarmSilenced → nothing rings after SNOOZE_END.
+                        fails.append("\(x.tag) (\(v.id)): \(KW.klist(after.map(Self.desc))) after SNOOZE_END (chime never stops)")
+                    }
                 } else {
                     let a = after.count == 1 ? after[0] : nil
                     if let al = Self.alarm(a), al.reason == .overshoot, al.ringNow, a!.rec == ov?.rec {} else {

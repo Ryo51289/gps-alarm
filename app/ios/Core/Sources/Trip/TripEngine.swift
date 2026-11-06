@@ -177,9 +177,25 @@ struct StepWork {
             case .ended: break
             }
         case .alarmSilenced:
-            if s.phase == .alarming || s.phase == .overshot { s.alarm.ringing = false }
+            onSilenced()
         case let .userAction(_, action):
             applyUser(action)
+        }
+    }
+
+    /// AlarmSilenced (§3). T10.8 (C32): in OVERSHOT, when the alarm that was ringing at the overshoot (ALARMING, `ringing == true`
+    /// → OVERSHOT, only `Overshoot`) stops, ring once more for OVERSHOOT. `lastReason ≠ OVERSHOOT` means "no overshoot ring yet":
+    /// every other way into OVERSHOT marks OVERSHOOT. Not when step 3 is about to end the trip (alarmMaxActiveS since the last ring
+    /// is over, same expression as step 3, `lastRingAtMs` before `markRing`): the trip then ends ALARM_UNANSWERED without a ring.
+    mutating func onSilenced() {
+        if s.phase != .alarming && s.phase != .overshot { return }
+        let a = s.alarm
+        let expired = now - (a.lastRingAtMs ?? now) >= TMath.ms(p.alarmMaxActiveS)
+        if s.phase == .overshot && a.ringing && a.lastReason != .overshoot && !expired {
+            markRing(.overshoot, ringAt: now, ringNow: true)
+            appendAlarmPlaceholder(.overshoot, ringNow: true)
+        } else {
+            s.alarm.ringing = false
         }
     }
 

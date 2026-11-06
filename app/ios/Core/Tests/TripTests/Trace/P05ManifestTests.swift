@@ -6,9 +6,10 @@ import Testing
 enum P05 {
     struct Entry: Sendable, Equatable { let run: String; let lines: Int; let sha256: String }
 
-    /// Main runs: 295 (T10.3/T11.2: 55 cases × 2 modes + 5 phase-swept cases × 37 runs) + 8 (T11.3: 4 case × all/policy).
+    /// Main runs: 295 (T10.3/T11.2: 55 cases × 2 modes + 5 phase-swept cases × 37 runs) + 8 (T11.3: 4 case × all/policy) + 37
+    /// (T11.5: TR44, phase-swept).
     /// Same as Kotlin `P05ManifestTest.EXPECTED_RUNS`.
-    static let expectedRuns = 303
+    static let expectedRuns = 340
 
     /// Transcript of every main run (`expectedRuns`), sorted by run name.
     static func allTranscripts(diag: Bool) async throws -> [(run: String, text: String, diag: String?)] {
@@ -59,7 +60,7 @@ enum P05 {
 
 @Suite("P05ManifestTests")
 struct P05ManifestTests {
-    @Test("P05 303 transcripts match fixtures/p05/manifest.json (run set, lines, sha256) + S15 samples byte-exact")
+    @Test("P05 340 transcripts match fixtures/p05/manifest.json (run set, lines, sha256) + S15 samples byte-exact")
     func manifest() async throws {
         let manifestPath = FixturePaths.p05Dir + "/manifest.json"
         let diag = ProcessInfo.processInfo.environment["NAPSTOP_P05_DIAG"] == "1"

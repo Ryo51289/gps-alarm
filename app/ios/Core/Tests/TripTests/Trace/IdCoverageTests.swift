@@ -47,11 +47,11 @@ struct IdCoverageTests {
         #expect(Self.declaredIds("@Test(\"U10 EMA\")") == ["U10"])
     }
 
-    @Test("IdCoverage: U01–U129 and S01–S16 have a test whose name starts with the ID")
+    @Test("IdCoverage: U01–U132 and S01–S16 have a test whose name starts with the ID")
     func unitIds() throws {
         let declared = Self.declaredIds(try Self.testSources())
         var missing: [String] = []
-        for i in 1...129 {
+        for i in 1...132 {
             let id = String(format: "U%02d", i)
             if !declared.contains(id) { missing.append(id) }
         }
@@ -62,7 +62,7 @@ struct IdCoverageTests {
         #expect(missing.isEmpty, "missing: \(missing)")
     }
 
-    @Test("IdCoverage: TR01–TR35, TR37, TR38 in fixture testIds; TR36 in NegativeSweepTests, TR39 in DozeModelTests, TR43 in TR43ReRingTests")
+    @Test("IdCoverage: TR01–TR35, TR37, TR38, TR44 in fixture testIds; TR36 in NegativeSweepTests, TR39 in DozeModelTests, TR43 in TR43ReRingTests")
     func traceIds() throws {
         let ids = Set(CaseCatalog.refs.flatMap(\.testIds))
         var missing: [String] = []
@@ -70,6 +70,7 @@ struct IdCoverageTests {
             let id = String(format: "TR%02d", i)
             if !ids.contains(id) { missing.append(id) }
         }
+        if !ids.contains("TR44") { missing.append("TR44") }   // T11.5 / T10.8
         #expect(missing.isEmpty, "missing: \(missing)")
         let neg = try FixturePaths.read(FixturePaths.testsDir + "/Trace/NegativeSweepTests.swift")
         #expect(neg.contains("@Test(\"TR36"))
