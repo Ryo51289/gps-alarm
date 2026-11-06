@@ -109,6 +109,8 @@ public actor TripRuntime: LocationSink {
         case notifPoll
         /// T17.3 round 2 (tester bug #1): G2 retry due (fixes keep pushing the engine timer, so it needs its own entry).
         case ringRetry
+        /// T17.2.2 (tester finding #1): while a ring is swallowed, read `list()` until the live ring is gone.
+        case swallowPoll
     }
 
     struct Deferred: Equatable { let dueWallMs: Int64; let kind: DeferredKind }
@@ -150,6 +152,8 @@ public actor TripRuntime: LocationSink {
     private var droppedPlatform = 0
     /// T17.3 D5: a `.notifPoll` came due in this timer command.
     private var notifPollDue = false
+    /// T17.2.2: wall time the swallow poll first saw nothing of the trip ringing (nil = still ringing, or no poll).
+    private var swallowGoneSinceWallMs: Int64?
     /// Reads the engine-state facts at restore. Tests replace it (`setFactsReaderForTesting`) to check review #9.
     private var factsReader: @Sendable (EngineState) -> EngineFacts? = { EngineFacts.read($0) }
     /// Ring events handed over by a StopIntent in memory (also used when its disk write failed, tester T17 #2).
@@ -543,6 +547,7 @@ public actor TripRuntime: LocationSink {
             case .none:
                 break
             case let .silenced(w):
+                if await ringSwallowedIfAny() { break }  // T17.2.2 §5.3 3b: the system took the live ring, it is over
                 let at = max(lastRing ?? Int64.min, toTrip(w))
                 feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(at, nowTrip())))
             case .ring:
@@ -557,6 +562,9 @@ public actor TripRuntime: LocationSink {
                 await ring(RingRequest(tripId: cur.meta.tripId, reason: reason, snoozeAllowed: allowed, distanceM: nil,
                                        etaS: nil, batteryPct: nil, atWallMs: nowWall()))
             }
+        }
+        if ledger.swallowedRing != nil && !deferred.contains(where: { $0.kind == .swallowPoll }) {
+            armSwallowPoll()  // T17.2.2: a swallowed ring of the dead process, its live ring still on
         }
         if trackingMode == .headless && (view.phase == .acquiring || view.phase == .tracking) && !ledger.interruptedAlerted {
             await ports.notifier.show(tripId: cur.meta.tripId, .interrupted, destinationName: nil)
@@ -619,6 +627,7 @@ public actor TripRuntime: LocationSink {
         ledger.stale = nil
         ledger.now = nil
         ledger.interruptedAlerted = false
+        ledger.swallowedRing = nil
         ledger.markEnded(id, max: constants.endedTripIdsMax)
         writeLedger()
         ports.store.removeRingEvents(tripId: id)
@@ -851,6 +860,7 @@ public actor TripRuntime: LocationSink {
         ledger.now = nil
         ledger.lastFired = nil
         ledger.interruptedAlerted = false
+        ledger.swallowedRing = nil
         writeLedger()
         clock = newClock
         currentSpec = sessionSpec
@@ -941,9 +951,13 @@ public actor TripRuntime: LocationSink {
             prevView: prevView, step: step, meta: a.meta, mode: trackingMode, facts: facts, ledger: ledger,
             timerDueTripMs: sim != nil ? sim?.engineWakeTripMs : engineDueTripMs, params: a.params, nowWallMs: nowWall(),
             nowTripMs: nowTrip(), constants: constants, liveSlot: liveSlot, speed: clock?.speed ?? 1.0))
-        if step.events.contains(where: { if case let .alarm(x) = $0 { return x.ringNow }; return false }),
+        var ringAlarm: TripEvent.Alarm?
+        for case let .alarm(x) in step.events where x.ringNow { ringAlarm = x; break }
+        if let swallowed = ringAlarm,
            !fx.contains(where: { if case .ringNow = $0 { return true }; if case .feed(.fallbackFired) = $0 { return true }; return false }) {
             ports.journal.record("ring_live", [:])  // one ring per trip: the "now" alarm is live already
+            // T17.2.2 (§5.3 3b): the engine marked this ring as done; ring it when the live ring stops unanswered.
+            setSwallowedRing(swallowed.reason.jsonName)
         }
         for f in fx {
             if case .persist = f, let b = persistBudgetMs {
@@ -952,6 +966,118 @@ public actor TripRuntime: LocationSink {
                 await execute(f, step: step, facts: facts)
             }
         }
+        if let d = constants.akSelfStopMs, sim == nil, step.view.phase == .overshot, step.view.alarmRinging,
+           step.events.contains(where: { if case .overshoot = $0 { return true }; return false }),
+           !step.events.contains(where: { if case .alarm = $0 { return true }; return false }) {
+            await scheduleOvershootTrailing(selfStopMs: d)
+        }
+    }
+
+    // MARK: - Overshoot while the first ring is live (T17.2 §5.3, T17.2.2)
+
+    private func setSwallowedRing(_ reason: String?) {
+        guard ledger.swallowedRing != reason else { return }
+        ledger.swallowedRing = reason
+        writeLedger()
+        swallowGoneSinceWallMs = nil
+        if reason != nil {
+            ports.journal.record("ring_swallowed", ["op": "set", "reason": reason ?? ""])
+            armSwallowPoll()
+        } else {
+            deferred.removeAll { $0.kind == .swallowPoll }
+        }
+    }
+
+    private func armSwallowPoll(atWallMs: Int64? = nil) {
+        deferred.removeAll { $0.kind == .swallowPoll }
+        addDeferred(atWallMs ?? nowWall() + constants.swallowPollMs, .swallowPoll)
+    }
+
+    /// Tester finding #1: the stop of the live ring may never reach the interpreter (an `alarmUpdates` list that missed
+    /// the ringing alarm leaves `prevUpdates` without it, so its real stop makes no `checkGone`). While a ring is swallowed
+    /// the runtime reads `list()` every SWALLOW_POLL_MS itself: once nothing of the trip rings (nor is about to) for
+    /// STOP_INTENT_GRACE_MS and no ring event of the trip waits, it rings the swallowed ring (as `goneCheck`). Ends when
+    /// the swallowed ring is cleared (rung, answered, trip ended; at the latest alarmMaxActiveS ends the trip).
+    private func swallowPoll() async {
+        guard ledger.swallowedRing != nil, let a = active, let v = a.view, v.phase == .alarming || v.phase == .overshot,
+              !restorePending else { return }
+        guard let list = await readList() else {
+            armSwallowPoll()  // unreadable: says nothing, try again
+            return
+        }
+        lastList = list
+        let ringing = RingFactsReader.facts(tripId: a.meta.tripId, list: list, ledger: ledger, nowWallMs: nowWall(),
+                                            constants: constants).ringingNow
+        if ringing {
+            swallowGoneSinceWallMs = nil
+            armSwallowPoll()
+            return
+        }
+        let since = swallowGoneSinceWallMs ?? nowWall()
+        swallowGoneSinceWallMs = since
+        let waiting = ringEvents().contains { $0.tripId == a.meta.tripId }  // its intent handler runs next in the queue
+        if nowWall() - since < constants.stopIntentGraceMs || waiting {
+            armSwallowPoll(atWallMs: waiting ? nil : since + constants.stopIntentGraceMs)
+            return
+        }
+        ports.journal.record("ring_swallowed", ["op": "pollGone"])
+        _ = await ringSwallowedIfAny()
+    }
+
+    /// §5.3 3b: the live ring left `alerting` with no StopIntent within STOP_INTENT_GRACE_MS (or, at restore, the system
+    /// took it and nothing rings now). With a swallowed ring the runtime rings it (with a ring guard) instead of reporting
+    /// the alarm silenced: the engine already decided that ring (`markRing`), so it would not ring again (T10.8 needs
+    /// `lastReason ≠ OVERSHOOT`). true = rung (the caller must not feed `AlarmSilenced`).
+    private func ringSwallowedIfAny() async -> Bool {
+        guard let name = ledger.swallowedRing else { return false }
+        setSwallowedRing(nil)
+        guard let a = active, let v = a.view, v.phase == .alarming || v.phase == .overshot else { return false }
+        let reason = AlarmReason(jsonName: name) ?? v.alarmReason ?? .fallback
+        ports.journal.record("ring_swallowed", ["op": "ring", "reason": reason.jsonName])
+        let guardAt = nowWall() + Int64(a.params.fallbackLagS) * 1000
+        if sim != nil {
+            armSimGuard(guardAt)  // T18.1 D7: in process
+        } else {
+            let list = await readList()
+            if let list { lastList = list }
+            if EffectPlanner.needsGuard(live: EffectPlanner.liveSlot(ledger, list: list), nowWallMs: nowWall(),
+                                        guardAtWallMs: guardAt) {
+                await scheduleSlot(.guardSlot, targetAtMs: toTrip(guardAt), wallMs: guardAt, reason: reason)
+            }
+        }
+        await persistNow(constants.preRingPersistBudgetMs)  // D7, as every ring
+        await ring(RingRequest(tripId: a.meta.tripId, reason: reason,
+                               snoozeAllowed: v.phase == .alarming && v.snoozeCount < a.params.maxSnoozes, distanceM: nil,
+                               etaS: nil, batteryPct: nil, atWallMs: nowWall()))
+        return true
+    }
+
+    /// §5.3 item 3 (AM05 branch "AlarmKit stops after D s"): the trip overshot while the first ring is live (the engine
+    /// only emitted `Overshoot`; it rings OVERSHOOT on the `AlarmSilenced` of that ring, T10.8). If the app is dead when
+    /// AlarmKit stops that ring, nobody sends `AlarmSilenced`: a trailing alarm (guard slot, OVERSHOOT title, route back)
+    /// rings at ring start + D + AK_NOW_LEAD_MS. App alive: the ring stops → AlarmSilenced → the engine rings; whichever of
+    /// the trailing alarm and the new "now" alerts first cancels the other (obligation 4, K4 #3): one ring.
+    private func scheduleOvershootTrailing(selfStopMs: Int64) async {
+        guard let a = active else { return }
+        let list = await readList()
+        if let list { lastList = list }
+        var start: Int64?
+        var channel: AlarmChannelKind?
+        if let r = (list ?? []).first(where: { $0.tripId == a.meta.tripId && $0.state == .alerting }) {
+            start = r.fireAtWallMs ?? nowWall()
+            channel = r.channel
+        } else if let n = ledger.now, n.confirmed {
+            start = n.fireAtWallMs
+            channel = n.channel
+        }
+        // D is AlarmKit's: a notification-channel ring has its own window (T17.3), and an unknown ring has no start.
+        guard let s = start, channel == .alarmKit else {
+            ports.journal.record("trailing", ["op": "skip"])
+            return
+        }
+        let at = max(s + selfStopMs + constants.akNowLeadMs, nowWall() + constants.akNowLeadMs)
+        ports.journal.record("trailing", ["op": "schedule"])
+        await scheduleSlot(.guardSlot, targetAtMs: toTrip(at), wallMs: at, reason: .overshoot)
     }
 
     private func execute(_ f: Effect, step: Step, facts: RingFacts) async {
@@ -1059,6 +1185,7 @@ public actor TripRuntime: LocationSink {
 
     private func ring(_ req: RingRequest) async {
         guard let a = active else { return }
+        setSwallowedRing(nil)  // T17.2.2: a ring of the trip now (a newer decision, or the swallowed one)
         let chans = await channels()
         let id = UUID().uuidString
         let g = ledger.nextGeneration
@@ -1164,8 +1291,9 @@ public actor TripRuntime: LocationSink {
     }
 
     /// §5.6.2: new slot first, ledger, then cancel the old one (never an alerting one). true = the new slot is set.
+    /// `reason` (guard slot only, T17.2.2): the ring it stands for, when it is not the view's (the trailing OVERSHOOT alarm).
     @discardableResult
-    private func scheduleSlot(_ kind: SystemAlarmKind, targetAtMs: Int64, wallMs: Int64) async -> Bool {
+    private func scheduleSlot(_ kind: SystemAlarmKind, targetAtMs: Int64, wallMs: Int64, reason: AlarmReason? = nil) async -> Bool {
         guard let a = active else { return false }
         let old = ledger.current
         let id = UUID().uuidString
@@ -1174,7 +1302,8 @@ public actor TripRuntime: LocationSink {
         let chans = await channels()
         let title = kind == .fallback
             ? NativeCopy.fallbackTitle(destinationName: a.meta.destinationName, locale: locale())
-            : NativeCopy.alarmTitle(a.view?.alarmReason ?? .fallback, destinationName: a.meta.destinationName, locale: locale())
+            : NativeCopy.alarmTitle(reason ?? a.view?.alarmReason ?? .fallback, destinationName: a.meta.destinationName,
+                                  locale: locale())
         guard !chans.isEmpty else {
             ports.journal.record("ak", ["op": "schedule", "kind": kind.rawValue, "gen": "\(g)", "ok": "false", "err": "noChannel"])
             if kind == .fallback { feeds.append(.fallbackScheduled(atMs: nowTrip(), fallbackAtMs: targetAtMs, ok: false)) }
@@ -1184,7 +1313,7 @@ public actor TripRuntime: LocationSink {
         // snooze rule); a fallback slot (or a guard without a ring) offers snooze while snoozes are left.
         let v = a.view
         let secondary = SecondaryActionPlanner.action(
-            kind: kind, reason: kind == .guardSlot ? v?.alarmReason : nil,
+            kind: kind, reason: kind == .guardSlot ? reason ?? v?.alarmReason : nil,
             snoozeAllowed: v.map { $0.phase == .alarming && $0.snoozeCount < a.params.maxSnoozes } ?? false,
             snoozeCount: v?.snoozeCount ?? 0, maxSnoozes: a.params.maxSnoozes,
             snoozeMinutes: SecondaryActionPlanner.snoozeMinutes(a.params.snoozeS), constants: constants)
@@ -1318,6 +1447,7 @@ public actor TripRuntime: LocationSink {
         }
         ringRetryPending = false
         clearHeldRing()  // snoozed/dismissed before the held ring was due
+        if ledger.swallowedRing != nil { setSwallowedRing(nil) }  // T17.2.2 §5.3 3b: answered, no ring
         deferred.removeAll { $0.kind == .simGuard }  // T18.1 D7: the user answered
         simNowAlertTripMs = nil  // the "now" alarm is stopped: it never alerts
     }
@@ -1375,6 +1505,7 @@ public actor TripRuntime: LocationSink {
         ledger.now = nil
         ledger.interruptedAlerted = false
         ledger.activeSimulated = false
+        ledger.swallowedRing = nil
         ledger.markEnded(a.meta.tripId, max: constants.endedTripIdsMax)
         writeLedger()
         ports.store.removeRingEvents(tripId: a.meta.tripId)
@@ -1562,6 +1693,7 @@ public actor TripRuntime: LocationSink {
             guard let a = active, let v = a.view, v.alarmRinging else { return }
             let events = ringEvents()
             if events.contains(where: { $0.alarmId == id }) { return }
+            if await ringSwallowedIfAny() { return }  // T17.2.2 §5.3 3b
             await process(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(toTrip(goneAt), nowTrip())))
         case let .endBgTask(token):
             ports.bgTasks.end(token)
@@ -1573,6 +1705,8 @@ public actor TripRuntime: LocationSink {
             notifPollDue = true  // read once below, after the other due work (timerBody)
         case .ringRetry:
             break  // ringRetryIfDue runs below (timerBody)
+        case .swallowPoll:
+            await swallowPoll()
         }
     }
 
@@ -1808,14 +1942,21 @@ public actor TripRuntime: LocationSink {
                 let silenced = originalRinging == false
                 if !silenced { expectedStops.remove(e.alarmId) }  // a later disappearance goes the goneCheck way
                 ports.journal.record("snooze_intent", ["refused": "true", "silenced": silenced ? "true" : "false"])
-                if silenced { feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(tap, nowTrip()))) }
+                if silenced { await silencedOrSwallowed(tap) }
             }
         } else if !snoozed, e.rescue == nil, let v = active?.view, v.alarmRinging {
             // T17.2 record: the intent stopped the alarm first.
             ports.journal.record("snooze_intent", ["refused": "true", "silenced": "true"])
-            feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(tap, nowTrip())))
+            await silencedOrSwallowed(tap)
         }
         return snoozed
+    }
+
+    /// The ring stopped without ending the trip (refused snooze): `AlarmSilenced` at the tap, or the swallowed ring
+    /// (T17.2.2 §5.3 3b; the engine would ring OVERSHOOT on that `AlarmSilenced` itself when nothing was swallowed, T10.8).
+    private func silencedOrSwallowed(_ tapTripMs: Int64) async {
+        if await ringSwallowedIfAny() { return }
+        feeds.append(.alarmSilenced(atMs: nowTrip(), silencedAtMs: min(tapTripMs, nowTrip())))
     }
 
     /// §3 "nhận alarm cứu làm khe": the slot of the snooze end at `t`. The rescue alarm is taken when it is scheduled within

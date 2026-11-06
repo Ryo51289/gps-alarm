@@ -69,8 +69,10 @@ struct RuntimeTraceTests {
         let lines = world.journal.all
         let fedPlanner = lines.filter { $0.ev == "fb_fired" && $0.fields["src"] == "planner" }.count
         let live = lines.filter { $0.ev == "ring_live" }.count
-        #expect(ringNowEvents == nowSchedules + fedPlanner + live,
-                "\(key): ringNow events \(ringNowEvents) vs now alarms \(nowSchedules) + fed \(fedPlanner) + live \(live)")
+        // Review T17.2.2 nit: a swallowed ring rung later (ring_swallowed{op:ring}) is a schedule(.now) without its own event.
+        let swallowed = lines.filter { $0.ev == "ring_swallowed" && $0.fields["op"] == "ring" }.count
+        #expect(ringNowEvents == nowSchedules - swallowed + fedPlanner + live,
+                "\(key): ringNow events \(ringNowEvents) vs now alarms \(nowSchedules) − swallowed \(swallowed) + fed \(fedPlanner) + live \(live)")
         // IU36 over the ITR30 journal: no coordinates, no destination name, no distances.
         let lat = String(format: "%.4f", trace.destLat), lng = String(format: "%.4f", trace.destLng)
         for l in lines {
@@ -135,7 +137,10 @@ struct RuntimeTraceTests {
     func tableCoversCases() throws {
         let table = try FirstAlarmTable.load()
         #expect(Set(table.map { "\($0.trace)/\($0.caseId)" }) == Set(Self.caseIds))
-        #expect(Self.caseIds.count == 12)
+        // Counted from expect.json (T17.2.2: TR44 made it 13), every base trace read (a missing one fails, not skipped).
+        var l30 = 0
+        for id in RuntimeFixtures.baseTraces { l30 += RuntimeFixtures.l30Cases(try RuntimeFixtures.read(id)).count }
+        #expect(l30 > 0 && Self.caseIds.count == l30 && table.count == l30)
     }
 }
 

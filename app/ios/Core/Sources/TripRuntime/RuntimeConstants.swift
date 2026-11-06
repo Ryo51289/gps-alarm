@@ -1,10 +1,5 @@
 // Platform-layer constants (docs/specs/T17.md §6, T17.2 §6). Native, not Remote Config (D17).
 
-/// T17.2 §5 (T16.2, waiting for the PO): what iOS does when the trip overshoots while the first ring is still live.
-/// `.none` = P0 (engine T10 #18 unchanged). P1 needs no iOS code (the engine would emit `Alarm(OVERSHOOT)`, which goes the
-/// normal `ring` path with the route-back button); P2 would be a separate task.
-public enum OvershootWhileRingingPolicy: String, Sendable, Equatable { case none, ringAgainOnSilence }
-
 public struct RuntimeConstants: Sendable, Equatable {
     public var akNowLeadMs: Int64 = 5_000
     public var nowAlertGraceMs: Int64 = 20_000
@@ -30,8 +25,14 @@ public struct RuntimeConstants: Sendable, Equatable {
     public var launchActionWaitMs: Int64 = 1_500
     /// T17.2 D11 (T16 AE11): "Nghe thử" stops after this.
     public var previewMaxMs: Int64 = 10_000
-    /// T17.2 §5: P0 until the PO decides T16.2.
-    public var overshootWhileRingingPolicy: OvershootWhileRingingPolicy = .none
+    /// T17.2 §5.3 item 3 (T17.2.2, RK-T17-12): D of AM05, how long AlarmKit lets an unanswered alarm ring before it stops
+    /// it by itself. Set → an overshoot while the first ring is live schedules a trailing alarm (guard slot, OVERSHOOT
+    /// title, route back) at ring start + D + AK_NOW_LEAD_MS, for when the app is dead when that ring stops. nil = AlarmKit
+    /// rings until answered (AM05 branch 1): no trailing alarm. nil until AM05 is measured on a device: with a guessed D
+    /// and an alarm that never stops, the trailing alarm would ring next to the first one.
+    public var akSelfStopMs: Int64?
+    /// T17.2.2 (tester finding #1): `list()` read period while a ring is swallowed (`ring_live`), until the live ring is gone.
+    public var swallowPollMs: Int64 = 10_000
     /// T18.1 §7: reading + parsing a bundled trace at start (T18 §10).
     public var simTraceLoadBudgetMs: Int64 = 3_000
     /// T18.1 §5: virtual events handled by one timer command; the rest goes to a next command.

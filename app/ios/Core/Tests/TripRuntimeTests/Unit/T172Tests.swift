@@ -40,7 +40,7 @@ struct T172Tests {
             }
         }
         #expect(a(.now, .overshoot, false, off) == .routeBack)
-        #expect(on.snoozeButtonEnabled && on.overshootWhileRingingPolicy == .none)
+        #expect(on.snoozeButtonEnabled && on.akSelfStopMs == nil)
         #expect(SecondaryActionPlanner.snoozeMinutes(60) == 1 && SecondaryActionPlanner.snoozeMinutes(120) == 2)
         #expect(SecondaryActionPlanner.snoozeMinutes(30) == 1 && SecondaryActionPlanner.snoozeMinutes(600) == 10)
     }
@@ -547,13 +547,14 @@ struct T172Tests {
         #expect(a?.tripId == "t1" && a?.pastM == pastM)
     }
 
-    @Test("AU12 overshoot while the first ring is live, ring stops → one OVERSHOOT ring with route back (P1, T16.2)",
-          .disabled("chờ T16.2 (PO): overshootWhileRingingPolicy = .none"))
+    @Test("AU12 overshoot while the first ring is live, ring stops → one OVERSHOOT ring with route back (P1, T10.8 / T17.2.2)")
     func au12() async throws {
         let trace = try RuntimeFixtures.read("coach_gb_phuly_overshoot")
-        let c = try #require(trace.cases.first { $0.mode == "distance" && $0.thresholdM == 1000 })
+        // TR44: DISTANCE 1 000, nobody answers the first ring, the system stops it after osRingMaxS (AM05 gives the real D).
+        let c = try #require(trace.cases.first { $0.id == "distance_1000_overshoot_ringing" })
+        let ringMaxS = try #require(c.osRingMaxS)
         let w = World(startWall: trace.startMs)
-        w.alarms.silenceAfterMs = 5 * 60_000  // nobody answers the first ring; AlarmKit stops it (AM05 gives the real value)
+        w.alarms.silenceAfterMs = Int64(ringMaxS) * 1000
         await w.listen()
         #expect(await w.runtime.start(meta: RuntimeFixtures.meta(trace, c), destLat: trace.destLat, destLng: trace.destLng)
             == .started)
@@ -561,6 +562,22 @@ struct T172Tests {
         await run.run(endT: trace.durationS)
         let over = w.alarms.scheduledRequests().filter { $0.kind == .now && $0.secondary == .routeBack }
         #expect(over.count == 1)
+        let name = RuntimeFixtures.meta(trace, c).destinationName
+        #expect(over.first?.title == NativeCopy.alarmTitle(.overshoot, destinationName: name, locale: "vi"))
+        // At the first AlarmSilenced Step after the trip went OVERSHOT: the previous Step overshot with the first ring live.
+        let entries = w.seen.entries
+        func isOvershootAlarm(_ e: TripEvent) -> Bool { if case let .alarm(a) = e { return a.reason == .overshoot }; return false }
+        let i = try #require(entries.firstIndex { $0.events.contains(where: isOvershootAlarm) })
+        #expect(i > 0 && entries[i - 1].view.phase == .overshot && entries[i - 1].view.alarmRinging)
+        #expect(entries[i].events.count == 1)
+        let iOver = try #require(entries.firstIndex { $0.events.contains { $0.fixtureName == "overshoot" } })
+        #expect(iOver < i && entries[iOver].events.allSatisfy { if case .alarm = $0 { return false }; return true })
+        #expect(entries[iOver..<i].allSatisfy { $0.view.alarmRinging }, "no other AlarmSilenced in between")
+        let first = try #require(w.seen.firstAlarm())
+        let dt = entries[i].view.atMs - first.atMs
+        #expect(dt >= Int64(ringMaxS) * 1000 && dt <= Int64(ringMaxS + 10) * 1000, "ring₁ + osRingMaxS + grace: \(dt) ms")
+        #expect(w.alarms.doubleRings == 0)
+        #expect(w.seen.events.filter(isOvershootAlarm).count == 1)
     }
 
     // MARK: - Held "now" ring (review T17 round 3 risk)

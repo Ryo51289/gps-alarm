@@ -63,11 +63,18 @@ struct SimTraceTests {
 
     /// Index of the first ITR30 Step made by an input of real-time origin: the OS alarm stopping by itself after
     /// `osRingMaxS` real seconds (checkGone → AlarmSilenced, T17 obligation 6). nil = none in this run.
+    /// T10.8 (P1, TR44): when the trip overshot while that ring was live, the `AlarmSilenced` Step keeps ringing: its only
+    /// event is the `Alarm(OVERSHOOT, ringNow)` of the rule (the one way to an OVERSHOOT alarm from OVERSHOT with another
+    /// last reason).
     static func osSilenceStep(_ entries: [Seen.Entry]) -> Int? {
         guard entries.count > 1 else { return nil }
-        for i in 1..<entries.count where entries[i - 1].view.alarmRinging && !entries[i].view.alarmRinging
-            && entries[i].events.isEmpty {
-            return i
+        for i in 1..<entries.count where entries[i - 1].view.alarmRinging {
+            let prev = entries[i - 1].view, e = entries[i]
+            if !e.view.alarmRinging && e.events.isEmpty { return i }
+            if prev.phase == .overshot, prev.alarmReason != .overshoot, e.events.count == 1, case let .alarm(a) = e.events[0],
+               a.reason == .overshoot, a.ringNow {
+                return i
+            }
         }
         return nil
     }
@@ -129,8 +136,10 @@ struct SimTraceTests {
         let guardRings = lines.filter { $0.ev == "sim_guard" }.count
         let fed = lines.filter { $0.ev == "fb_fired" && $0.fields["src"] == "planner" }.count
         let live = lines.filter { $0.ev == "ring_live" }.count
-        #expect(ringNow == nowSchedules - guardRings + fed + live,
-                "\(key): ringNow \(ringNow) vs now \(nowSchedules) − guard \(guardRings) + fed \(fed) + live \(live)")
+        // Review T17.2.2 nit: a swallowed ring rung later (ring_swallowed{op:ring}) is a schedule(.now) without its own event.
+        let swallowed = lines.filter { $0.ev == "ring_swallowed" && $0.fields["op"] == "ring" }.count
+        #expect(ringNow == nowSchedules - guardRings - swallowed + fed + live,
+                "\(key): ringNow \(ringNow) vs now \(nowSchedules) − guard \(guardRings) − swallowed \(swallowed) + fed \(fed) + live \(live)")
         if osSilence, events.contains(where: { $0.fixtureName == "overshoot" }) {
             let over = events.filter { if case let .alarm(a) = $0 { return a.reason == .overshoot && a.ringNow }; return false }
             #expect(over.count == 1, "\(key): Alarm(OVERSHOOT, ringNow) after the OS silence")

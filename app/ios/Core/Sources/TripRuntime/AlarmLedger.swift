@@ -79,16 +79,19 @@ public struct AlarmLedger: Sendable, Codable, Equatable {
     public var interruptedAlerted = false
     /// T18.1 D10: the active trip is simulated (for a lost snapshot). Written only when true.
     public var activeSimulated = false
+    /// T17.2.2 (§5.3 3b): reason (JSON name) of an `Alarm(ringNow)` swallowed because a "now" ring of the trip was live
+    /// (`ring_live`); rung when that ring stops unanswered. Written only when set.
+    public var swallowedRing: String?
 
     public init() {}
     public static let empty = AlarmLedger()
 
     private enum CodingKeys: String, CodingKey {
         case ledgerVersion, activeTripId, nextGeneration, current, stale, now, lastFired, endedTripIds, interruptedAlerted
-        case activeSimulated
+        case activeSimulated, swallowedRing
     }
 
-    /// Same keys as the synthesized T17 coding; `activeSimulated` optional.
+    /// Same keys as the synthesized T17 coding; `activeSimulated`, `swallowedRing` optional.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         ledgerVersion = try c.decode(Int.self, forKey: .ledgerVersion)
@@ -101,6 +104,7 @@ public struct AlarmLedger: Sendable, Codable, Equatable {
         endedTripIds = try c.decode([String].self, forKey: .endedTripIds)
         interruptedAlerted = try c.decode(Bool.self, forKey: .interruptedAlerted)
         activeSimulated = try c.decodeIfPresent(Bool.self, forKey: .activeSimulated) ?? false
+        swallowedRing = try c.decodeIfPresent(String.self, forKey: .swallowedRing)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -115,6 +119,7 @@ public struct AlarmLedger: Sendable, Codable, Equatable {
         try c.encode(endedTripIds, forKey: .endedTripIds)
         try c.encode(interruptedAlerted, forKey: .interruptedAlerted)
         if activeSimulated { try c.encode(true, forKey: .activeSimulated) }
+        try c.encodeIfPresent(swallowedRing, forKey: .swallowedRing)
     }
 
     /// Ids this ledger knows for the active trip (current, stale, now).
