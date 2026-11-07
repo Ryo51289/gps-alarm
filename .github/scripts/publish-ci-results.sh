@@ -13,7 +13,7 @@
 # Each job may leave timing.env (start_epoch=, end_epoch=) and summary.md in its artifact.
 #
 # Safety (D7): files over 1 MB are dropped, *.log files are cut to their last 400 lines, and any file holding a
-# SECRET_VALUES entry, "GMSApiKey" or an "AIza..." key is dropped; each drop is a warning in summary.md.
+# SECRET_VALUES entry or an "AIza..." key (Google/Firebase) is dropped; each drop is a warning in summary.md.
 # The branch holds one orphan commit, replaced on every run (force push).
 # Needs bash, git, jq (preinstalled on ubuntu-24.04 runners), GNU date.
 set -euo pipefail
@@ -83,7 +83,6 @@ while IFS= read -r -d '' f; do
   for v in "${secrets[@]+"${secrets[@]}"}"; do
     if grep -qaF -- "$v" "$f"; then reason="a secret value"; break; fi
   done
-  if [ -z "$reason" ] && grep -qaF 'GMSApiKey' "$f"; then reason="GMSApiKey"; fi
   if [ -z "$reason" ] && grep -qaE 'AIza[0-9A-Za-z_-]{20,}' "$f"; then reason="a Google API key"; fi
   if [ -n "$reason" ]; then
     rm -f "$f"

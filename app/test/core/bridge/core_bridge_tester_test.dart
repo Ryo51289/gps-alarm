@@ -40,7 +40,6 @@ final _calls = <String, Future<Object?> Function(CoreBridge)>{
   // T14.1 tester.
   'PermissionHostApi.deviceStatus': (b) => b.deviceStatus(),
   // T23 coder: new host methods join the error-mapping loops.
-  'PermissionHostApi.mapsConfig': (b) => b.mapsConfig(),
   'PermissionHostApi.distancesFromLastKnownM': (b) =>
       b.distancesFromLastKnownM([16.8, 107.1], 1800000),
   // T21: screen 9 background check.

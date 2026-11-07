@@ -6,7 +6,6 @@ import app.napstop.core.bridge.BridgeGuard
 import app.napstop.core.bridge.DeviceStatusMsg
 import app.napstop.core.bridge.FlutterError
 import app.napstop.core.bridge.LocationAccessMsg
-import app.napstop.core.bridge.MapsConfigMsg
 import app.napstop.core.bridge.PermissionKindMsg
 import app.napstop.core.bridge.PermissionStateMsg
 import app.napstop.core.bridge.PermissionStatusMsg
@@ -384,7 +383,6 @@ class T21PermissionTesterTest {
                     settings = SettingsLauncher { throw secret() },
                     readDeviceInfo = { throw secret() },
                     readDeviceStatus = { throw secret() },
-                    readMapsConfig = { throw secret() },
                     readDistances = { _, _ -> throw secret() },
                     backgroundChecks =
                         object : BackgroundChecks {
@@ -403,7 +401,6 @@ class T21PermissionTesterTest {
                     "openSettings" to { impl.openSettings(SettingsTargetMsg.APP_DETAILS) },
                     "deviceInfo" to { impl.deviceInfo() },
                     "deviceStatus" to { impl.deviceStatus() },
-                    "mapsConfig" to { impl.mapsConfig() },
                     "distances" to { impl.distancesFromLastKnownM(listOf(21.0, 105.8), 1_000L) },
                     "startBackgroundCheck" to { impl.startBackgroundCheck(30_000L) },
                     "backgroundCheck" to { impl.backgroundCheck() },
@@ -459,7 +456,7 @@ class T21PermissionTesterTest {
                 PermissionHostApiImpl(
                     sources = fakes.sources, flags = fakes.flags, prompter = prompter,
                     settings = SettingsLauncher {}, readDeviceInfo = { error("unused") },
-                    readDeviceStatus = { DeviceStatusMsg(interruptionFilter = app.napstop.core.bridge.InterruptionFilterMsg.ALL) }, readMapsConfig = { MapsConfigMsg() },
+                    readDeviceStatus = { DeviceStatusMsg(interruptionFilter = app.napstop.core.bridge.InterruptionFilterMsg.ALL) },
                     readDistances = { _, _ -> null }, backgroundChecks = fakes.checks, warn = {},
                 )
             val first = async { impl.request(PermissionKindMsg.LOCATION) }

@@ -222,15 +222,14 @@ void main() {
     expect(h.location, AppRoutes.batteryGuide);
   });
 
-  testWidgets('W13 go to screen 8 while screen 2 debounces: no request', (
+  testWidgets('W13/RW06 go to screen 8 while screen 2 debounces: no request', (
     tester,
   ) async {
     final d = await pumpDestination(tester);
-    await tapVisible(tester, find.text('Tìm địa chỉ bằng Google Maps'));
-    final before = d.places.requests.length;
     final distancesBefore = d.bridge.distancesCalls.length;
-    await tester.enterText(find.byType(TextField), 'ben xe duc');
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.enterText(find.byType(TextField), 'vinh');
+    // Inside the distance debounce (150 ms).
+    await tester.pump(const Duration(milliseconds: 50));
     // What AlarmUiCoordinator does with a launch action.
     d.app.router.go('/overshoot?trip=t-1&past=10&open=1');
     // One frame applies the new pages (a real device draws every 16 ms).
@@ -238,7 +237,6 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(d.app.location, AppRoutes.overshoot);
-    expect(d.places.requests, hasLength(before));
     expect(d.bridge.distancesCalls, hasLength(distancesBefore));
   });
 }

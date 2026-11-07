@@ -305,22 +305,13 @@ dart run drift_dev make-migrations   # sau khi đổi schema: ảnh chụp drift
 - SQLite do `package:sqlite3` đóng gói qua build hook: lần build/test đầu tải binary từ GitHub release (cần mạng, có kiểm
   sha256), sau đó dùng cache trong `.dart_tool/`.
 
-## Bản đồ & Places (T23)
+## Bản đồ và tìm điểm đến (T23, T23.2)
 
-API key Google Maps Platform **không bao giờ vào git** (`.gitignore` có `secrets.properties`, `Secrets.xcconfig`).
-Không có key thì app vẫn build và chạy: màn 2 hiện ô thay bản đồ, chế độ "Địa chỉ" báo "Bản này chưa bật tìm địa chỉ."
-CI không cần secret.
-
-- **Android:** chép `android/secrets.properties.example` thành `android/secrets.properties`, điền
-  `MAPS_API_KEY_DEV` (flavor dev, `app.napstop.dev`) và `MAPS_API_KEY_PROD` (flavor prod, `app.napstop`). Hoặc đặt biến
-  môi trường `NAPSTOP_MAPS_API_KEY_DEV` / `NAPSTOP_MAPS_API_KEY_PROD`. Thiếu cả hai → `DEFAULT_API_KEY` (native coi là
-  không có key). Key hạn chế theo package + SHA-1: thêm SHA-1 debug keystore của máy mình vào key
-  (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
-- **iOS:** chép `ios/Flutter/Secrets.xcconfig.example` thành `ios/Flutter/Secrets.xcconfig`, điền `MAPS_API_KEY = …`
-  (key iOS, bundle `app.napstop`). `Info.plist` → `GMSApiKey`; `AppDelegate` gọi `GMSServices.provideAPIKey`.
-- Một key mỗi nền tảng cho cả Maps SDK lẫn Places API (New); Dart đọc key và định danh app qua
-  `PermissionHostApi.mapsConfig()`. Places chỉ gọi khi người dùng chọn "Địa chỉ" (REST, `http`); test dùng `MockClient`,
-  không bao giờ gọi Google thật.
+- Bản đồ: chưa có sau ADR-002 (`docs/architecture/adr/002-maps-replacement.md`): Google Maps Platform không dùng được ở
+  Việt Nam. Màn 2 hiện ô "Bản đồ chưa có trong bản này." trên mọi nền tảng. iOS dùng MapKit từ T23.3, không cần khoá;
+  Android quyết ở T23.4. Seam: `destinationMapBuilderProvider` (`null` = ô thay bản đồ) + `DestinationMapProps`.
+- Tìm kiếm chỉ trong dataset ga/bến offline; không gửi nội dung gõ ra ngoài. Không có khoá, secret hay cấu hình nào cho
+  bản đồ (`.gitignore` vẫn bỏ qua `secrets.properties`, `Secrets.xcconfig` cũ để không lỡ commit).
 
 ```bash
 # Hook đo hiệu năng tìm kiếm (TC37 của T24 = TI01 của T23), máy thật, bản profile:

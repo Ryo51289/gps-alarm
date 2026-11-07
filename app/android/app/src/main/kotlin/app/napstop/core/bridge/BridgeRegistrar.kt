@@ -54,7 +54,6 @@ object BridgeRegistrar {
                 settings = SettingsLauncher.android(appContext) { prompter.activity },
                 readDeviceInfo = ::readDeviceInfo,
                 readDeviceStatus = DeviceStatusReader(appContext)::read,
-                readMapsConfig = MapsConfigReader(appContext)::read,
                 readDistances = LastKnownDistance(appContext)::distances,
                 backgroundChecks = BackgroundCheckScheduler(appContext),
                 warn = { Log.w(TAG, it) },
@@ -77,13 +76,12 @@ object BridgeRegistrar {
 
     /**
      * [register] with an explicit backend and sources (JVM tests). [permissionApi] null =
-     * [PermissionHostApiStub] built from [mapsConfig], [distances] and [deviceStatus].
+     * [PermissionHostApiStub] built from [distances] and [deviceStatus].
      * [deviceStatus] stays the last parameter so existing tests can pass it as a trailing lambda.
      */
     internal fun register(
         messenger: BinaryMessenger,
         backend: TripBackend,
-        mapsConfig: () -> MapsConfigMsg = { MapsConfigMsg() },
         distances: suspend (List<Double>, Long) -> List<Double>? = { _, _ -> null },
         permissionApi: PermissionHostApi? = null,
         prompter: ActivityPermissionPrompter? = null,
@@ -91,7 +89,7 @@ object BridgeRegistrar {
         deviceStatus: () -> DeviceStatusMsg = { PermissionHostApiStub.UNKNOWN_DEVICE_STATUS },
     ): Registration {
         TripHostApi.setUp(messenger, TripHostApiImpl(backend))
-        PermissionHostApi.setUp(messenger, permissionApi ?: PermissionHostApiStub(deviceStatus, mapsConfig, distances))
+        PermissionHostApi.setUp(messenger, permissionApi ?: PermissionHostApiStub(deviceStatus, distances))
         AlarmHostApi.setUp(messenger, alarmApi ?: AlarmHostApiImpl(NoSoundPreview, ringActive = { false }))
         val updates = TripUpdatesHandler(backend)
         val eventChannel = TripUpdatesStreamHandler.register(messenger, updates)

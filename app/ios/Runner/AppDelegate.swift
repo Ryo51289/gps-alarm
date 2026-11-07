@@ -1,5 +1,4 @@
 import Flutter
-import GoogleMaps
 import NapStopIOS
 import TripRuntime
 import UIKit
@@ -15,11 +14,6 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Maps key from Secrets.xcconfig via Info.plist (T23 D3). Without one, Dart never
-    // creates a map (mapsConfig().apiKey == nil). Never log the key.
-    if let key = MapsConfig.apiKey() {
-      GMSServices.provideAPIKey(key)
-    }
     // T17.1 D10: keep the database (destination coordinates, screen 0 flags) and the runtime files out of backups. At
     // every launch, before Flutter opens the database; a failure never blocks the launch.
     let excluded = BackupExclusion.excludeAppSupportSubdirectories(["napstop_db", "napstop_trip"])

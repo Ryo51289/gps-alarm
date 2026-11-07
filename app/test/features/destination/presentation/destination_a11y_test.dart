@@ -1,11 +1,11 @@
 // T23 TW25–TW27: screen 2 accessibility (touch targets, labels, contrast,
 // text scale 2.0, semantics).
-import 'dart:io';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:napstop/core/design/design.dart';
+import 'package:napstop/features/destination/data/stations_codec.dart';
 
 import 'destination_harness.dart';
 
@@ -33,12 +33,13 @@ void main() {
     });
   }
 
-  testWidgets('TW25 guidelines with a Places error banner', (tester) async {
+  testWidgets('TW25 guidelines with the catalog error banner', (tester) async {
     final handle = tester.ensureSemantics();
-    final h = await pumpDestination(tester);
-    h.places.autocompleteError = const SocketException('offline');
-    await typeQuery(tester, 'duc long');
-    await tapVisible(tester, find.text('Tìm "duc long" bằng Google Maps'));
+    await pumpDestination(
+      tester,
+      stationCatalog: () async => throw const StationDataException('broken'),
+    );
+    expect(find.text('Không tải được danh sách ga, bến xe.'), findsOneWidget);
     await expectGuidelines(tester);
     handle.dispose();
   });
@@ -58,11 +59,9 @@ void main() {
     );
   });
 
-  testWidgets('TW27 semantics: labels, selected row, link, live region', (
-    tester,
-  ) async {
+  testWidgets('TW27 semantics: labels, selected row, link', (tester) async {
     final handle = tester.ensureSemantics();
-    final h = await pumpDestination(tester);
+    await pumpDestination(tester);
     await typeQuery(tester, 'dong hoi');
     // Icon-only buttons: the label is read out (tooltip semantics).
     for (final label in ['Quay lại', 'Xoá nội dung tìm', 'Lưu điểm này']) {
@@ -79,13 +78,6 @@ void main() {
     final row = tester.getSemantics(find.text('Ga Đồng Hới').first);
     expect(row.flagsCollection.isSelected, Tristate.isTrue);
 
-    h.places.autocompleteStatus = 403;
-    await typeQuery(tester, 'duc long');
-    await tapVisible(tester, find.text('Tìm "duc long" bằng Google Maps'));
-    final banner = tester.getSemantics(
-      find.text('Tìm địa chỉ tạm thời không dùng được.'),
-    );
-    expect(banner.flagsCollection.isLiveRegion, isTrue);
     handle.dispose();
   });
 }

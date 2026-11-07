@@ -6,7 +6,6 @@ import app.napstop.core.bridge.BridgeGuard
 import app.napstop.core.bridge.DeviceInfoMsg
 import app.napstop.core.bridge.DeviceStatusMsg
 import app.napstop.core.bridge.FlutterError
-import app.napstop.core.bridge.MapsConfigMsg
 import app.napstop.core.bridge.PermissionHostApi
 import app.napstop.core.bridge.PermissionKindMsg
 import app.napstop.core.bridge.PermissionStatusMsg
@@ -29,7 +28,6 @@ class PermissionHostApiImpl(
     private val settings: SettingsLauncher,
     private val readDeviceInfo: () -> DeviceInfoMsg,
     private val readDeviceStatus: () -> DeviceStatusMsg,
-    private val readMapsConfig: () -> MapsConfigMsg,
     private val readDistances: suspend (List<Double>, Long) -> List<Double>?,
     private val backgroundChecks: BackgroundChecks,
     private val warn: (String) -> Unit,
@@ -75,8 +73,6 @@ class PermissionHostApiImpl(
     override fun deviceInfo(): DeviceInfoMsg = BridgeGuard.call { readDeviceInfo() }
 
     override fun deviceStatus(): DeviceStatusMsg = BridgeGuard.call { readDeviceStatus() }
-
-    override fun mapsConfig(): MapsConfigMsg = BridgeGuard.call { readMapsConfig() }
 
     override suspend fun distancesFromLastKnownM(latLngPairs: List<Double>, maxAgeMs: Long): List<Double>? =
         BridgeGuard.call { readDistances(latLngPairs, maxAgeMs) }

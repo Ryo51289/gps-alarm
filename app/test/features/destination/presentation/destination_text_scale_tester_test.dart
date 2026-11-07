@@ -1,7 +1,7 @@
 // Tester T23 (adversarial, beyond TW26): screen 2 at text scale 2.0 in vi and
-// en, on the wireframe size and on a small phone (360×640), in every list
-// state: empty, long station names selected, Places results, Places not
-// configured / no key (map placeholder), Places error banner, catalog error.
+// en, on the wireframe size, a small phone (360×640) and, since T23.2 (RW07),
+// 320×568, in every list state: empty, long station names selected, no map
+// (placeholder), catalog error.
 // Pass = no layout exception (overflow) and the confirm button stays on
 // screen and tappable.
 import 'package:flutter/material.dart';
@@ -13,45 +13,32 @@ import 'destination_harness.dart';
 
 const _small = Size(360, 640);
 
+/// T23.2 RW07: the smallest phone the spec checks.
+const _tiny = Size(320, 568);
+
 typedef _Strings = ({
-  String placesEntryEmpty,
+  String startTyping,
   String chooseDisabled,
   String choose,
-  String notConfigured,
-  String unavailable,
   String mapUnavailable,
   String catalogError,
-  String Function(String q) placesEntry,
 });
 
 const _Strings _vi = (
-  placesEntryEmpty: 'Tìm địa chỉ bằng Google Maps',
+  startTyping: 'Gõ tên ga hoặc bến xe.',
   chooseDisabled: 'Chọn điểm đến',
   choose: 'Chọn ',
-  notConfigured: 'Bản này chưa bật tìm địa chỉ.',
-  unavailable: 'Tìm địa chỉ tạm thời không dùng được.',
-  mapUnavailable: 'Bản đồ chưa sẵn sàng trong bản này.',
-  catalogError:
-      'Không tải được danh sách ga, bến xe. Bạn vẫn tìm được địa chỉ qua '
-      'Google Maps.',
-  placesEntry: _viEntry,
+  mapUnavailable: 'Bản đồ chưa có trong bản này.',
+  catalogError: 'Không tải được danh sách ga, bến xe.',
 );
 
 const _Strings _en = (
-  placesEntryEmpty: 'Search addresses with Google Maps',
+  startTyping: 'Type a station name.',
   chooseDisabled: 'Choose a destination',
   choose: 'Choose ',
-  notConfigured: 'Address search is not set up in this build.',
-  unavailable: 'Address search is unavailable right now.',
-  mapUnavailable: 'The map is not available in this build.',
-  catalogError:
-      "Couldn't load stations. You can still search addresses with Google "
-      'Maps.',
-  placesEntry: _enEntry,
+  mapUnavailable: "The map isn't available in this build.",
+  catalogError: "Couldn't load stations.",
 );
-
-String _viEntry(String q) => 'Tìm "$q" bằng Google Maps';
-String _enEntry(String q) => 'Search "$q" with Google Maps';
 
 /// The confirm button: on screen, inside the view, no exception so far.
 void _expectSane(WidgetTester tester, String reason) {
@@ -75,7 +62,7 @@ void main() {
     (const Locale('vi'), _vi),
     (const Locale('en'), _en),
   ]) {
-    for (final size in [null, _small]) {
+    for (final size in [null, _small, _tiny]) {
       final tag = '${locale.languageCode} ${size ?? '390x844'}';
 
       testWidgets('X1 [$tag] 2.0: empty, long names, selected', (tester) async {
@@ -84,7 +71,7 @@ void main() {
           await _resize(tester, size);
         }
         _expectSane(tester, 'empty');
-        expect(find.text(s.placesEntryEmpty), findsOneWidget);
+        expect(find.text(s.startTyping), findsOneWidget);
         expect(find.text(s.chooseDisabled), findsOneWidget);
 
         // Longest names of the dataset (bus 49 chars, coach 47 chars).
@@ -101,43 +88,20 @@ void main() {
         expect(tester.takeException(), isNull);
       });
 
-      testWidgets('X2 [$tag] 2.0: Places results, error banner', (
-        tester,
-      ) async {
-        final h = await pumpDestination(tester, textScale: 2, locale: locale);
-        if (size != null) {
-          await _resize(tester, size);
-        }
-        await typeQuery(tester, 'duc long');
-        await tapVisible(tester, find.text(s.placesEntry('duc long')));
-        _expectSane(tester, 'places results');
-        expect(find.text('Google Maps'), findsOneWidget);
-        await tapVisible(tester, find.text('Bến xe Đức Long'));
-        _expectSane(tester, 'places selected');
-        h.places.autocompleteStatus = 503;
-        await typeQuery(tester, 'duc long gia lai');
-        expect(find.text(s.unavailable), findsOneWidget);
-        _expectSane(tester, 'places banner');
-      });
-
-      testWidgets('X3 [$tag] 2.0: no key (map placeholder, not configured)', (
+      testWidgets('X3 [$tag] 2.0: no map builder (placeholder)', (
         tester,
       ) async {
         await pumpDestination(
           tester,
           textScale: 2,
           locale: locale,
-          mapsKey: null,
+          withMap: false,
         );
         if (size != null) {
           await _resize(tester, size);
         }
         _expectSane(tester, 'placeholder');
-        await tapVisible(tester, find.text(s.placesEntryEmpty));
-        expect(find.text(s.notConfigured), findsOneWidget);
-        _expectSane(tester, 'not configured');
         // Collapse the panel by choosing a station: placeholder fully shown.
-        await tapVisible(tester, find.byType(NapChip).first);
         await typeQuery(tester, 'dong hoi');
         await tapVisible(tester, find.text('Ga Đồng Hới').first);
         _expectSane(tester, 'placeholder collapsed');

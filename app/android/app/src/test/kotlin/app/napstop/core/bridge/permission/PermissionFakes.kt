@@ -5,7 +5,6 @@ import app.napstop.core.bridge.DeviceInfoMsg
 import app.napstop.core.bridge.DeviceStatusMsg
 import app.napstop.core.bridge.FlutterError
 import app.napstop.core.bridge.InterruptionFilterMsg
-import app.napstop.core.bridge.MapsConfigMsg
 import app.napstop.core.bridge.PlatformMsg
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.yield
@@ -50,7 +49,6 @@ internal class PermissionFakes {
                 )
             },
             readDeviceStatus = { DeviceStatusMsg(interruptionFilter = InterruptionFilterMsg.ALL) },
-            readMapsConfig = { MapsConfigMsg() },
             readDistances = { _, _ -> null },
             backgroundChecks = checks,
             warn = { warnings += it },

@@ -271,9 +271,14 @@ jobs:
             for bad in ACCESS_BACKGROUND_LOCATION REQUEST_IGNORE_BATTERY_OPTIMIZATIONS SYSTEM_ALERT_WINDOW com.google.android.gms.permission.AD_ID ACCESS_ADSERVICES; do
               if grep -q "$bad" <<< "$perms"; then echo "::error::$apk declares forbidden $bad"; status=1; fi
             done
-            if ! "$aapt2" dump xmltree --file AndroidManifest.xml "$apk" | grep -A3 'LocationService'                 | grep -q 'foregroundServiceType(0x01010599)=0x00000008'; then
+            manifest="$("$aapt2" dump xmltree --file AndroidManifest.xml "$apk")"
+            if ! grep -A3 'LocationService' <<< "$manifest" | grep -q 'foregroundServiceType(0x01010599)=0x00000008'; then
               echo "::error::$apk: LocationService is not foregroundServiceType=location"; status=1
             fi
+            # T23.2 / ADR-002: no Google Maps Platform key meta-data, from the app or a plugin.
+            for bad in com.google.android.geo.API_KEY com.google.android.maps.v2.API_KEY; do
+              if grep -qF "$bad" <<< "$manifest"; then echo "::error::$apk declares forbidden meta-data $bad"; status=1; fi
+            done
           done
           exit "$status"
 

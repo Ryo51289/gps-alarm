@@ -1547,59 +1547,6 @@ struct DeviceStatusMsg: Hashable, CustomStringConvertible {
   }
 }
 
-/// T23: Maps/Places configuration of this build. apiKey null = no key
-/// configured. PRIVACY: never log (toString prints the key). No coordinates.
-///
-/// Generated class from Pigeon that represents data sent in messages.
-struct MapsConfigMsg: Hashable, CustomStringConvertible {
-  var apiKey: String? = nil
-  var androidPackage: String? = nil
-  var androidCertSha1: String? = nil
-  var iosBundleId: String? = nil
-
-
-  // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> MapsConfigMsg? {
-    let apiKey: String? = nilOrValue(pigeonVar_list[0])
-    let androidPackage: String? = nilOrValue(pigeonVar_list[1])
-    let androidCertSha1: String? = nilOrValue(pigeonVar_list[2])
-    let iosBundleId: String? = nilOrValue(pigeonVar_list[3])
-
-    return MapsConfigMsg(
-      apiKey: apiKey,
-      androidPackage: androidPackage,
-      androidCertSha1: androidCertSha1,
-      iosBundleId: iosBundleId
-    )
-  }
-  func toList() -> [Any?] {
-    return [
-      apiKey,
-      androidPackage,
-      androidCertSha1,
-      iosBundleId,
-    ]
-  }
-  static func == (lhs: MapsConfigMsg, rhs: MapsConfigMsg) -> Bool {
-    if Swift.type(of: lhs) != Swift.type(of: rhs) {
-      return false
-    }
-    return CoreApiPigeonInternal.deepEquals(lhs.apiKey, rhs.apiKey) && CoreApiPigeonInternal.deepEquals(lhs.androidPackage, rhs.androidPackage) && CoreApiPigeonInternal.deepEquals(lhs.androidCertSha1, rhs.androidCertSha1) && CoreApiPigeonInternal.deepEquals(lhs.iosBundleId, rhs.iosBundleId)
-  }
-
-  func hash(into hasher: inout Hasher) {
-    hasher.combine("MapsConfigMsg")
-    CoreApiPigeonInternal.deepHash(value: apiKey, hasher: &hasher)
-    CoreApiPigeonInternal.deepHash(value: androidPackage, hasher: &hasher)
-    CoreApiPigeonInternal.deepHash(value: androidCertSha1, hasher: &hasher)
-    CoreApiPigeonInternal.deepHash(value: iosBundleId, hasher: &hasher)
-  }
-
-  public var description: String {
-    return "MapsConfigMsg(apiKey: \(String(describing: apiKey)), androidPackage: \(String(describing: androidPackage)), androidCertSha1: \(String(describing: androidCertSha1)), iosBundleId: \(String(describing: iosBundleId)))"
-  }
-}
-
 /// T21: screen 9 background check (Android). Times are epoch ms
 /// (System.currentTimeMillis). No coordinates.
 ///
@@ -1874,10 +1821,8 @@ private class CoreApiPigeonCodecReader: FlutterStandardReader {
     case 168:
       return DeviceStatusMsg.fromList(self.readValue() as! [Any?])
     case 169:
-      return MapsConfigMsg.fromList(self.readValue() as! [Any?])
-    case 170:
       return BackgroundCheckMsg.fromList(self.readValue() as! [Any?])
-    case 171:
+    case 170:
       return LaunchActionMsg.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -2007,14 +1952,11 @@ private class CoreApiPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? DeviceStatusMsg {
       super.writeByte(168)
       super.writeValue(value.toList())
-    } else if let value = value as? MapsConfigMsg {
+    } else if let value = value as? BackgroundCheckMsg {
       super.writeByte(169)
       super.writeValue(value.toList())
-    } else if let value = value as? BackgroundCheckMsg {
-      super.writeByte(170)
-      super.writeValue(value.toList())
     } else if let value = value as? LaunchActionMsg {
-      super.writeByte(171)
+      super.writeByte(170)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -2229,9 +2171,6 @@ protocol PermissionHostApi {
   /// T14.1: battery, alarm stream volume, Do Not Disturb. Cheap, never throws
   /// for an unreadable item (that item is null / unknown).
   func deviceStatus() throws -> DeviceStatusMsg
-  /// T23: Maps/Places configuration of this build. Cheap, main-safe, no
-  /// permission.
-  func mapsConfig() throws -> MapsConfigMsg
   /// T23: distances in metres from the device's last known position to each
   /// (lat, lng) pair of [latLngPairs] (flat list, even length <= 100). null
   /// when: no location permission, location off, no cached fix younger than
@@ -2333,21 +2272,6 @@ class PermissionHostApiSetup {
       }
     } else {
       deviceStatusChannel.setMessageHandler(nil)
-    }
-    /// T23: Maps/Places configuration of this build. Cheap, main-safe, no
-    /// permission.
-    let mapsConfigChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.napstop.PermissionHostApi.mapsConfig\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
-    if let api = api {
-      mapsConfigChannel.setMessageHandler { _, reply in
-        do {
-          let result = try api.mapsConfig()
-          reply(wrapResult(result))
-        } catch {
-          reply(wrapError(error))
-        }
-      }
-    } else {
-      mapsConfigChannel.setMessageHandler(nil)
     }
     /// T23: distances in metres from the device's last known position to each
     /// (lat, lng) pair of [latLngPairs] (flat list, even length <= 100). null

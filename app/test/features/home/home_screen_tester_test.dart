@@ -643,7 +643,7 @@ void main() {
     await pumpAppHarness(tester, seed: seedW01, locale: const Locale('en'));
     expect(find.text('Good evening'), findsOneWidget);
     expect(find.text('Where are you getting off today?'), findsOneWidget);
-    expect(find.text('Search stations, addresses…'), findsOneWidget);
+    expect(find.text('Search stations…'), findsOneWidget);
     expect(find.text('Add'), findsOneWidget);
     expect(find.text('Train · Alert 15 min before'), findsNWidgets(2));
     expect(find.text('Ready for your trip'), findsOneWidget);

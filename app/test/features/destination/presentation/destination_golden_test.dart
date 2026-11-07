@@ -1,5 +1,6 @@
-// T23 TG01–TG03: screen 2 goldens (FlutterTest font, 390x844, dpr 1, fake
-// map, no real tiles). Update with: flutter test --update-goldens --tags golden
+// T23 TG01–TG02, T23.2: screen 2 goldens (FlutterTest font, 390x844, dpr 1,
+// fake map, no real tiles). Update with:
+// flutter test --update-goldens --tags golden
 @Tags(['golden'])
 library;
 
@@ -36,11 +37,11 @@ void main() {
       },
     ),
     (
-      'destination_places_light',
+      // T23.2: no map builder (every platform until T23.3), 3 chips.
+      'destination_no_map_light',
       (t) async {
-        await pumpDestination(t, fontFamily: kGoldenFontFamily);
-        await typeQuery(t, 'duc long');
-        await tapVisible(t, find.text('Tìm "duc long" bằng Google Maps'));
+        await pumpDestination(t, withMap: false, fontFamily: kGoldenFontFamily);
+        await typeQuery(t, 'dong hoi');
       },
     ),
   ];

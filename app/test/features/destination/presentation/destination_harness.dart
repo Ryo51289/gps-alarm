@@ -1,19 +1,14 @@
-// Shared setup of the screen 2 widget tests (T23): fake map, fake Places
-// over MockClient, URL launcher recorder. Not a test file.
+// Shared setup of the screen 2 widget tests (T23, T23.2): fake map behind
+// destinationMapBuilderProvider, URL launcher recorder. Not a test file.
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:napstop/app/router/app_routes.dart';
-import 'package:napstop/core/bridge/core_bridge.dart';
 import 'package:napstop/core/db/app_database.dart';
 import 'package:napstop/core/design/design.dart';
-import 'package:napstop/features/destination/data/destination_providers.dart';
 import 'package:napstop/features/destination/data/station_repository.dart';
 import 'package:napstop/features/destination/presentation/widgets/destination_map.dart';
 import 'package:napstop/features/destination/presentation/widgets/osm_attribution.dart';
@@ -37,79 +32,6 @@ class FakeMap {
   }
 }
 
-/// Places answers: autocomplete and details may throw (network) or return
-/// a status; [requests] records every call.
-class FakePlacesHttp {
-  final List<http.Request> requests = [];
-
-  /// Suggestions as (placeId, mainText, secondaryText).
-  List<(String, String, String?)> suggestions = [
-    ('p1', 'Bến xe Đức Long', 'Gia Lai, Việt Nam'),
-    ('p2', 'Đức Long Gia Lai', 'Pleiku, Gia Lai'),
-  ];
-
-  /// Status of autocomplete; null = 200 with [suggestions].
-  int? autocompleteStatus;
-
-  /// Thrown by autocomplete instead of answering.
-  Exception? autocompleteError;
-
-  /// Thrown by details instead of answering.
-  Exception? detailsError;
-
-  double lat = 13.9833;
-  double lng = 108;
-
-  int get autocompleteCount =>
-      requests.where((r) => r.url.path.endsWith(':autocomplete')).length;
-
-  MockClient get client => MockClient((r) async {
-    requests.add(r);
-    if (r.url.path.endsWith(':autocomplete')) {
-      final error = autocompleteError;
-      if (error != null) {
-        throw error;
-      }
-      final status = autocompleteStatus;
-      if (status != null) {
-        return http.Response('{}', status);
-      }
-      return http.Response.bytes(
-        utf8.encode(
-          jsonEncode({
-            'suggestions': [
-              for (final (id, main, secondary) in suggestions)
-                {
-                  'placePrediction': {
-                    'placeId': id,
-                    'text': {'text': main},
-                    'structuredFormat': {
-                      'mainText': {'text': main},
-                      'secondaryText': ?(secondary == null
-                          ? null
-                          : {'text': secondary}),
-                    },
-                  },
-                },
-            ],
-          }),
-        ),
-        200,
-      );
-    }
-    final error = detailsError;
-    if (error != null) {
-      throw error;
-    }
-    return http.Response(
-      jsonEncode({
-        'location': {'latitude': lat, 'longitude': lng},
-      }),
-      200,
-    );
-  });
-}
-
 /// URLs opened through [externalUrlLauncherProvider].
 class LaunchRecorder {
   final List<Uri> opened = [];
@@ -123,26 +45,21 @@ class LaunchRecorder {
 
 /// Everything a screen 2 test needs.
 class DestinationHarness {
-  const new({
-    required this.app,
-    required this.map,
-    required this.places,
-    required this.launcher,
-  });
+  const new({required this.app, required this.map, required this.launcher});
 
   final AppHarness app;
   final FakeMap map;
-  final FakePlacesHttp places;
   final LaunchRecorder launcher;
 
   FakeCoreBridge get bridge => app.bridge;
 }
 
 /// Pumps the app on screen 1 and, with [open], pushes screen 2 on top.
-/// [mapsKey] null = a build without a key.
+/// [withMap] false = no map on this platform (the default provider, null):
+/// screen 2 shows the placeholder (T23.2 D4).
 Future<DestinationHarness> pumpDestination(
   WidgetTester tester, {
-  String? mapsKey = 'test-key',
+  bool withMap = true,
   FakeCoreBridge? bridge,
   List<Override> overrides = const [],
   NapThemeKind theme = NapThemeKind.light,
@@ -155,17 +72,8 @@ Future<DestinationHarness> pumpDestination(
   Future<StationCatalog> Function()? stationCatalog,
 }) async {
   final map = FakeMap();
-  final places = FakePlacesHttp();
   final launcher = LaunchRecorder();
-  final fake =
-      bridge ??
-      FakeCoreBridge(
-        mapsConfig: MapsConfigMsg(
-          apiKey: mapsKey,
-          androidPackage: 'app.napstop.dev',
-          androidCertSha1: 'A9993E364706816ABA3E25717850C26C9CD0D89D',
-        ),
-      );
+  final fake = bridge ?? FakeCoreBridge();
   final app = await pumpAppHarness(
     tester,
     bridge: fake,
@@ -177,8 +85,7 @@ Future<DestinationHarness> pumpDestination(
     seed: seed,
     stationCatalog: stationCatalog,
     overrides: [
-      destinationMapBuilderProvider.overrideWithValue(map.build),
-      placesHttpClientProvider.overrideWithValue(places.client),
+      if (withMap) destinationMapBuilderProvider.overrideWithValue(map.build),
       externalUrlLauncherProvider.overrideWithValue(launcher.launch),
       ...overrides,
     ],
@@ -187,12 +94,7 @@ Future<DestinationHarness> pumpDestination(
     unawaited(app.router.push(AppRoutes.destination));
     await tester.pumpAndSettle();
   }
-  return DestinationHarness(
-    app: app,
-    map: map,
-    places: places,
-    launcher: launcher,
-  );
+  return DestinationHarness(app: app, map: map, launcher: launcher);
 }
 
 /// Types [text] into the search field and waits past every debounce.

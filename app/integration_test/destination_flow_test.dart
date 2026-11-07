@@ -30,8 +30,8 @@ void main() {
     addTearDown(tester.platformDispatcher.clearAllTestValues);
     await markOnboardingCompleted(createOnboardingStore());
     await app.main();
-    await _pumpUntil(tester, find.text('Tìm ga, bến xe, địa chỉ…'));
-    await tester.tap(find.text('Tìm ga, bến xe, địa chỉ…').first);
+    await _pumpUntil(tester, find.text('Tìm ga, bến xe…'));
+    await tester.tap(find.text('Tìm ga, bến xe…').first);
     await _pumpUntil(tester, find.byType(DestinationScreen));
     await tester.enterText(find.byType(TextField), 'dong hoi');
     await _pumpUntil(tester, find.text('Ga Đồng Hới'));

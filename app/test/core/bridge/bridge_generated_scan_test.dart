@@ -39,7 +39,7 @@ const _allowed = {
 final _apiMethod = RegExp(
   r'\b(startTrip|stopTrip|currentTrip|setBatteryChoice|dismiss|snooze'
   '|pendingFinishedTrips|ackFinishedTrips|status|request|openSettings'
-  '|deviceInfo|deviceStatus|mapsConfig|distancesFromLastKnownM'
+  '|deviceInfo|deviceStatus|distancesFromLastKnownM'
   r'|previewSound|stopPreview|tripUpdates)\b',
 );
 
@@ -119,9 +119,9 @@ void main() {
 
   test('T23 CD1: latLngPairs in another handler is located there', () {
     // The location check must catch the pairs leaking into a different
-    // method (e.g. a future mapsConfig/deviceStatus field or parameter).
+    // method (e.g. a future deviceStatus field or parameter).
     const ok =
-        'fun mapsConfig() {}\n'
+        'fun deviceInfo() {}\n'
         'suspend fun distancesFromLastKnownM(latLngPairs: List<Double>)';
     const bad =
         'suspend fun distancesFromLastKnownM(x: Long)\n'

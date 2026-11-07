@@ -18,7 +18,6 @@ extension DestinationStrings on AppLocalizations {
     DestinationFilter.all => destinationFilterAll,
     DestinationFilter.train => destinationFilterTrain,
     DestinationFilter.coach => destinationFilterCoach,
-    DestinationFilter.places => destinationFilterPlaces,
   };
 
   String savedSlotLabel(SavedPlaceSlot slot) => switch (slot) {

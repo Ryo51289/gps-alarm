@@ -4,16 +4,13 @@
 // stations = ≤ 40 numbers, native rejects > 100).
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:napstop/core/bridge/core_bridge.dart';
 import 'package:napstop/features/destination/domain/destination_logic.dart';
 
 import '../../../helpers/fake_core_bridge.dart';
 import 'destination_harness.dart';
 
-FakeCoreBridge _bridge(List<double> Function(int n) values) => FakeCoreBridge(
-  mapsConfig: MapsConfigMsg(apiKey: 'k'),
-  distances: (pairs) => values(pairs.length ~/ 2),
-);
+FakeCoreBridge _bridge(List<double> Function(int n) values) =>
+    FakeCoreBridge(distances: (pairs) => values(pairs.length ~/ 2));
 
 void main() {
   testWidgets('D1 boundary values render like formatDistanceShort', (

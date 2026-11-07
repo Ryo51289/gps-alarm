@@ -24,7 +24,6 @@ void main() {
         samplePermissions(),
         sampleDevice(nulls: nulls),
         sampleDeviceStatus(nulls: nulls),
-        sampleMapsConfig(nulls: nulls),
         ...sampleUpdates(nulls: nulls),
       ];
       for (final m in messages) {

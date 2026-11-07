@@ -13,8 +13,8 @@ import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/destination/domain/station.dart';
 import 'package:napstop/features/destination/domain/station_search.dart';
 
-/// Filter chips of screen 2: "Tất cả / Ga tàu / Bến xe / Địa chỉ".
-enum DestinationFilter { all, train, coach, places }
+/// Filter chips of screen 2: "Tất cả / Ga tàu / Bến xe" (T23.2 D2).
+enum DestinationFilter { all, train, coach }
 
 /// A WGS84 point. The map widget converts it to and from the SDK type.
 @immutable
@@ -40,16 +40,13 @@ final class MapPoint {
 /// spaces removed).
 const int kMinOfflineQueryChars = 2;
 
-/// Letters/digits needed before a Places request.
-const int kMinPlacesQueryChars = 3;
-
 /// Most station rows shown.
 const int kDisplayLimit = 20;
 
 /// Results fetched before the chip filter keeps a kind.
 const int kSearchOverfetch = 60;
 
-const Duration kPlacesDebounce = Duration(milliseconds: 350);
+/// Wait after the last change of the rows before measuring "cách X km".
 const Duration kDistanceDebounce = Duration(milliseconds: 150);
 
 /// Oldest cached position used for "cách X km".
@@ -65,9 +62,6 @@ const double kPreviewRadiusM = 1000;
 /// A pin moved at most this far keeps the station/address identity.
 const double kPinKeepIdentityM = 500;
 
-/// Places input is cut to this many runes.
-const int kMaxPlacesInputRunes = 100;
-
 /// Padding (logical px) around the alarm zone when the camera frames it.
 const double kCameraPaddingPx = 48;
 
@@ -76,7 +70,7 @@ int queryChars(String raw) => foldVi(raw).replaceAll(' ', '').length;
 
 /// Offline rows for [filter]: `all` without a kind hint, `train` with the
 /// train hint keeping trains only, `coach` with the coach hint keeping coach
-/// and bus stations, `places` none. At most [kDisplayLimit]; a query shorter
+/// and bus stations. At most [kDisplayLimit]; a query shorter
 /// than [kMinOfflineQueryChars] gives none.
 List<StationMatch> offlineResults(
   StationSearchIndex index,
@@ -96,7 +90,6 @@ List<StationMatch> offlineResults(
       index
           .search(query, limit: kSearchOverfetch, kindHint: StationKind.coach)
           .where((m) => m.station.kind != StationKind.train),
-    DestinationFilter.places => const <StationMatch>[],
   };
   return List.unmodifiable(rows.take(kDisplayLimit));
 }

@@ -11,7 +11,6 @@ import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/core/trip/trip_providers.dart';
 import 'package:napstop/features/destination/data/destination_providers.dart';
-import 'package:napstop/features/destination/data/places/places_models.dart';
 import 'package:napstop/features/destination/domain/destination_logic.dart';
 import 'package:napstop/features/destination/domain/station.dart';
 import 'package:napstop/features/destination/presentation/destination_controller.dart';
@@ -20,7 +19,6 @@ import 'package:napstop/features/destination/presentation/widgets/destination_bo
 import 'package:napstop/features/destination/presentation/widgets/destination_map.dart';
 import 'package:napstop/features/destination/presentation/widgets/map_unavailable_placeholder.dart';
 import 'package:napstop/features/destination/presentation/widgets/offline_section.dart';
-import 'package:napstop/features/destination/presentation/widgets/places_section.dart';
 import 'package:napstop/features/destination/presentation/widgets/save_place_sheet.dart';
 import 'package:napstop/features/home/presentation/home_providers.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
@@ -68,21 +66,14 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   void initState() {
     super.initState();
     _focus.addListener(_onFocus);
-    // A failed read of the Maps configuration is retried on every visit.
-    if (ref.read(mapsConfigProvider).hasError) {
-      ref.invalidate(mapsConfigProvider);
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePadding());
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    ref
-        .read(_provider.notifier)
-        .setLanguage(Localizations.localeOf(context).languageCode);
     // T27 D11: a `go` (screen 4 or 8) or a `replace` removes this route,
-    // which stays mounted for the transition (longer than the Places
+    // which stays mounted for the transition (longer than the distance
     // debounce): stop at once. Covered by a sheet or screen 3, the route
     // is still active and nothing changes here.
     final route = ModalRoute.of(context);
@@ -92,7 +83,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   }
 
   /// Screen 2 leaves the tree however it goes (a `go` to screen 4 or 8,
-  /// a `replace`): nothing typed may still reach Google afterwards (T27
+  /// a `replace`): no distance call may still run afterwards (T27
   /// D11, review T23 round 3 #10). Idempotent.
   @override
   void deactivate() {
@@ -151,8 +142,8 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     return false;
   }
 
-  /// Map padding = what the panel and the bottom bar cover, so the Google
-  /// logo stays visible (Places/Maps attribution terms).
+  /// Map padding = what the panel and the bottom bar cover, so the map's
+  /// attribution stays visible above the panel (T23.2 D6).
   void _updatePadding() {
     if (!mounted) {
       return;
@@ -187,19 +178,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   void _onSelectStation(Station s) {
     _controller.selectStation(s);
     _collapse();
-  }
-
-  Future<void> _onSelectPrediction(PlacePrediction p) async {
-    final failed = AppLocalizations.of(context).destinationPlaceResolveFailed;
-    final ok = await _controller.selectPrediction(p);
-    if (!mounted || ok == null) {
-      return;
-    }
-    if (ok) {
-      _collapse();
-    } else {
-      _showSnack(failed);
-    }
   }
 
   void _onLongPress(MapPoint p) {
@@ -242,8 +220,8 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
       _showSnack(AppLocalizations.of(context).homeSaveFailed);
       return;
     }
-    // Leaving screen 2 (picker pop or screen 3 on top): nothing typed may
-    // still reach Google afterwards (test report T23 B1).
+    // Leaving screen 2 (picker pop or screen 3 on top): no distance call may
+    // still run afterwards (test report T23 B1).
     _controller.cancelPending();
     _navigating = true;
     if (widget.pickMode) {
@@ -301,19 +279,20 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final state = ref.watch(_provider);
-    final config = ref.watch(mapsConfigProvider);
     if (!widget.pickMode) {
       // Keeps the slots fresh for the save sheet.
       ref.watch(savedPlacesProvider);
     }
-    final mapAvailable = config.value?.apiKey != null;
+    // T23.2 D4: no builder (no map on this platform yet) = placeholder.
+    final mapBuilder = ref.watch(destinationMapBuilderProvider);
+    final mapAvailable = mapBuilder != null;
     final selection = state.selection;
     final topInset = MediaQuery.paddingOf(context).top;
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
 
     final Widget map;
-    if (mapAvailable) {
-      map = ref.watch(destinationMapBuilderProvider)(
+    if (mapBuilder != null) {
+      map = mapBuilder(
         DestinationMapProps(
           point: selection?.point,
           radiusM: kPreviewRadiusM,
@@ -325,7 +304,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
       );
     } else {
       map = MapUnavailablePlaceholder(
-        message: config.isLoading ? null : l.destinationMapUnavailable,
+        message: l.destinationMapUnavailable,
         bottomPadding: _mapBottom,
       );
     }
@@ -383,8 +362,6 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                             onFilter: _controller.setFilter,
                             isSelected: _controller.isSelectedStation,
                             onSelectStation: _onSelectStation,
-                            onSelectPrediction: (p) =>
-                                unawaited(_onSelectPrediction(p)),
                             onRetry: () =>
                                 ref.invalidate(stationCatalogProvider),
                           ),
@@ -455,7 +432,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
         ],
       ),
     );
-    // Back (app button or system) stops pending Places/distance work at
+    // Back (app button or system) stops pending distance work at
     // once: the screen stays mounted for the exit animation (test report
     // T23 B1).
     return PopScope<Object?>(
@@ -478,7 +455,6 @@ class _SheetBody extends StatelessWidget {
     required this.onFilter,
     required this.isSelected,
     required this.onSelectStation,
-    required this.onSelectPrediction,
     required this.onRetry,
   });
 
@@ -488,7 +464,6 @@ class _SheetBody extends StatelessWidget {
   final ValueChanged<DestinationFilter> onFilter;
   final bool Function(Station s) isSelected;
   final ValueChanged<Station> onSelectStation;
-  final ValueChanged<PlacePrediction> onSelectPrediction;
   final VoidCallback onRetry;
 
   @override
@@ -537,19 +512,12 @@ class _SheetBody extends StatelessWidget {
                     ),
                   ),
                 const SizedBox(height: NapSpace.s8),
-                if (state.filter == DestinationFilter.places)
-                  PlacesSection(
-                    places: state.places,
-                    onSelect: onSelectPrediction,
-                  )
-                else
-                  OfflineSection(
-                    state: state,
-                    isSelected: isSelected,
-                    onSelect: onSelectStation,
-                    onRetry: onRetry,
-                    onOpenPlaces: () => onFilter(DestinationFilter.places),
-                  ),
+                OfflineSection(
+                  state: state,
+                  isSelected: isSelected,
+                  onSelect: onSelectStation,
+                  onRetry: onRetry,
+                ),
                 const SizedBox(height: NapSpace.s16),
               ],
             ),

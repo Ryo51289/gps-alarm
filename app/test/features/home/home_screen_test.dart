@@ -46,7 +46,7 @@ void main() {
     await pumpAppHarness(tester, seed: seedW01);
     expect(find.text('Chào buổi tối'), findsOneWidget);
     expect(find.text('Hôm nay bạn xuống ở đâu?'), findsOneWidget);
-    expect(find.text('Tìm ga, bến xe, địa chỉ…'), findsOneWidget);
+    expect(find.text('Tìm ga, bến xe…'), findsOneWidget);
     expect(
       find.descendant(
         of: _tile(SavedPlaceSlot.home),
@@ -94,7 +94,7 @@ void main() {
 
   testWidgets('W02 search field opens screen 2, Back returns', (tester) async {
     final h = await pumpAppHarness(tester, seed: seedW01);
-    await _tap(tester, find.text('Tìm ga, bến xe, địa chỉ…'));
+    await _tap(tester, find.text('Tìm ga, bến xe…'));
     expect(h.location, AppRoutes.destination);
     expect(find.text('Chọn điểm đến'), findsOneWidget);
     await _tap(tester, find.byTooltip('Quay lại'));
@@ -562,7 +562,7 @@ void main() {
       expect(tester.widget<SavedPlaceTile>(_tile(slot)).onTap, isNull);
     }
     expect(find.text('Sẵn sàng cho chuyến đi'), findsOneWidget);
-    await _tap(tester, find.text('Tìm ga, bến xe, địa chỉ…'));
+    await _tap(tester, find.text('Tìm ga, bến xe…'));
     expect(h.location, AppRoutes.destination);
     expect(tester.takeException(), isNull);
   });

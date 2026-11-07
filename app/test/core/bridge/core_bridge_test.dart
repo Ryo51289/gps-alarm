@@ -57,7 +57,6 @@ void main() {
       'PermissionHostApi.openSettings',
       'PermissionHostApi.deviceInfo',
       'PermissionHostApi.deviceStatus',
-      'PermissionHostApi.mapsConfig',
       'PermissionHostApi.distancesFromLastKnownM',
       'AlarmHostApi.previewSound',
       'AlarmHostApi.stopPreview',
@@ -403,13 +402,7 @@ void main() {
       );
     });
 
-    test('TB01 mapsConfig and distancesFromLastKnownM (T23)', () async {
-      var config = sampleMapsConfig();
-      _handle('PermissionHostApi', 'mapsConfig', (_) => [config]);
-      expect(await bridge.mapsConfig(), sampleMapsConfig());
-      config = sampleMapsConfig(nulls: true);
-      expect((await bridge.mapsConfig()).apiKey, isNull);
-
+    test('TB01 distancesFromLastKnownM (T23)', () async {
       final calls = <List<Object?>>[];
       List<Object?>? reply = <Object?>[402000.0, 12.5];
       _handle(
@@ -437,10 +430,12 @@ void main() {
       expect(await bridge.distancesFromLastKnownM([17.47, 106.6], 1), isNull);
     });
 
-    test('TB01 T23 methods map errors to BridgeException', () async {
-      for (final method in ['mapsConfig', 'distancesFromLastKnownM']) {
-        _handle('PermissionHostApi', method, (_) => ['internal', null, null]);
-      }
+    test('TB01 T23 method maps errors to BridgeException', () async {
+      _handle(
+        'PermissionHostApi',
+        'distancesFromLastKnownM',
+        (_) => ['internal', null, null],
+      );
       final internal = throwsA(
         isA<BridgeException>().having(
           (e) => e.code,
@@ -448,7 +443,6 @@ void main() {
           BridgeErrorCode.internal,
         ),
       );
-      await expectLater(bridge.mapsConfig(), internal);
       await expectLater(bridge.distancesFromLastKnownM([1, 2], 1), internal);
     });
 

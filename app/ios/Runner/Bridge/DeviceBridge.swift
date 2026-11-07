@@ -55,31 +55,4 @@ enum DeviceBridge {
       headphonesConnected: nil
     )
   }
-
-  /// T23: key from Info.plist `GMSApiKey` (Secrets.xcconfig) and the bundle id for the
-  /// `X-Ios-Bundle-Identifier` header. Never log the result.
-  static func mapsConfig() -> MapsConfigMsg {
-    MapsConfigMsg(
-      apiKey: MapsConfig.apiKey(),
-      androidPackage: nil,
-      androidCertSha1: nil,
-      iosBundleId: Bundle.main.bundleIdentifier
-    )
-  }
-}
-
-/// Maps/Places key of this build (T23 D3, D4).
-enum MapsConfig {
-  /// `GMSApiKey` of Info.plist, nil when empty or when the build variable was not set
-  /// (an unexpanded `$(MAPS_API_KEY)`).
-  static func apiKey(bundle: Bundle = .main) -> String? {
-    guard let raw = bundle.object(forInfoDictionaryKey: "GMSApiKey") as? String else {
-      return nil
-    }
-    let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-    if key.isEmpty || key.hasPrefix("$(") {
-      return nil
-    }
-    return key
-  }
 }

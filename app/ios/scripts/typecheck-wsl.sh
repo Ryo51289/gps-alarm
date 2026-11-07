@@ -4,9 +4,10 @@
 #   MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu -e bash /mnt/d/work/gps-alarm/app/ios/scripts/typecheck-wsl.sh [--self-test]
 #
 # For arm64-apple-ios16.0 and arm64-apple-ios16.0-simulator: `swiftc -emit-module` for the NapStopCore targets in
-# dependency order (Trip, TripRuntime, NapStopIOS; a target whose directory does not exist yet is "skipped"), a stub
-# GoogleMaps module (typecheck-stubs/), then `swiftc -typecheck` of every Swift file under app/ios/Runner, without and
-# with -D NAPSTOP_DIAG. --self-test adds a broken file to a copy of Runner and must see the compiler fail.
+# dependency order (Trip, TripRuntime, NapStopIOS; a target whose directory does not exist yet is "skipped"), then
+# `swiftc -typecheck` of every Swift file under app/ios/Runner, without and with -D NAPSTOP_DIAG. --self-test adds a
+# broken file to a copy of Runner and must see the compiler fail. (Until T23.2 a stub of the Google map SDK was emitted
+# too; the app no longer links any Google Maps SDK, ADR-002.)
 #
 # Limits: this does not replace the CI build (L3). It does not read project.pbxproj, does not link, does not extract
 # App Intents metadata, does not check RunnerTests (needs XCTest), and Swift settings of Package.swift other than
@@ -41,7 +42,6 @@ esac
 ios_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 core_dir="$ios_dir/Core"
 runner_dir="$ios_dir/Runner"
-stub_dir="$ios_dir/scripts/typecheck-stubs"
 
 swift_bin="${NAPSTOP_SWIFT_BIN:-$HOME/opt/swift-6.4.1/usr/bin}"
 swiftc="$swift_bin/swiftc"
@@ -133,7 +133,7 @@ run() {
   return "$rc"
 }
 
-# Emits the NapStopCore modules and the GoogleMaps stub into <out>.
+# Emits the NapStopCore modules into <out>.
 emit_modules() {
   local triple="$1" sdk="$2" out="$3" target mode files
   for target in Trip TripRuntime NapStopIOS; do
@@ -148,9 +148,6 @@ emit_modules() {
       "$swiftc" "${common_flags[@]}" -emit-module -parse-as-library -module-name "$target" -swift-version "$mode" \
       -target "$triple" -sdk "$sdk" -I "$out" -emit-module-path "$out/$target.swiftmodule" "${files[@]}" || true
   done
-  run "$triple GoogleMaps stub" "$out/GoogleMaps.log" \
-    "$swiftc" "${common_flags[@]}" -emit-module -parse-as-library -module-name GoogleMaps -swift-version 5 \
-    -target "$triple" -sdk "$sdk" -emit-module-path "$out/GoogleMaps.swiftmodule" "$stub_dir/GoogleMaps.swift" || true
 }
 
 # typecheck_runner <triple> <sdk> <slice> <out> <runner dir> <on|off> <label>

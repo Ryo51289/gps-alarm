@@ -662,7 +662,7 @@
   "@homeTitle": {
     "description": "Screen 1 title."
   },
-  "homeSearchHint": "Tìm ga, bến xe, địa chỉ…",
+  "homeSearchHint": "Tìm ga, bến xe…",
   "@homeSearchHint": {
     "description": "Screen 1 search field hint; tapping it opens screen 2."
   },
@@ -927,7 +927,7 @@
   "@homeChipBatteryOptimization": {
     "description": "Readiness chip (Android): battery optimization still applies."
   },
-  "destinationSearchHint": "Tìm ga, bến xe, địa chỉ…",
+  "destinationSearchHint": "Tìm ga, bến xe…",
   "@destinationSearchHint": {
     "description": "Screen 2: hint of the search field floating on the map."
   },
@@ -946,10 +946,6 @@
   "destinationFilterCoach": "Bến xe",
   "@destinationFilterCoach": {
     "description": "Screen 2 filter chip: coach stations and bus terminals."
-  },
-  "destinationFilterPlaces": "Địa chỉ",
-  "@destinationFilterPlaces": {
-    "description": "Screen 2 filter chip: address search with Google Maps (Places)."
   },
   "stationKindTrain": "Ga tàu",
   "@stationKindTrain": {
@@ -990,7 +986,7 @@
       }
     }
   },
-  "destinationStartTyping": "Gõ tên ga, bến xe hoặc địa chỉ.",
+  "destinationStartTyping": "Gõ tên ga hoặc bến xe.",
   "@destinationStartTyping": {
     "description": "Screen 2: hint shown before the user typed enough to search."
   },
@@ -998,7 +994,7 @@
   "@destinationCatalogLoading": {
     "description": "Screen 2: the offline station list is loading."
   },
-  "destinationCatalogError": "Không tải được danh sách ga, bến xe. Bạn vẫn tìm được địa chỉ qua Google Maps.",
+  "destinationCatalogError": "Không tải được danh sách ga, bến xe.",
   "@destinationCatalogError": {
     "description": "Screen 2: the offline station list could not be loaded."
   },
@@ -1011,55 +1007,6 @@
       }
     }
   },
-  "destinationPlacesEntry": "Tìm \"{query}\" bằng Google Maps",
-  "@destinationPlacesEntry": {
-    "description": "Screen 2: row that opens the address search (Google Places) with the current query.",
-    "placeholders": {
-      "query": {
-        "type": "String"
-      }
-    }
-  },
-  "destinationPlacesEntryEmpty": "Tìm địa chỉ bằng Google Maps",
-  "@destinationPlacesEntryEmpty": {
-    "description": "Screen 2: row that opens the address search when nothing is typed."
-  },
-  "destinationPlacesEntryHint": "Nội dung tìm sẽ được gửi tới Google",
-  "@destinationPlacesEntryHint": {
-    "description": "Screen 2: subtitle of the address search row (privacy notice)."
-  },
-  "destinationPlacesDisclosure": "Nội dung bạn gõ được gửi tới Google để tìm địa chỉ. Vị trí của bạn không được gửi.",
-  "@destinationPlacesDisclosure": {
-    "description": "Screen 2, address search: privacy notice above the results."
-  },
-  "destinationPlacesTypeMore": "Gõ ít nhất 3 ký tự để tìm địa chỉ.",
-  "@destinationPlacesTypeMore": {
-    "description": "Screen 2, address search: the query is too short."
-  },
-  "destinationPlacesLoading": "Đang tìm địa chỉ…",
-  "@destinationPlacesLoading": {
-    "description": "Screen 2, address search: request in progress."
-  },
-  "destinationPlacesEmpty": "Không tìm thấy địa chỉ nào.",
-  "@destinationPlacesEmpty": {
-    "description": "Screen 2, address search: no result."
-  },
-  "destinationPlacesOffline": "Không có mạng. Tìm ga, bến xe vẫn dùng được.",
-  "@destinationPlacesOffline": {
-    "description": "Screen 2, address search: no network."
-  },
-  "destinationPlacesUnavailable": "Tìm địa chỉ tạm thời không dùng được.",
-  "@destinationPlacesUnavailable": {
-    "description": "Screen 2, address search: the service refused or failed."
-  },
-  "destinationPlacesNotConfigured": "Bản này chưa bật tìm địa chỉ.",
-  "@destinationPlacesNotConfigured": {
-    "description": "Screen 2, address search: the build has no API key."
-  },
-  "destinationPlaceResolveFailed": "Không lấy được vị trí của địa chỉ này. Thử lại.",
-  "@destinationPlaceResolveFailed": {
-    "description": "Screen 2 snack bar: the coordinates of the chosen address could not be read."
-  },
   "stationDataAttribution": "Dữ liệu ga/bến © OpenStreetMap contributors",
   "@stationDataAttribution": {
     "description": "Screen 2: attribution line under the offline results (OpenStreetMap, ODbL)."
@@ -1068,9 +1015,9 @@
   "@destinationOsmAttributionHint": {
     "description": "Screen 2: screen reader hint of the OpenStreetMap attribution link."
   },
-  "destinationMapUnavailable": "Bản đồ chưa sẵn sàng trong bản này.",
+  "destinationMapUnavailable": "Bản đồ chưa có trong bản này.",
   "@destinationMapUnavailable": {
-    "description": "Screen 2: shown instead of the map when the build has no map key."
+    "description": "Screen 2: shown instead of the map when this platform has no map yet."
   },
   "destinationAlarmZoneBadge": "Báo trong vòng {distance}",
   "@destinationAlarmZoneBadge": {

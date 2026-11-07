@@ -4,12 +4,11 @@ package app.napstop.core.bridge
  * Fixed permission answers (spec T14 §5.5). **Test/default only, not registered in
  * production**: since T21 `BridgeRegistrar.register(messenger, activity)` registers
  * `permission.PermissionHostApiImpl`; this stub stays the default of the JVM-test overload.
- * deviceStatus(), mapsConfig() and distancesFromLastKnownM() answer from the injected sources.
+ * deviceStatus() and distancesFromLastKnownM() answer from the injected sources.
  * ADR-001: Android never asks for background location, so `location` is at most whileInUse.
  */
 class PermissionHostApiStub(
     private val readDeviceStatus: () -> DeviceStatusMsg,
-    private val readMapsConfig: () -> MapsConfigMsg = { MapsConfigMsg() },
     private val readDistances: suspend (List<Double>, Long) -> List<Double>? = { _, _ -> null },
 ) : PermissionHostApi {
     override suspend fun status(): PermissionStatusMsg = FIXED_STATUS
@@ -21,8 +20,6 @@ class PermissionHostApiStub(
     override fun deviceInfo(): DeviceInfoMsg = BridgeRegistrar.readDeviceInfo()
 
     override fun deviceStatus(): DeviceStatusMsg = readDeviceStatus()
-
-    override fun mapsConfig(): MapsConfigMsg = readMapsConfig()
 
     override suspend fun distancesFromLastKnownM(latLngPairs: List<Double>, maxAgeMs: Long): List<Double>? =
         readDistances(latLngPairs, maxAgeMs)

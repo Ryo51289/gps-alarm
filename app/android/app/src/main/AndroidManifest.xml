@@ -122,11 +122,6 @@
         <receiver
             android:name=".core.alarm.BackupRingReceiver"
             android:exported="false"/>
-        <!-- Maps SDK + Places key of the flavor, from secrets.properties (T23 D3).
-             "DEFAULT_API_KEY" when none: the app then shows no map. -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="${mapsApiKey}" />
         <!-- T29 §7: Analytics and Crashlytics start OFF in every new process, before
              Dart runs; TelemetryConsentController turns them on only after opt-in
              (PO Q2). No advertising id, no ad personalization signals. -->

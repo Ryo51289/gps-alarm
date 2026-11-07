@@ -125,7 +125,6 @@ const Set<String> _reasons = {
   'Flutter framework',
   'napstop',
   'stationCatalogLoadFailed',
-  'placesRequestFailed',
   'mapsLoadFailed',
   'pigeonCallFailed',
   'historyWriteFailed',

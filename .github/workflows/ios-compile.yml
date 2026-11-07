@@ -692,7 +692,6 @@ jobs:
       - name: Publish to ci-results/${{ github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          SECRET_VALUES: ${{ secrets.IOS_MAPS_API_KEY }}
           NEEDS_JSON: ${{ toJSON(needs) }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           RUN_ID: ${{ github.run_id }}

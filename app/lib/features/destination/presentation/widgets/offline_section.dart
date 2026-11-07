@@ -10,15 +10,13 @@ import 'package:napstop/features/destination/presentation/widgets/result_row.dar
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Station results of chips "Tất cả / Ga tàu / Bến xe" (T23 §9): state line
-/// or rows, then always the address search entry, then the OSM attribution
-/// when a station is listed.
+/// or rows, then the OSM attribution when a station is listed.
 class OfflineSection extends StatelessWidget {
   const new({
     required this.state,
     required this.isSelected,
     required this.onSelect,
     required this.onRetry,
-    required this.onOpenPlaces,
     super.key,
   });
 
@@ -26,7 +24,6 @@ class OfflineSection extends StatelessWidget {
   final bool Function(Station s) isSelected;
   final ValueChanged<Station> onSelect;
   final VoidCallback onRetry;
-  final VoidCallback onOpenPlaces;
 
   @override
   Widget build(BuildContext context) {
@@ -76,13 +73,6 @@ class OfflineSection extends StatelessWidget {
             selected: isSelected(m.station),
             onTap: () => onSelect(m.station),
           ),
-        PlacesEntryRow(
-          title: query.isEmpty
-              ? l.destinationPlacesEntryEmpty
-              : l.destinationPlacesEntry(query),
-          subtitle: l.destinationPlacesEntryHint,
-          onTap: onOpenPlaces,
-        ),
         if (rows.isNotEmpty)
           OsmAttribution(
             label: l.stationDataAttribution,

@@ -30,7 +30,8 @@ app/ios/Core/.swiftpm/
 google-services.json
 GoogleService-Info.plist
 .env*
-# Maps/Places keys (T23): app/android/secrets.properties, app/ios/Flutter/Secrets.xcconfig
+# Legacy Maps/Places key files (T23), no longer used since T23.2 (ADR-002). Kept so an old copy on a dev machine
+# is never committed: app/android/secrets.properties, app/ios/Flutter/Secrets.xcconfig
 secrets.properties
 Secrets.xcconfig
 # CI diagnostics flag for test IPAs (T01.2 D6), written by the ios-device job only

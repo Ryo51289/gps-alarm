@@ -148,21 +148,15 @@ class FakeCoreBridge implements CoreBridge {
     DeviceInfoMsg? deviceInfoValue,
     this.deviceStatusValue,
     this.active,
-    MapsConfigMsg? mapsConfig,
     this.distances,
   }) : permissions = permissions ?? androidPermissions(),
-       deviceInfoValue = deviceInfoValue ?? androidDevice(),
-       mapsConfigValue = mapsConfig ?? MapsConfigMsg() {
+       deviceInfoValue = deviceInfoValue ?? androidDevice() {
     deviceStatusValue ??= deviceStatusMsg();
   }
 
   PermissionStatusMsg permissions;
   DeviceInfoMsg deviceInfoValue;
   DeviceStatusMsg? deviceStatusValue;
-
-  /// Returned by [mapsConfig]; no key by default (map placeholder, Places
-  /// "not configured"), like a CI build (T23).
-  MapsConfigMsg mapsConfigValue;
 
   /// Answers [distancesFromLastKnownM] from the requested pairs; null
   /// answers null (no position).
@@ -171,7 +165,6 @@ class FakeCoreBridge implements CoreBridge {
   /// Arguments of every [distancesFromLastKnownM] call, in order.
   final List<({List<double> pairs, int maxAgeMs})> distancesCalls = [];
 
-  Object? mapsConfigError;
   Object? distancesError;
 
   /// Returned by [currentTrip].
@@ -475,10 +468,6 @@ class FakeCoreBridge implements CoreBridge {
         deviceStatusValue ??
         DeviceStatusMsg(interruptionFilter: InterruptionFilterMsg.unknown),
   );
-
-  @override
-  Future<MapsConfigMsg> mapsConfig() =>
-      _answer('mapsConfig', mapsConfigError, () => mapsConfigValue);
 
   @override
   Future<List<double>?> distancesFromLastKnownM(

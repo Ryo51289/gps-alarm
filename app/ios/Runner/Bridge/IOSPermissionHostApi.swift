@@ -81,10 +81,6 @@ final class IOSPermissionHostApi: PermissionHostApi {
     MainActor.assumeIsolated { DeviceBridge.readDeviceStatus() }
   }
 
-  func mapsConfig() throws -> MapsConfigMsg {
-    DeviceBridge.mapsConfig()
-  }
-
   /// T23 on iOS (D7): rounded like Android `LastKnownMath.roundForDisplay`; any failure answers nil.
   func distancesFromLastKnownM(latLngPairs: [Double], maxAgeMs: Int64) async throws -> [Double]? {
     let probe = self.probe

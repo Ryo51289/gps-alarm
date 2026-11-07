@@ -34,7 +34,7 @@ needs='{
   "ios-device": {"result": "skipped", "outputs": {}}
 }'
 
-# --- Run 1: two jobs, one file of 2 MB, one file with an AIza key, one with GMSApiKey, one long log.
+# --- Run 1: two jobs, one file of 2 MB, one file with an AIza key, one long log.
 r1="$tmp/r1"
 mkdir -p "$r1/result-swift-macos" "$r1/result-ios-sim" "$r1/result-plan"
 printf 'start_epoch=1762300000\nend_epoch=1762300421\n' >"$r1/result-swift-macos/timing.env"
@@ -44,7 +44,6 @@ printf 'start_epoch=1762300000\nend_epoch=1762301500\n' >"$r1/result-ios-sim/tim
 printf '## ios-sim\n\nXCTest: failed\n' >"$r1/result-ios-sim/summary.md"
 head -c $((2 * 1024 * 1024)) /dev/zero | tr '\0' 'x' >"$r1/result-ios-sim/big.log"
 printf 'line\nkey=AIzaTESTabcdefghijklmnopqrstuvwxyz012345\n' >"$r1/result-ios-sim/xctest.tail.log"
-printf '<key>GMSApiKey</key>\n' >"$r1/result-ios-sim/Info.plist.txt"
 printf 'swift=true\n' >"$r1/result-plan/summary.md"
 
 REMOTE_URL="$remote" NEEDS_JSON="$needs" SHA=0123456789abcdef0123 RUN_URL=https://example.invalid/run/1 RUN_ID=1 \
@@ -67,8 +66,7 @@ ok "row swift-macos (421 s -> 8 min)" 'grep -qF "| swift-macos | success | 2025-
 ok "row ios-sim failure (25 min)" 'grep -qE "^\| ios-sim \| failure \| .* \| 25 \|$" <<<"$s1"'
 ok "row ios-device skipped, no timing" 'grep -qF "| ios-device | skipped | — | — | — |" <<<"$s1"'
 ok "row plan" 'grep -qE "^\| plan \| success \|" <<<"$s1"'
-ok "exactly 3 warnings" '[ "$(grep -c "^- WARNING:" <<<"$s1")" = 3 ]'
-ok "file with GMSApiKey dropped" '! grep -q Info.plist.txt <<<"$files1" && grep -qF "dropped ios-sim/Info.plist.txt: contains GMSApiKey" <<<"$s1"'
+ok "exactly 2 warnings" '[ "$(grep -c "^- WARNING:" <<<"$s1")" = 2 ]'
 ok "warning for the big file" 'grep -qF "dropped ios-sim/big.log" <<<"$s1"'
 ok "warning for the key" 'grep -qF "dropped ios-sim/xctest.tail.log: contains a Google API key" <<<"$s1"'
 ok "job summaries appended" 'grep -qF "Test run with 303 tests passed" <<<"$s1" && grep -qF "XCTest: failed" <<<"$s1"'

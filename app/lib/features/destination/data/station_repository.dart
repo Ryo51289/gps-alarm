@@ -59,7 +59,7 @@ final class StationRepository {
       text = await _bundle.loadString(kStationsAssetKey, cache: false);
     } on Object catch (e) {
       // Bundles fail with FlutterError or other types; callers only need
-      // to catch StationDataException to fall back to Places.
+      // to catch StationDataException (screen 2 shows the error banner).
       throw StationDataException(
         'asset $kStationsAssetKey not loadable (${e.runtimeType})',
       );

@@ -141,11 +141,6 @@ void main() {
       'Bến Xe Bắc Nha Trang',
       'Bến xe liên tỉnh phía Nam Nha Trang',
     });
-
-    expect(
-      offlineResults(index, 'nha trang', DestinationFilter.places),
-      isEmpty,
-    );
   });
 
   test('TS29 fewer than 2 letters: no rows', () {

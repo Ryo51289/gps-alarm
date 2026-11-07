@@ -1638,60 +1638,6 @@ data class DeviceStatusMsg (
 }
 
 /**
- * T23: Maps/Places configuration of this build. apiKey null = no key
- * configured. PRIVACY: never log (toString prints the key). No coordinates.
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
-data class MapsConfigMsg (
-  val apiKey: String? = null,
-  val androidPackage: String? = null,
-  val androidCertSha1: String? = null,
-  val iosBundleId: String? = null
-)
- {
-  companion object {
-    fun fromList(pigeonVar_list: List<Any?>): MapsConfigMsg {
-      val apiKey = pigeonVar_list[0] as String?
-      val androidPackage = pigeonVar_list[1] as String?
-      val androidCertSha1 = pigeonVar_list[2] as String?
-      val iosBundleId = pigeonVar_list[3] as String?
-      return MapsConfigMsg(apiKey, androidPackage, androidCertSha1, iosBundleId)
-    }
-  }
-  fun toList(): List<Any?> {
-    return listOf(
-      apiKey,
-      androidPackage,
-      androidCertSha1,
-      iosBundleId,
-    )
-  }
-  override fun equals(other: Any?): Boolean {
-    if (other == null || other.javaClass != javaClass) {
-      return false
-    }
-    if (this === other) {
-      return true
-    }
-    val other = other as MapsConfigMsg
-    return CoreApiPigeonUtils.deepEquals(this.apiKey, other.apiKey) && CoreApiPigeonUtils.deepEquals(this.androidPackage, other.androidPackage) && CoreApiPigeonUtils.deepEquals(this.androidCertSha1, other.androidCertSha1) && CoreApiPigeonUtils.deepEquals(this.iosBundleId, other.iosBundleId)
-  }
-
-  override fun hashCode(): Int {
-    var result = javaClass.hashCode()
-    result = 31 * result + CoreApiPigeonUtils.deepHash(this.apiKey)
-    result = 31 * result + CoreApiPigeonUtils.deepHash(this.androidPackage)
-    result = 31 * result + CoreApiPigeonUtils.deepHash(this.androidCertSha1)
-    result = 31 * result + CoreApiPigeonUtils.deepHash(this.iosBundleId)
-    return result
-  }
-  override fun toString(): String {
-    return "MapsConfigMsg(apiKey=$apiKey, androidPackage=$androidPackage, androidCertSha1=$androidCertSha1, iosBundleId=$iosBundleId)"
-  }
-}
-
-/**
  * T21: screen 9 background check (Android). Times are epoch ms
  * (System.currentTimeMillis). No coordinates.
  *
@@ -2003,15 +1949,10 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
       }
       169.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          MapsConfigMsg.fromList(it)
-        }
-      }
-      170.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
           BackgroundCheckMsg.fromList(it)
         }
       }
-      171.toByte() -> {
+      170.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           LaunchActionMsg.fromList(it)
         }
@@ -2181,16 +2122,12 @@ private open class CoreApiPigeonCodec : StandardMessageCodec() {
         stream.write(168)
         writeValue(stream, value.toList())
       }
-      is MapsConfigMsg -> {
+      is BackgroundCheckMsg -> {
         stream.write(169)
         writeValue(stream, value.toList())
       }
-      is BackgroundCheckMsg -> {
-        stream.write(170)
-        writeValue(stream, value.toList())
-      }
       is LaunchActionMsg -> {
-        stream.write(171)
+        stream.write(170)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -2415,11 +2352,6 @@ interface PermissionHostApi {
    */
   fun deviceStatus(): DeviceStatusMsg
   /**
-   * T23: Maps/Places configuration of this build. Cheap, main-safe, no
-   * permission.
-   */
-  fun mapsConfig(): MapsConfigMsg
-  /**
    * T23: distances in metres from the device's last known position to each
    * (lat, lng) pair of [latLngPairs] (flat list, even length <= 100). null
    * when: no location permission, location off, no cached fix younger than
@@ -2521,21 +2453,6 @@ interface PermissionHostApi {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.deviceStatus())
-            } catch (exception: Throwable) {
-              CoreApiPigeonUtils.wrapError(exception)
-            }
-            reply.reply(wrapped)
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.napstop.PermissionHostApi.mapsConfig$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            val wrapped: List<Any?> = try {
-              listOf(api.mapsConfig())
             } catch (exception: Throwable) {
               CoreApiPigeonUtils.wrapError(exception)
             }

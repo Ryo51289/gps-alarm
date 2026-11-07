@@ -1,6 +1,6 @@
-// T23 TS40–TS41: no logging anywhere in screen 2 (queries, names and
-// coordinates are location data), layer and import boundaries, and the
-// Places request never carries the user's position.
+// T23 TS40: no logging anywhere in screen 2 (queries, names and coordinates
+// are location data) and layer boundaries. T23.2 RG01: nothing of Google
+// Maps Platform (SDK, Places, key) comes back (ADR-002).
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -47,34 +47,86 @@ void main() {
     }
   });
 
-  test('TS40 only destination_map.dart imports the map SDK', () {
-    final users = [
-      for (final f in _dartFiles('lib'))
-        if (f.readAsStringSync().contains('package:google_maps_flutter'))
-          _norm(f),
-    ];
-    expect(users, [
-      'lib/features/destination/presentation/widgets/destination_map.dart',
-    ]);
-  });
-
-  test('TS40 only places_client.dart imports package:http', () {
+  test('TS40 no package:http in lib (Places removed, T23.2)', () {
     final users = [
       for (final f in _dartFiles('lib'))
         if (f.readAsStringSync().contains('package:http/')) _norm(f),
     ];
-    // The provider file creates the client it hands to PlacesClient.
-    expect(users.toSet(), {
-      'lib/features/destination/data/places/places_client.dart',
-      'lib/features/destination/data/destination_providers.dart',
-    });
+    expect(users, isEmpty);
   });
 
-  test('TS41 the Places client never sends a position', () {
-    final text = File('lib/features/destination/data/places/places_client.dart')
-        .readAsStringSync();
-    for (final word in ['locationBias', 'locationRestriction', 'origin']) {
-      expect(text.contains(word), isFalse, reason: word);
+  test('RG01 no Google Maps SDK, Places or Maps key left (T23.2)', () {
+    const forbidden = [
+      'google_maps_flutter',
+      'GoogleMaps',
+      'GMSServices',
+      'GMSApiKey',
+      'places.googleapis.com',
+      'MapsConfig',
+      'mapsConfig',
+      'geo.API_KEY',
+      'MAPS_API_KEY',
+      'mapsApiKey',
+      'X-Goog-Api-Key',
+    ];
+    // Tracked files plus new files not yet committed; gitignored ones are
+    // skipped (review T23.2: an old Secrets.xcconfig left on a dev machine
+    // must not turn this red). Generated plugin registrants are gitignored
+    // and rebuilt by `flutter pub get`.
+    final listed = Process.runSync('git', [
+      'ls-files',
+      '--cached',
+      '--others',
+      '--exclude-standard',
+      '-z',
+      '--',
+      'lib',
+      'android/app/src/main',
+      'android/app/build.gradle.kts',
+      'ios/Runner',
+      'ios/Flutter',
+      'ios/scripts',
+      'pigeons',
+      'pubspec.yaml',
+    ]);
+    expect(listed.exitCode, 0, reason: '${listed.stderr}');
+    final files = [
+      for (final path in (listed.stdout as String).split('\x00'))
+        if (path.isNotEmpty && _textExtensions.any(path.endsWith)) File(path),
+    ].where((f) => f.existsSync()).toList();
+    final names = files.map(_norm).toSet();
+    expect(files.length, greaterThan(100));
+    expect(names, contains('android/app/build.gradle.kts'));
+    expect(names, contains('pubspec.yaml'));
+    expect(names, contains('ios/Runner/Info.plist'));
+    final hits = <String>[];
+    for (final f in files) {
+      final text = f.readAsStringSync();
+      for (final word in forbidden) {
+        if (text.contains(word)) {
+          hits.add('$word in ${_norm(f)}');
+        }
+      }
     }
+    expect(hits, isEmpty);
   });
 }
+
+/// Text files scanned by RG01 (binary assets such as PNG/TTF are skipped).
+const _textExtensions = [
+  '.dart',
+  '.kt',
+  '.kts',
+  '.java',
+  '.xml',
+  '.swift',
+  '.h',
+  '.m',
+  '.plist',
+  '.xcconfig',
+  '.sh',
+  '.yaml',
+  '.json',
+  '.arb',
+  '.properties',
+];

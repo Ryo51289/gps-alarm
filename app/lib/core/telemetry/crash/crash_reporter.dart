@@ -22,7 +22,6 @@ export 'package:napstop/core/telemetry/crash/safe_diagnostic.dart';
 /// Why a recovered error is reported; sent as the `reason` (its name).
 enum NonFatalReason {
   stationCatalogLoadFailed,
-  placesRequestFailed,
   mapsLoadFailed,
   pigeonCallFailed,
   historyWriteFailed,
