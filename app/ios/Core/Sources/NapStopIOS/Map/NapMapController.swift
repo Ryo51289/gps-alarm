@@ -72,6 +72,9 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
     private var measureScheduled = false
     /// End of the window in which the initial camera is re-applied (see `applyInitialCamera`).
     private var initialCameraUntil: Date?
+    /// Why the initial-camera window ended early ("frame", "gesture:<recognizer>", "longPress", "pinDrag"); nil while open
+    /// or after it expired. Only read by the `diagState` command of NAPSTOP_DIAG builds (no logging here, MC06).
+    public private(set) var initialCameraEndReason: String?
     private static let initialCameraWindow: TimeInterval = 2
     /// Set while `frame` moves the boundary and the camera together: layer 2 must not undo it half-way.
     private var boundaryUpdatesSuspended = false
@@ -144,7 +147,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
             pendingFrame = f
             return
         }
-        initialCameraUntil = nil
+        endInitialCamera("frame")
         var rect = Self.mapRect(f.bounds)
         if f.includeUser, view.showsUserLocation, let location = view.userLocation.location {
             rect = rect.union(MKMapRect(origin: MKMapPoint(location.coordinate), size: MKMapSize(width: 0, height: 0)))
@@ -239,7 +242,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
         switch newState {
         case .ending:
             view.dragState = .none
-            initialCameraUntil = nil  // R4-1
+            endInitialCamera("pinDrag")  // R4-1
             guard let c = view.annotation?.coordinate, MapWire.validLatLng(c.latitude, c.longitude) else { return }
             onPinDragEnd?(MapCoordinate(lat: c.latitude, lng: c.longitude))
         case .canceling:
@@ -252,13 +255,21 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
     /// R4-1 (review T23.3): a pan or pinch by the user ends the initial-camera window, so a later size change (rotation,
     /// text size) does not move the camera back to the first box.
     public func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
-        if userIsTouching() { initialCameraUntil = nil }
+        if let active = activeGesture() { endInitialCamera("gesture:\(type(of: active))") }
     }
 
-    /// A gesture of the map (its own recognizers live on an internal subview) or ours is in progress or just ended.
-    private func userIsTouching() -> Bool {
+    /// A gesture of the map (its own recognizers live on an internal subview) actually in progress: `.began` or
+    /// `.changed` only (CI `ci/ios-all-t233c`: with `.ended` counted too, MI01 was back at 102°E; a recognizer left in
+    /// `.ended` most likely ended the window before the D9 resize). `diagState.initialCameraEnd` reports the reason.
+    private func activeGesture() -> UIGestureRecognizer? {
         let recognizers = (view.gestureRecognizers ?? []) + view.subviews.flatMap { $0.gestureRecognizers ?? [] }
-        return recognizers.contains { $0.state == .began || $0.state == .changed || $0.state == .ended }
+        return recognizers.first { $0 !== longPressRecognizer && ($0.state == .began || $0.state == .changed) }
+    }
+
+    private func endInitialCamera(_ reason: String) {
+        guard initialCameraActive else { return }
+        initialCameraUntil = nil
+        initialCameraEndReason = reason
     }
 
     /// D11 layer 2: lower or raise the east limit of the center with the span now visible.
@@ -289,7 +300,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
 
     @objc private func longPressed(_ g: UILongPressGestureRecognizer) {
         guard g.state == .began else { return }
-        initialCameraUntil = nil  // R4-1: the user acts on the map, never move the camera back
+        endInitialCamera("longPress")  // R4-1: the user acts on the map, never move the camera back
         longPress(atViewPoint: g.location(in: view))
     }
 

@@ -135,6 +135,7 @@ final class NapMapPlatformView: NSObject, FlutterPlatformView {
           "distanceM": map.camera.centerCoordinateDistance,
           "maxDistanceM": controller.maxDistanceM.map { $0 as Any } ?? NSNull(),
           "boundaryEast": controller.centerBoundaryEast.map { $0 as Any } ?? NSNull(),
+          "initialCameraEnd": controller.initialCameraEndReason.map { $0 as Any } ?? NSNull(),
           "pin": state.pin.map { MapWire.pointArgs($0) as Any } ?? NSNull(),
         ] as [String: Any])
       default:

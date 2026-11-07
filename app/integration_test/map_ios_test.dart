@@ -255,7 +255,8 @@ void main() {
       // ignore: avoid_print
       print(
         'MI01 center=${center[0].toStringAsFixed(3)},'
-        '${center[1].toStringAsFixed(3)}',
+        '${center[1].toStringAsFixed(3)} '
+        'initialCameraEnd=${s['initialCameraEnd']}',
       );
       expect(center[1].toDouble(), closeTo(105.85, 0.5));
       expect(center[0].toDouble(), closeTo(15.95, 1));
