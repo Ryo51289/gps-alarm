@@ -1,0 +1,400 @@
+Expected: true
+  Actual: <false>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/t28_3_ios_ui_test.dart:122:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/t28_3_ios_ui_test.dart line 122
+The test description was:
+  PI01 screen 12: no volume slider, iOS notes; "Nghe thử" horn plays
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (2) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: PI01 screen 12: no volume slider, iOS notes; "Nghe thử" horn plays
+
+::endgroup::
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following assertion was thrown building InheritedGoRouter(goRouter: Instance of 'GoRouter'):
+'package:flutter/src/widgets/framework.dart': Failed assertion: line 2170 pos 12:
+'_elements.contains(element)': is not true.
+
+Either the assertion indicates an error in the framework itself, or we should provide substantially
+more information in this error message to help you determine and fix the underlying cause.
+In either case, please report this assertion by filing a bug on GitHub:
+  https://github.com/flutter/flutter/issues/new?template=02_bug.yml
+
+The relevant error-causing widget was:
+  InheritedGoRouter
+  InheritedGoRouter:file:///Users/runner/.pub-cache/hosted/pub.dev/go_router-17.5.0/lib/src/router.dart:305:11
+
+When the exception was thrown, this was the stack:
+#2      _InactiveElements.remove (package:flutter/src/widgets/framework.dart:2170:12)
+#3      Element._retakeInactiveElement (package:flutter/src/widgets/framework.dart:4545:30)
+...     Normal element mounting (41 frames)
+#44     ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (9 frames)
+#53     ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (9 frames)
+#62     ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (413 frames)
+#475    ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (15 frames)
+#490    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4600:20)
+#491    Element.updateChild (package:flutter/src/widgets/framework.dart:4066:20)
+#492    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#493    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#494    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#495    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#496    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#497    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#498    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#499    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#500    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#501    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#502    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#503    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#504    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#505    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#506    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#507    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#508    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#509    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#510    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#511    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#512    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#513    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#514    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#515    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#516    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#517    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#518    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#519    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#520    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#521    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#522    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#523    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#524    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#525    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#526    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#527    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#528    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#529    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#530    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#531    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#532    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#533    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#534    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:488:16)
+#535    _RawViewElement.update (package:flutter/src/widgets/view.dart:575:5)
+#536    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#537    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#538    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#539    StatelessElement.update (package:flutter/src/widgets/framework.dart:5908:5)
+#540    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#541    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#542    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#543    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#544    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#545    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#546    RootElement._rebuild (package:flutter/src/widgets/binding.dart:2091:16)
+#547    RootElement.update (package:flutter/src/widgets/binding.dart:2069:5)
+#548    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:2083:7)
+#549    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#550    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2763:15)
+#551    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2820:11)
+#552    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3124:18)
+#553    WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1571:21)
+#554    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:558:5)
+#555    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#556    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#557    LiveTestWidgetsFlutterBinding.handleDrawFrame (package:flutter_test/src/binding.dart:2812:13)
+#558    SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)
+#562    _invoke (dart:ui/hooks.dart:443:10)
+#563    PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:450:5)
+#564    _drawFrame (dart:ui/hooks.dart:413:31)
+(elided 5 frames from class _AssertionError and dart:async)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following assertion was thrown building InheritedGoRouter(goRouter: Instance of 'GoRouter'):
+'package:flutter/src/widgets/framework.dart': Failed assertion: line 2170 pos 12:
+'_elements.contains(element)': is not true.
+
+Either the assertion indicates an error in the framework itself, or we should provide substantially
+more information in this error message to help you determine and fix the underlying cause.
+In either case, please report this assertion by filing a bug on GitHub:
+  https://github.com/flutter/flutter/issues/new?template=02_bug.yml
+
+The relevant error-causing widget was:
+  InheritedGoRouter
+  InheritedGoRouter:file:///Users/runner/.pub-cache/hosted/pub.dev/go_router-17.5.0/lib/src/router.dart:305:11
+
+When the exception was thrown, this was the stack:
+#2      _InactiveElements.remove (package:flutter/src/widgets/framework.dart:2170:12)
+#3      Element._retakeInactiveElement (package:flutter/src/widgets/framework.dart:4545:30)
+#4      Element.inflateWidget (package:flutter/src/widgets/framework.dart:4585:13)
+#5      Element.updateChild (package:flutter/src/widgets/framework.dart:4066:20)
+#6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#7      Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#8      ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#9      Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#10     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#11     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#12     StatelessElement.update (package:flutter/src/widgets/framework.dart:5908:5)
+#13     Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#14     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#15     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#16     ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#17     Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#18     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#19     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#20     ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#21     Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#22     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#23     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#24     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#25     BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2763:15)
+#26     BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2820:11)
+#27     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3124:18)
+#28     WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1571:21)
+#29     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:558:5)
+#30     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#31     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#32     LiveTestWidgetsFlutterBinding.handleDrawFrame (package:flutter_test/src/binding.dart:2812:13)
+#33     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)
+#37     _invoke (dart:ui/hooks.dart:443:10)
+#38     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:450:5)
+#39     _drawFrame (dart:ui/hooks.dart:413:31)
+(elided 5 frames from class _AssertionError and dart:async)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+::group::❌ t28_3_ios_ui_test PI02 alarm while the app is open: Flutter screen 5 within 6 s, no "Mở màn báo thức"; swipe → TripEndedMsg (failed)
+T28_3_PI02_LIFECYCLE shown=false [atAlarm:null]
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: true
+  Actual: <false>
+screen 5 not shown within 6 s; lifecycle since AlarmMsg: [atAlarm:null]
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/t28_3_ios_ui_test.dart:214:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/t28_3_ios_ui_test.dart line 214
+The test description was:
+  PI02 alarm while the app is open: Flutter screen 5 within 6 s, no "Mở màn báo thức"; swipe →
+  TripEndedMsg
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (3) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: PI02 alarm while the app is open: Flutter screen 5 within 6 s, no "Mở màn báo thức"; swipe → TripEndedMsg
+
+::endgroup::
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following assertion was thrown building InheritedGoRouter(goRouter: Instance of 'GoRouter'):
+'package:flutter/src/widgets/framework.dart': Failed assertion: line 2170 pos 12:
+'_elements.contains(element)': is not true.
+
+Either the assertion indicates an error in the framework itself, or we should provide substantially
+more information in this error message to help you determine and fix the underlying cause.
+In either case, please report this assertion by filing a bug on GitHub:
+  https://github.com/flutter/flutter/issues/new?template=02_bug.yml
+
+The relevant error-causing widget was:
+  InheritedGoRouter
+  InheritedGoRouter:file:///Users/runner/.pub-cache/hosted/pub.dev/go_router-17.5.0/lib/src/router.dart:305:11
+
+When the exception was thrown, this was the stack:
+#2      _InactiveElements.remove (package:flutter/src/widgets/framework.dart:2170:12)
+#3      Element._retakeInactiveElement (package:flutter/src/widgets/framework.dart:4545:30)
+...     Normal element mounting (41 frames)
+#44     ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (9 frames)
+#53     ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (9 frames)
+#62     ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (413 frames)
+#475    ConsumerStatefulElement.mount (package:flutter_riverpod/src/core/consumer.dart:389:11)
+...     Normal element mounting (15 frames)
+#490    Element.inflateWidget (package:flutter/src/widgets/framework.dart:4600:20)
+#491    Element.updateChild (package:flutter/src/widgets/framework.dart:4066:20)
+#492    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#493    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#494    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#495    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#496    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#497    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#498    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#499    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#500    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#501    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#502    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#503    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#504    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#505    _InheritedNotifierElement.update (package:flutter/src/widgets/inherited_notifier.dart:108:11)
+#506    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#507    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#508    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#509    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#510    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#511    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#512    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#513    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#514    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#515    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#516    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#517    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#518    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#519    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#520    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#521    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#522    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#523    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#524    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#525    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#526    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#527    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#528    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#529    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#530    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#531    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#532    ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#533    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#534    _RawViewElement._updateChild (package:flutter/src/widgets/view.dart:488:16)
+#535    _RawViewElement.update (package:flutter/src/widgets/view.dart:575:5)
+#536    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#537    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#538    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#539    StatelessElement.update (package:flutter/src/widgets/framework.dart:5908:5)
+#540    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#541    ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#542    StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#543    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#544    StatefulElement.update (package:flutter/src/widgets/framework.dart:6020:5)
+#545    Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#546    RootElement._rebuild (package:flutter/src/widgets/binding.dart:2091:16)
+#547    RootElement.update (package:flutter/src/widgets/binding.dart:2069:5)
+#548    RootElement.performRebuild (package:flutter/src/widgets/binding.dart:2083:7)
+#549    Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#550    BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2763:15)
+#551    BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2820:11)
+#552    BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3124:18)
+#553    WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1571:21)
+#554    RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:558:5)
+#555    SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#556    SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#557    LiveTestWidgetsFlutterBinding.handleDrawFrame (package:flutter_test/src/binding.dart:2812:13)
+#558    SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)
+#562    _invoke (dart:ui/hooks.dart:443:10)
+#563    PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:450:5)
+#564    _drawFrame (dart:ui/hooks.dart:413:31)
+(elided 5 frames from class _AssertionError and dart:async)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following assertion was thrown building InheritedGoRouter(goRouter: Instance of 'GoRouter'):
+'package:flutter/src/widgets/framework.dart': Failed assertion: line 2170 pos 12:
+'_elements.contains(element)': is not true.
+
+Either the assertion indicates an error in the framework itself, or we should provide substantially
+more information in this error message to help you determine and fix the underlying cause.
+In either case, please report this assertion by filing a bug on GitHub:
+  https://github.com/flutter/flutter/issues/new?template=02_bug.yml
+
+The relevant error-causing widget was:
+  InheritedGoRouter
+  InheritedGoRouter:file:///Users/runner/.pub-cache/hosted/pub.dev/go_router-17.5.0/lib/src/router.dart:305:11
+
+When the exception was thrown, this was the stack:
+#2      _InactiveElements.remove (package:flutter/src/widgets/framework.dart:2170:12)
+#3      Element._retakeInactiveElement (package:flutter/src/widgets/framework.dart:4545:30)
+#4      Element.inflateWidget (package:flutter/src/widgets/framework.dart:4585:13)
+#5      Element.updateChild (package:flutter/src/widgets/framework.dart:4066:20)
+#6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#7      Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#8      ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#9      Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#10     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#11     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#12     StatelessElement.update (package:flutter/src/widgets/framework.dart:5908:5)
+#13     Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#14     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#15     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#16     ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#17     Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#18     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#19     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#20     ProxyElement.update (package:flutter/src/widgets/framework.dart:6162:5)
+#21     Element.updateChild (package:flutter/src/widgets/framework.dart:4050:15)
+#22     ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5854:16)
+#23     StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5995:11)
+#24     Element.rebuild (package:flutter/src/widgets/framework.dart:5542:7)
+#25     BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2763:15)
+#26     BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2820:11)
+#27     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3124:18)
+#28     WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1571:21)
+#29     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:558:5)
+#30     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#31     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#32     LiveTestWidgetsFlutterBinding.handleDrawFrame (package:flutter_test/src/binding.dart:2812:13)
+#33     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)
+#37     _invoke (dart:ui/hooks.dart:443:10)
+#38     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:450:5)
+#39     _drawFrame (dart:ui/hooks.dart:413:31)
+(elided 5 frames from class _AssertionError and dart:async)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+::group::❌ t28_3_ios_ui_test PI03 screen 8: "Chỉ đường quay lại" opens the Google Maps URL (T27 D8) (failed)
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: true
+  Actual: <false>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/t28_3_ios_ui_test.dart:307:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/t28_3_ios_ui_test.dart line 307
+The test description was:
+  PI03 screen 8: "Chỉ đường quay lại" opens the Google Maps URL (T27 D8)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following message was thrown:
+Multiple exceptions (3) were detected during the running of the current test, and at least one was
+unexpected.
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: PI03 screen 8: "Chỉ đường quay lại" opens the Google Maps URL (T27 D8)
+
+::endgroup::
+
+::error::20 tests passed, 6 failed.
