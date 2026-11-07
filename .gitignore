@@ -26,9 +26,11 @@ xcuserdata/
 app/ios/Core/.build/
 app/ios/Core/.swiftpm/
 
-# Secrets (Firebase / Maps keys stay out of git)
+# Firebase config is non-secret (T29 1.3, T29.2 D3): the iOS plist is committed; other copies (dist/) and the
+# Android file (until T29 step B) stay out of git. Maps keys stay out of git.
 google-services.json
 GoogleService-Info.plist
+!app/ios/Runner/GoogleService-Info.plist
 .env*
 # Legacy Maps/Places key files (T23), no longer used since T23.2 (ADR-002). Kept so an old copy on a dev machine
 # is never committed: app/android/secrets.properties, app/ios/Flutter/Secrets.xcconfig

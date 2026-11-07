@@ -3,8 +3,10 @@
 # How to run, without gh or a token (T01.2 D1): push a branch named ci/ios-<kind>-<id>, <id> = [A-Za-z0-9._-]+:
 #   ci/ios-swift-<id>  swift-macos only            ci/ios-ipa-<id>  ios-device only, with NAPSTOP_DIAG
 #   ci/ios-sim-<id>    ios-sim only                ci/ios-all-<id>  every job
+#   ci/ios-ipa-fb-<rest>, ci/ios-all-fb-<rest>  the same, plus telemetry: the IPA is built with NAPSTOP_TELEMETRY=on and
+#                      the telemetry probe (T29.2 §4.2), for checks on an iPhone against the Firebase console
 # Any other ci/ios-* name fails in `plan` (Linux) and no macOS job runs. workflow_dispatch from the web still works
-# (target swift / simulator / device / both / all, plus `diag` for the device IPA).
+# (target swift / simulator / device / both / all, plus `diag` and `telemetry` for the device IPA).
 # Results: publish-results force-pushes a text summary to the branch ci-results/<branch> (one orphan commit);
 #   git fetch origin ci-results/<branch> && git show FETCH_HEAD:summary.md
 #   git push origin --delete <branch> ci-results/<branch>     # clean up when done
@@ -16,11 +18,17 @@
 # - ios-device: release build for a real iPhone (arm64), unsigned, artifact `napstop-ios-unsigned`
 #   (NapStop-unsigned.ipa; install from WSL with `xtool install`). With diag, app/ios/Flutter/Diag.xcconfig adds
 #   NAPSTOP_DIAG (T17 D21). Release, not debug: an iOS debug build cannot start without a debugger attached.
+#   T29.2: Firebase checks of the bundle (app/ios/scripts/firebase-ci-check.sh: plist, collection keys off, no
+#   AdSupport/ATT, privacy manifests; blocking), then the dSYMs go to Crashlytics (not blocking) and to the artifact
+#   `napstop-ios-dsyms`.
 # - publish-results (ubuntu): the only job with contents: write (.github/scripts/publish-ci-results.sh).
 #
-# Cost (private repo, T01.2 §6): macOS minutes cost ~10x Linux. Rough minutes per push, warm / cold cache:
-# swift 6-9 / 12-15, sim 18-25 / 30-38, ipa 12-16 / 20-25, all 36-50 / 62-78. Use the narrowest prefix; pushing
-# the same branch again cancels the run in progress.
+# FIREBASE_ANALYTICS_WITHOUT_ADID (workflow env, T29.2 D6): firebase_analytics then links FirebaseAnalyticsCore (no
+# IDFA, no AdSupport). Any iOS build elsewhere (a Mac, T40.1) must export it too.
+#
+# Cost: the repo is public, so standard GitHub-hosted runners are free (T29.2 §4.1; T01.2 §6 assumed a private repo).
+# Rough minutes per push, warm / cold cache: swift 6-9 / 12-15, sim 18-25 / 30-38, ipa 12-16 / 20-25,
+# all 36-50 / 62-78. Still use the narrowest prefix (time); pushing the same branch again cancels the run in progress.
 #
 # Actions are pinned by SHA like ci.yml. FLUTTER_VERSION must match the dev machine (CLAUDE.md) and ci.yml.
 name: iOS compile
@@ -42,6 +50,10 @@ on:
         description: 'Device ipa with NAPSTOP_DIAG (Diag.xcconfig)'
         type: boolean
         default: false
+      telemetry:
+        description: 'Device ipa with NAPSTOP_TELEMETRY=on and the telemetry probe (T29.2)'
+        type: boolean
+        default: false
   push:
     branches:
       - 'ci/ios-**'
@@ -56,6 +68,8 @@ concurrency:
 env:
   FLUTTER_VERSION: '3.47.8'
   IOS_BUNDLE_ID: 'app.napstop'
+  # T29.2 D6: read by the Package.swift of firebase_analytics (FirebaseAnalyticsCore, no AdSupport).
+  FIREBASE_ANALYTICS_WITHOUT_ADID: 'true'
 
 defaults:
   run:
@@ -76,6 +90,7 @@ jobs:
       sim: ${{ steps.plan.outputs.sim }}
       ipa: ${{ steps.plan.outputs.ipa }}
       diag: ${{ steps.plan.outputs.diag }}
+      telemetry: ${{ steps.plan.outputs.telemetry }}
     steps:
       - name: Start clock
         run: echo "JOB_START=$(date -u +%s)" >> "$GITHUB_ENV"
@@ -93,9 +108,10 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           IN_TARGET: ${{ inputs.target }}
           IN_DIAG: ${{ inputs.diag }}
+          IN_TELEMETRY: ${{ inputs.telemetry }}
         run: |
           set +e
-          bash .github/scripts/ios-ci-plan.sh "$EVENT_NAME" "$REF_NAME" "$IN_TARGET" "$IN_DIAG" \
+          bash .github/scripts/ios-ci-plan.sh "$EVENT_NAME" "$REF_NAME" "$IN_TARGET" "$IN_DIAG" "$IN_TELEMETRY" \
             >"$RUNNER_TEMP/plan.out" 2>"$RUNNER_TEMP/plan.err"
           rc=$?
           set -e
@@ -578,9 +594,18 @@ jobs:
             echo "diag off: no $f"
           fi
 
+      # T29.2 §4.2: telemetry = the "fb" test IPA (collection forced on in dev, probe); otherwise consent decides.
       - name: Build iOS app for a device (release, no signing)
         id: build
-        run: flutter build ios --release --no-codesign 2>&1 | tee "$RUNNER_TEMP/build.log"
+        env:
+          TELEMETRY: ${{ needs.plan.outputs.telemetry }}
+        run: |
+          defines=()
+          if [ "$TELEMETRY" = true ]; then
+            defines=(--dart-define=NAPSTOP_TELEMETRY=on --dart-define=NAPSTOP_TELEMETRY_PROBE=true)
+          fi
+          echo "telemetry: ${TELEMETRY:-false} ${defines[*]}"
+          flutter build ios --release --no-codesign "${defines[@]}" 2>&1 | tee "$RUNNER_TEMP/build.log"
 
       - name: Save SwiftPM packages of the plugins
         # Not on a cancelled run: a half-downloaded store saved under the primary key would be "hit" from then on.
@@ -618,6 +643,35 @@ jobs:
             exit 1
           fi
 
+      # T29.2 FD01: self-test first (each broken fake bundle must fail), then the real bundle. Blocking; never prints
+      # the API key or the plist.
+      - name: Firebase checks
+        id: firebase-check
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          bash ios/scripts/firebase-ci-check.sh --self-test
+          bash ios/scripts/firebase-ci-check.sh check build/ios/iphoneos/Runner.app | tee "$RUNNER_TEMP/firebase-check.txt"
+
+      # T29.2 FD02 / D5: not blocking (the IPA is usable without symbols). The tool output stays in
+      # $RUNNER_TEMP/dsym-upload.log (not published: it may print the app id).
+      - name: Upload dSYMs to Crashlytics
+        id: dsyms
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          NAPSTOP_DSYM_OUT: ${{ runner.temp }}/dsyms
+        run: bash ios/scripts/firebase-ci-check.sh upload-dsyms build ios/Runner/GoogleService-Info.plist | tee "$RUNNER_TEMP/dsym.txt"
+
+      - name: Upload dSYM artifact
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: napstop-ios-dsyms
+          path: ${{ runner.temp }}/dsyms/
+          if-no-files-found: warn
+          retention-days: 7
+
       # Also after a failed settings check: the IPA of a paid build stays available (the job is still red).
       - name: Package unsigned ipa
         id: package
@@ -648,6 +702,9 @@ jobs:
           BUILD: ${{ steps.build.outcome }}
           CACHE_HIT: ${{ steps.spm-cache.outputs.cache-hit }}
           CACHE_KEY: ${{ steps.spm-cache.outputs.cache-matched-key }}
+          TELEMETRY: ${{ needs.plan.outputs.telemetry }}
+          FB_CHECK: ${{ steps.firebase-check.outcome }}
+          DSYM: ${{ steps.dsyms.outcome }}
         run: |
           d="$RUNNER_TEMP/result/ios-device"
           mkdir -p "$d"
@@ -655,6 +712,11 @@ jobs:
             echo "## ios-device"
             echo
             echo "- status: $JOB_STATUS; build: ${BUILD:-not run}; diag: ${DIAG:-false}"
+            if [ "$TELEMETRY" = true ]; then echo "- telemetry: on (NAPSTOP_TELEMETRY=on, probe)"; else echo "- telemetry: auto"; fi
+            echo "- firebase checks: ${FB_CHECK:-not run}"
+            if [ -f "$RUNNER_TEMP/firebase-check.txt" ]; then cat "$RUNNER_TEMP/firebase-check.txt"; fi
+            echo "- dSYM step: ${DSYM:-not run}"
+            if [ -f "$RUNNER_TEMP/dsym.txt" ]; then cat "$RUNNER_TEMP/dsym.txt"; fi
             echo "- Flutter: $(flutter --version 2>/dev/null | head -n 1); Xcode: $(xcodebuild -version | head -n 1)"
             echo "- SwiftPM cache: hit=${CACHE_HIT:-false} ${CACHE_KEY:+(restored $CACHE_KEY)}"
             echo "- $(cat "$RUNNER_TEMP/build-settings.txt" 2>/dev/null || echo 'build settings: not checked')"

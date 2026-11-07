@@ -26,6 +26,7 @@
 		D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17B00062EC7000100A0B001 /* DeviceBridge.swift */; };
 		D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = D17B000A2EC7000100A0B001 /* InfoPlist.strings */; };
 		D17B00042EC7000100A0B001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */; };
+		D12920012ECB000100A0B001 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D12920022ECB000100A0B001 /* GoogleService-Info.plist */; };
 		D17200012EC8000100A0B001 /* IOSAlarmHostApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */; };
 		D18100012EC9000100A0B001 /* FlutterAssetTraceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18100022EC9000100A0B001 /* FlutterAssetTraceStore.swift */; };
 		D1A300012ECA000100A0B001 /* NapMapPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A300022ECA000100A0B001 /* NapMapPlatformView.swift */; };
@@ -89,6 +90,7 @@
 		D17B00072EC7000100A0B001 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		D17B00082EC7000100A0B001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D12920022ECB000100A0B001 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAlarmHostApi.swift; sourceTree = "<group>"; };
 		D18100022EC9000100A0B001 /* FlutterAssetTraceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlutterAssetTraceStore.swift; sourceTree = "<group>"; };
 		D1A300022ECA000100A0B001 /* NapMapPlatformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NapMapPlatformView.swift; sourceTree = "<group>"; };
@@ -160,6 +162,7 @@
 				97C147021CF9000F007C117D /* Info.plist */,
 				D17B000A2EC7000100A0B001 /* InfoPlist.strings */,
 				D17B00092EC7000100A0B001 /* PrivacyInfo.xcprivacy */,
+				D12920022ECB000100A0B001 /* GoogleService-Info.plist */,
 				D17200092EC8000100A0B001 /* Sounds */,
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
@@ -328,6 +331,7 @@
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */,
 				D17B00042EC7000100A0B001 /* PrivacyInfo.xcprivacy in Resources */,
+				D12920012ECB000100A0B001 /* GoogleService-Info.plist in Resources */,
 				D17200032EC8000100A0B001 /* alarm_horn.wav in Resources */,
 				D17200042EC8000100A0B001 /* alarm_bell.wav in Resources */,
 				D17200052EC8000100A0B001 /* alarm_beep.wav in Resources */,

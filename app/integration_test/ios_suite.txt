@@ -6,6 +6,8 @@
 # only when the test needs it. The app stays installed between groups (--no-uninstall). Lines starting with # and
 # empty lines are ignored.
 integration_test/ios_smoke_test.dart
+# T29.2 SI01: Firebase with the real plugins (collection off, Remote Config fetch); no point.
+integration_test/firebase_ios_test.dart
 integration_test/t17_ios_runtime_test.dart 17.4689199,106.5997285
 integration_test/t17_2_ios_alarm_test.dart 17.4689199,106.5997285
 integration_test/t28_3_ios_ui_test.dart 17.4689199,106.5997285
