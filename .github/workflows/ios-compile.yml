@@ -469,10 +469,24 @@ jobs:
             tail -n 400 "$log" > "$d/$(basename "$log" .log).tail.log"
           done
           # A group log holds several files: also keep the results, exceptions and expectations of the whole run.
+          # T23.3: each "EXCEPTION CAUGHT" block is kept whole (up to 40 lines, to its closing ════ line) so the message
+          # and the test-file frames survive, plus the camera numbers printed by map_ios_test ("MI0…" lines). The closing
+          # line is found with index(): a byte-wise awk would not repeat the 3-byte ═ in /^═+$/ (review R4-2).
           for log in "$RUNNER_TEMP"/it-group-*.log; do
             [ -f "$log" ] || continue
-            grep -m 400 -E '❌|✅|Xcode build done|EXCEPTION CAUGHT|BridgeException|TimeoutException|Expected:|Actual:|Which:|NAPSTOP_DIAG |tests? passed|failed\.' \
-              "$log" > "$d/$(basename "$log" .log).digest.log" || true
+            awk '
+              /EXCEPTION CAUGHT/ { block = 40 }
+              block > 0 {
+                print
+                block--
+                if (index($0, "════") == 1) block = 0
+                next
+              }
+              /❌|✅|Xcode build done|BridgeException|TimeoutException|Expected:|Actual:|Which:|NAPSTOP_DIAG |MI0[0-9][a-z]? .*=|tests? passed|failed\./ { print }
+            ' "$log" | head -n 400 > "$d/$(basename "$log" .log).digest.log" || true
+            # The camera numbers of map_ios_test also go to their own .txt: publish-ci-results.sh keeps only the last 400
+            # lines of a *.log, a .txt whole (review T23.3 R4-3). Public camera bounds, no user data.
+            grep -E 'MI0[0-9][a-z]? .*=' "$log" > "$d/$(basename "$log" .log).mi.txt" || true
           done
           printf 'start_epoch=%s\nend_epoch=%s\n' "$JOB_START" "$(date -u +%s)" > "$d/timing.env"
           cat "$d/summary.md" >> "$GITHUB_STEP_SUMMARY"

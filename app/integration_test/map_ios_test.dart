@@ -45,12 +45,19 @@ final bool _notIos = !Platform.isIOS;
 
 String _id(String prefix) => '$prefix-${DateTime.now().millisecondsSinceEpoch}';
 
-ProviderContainer _newContainer(String initialLocation) {
+/// The app's providers. At tear-down the widget tree is removed FIRST, then the
+/// container is disposed: a tree left mounted on a disposed container (its
+/// GoRouter disposed) breaks the next file of the CI group that pumps a widget
+/// ("building InheritedGoRouter" assertions, first CI run 07/11).
+ProviderContainer _newContainer(WidgetTester tester, String initialLocation) {
   final container = ProviderContainer(
     retry: (_, _) => null,
     overrides: [startupLocationProvider.overrideWithValue(initialLocation)],
   );
-  addTearDown(container.dispose);
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox());
+    container.dispose();
+  });
   return container;
 }
 
@@ -114,7 +121,7 @@ AppLocalizations _l(WidgetTester tester) =>
 
 /// Opens screen 2 and waits for the native map and its `ready`.
 Future<void> _openScreen2(WidgetTester tester) async {
-  final container = _newContainer(AppRoutes.destination);
+  final container = _newContainer(tester, AppRoutes.destination);
   await _pumpApp(tester, container);
   expect(
     await _pumpUntil(
@@ -136,9 +143,25 @@ Future<void> _openScreen2(WidgetTester tester) async {
   );
 }
 
+/// Types [query] and taps the row [name]. The field is focused by a tap first:
+/// after a choice it has no focus (the panel collapsed), and the first CI run
+/// (07/11) found no row when typing into it unfocused (MI05e).
 Future<void> _choose(WidgetTester tester, String query, String name) async {
-  await tester.enterText(find.byType(TextField), query);
-  await _wait(tester, const Duration(milliseconds: 600));
+  final field = find.byType(TextField);
+  await tester.tap(field);
+  await _wait(tester, const Duration(milliseconds: 500));
+  await tester.enterText(field, query);
+  expect(
+    await _pumpUntil(
+      tester,
+      () => find.text(name).evaluate().isNotEmpty,
+      timeout: const Duration(seconds: 5),
+    ),
+    isTrue,
+    reason:
+        'no row "$name"; field text: '
+        '"${tester.widget<TextField>(field).controller?.text}"',
+  );
   final row = find.text(name).first;
   await tester.ensureVisible(row);
   await tester.pump(const Duration(milliseconds: 300));
@@ -225,6 +248,17 @@ void main() {
       expect(s['annotations'], 0);
       expect(s['overlays'], 0);
       expect(s['showsUser'], isFalse);
+      // The first camera is centered on Vietnam (first CI run, 07/11: it
+      // showed 100.8-103.2°E, center pinned to the boundary's west edge).
+      final center = (s['center']! as List).cast<num>();
+      // Public camera numbers for the spec notes (no user data).
+      // ignore: avoid_print
+      print(
+        'MI01 center=${center[0].toStringAsFixed(3)},'
+        '${center[1].toStringAsFixed(3)}',
+      );
+      expect(center[1].toDouble(), closeTo(105.85, 0.5));
+      expect(center[0].toDouble(), closeTo(15.95, 1));
     },
   );
 
@@ -493,7 +527,7 @@ void main() {
     skip: _notIos,
     timeout: const Timeout(Duration(minutes: 3)),
     (tester) async {
-      final container = _newContainer(AppRoutes.home);
+      final container = _newContainer(tester, AppRoutes.home);
       final bridge = container.read(coreBridgeProvider);
       await cleanSlate(bridge);
       final trace = (await loadCatalog()).byId(SimTraces.trainHnDh)!;
@@ -529,7 +563,19 @@ void main() {
       await startSim(bridge, simConfig(tripId, trace), trace, 60);
       await _pumpApp(tester, container);
       container.read(appRouterProvider).go(AppRoutes.tracking);
-      final l = AppLocalizations.of(tester.element(find.byType(NapStopApp)));
+      // Localizations live under MaterialApp: read them from screen 4 (first
+      // CI run, 07/11: NapStopApp is above them).
+      expect(
+        await _pumpUntil(
+          tester,
+          () => find.byType(TrackingScreen).evaluate().isNotEmpty,
+        ),
+        isTrue,
+        reason: 'no screen 4',
+      );
+      final l = AppLocalizations.of(
+        tester.element(find.byType(TrackingScreen)),
+      );
       expect(
         await _pumpUntil(
           tester,

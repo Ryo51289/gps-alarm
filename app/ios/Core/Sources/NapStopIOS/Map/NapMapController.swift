@@ -70,6 +70,9 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
     private let maxLngSpan: Double?
     private var boundaryEast: Double?
     private var measureScheduled = false
+    /// End of the window in which the initial camera is re-applied (see `applyInitialCamera`).
+    private var initialCameraUntil: Date?
+    private static let initialCameraWindow: TimeInterval = 2
     /// Set while `frame` moves the boundary and the camera together: layer 2 must not undo it half-way.
     private var boundaryUpdatesSuspended = false
     private static let boundaryHysteresis = 0.02
@@ -141,6 +144,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
             pendingFrame = f
             return
         }
+        initialCameraUntil = nil
         var rect = Self.mapRect(f.bounds)
         if f.includeUser, view.showsUserLocation, let location = view.userLocation.location {
             rect = rect.union(MKMapRect(origin: MKMapPoint(location.coordinate), size: MKMapSize(width: 0, height: 0)))
@@ -235,6 +239,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
         switch newState {
         case .ending:
             view.dragState = .none
+            initialCameraUntil = nil  // R4-1
             guard let c = view.annotation?.coordinate, MapWire.validLatLng(c.latitude, c.longitude) else { return }
             onPinDragEnd?(MapCoordinate(lat: c.latitude, lng: c.longitude))
         case .canceling:
@@ -242,6 +247,18 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
         default:
             break
         }
+    }
+
+    /// R4-1 (review T23.3): a pan or pinch by the user ends the initial-camera window, so a later size change (rotation,
+    /// text size) does not move the camera back to the first box.
+    public func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+        if userIsTouching() { initialCameraUntil = nil }
+    }
+
+    /// A gesture of the map (its own recognizers live on an internal subview) or ours is in progress or just ended.
+    private func userIsTouching() -> Bool {
+        let recognizers = (view.gestureRecognizers ?? []) + view.subviews.flatMap { $0.gestureRecognizers ?? [] }
+        return recognizers.contains { $0.state == .began || $0.state == .changed || $0.state == .ended }
     }
 
     /// D11 layer 2: lower or raise the east limit of the center with the span now visible.
@@ -272,19 +289,21 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
 
     @objc private func longPressed(_ g: UILongPressGestureRecognizer) {
         guard g.state == .began else { return }
+        initialCameraUntil = nil  // R4-1: the user acts on the map, never move the camera back
         longPress(atViewPoint: g.location(in: view))
     }
 
     /// D11 layer 1: after the layout has settled (next main-queue turn), measure the span and the camera distance and
     /// set the largest distance so that the view spans at most `maxLngSpan` degrees. Measured again on every size change.
     private func scheduleSpanMeasure() {
-        guard maxLngSpan != nil, !measureScheduled else { return }
+        guard !measureScheduled else { return }
         measureScheduled = true
         Task { @MainActor [weak self] in
             await Task.yield()
             guard let self else { return }
             self.measureScheduled = false
             self.measureSpan()
+            if self.initialCameraActive { self.applyInitialCamera() }
         }
     }
 
@@ -328,11 +347,31 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
 
     private func didFirstLayout() {
         laidOut = true
-        view.setVisibleMapRect(Self.mapRect(initial), animated: false)
+        initialCameraUntil = Date().addingTimeInterval(Self.initialCameraWindow)
+        applyInitialCamera()
         if let f = pendingFrame {
             pendingFrame = nil
             frame(f)
         }
+    }
+
+    /// First CI runs (07/11, MI01/MI05f): a box larger than the zoom range allows (Vietnam on screen 2) set from
+    /// `layoutSubviews` left the camera center pinned to the boundary's west edge (102°E). The initial box is applied
+    /// again, with an explicit camera center, after each settled size change (Flutter resizes the view once more in
+    /// its next frame, D9) during a short window, until Dart frames something.
+    private var initialCameraActive: Bool {
+        guard let until = initialCameraUntil else { return false }
+        return Date() < until
+    }
+
+    private func applyInitialCamera() {
+        view.setVisibleMapRect(Self.mapRect(initial), animated: false)
+        let center = CLLocationCoordinate2D(
+            latitude: (initial.s + initial.n) / 2, longitude: (initial.w + initial.e) / 2)
+        view.setCamera(
+            MKMapCamera(
+                lookingAtCenter: center, fromDistance: view.camera.centerCoordinateDistance, pitch: 0, heading: 0),
+            animated: false)
     }
 
     private func sendReady() {
