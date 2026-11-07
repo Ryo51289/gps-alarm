@@ -289,9 +289,9 @@ jobs:
           path: |
             ~/Library/Caches/org.swift.swiftpm
             ~/Library/org.swift.swiftpm
-          key: spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-${{ hashFiles('app/pubspec.lock', 'app/ios/**/Package.resolved') }}
+          key: spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-noadid${{ env.FIREBASE_ANALYTICS_WITHOUT_ADID }}-${{ hashFiles('app/pubspec.lock', 'app/ios/**/Package.resolved') }}
           restore-keys: |
-            spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-
+            spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-noadid${{ env.FIREBASE_ANALYTICS_WITHOUT_ADID }}-
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
@@ -559,9 +559,9 @@ jobs:
           path: |
             ~/Library/Caches/org.swift.swiftpm
             ~/Library/org.swift.swiftpm
-          key: spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-${{ hashFiles('app/pubspec.lock', 'app/ios/**/Package.resolved') }}
+          key: spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-noadid${{ env.FIREBASE_ANALYTICS_WITHOUT_ADID }}-${{ hashFiles('app/pubspec.lock', 'app/ios/**/Package.resolved') }}
           restore-keys: |
-            spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-
+            spm-plugins-${{ runner.os }}-${{ steps.xcode.outputs.id }}-noadid${{ env.FIREBASE_ANALYTICS_WITHOUT_ADID }}-
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile

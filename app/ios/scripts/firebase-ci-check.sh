@@ -8,7 +8,8 @@
 #          is an iOS app id;
 #       C2 the 7 collection keys of §5 are false in the built Info.plist, no NSUserTrackingUsageDescription;
 #       C3 `otool -L` of Runner and of every binary in Runner.app/Frameworks links neither AdSupport nor
-#          AppTrackingTransparency;
+#          AppTrackingTransparency; `nm -u` has no _OBJC_CLASS_$_ASIdentifierManager / ATTrackingManager; `strings` has no
+#          GoogleAppMeasurementIdentitySupport (the IDFA part of the FirebaseAnalytics product);
 #       C4 every PrivacyInfo.xcprivacy in the bundle has NSPrivacyTracking != true and no NSPrivacyTrackingDomains.
 #       Summary lines ("- ...") on stdout, "::error::" lines on stderr; exit 1 when any check fails.
 #   firebase-ci-check.sh upload-dsyms <build_dir> <GoogleService-Info.plist>
@@ -25,8 +26,8 @@
 #
 # Never prints the API key or the contents of GoogleService-Info.plist.
 #
-# Environment: NAPSTOP_OTOOL [otool], NAPSTOP_DWARFDUMP [dwarfdump], NAPSTOP_UPLOAD_SYMBOLS (skip the search),
-#   NAPSTOP_DERIVED_DATA [$HOME/Library/Developer/Xcode/DerivedData], FLUTTER_ROOT (engine dSYM).
+# Environment: NAPSTOP_OTOOL [otool], NAPSTOP_NM [nm], NAPSTOP_STRINGS [strings], NAPSTOP_DWARFDUMP [dwarfdump],
+#   NAPSTOP_UPLOAD_SYMBOLS (skip the search), NAPSTOP_DERIVED_DATA [$HOME/Library/Developer/Xcode/DerivedData], FLUTTER_ROOT (engine dSYM).
 set -euo pipefail
 
 die() {
@@ -120,7 +121,7 @@ cmd_check() {
   [ -n "$app" ] || die "usage: firebase-ci-check.sh check <Runner.app>"
   [ -d "$app" ] || die "$app is not a directory"
   command -v jq >/dev/null 2>&1 || die "jq is required"
-  local otool="${NAPSTOP_OTOOL:-otool}"
+  local otool="${NAPSTOP_OTOOL:-otool}" nm="${NAPSTOP_NM:-nm}" strings_tool="${NAPSTOP_STRINGS:-strings}" syms
   local want_bundle="${NAPSTOP_EXPECT_BUNDLE_ID:-app.napstop}"
   local failed=0 json v
 
@@ -198,6 +199,22 @@ cmd_check() {
     n=$((n + 1))
     if grep -Eq 'AdSupport\.framework|AppTrackingTransparency\.framework' <<<"$libs"; then
       echo "::error::C3 $(rel "$bin" "$app") links AdSupport or AppTrackingTransparency (IDFA/ATT, T29.2 D6)" >&2
+      c3=FAILED
+    fi
+    # Second signal, independent of the load commands (RK-T292-1): a reference to the IDFA / ATT classes, or the
+    # GoogleAppMeasurementIdentitySupport library that the FirebaseAnalytics (not Core) product adds.
+    if ! syms="$("$nm" -u "$bin" 2>/dev/null)"; then
+      echo "::error::C3 nm -u failed on $(rel "$bin" "$app")" >&2
+      c3=FAILED
+      continue
+    fi
+    # shellcheck disable=SC2016 # a literal $ in the symbol name
+    if grep -Eq '_OBJC_CLASS_\$_(ASIdentifierManager|ATTrackingManager)([^A-Za-z0-9_]|$)' <<<"$syms"; then
+      echo "::error::C3 $(rel "$bin" "$app") references ASIdentifierManager or ATTrackingManager (IDFA/ATT)" >&2
+      c3=FAILED
+    fi
+    if "$strings_tool" -a "$bin" 2>/dev/null | grep -q 'GoogleAppMeasurementIdentitySupport'; then
+      echo "::error::C3 $(rel "$bin" "$app") contains GoogleAppMeasurementIdentitySupport (FirebaseAnalytics with IDFA)" >&2
       c3=FAILED
     fi
   done
@@ -413,8 +430,20 @@ EOF
 [ "$1" = -gsp ] && [ -f "$2" ] && [ "$3" = -p ] && [ "$4" = ios ] && [ -d "$5" ] || exit 3
 echo "uploaded $5"
 EOF
-  chmod +x "$tmp/otool" "$tmp/dwarfdump" "$tmp/upload-symbols"
-  export NAPSTOP_OTOOL="$tmp/otool" NAPSTOP_DWARFDUMP="$tmp/dwarfdump"
+  # Fake nm -u / strings -a: print the sidecars <binary>.nm / <binary>.strings (empty when missing).
+  cat >"$tmp/nm" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = -u ] && [ -f "$2" ] || exit 2
+if [ -f "$2.nm" ]; then cat "$2.nm"; fi
+EOF
+  cat >"$tmp/strings" <<'EOF'
+#!/usr/bin/env bash
+[ "$1" = -a ] && [ -f "$2" ] || exit 2
+if [ -f "$2.strings" ]; then cat "$2.strings"; fi
+EOF
+  chmod +x "$tmp/otool" "$tmp/dwarfdump" "$tmp/upload-symbols" "$tmp/nm" "$tmp/strings"
+  export NAPSTOP_OTOOL="$tmp/otool" NAPSTOP_DWARFDUMP="$tmp/dwarfdump" NAPSTOP_NM="$tmp/nm" \
+    NAPSTOP_STRINGS="$tmp/strings"
 
   local pass=0 failed=0
   # expect <0|1> <name> <app>
@@ -492,6 +521,26 @@ EOF
   app="$(mk att)"
   echo '/System/Library/Frameworks/AppTrackingTransparency.framework/AppTrackingTransparency' >>"$app/Runner.libs"
   expect 1 "Runner links AppTrackingTransparency" "$app"
+
+  # Symbols / strings, with clean load commands (RK-T292-1).
+  # shellcheck disable=SC2016 # a literal $ in the symbol prefix
+  local objc='_OBJC_CLASS_$_'
+  app="$(mk nm-good)"
+  printf '%s\n' "${objc}NSObject" "${objc}ASIdentifierManagerX" >"$app/Runner.nm"
+  echo 'FirebaseAnalyticsCore' >"$app/Runner.strings"
+  expect 0 "unrelated symbols and strings" "$app"
+
+  app="$(mk nm-idfa)"
+  printf '%s\n' "${objc}NSObject" "${objc}ASIdentifierManager" >"$app/Runner.nm"
+  expect 1 "Runner references ASIdentifierManager" "$app"
+
+  app="$(mk nm-att)"
+  echo "${objc}ATTrackingManager" >"$app/Frameworks/FirebaseCrashlytics.framework/FirebaseCrashlytics.nm"
+  expect 1 "framework references ATTrackingManager" "$app"
+
+  app="$(mk identity-support)"
+  printf '%s\n' 'x' 'GoogleAppMeasurementIdentitySupport' >"$app/Runner.strings"
+  expect 1 "Runner contains GoogleAppMeasurementIdentitySupport" "$app"
 
   app="$(mk no-runner)"
   rm "$app/Runner"

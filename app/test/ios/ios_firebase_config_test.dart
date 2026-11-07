@@ -91,25 +91,67 @@ final RegExp _crashCall = RegExp(
   r'\b(fatalError|preconditionFailure|precondition|assertionFailure|assert)\(',
 );
 
-/// Crash calls whose message is not a plain literal (interpolation or a
-/// non-literal message). One entry per offending call: `name: rest`.
+/// Top-level arguments of the call whose `(` ends at [open] (multi-line,
+/// nested parentheses, string literals with escapes); null when unbalanced.
+List<String>? _callArgs(String code, int open) {
+  final args = <String>[];
+  var depth = 0;
+  var inString = false;
+  var start = open;
+  for (var i = open; i < code.length; i++) {
+    final c = code[i];
+    if (inString) {
+      if (c == r'\') {
+        i++;
+      } else if (c == '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c == '"') {
+      inString = true;
+    } else if (c == '(' || c == '[' || c == '{') {
+      depth++;
+    } else if (c == ')' || c == ']' || c == '}') {
+      if (depth == 0) {
+        final last = code.substring(start, i).trim();
+        if (last.isNotEmpty || args.isNotEmpty) {
+          args.add(last);
+        }
+        return args;
+      }
+      depth--;
+    } else if (c == ',' && depth == 0) {
+      args.add(code.substring(start, i).trim());
+      start = i + 1;
+    }
+  }
+  return null;
+}
+
+final RegExp _plainSwiftLiteral = RegExp(r'^"([^"\\]|\\[^(])*"$');
+
+/// Crash calls whose message is not one plain string literal (no
+/// interpolation, no variable, no concatenation), over several lines too.
+/// The message is the first argument of fatalError / preconditionFailure /
+/// assertionFailure and the second of precondition / assert (none is fine).
+/// One entry per offending call: `name: message`.
 List<String> nonLiteralCrashMessages(String code) {
   final bad = <String>[];
   for (final m in _crashCall.allMatches(code)) {
     final name = m.group(1)!;
-    final rest = code.substring(m.end).split('\n').first;
-    if (rest.contains(r'\(')) {
-      bad.add('$name: $rest');
+    final args = _callArgs(code, m.end);
+    if (args == null) {
+      bad.add('$name: unbalanced');
       continue;
     }
-    // Message-only calls: nothing, or a string literal.
-    if (name == 'fatalError' ||
-        name == 'preconditionFailure' ||
-        name == 'assertionFailure') {
-      final arg = rest.trimLeft();
-      if (!arg.startsWith(')') && !arg.startsWith('"')) {
-        bad.add('$name: $rest');
-      }
+    final index = name == 'precondition' || name == 'assert' ? 1 : 0;
+    if (args.length <= index) {
+      continue;
+    }
+    final message = args[index];
+    if (!_plainSwiftLiteral.hasMatch(message)) {
+      bad.add('$name: $message');
     }
   }
   return bad;
@@ -248,6 +290,26 @@ void main() {
       );
       expect(nonLiteralCrashMessages('precondition(a, "samples")'), isEmpty);
       expect(nonLiteralCrashMessages('fatalError()'), isEmpty);
+      // Second argument of precondition / assert, over several lines.
+      expect(nonLiteralCrashMessages('precondition(ok, msg)'), hasLength(1));
+      expect(
+        nonLiteralCrashMessages('assert(ok,\n  "a" + name)'),
+        hasLength(1),
+      );
+      expect(
+        nonLiteralCrashMessages(
+          'precondition(\n  f(a, b) && c,\n  "x \\(v)"\n)',
+        ),
+        hasLength(1),
+      );
+      expect(
+        nonLiteralCrashMessages(
+          'precondition(\n  f(a, b) && c,\n  "ok, fine"\n)',
+        ),
+        isEmpty,
+      );
+      expect(nonLiteralCrashMessages('assert(x > 0)'), isEmpty);
+      expect(nonLiteralCrashMessages(r'fatalError("a \"q\" b")'), isEmpty);
     });
   });
 
