@@ -253,22 +253,34 @@ cmd_upload_dsyms() {
   local derived="${NAPSTOP_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData}"
   local tmp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
   local log="${NAPSTOP_DSYM_LOG:-$tmp/dsym-upload.log}"
-  local dsyms=() d
+  local dsyms=() d seen=" "
 
+  # Shallowest first; one dSYM per bundle name (the build products repeat some under sub-folders).
   if [ -d "$build/ios/Release-iphoneos" ]; then
-    while IFS= read -r d; do dsyms+=("$d"); done \
-      < <(find "$build/ios/Release-iphoneos" -name '*.dSYM' -type d -prune | LC_ALL=C sort)
+    while IFS= read -r d; do
+      case "$seen" in *" $(basename "$d") "*) continue ;; esac
+      seen="$seen$(basename "$d") "
+      dsyms+=("$d")
+    done < <(find "$build/ios/Release-iphoneos" -name '*.dSYM' -type d -prune |
+      awk '{ n = gsub(/\//, "/"); printf "%04d %s\n", n, $0 }' | LC_ALL=C sort | cut -d' ' -f2-)
   fi
+  # The engine dSYM of the device slice (not ios-arm64_x86_64-simulator), unless the build already has one.
   local engine=none root="${FLUTTER_ROOT:-}"
   if [ -z "$root" ] && command -v flutter >/dev/null 2>&1; then
     root="$(cd "$(dirname "$(command -v flutter)")/.." && pwd)"
   fi
-  if [ -n "$root" ] && [ -d "$root/bin/cache/artifacts/engine/ios-release" ]; then
-    while IFS= read -r d; do
-      dsyms+=("$d")
-      engine="$(basename "$d")"
-    done < <(find "$root/bin/cache/artifacts/engine/ios-release" -path '*ios-arm64*' -name '*.dSYM' -type d -prune)
-  fi
+  case "$seen" in
+    *" Flutter.framework.dSYM "*) engine="Flutter.framework.dSYM (from the build)" ;;
+    *)
+      if [ -n "$root" ] && [ -d "$root/bin/cache/artifacts/engine/ios-release" ]; then
+        while IFS= read -r d; do
+          dsyms+=("$d")
+          engine="$(basename "$d") (from the engine cache)"
+        done < <(find "$root/bin/cache/artifacts/engine/ios-release" -path '*/ios-arm64/*' -name '*.dSYM' -type d \
+          -prune | head -n 1)
+      fi
+      ;;
+  esac
   if [ "${#dsyms[@]}" -eq 0 ]; then
     echo "- dSYM: none found"
     echo "::error::no dSYM under $build/ios/Release-iphoneos" >&2
@@ -495,7 +507,8 @@ EOF
     failed=$((failed + 1))
     echo "self-test FAIL: upload-dsyms without dSYM -> exit $rc" >&2
   fi
-  mkdir -p "$build/ios/Release-iphoneos/Runner.app.dSYM/Contents" "$build/ios/Release-iphoneos/X.framework.dSYM"
+  mkdir -p "$build/ios/Release-iphoneos/Runner.app.dSYM/Contents" "$build/ios/Release-iphoneos/X.framework.dSYM" \
+    "$build/ios/Release-iphoneos/a/X.framework.dSYM"
   rc=0
   (FLUTTER_ROOT="$tmp/no-flutter" NAPSTOP_UPLOAD_SYMBOLS="$tmp/upload-symbols" NAPSTOP_DSYM_LOG="$tmp/up.log" \
     NAPSTOP_DSYM_OUT="$tmp/dsyms" cmd_upload_dsyms "$build" "$tmp/good/Runner.app/GoogleService-Info.plist") \
