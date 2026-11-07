@@ -43,6 +43,9 @@ void main() {
     }
   });
 
+  // Screen 4 only READS the trip row, through tripMapTargetReaderProvider
+  // (T23.3, lib/core/map/trip_map_target.dart; guarded by
+  // test/core/map/trip_map_target_scan_test.dart).
   test('U19 one history path only (T28 HistorySync, D15)', () {
     final forbidden = RegExp(
       r'\b(pendingFinishedTrips|ackFinishedTrips|applyFinished|'

@@ -1032,6 +1032,18 @@
   "@destinationPinHint": {
     "description": "Screen 2: how to drop and move the pin."
   },
+  "destinationMapA11yLabel": "Bản đồ chọn điểm đến. Nhấn giữ để ghim.",
+  "@destinationMapA11yLabel": {
+    "description": "Screen 2 (iOS): VoiceOver label of the Apple map."
+  },
+  "mapPinA11yLabel": "Điểm đến",
+  "@mapPinA11yLabel": {
+    "description": "VoiceOver label of the destination pin on the Apple map (screens 2 and 4)."
+  },
+  "destinationNoMatchPinHint": "Không có trong danh sách? Nhấn giữ trên bản đồ để ghim điểm đến.",
+  "@destinationNoMatchPinHint": {
+    "description": "Screen 2: under 'no station matches' when the map is available."
+  },
   "destinationPinned": "Điểm đã ghim",
   "@destinationPinned": {
     "description": "Screen 2: name of a destination dropped on the map."
@@ -1529,6 +1541,26 @@
   "trackingMarkerLabel": "Báo",
   "@trackingMarkerLabel": {
     "description": "Screen 4: label under the alarm marker of the progress bar."
+  },
+  "trackingMapShow": "Xem bản đồ",
+  "@trackingMapShow": {
+    "description": "Screen 4 (iOS): button that opens the map card."
+  },
+  "trackingMapHide": "Ẩn bản đồ",
+  "@trackingMapHide": {
+    "description": "Screen 4 (iOS): button that closes the map card."
+  },
+  "trackingMapMyLocation": "Vị trí của tôi",
+  "@trackingMapMyLocation": {
+    "description": "Screen 4 map card: frames the user's location together with the destination."
+  },
+  "trackingMapSimulatedNote": "Chuyến giả lập: bản đồ không hiện vị trí của bạn.",
+  "@trackingMapSimulatedNote": {
+    "description": "Screen 4 map card of a simulated trip."
+  },
+  "trackingMapA11yLabel": "Bản đồ chuyến đi",
+  "@trackingMapA11yLabel": {
+    "description": "Screen 4 map card: VoiceOver label of the Apple map."
   },
   "trackingGpsGood": "GPS tốt",
   "@trackingGpsGood": {

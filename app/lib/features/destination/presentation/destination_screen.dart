@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/format/distance_format.dart';
+import 'package:napstop/core/map/map_geometry.dart';
+import 'package:napstop/core/map/map_wire.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/core/trip/trip_providers.dart';
@@ -32,8 +34,9 @@ const double _kSheetMax = 0.92;
 /// Height of the floating top bar under the status bar (8 + 48 + 8).
 const double _kTopBarHeight = NapSpace.s8 + NapSizes.minTouch + NapSpace.s8;
 
-/// Map kept visible under the top bar whatever the panel size.
-const double _kMinVisibleMap = NapSizes.minTouch;
+/// Room left for the zone badge under the top bar when framing a choice
+/// (medium `NapBadge`: 6 + line + 6).
+const double _kBadgeHeight = 32;
 
 /// Screen 2 "Chọn điểm đến" (T23 §9, §10). With [pickMode] (`?mode=pick`)
 /// confirming pops the `TripDestination` instead of opening screen 3.
@@ -60,7 +63,15 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   Timer? _paddingTimer;
   double _extent = _kSheetInitial;
   double _areaHeight = 0;
-  double _mapBottom = 0;
+
+  /// D9: map height (top of the screen to the top of the resting panel);
+  /// null until the panel area was measured (the map then fills the
+  /// screen for that first frame).
+  double? _mapHeight;
+
+  /// Part of the map the panel covers now.
+  double _mapCovered = 0;
+  MapPadding _framePadding = kNoMapPadding;
 
   @override
   void initState() {
@@ -125,9 +136,14 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
   }
 
   /// Shows the map after a choice: keyboard down, panel at its smallest.
+  /// The frame padding is computed for the panel's destination at once, so
+  /// the camera request of the same choice frames the area left visible
+  /// once the panel has settled.
   void _collapse() {
     _focus.unfocus();
     _moveSheet(_kSheetMin);
+    _extent = _kSheetMin;
+    _updatePadding();
   }
 
   bool _onSheetNotification(DraggableScrollableNotification n) {
@@ -142,21 +158,52 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     return false;
   }
 
-  /// Map padding = what the panel and the bottom bar cover, so the map's
-  /// attribution stays visible above the panel (T23.2 D6).
-  void _updatePadding() {
-    if (!mounted) {
+  /// The panel area changed size (first layout, rotation, keyboard):
+  /// measure again after this frame.
+  void _onAreaHeight(double height) {
+    if (height == _areaHeight) {
       return;
     }
-    final size = MediaQuery.sizeOf(context);
-    final top = MediaQuery.paddingOf(context).top + _kTopBarHeight;
-    final sheetTop = top + _areaHeight * (1 - _extent);
-    final padding = math.max(
-      0,
-      math.min(size.height - sheetTop, size.height - top - _kMinVisibleMap),
+    _areaHeight = height;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updatePadding());
+  }
+
+  /// T23.3 D9: the map ends at the top of the panel at its lowest resting
+  /// size, so the Apple logo and Legal link are never covered by the
+  /// resting panel. The keyboard is added back to the measured area: the
+  /// map keeps its size while the keyboard moves. The frame padding
+  /// follows the panel's current size.
+  void _updatePadding() {
+    if (!mounted || _areaHeight <= 0) {
+      return;
+    }
+    final topInset = MediaQuery.paddingOf(context).top;
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final mapHeight = destinationMapHeight(
+      topInset: topInset,
+      topBarHeight: _kTopBarHeight,
+      sheetAreaHeight: _areaHeight + keyboard,
+      sheetMin: _kSheetMin,
     );
-    if ((padding - _mapBottom).abs() >= 1) {
-      setState(() => _mapBottom = padding.toDouble());
+    final sheetTop = topInset + _kTopBarHeight + _areaHeight * (1 - _extent);
+    final covered = math.max(0, mapHeight - sheetTop).toDouble();
+    final padding = destinationFramePadding(
+      topInset: topInset,
+      topBarHeight: _kTopBarHeight,
+      badgeHeight: _kBadgeHeight,
+      mapHeight: mapHeight,
+      sheetTopY: sheetTop,
+    );
+    final old = _mapHeight;
+    if (old == null ||
+        (mapHeight - old).abs() >= 1 ||
+        (covered - _mapCovered).abs() >= 1 ||
+        padding != _framePadding) {
+      setState(() {
+        _mapHeight = mapHeight;
+        _mapCovered = covered;
+        _framePadding = padding;
+      });
     }
   }
 
@@ -297,7 +344,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
           point: selection?.point,
           radiusM: kPreviewRadiusM,
           cameraRequestId: state.cameraRequestId,
-          bottomPadding: _mapBottom,
+          framePadding: _framePadding,
           onLongPress: _onLongPress,
           onPinDragEnd: _onPinDragEnd,
         ),
@@ -305,7 +352,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     } else {
       map = MapUnavailablePlaceholder(
         message: l.destinationMapUnavailable,
-        bottomPadding: _mapBottom,
+        bottomPadding: _mapCovered,
       );
     }
 
@@ -313,7 +360,16 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          Positioned.fill(key: const ValueKey('map'), child: map),
+          // D9: from the top of the screen to the top of the resting panel
+          // (map and placeholder alike).
+          Positioned(
+            key: const ValueKey('map'),
+            top: 0,
+            left: 0,
+            right: 0,
+            height: _mapHeight ?? MediaQuery.sizeOf(context).height,
+            child: map,
+          ),
           // Keys: the badge comes and goes, the panel (and its sheet
           // controller) must keep its element.
           if (selection != null && mapAvailable)
@@ -338,7 +394,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, area) {
-                      _areaHeight = area.maxHeight;
+                      _onAreaHeight(area.maxHeight);
                       return NotificationListener<
                         DraggableScrollableNotification
                       >(
@@ -359,6 +415,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                             state: state,
                             showPinHint:
                                 mapAvailable && _extent <= _kSheetMin + 0.01,
+                            showNoMatchPinHint: mapAvailable,
                             onFilter: _controller.setFilter,
                             isSelected: _controller.isSelectedStation,
                             onSelectStation: _onSelectStation,
@@ -452,6 +509,7 @@ class _SheetBody extends StatelessWidget {
     required this.scroll,
     required this.state,
     required this.showPinHint,
+    required this.showNoMatchPinHint,
     required this.onFilter,
     required this.isSelected,
     required this.onSelectStation,
@@ -461,6 +519,7 @@ class _SheetBody extends StatelessWidget {
   final ScrollController scroll;
   final DestinationState state;
   final bool showPinHint;
+  final bool showNoMatchPinHint;
   final ValueChanged<DestinationFilter> onFilter;
   final bool Function(Station s) isSelected;
   final ValueChanged<Station> onSelectStation;
@@ -517,6 +576,7 @@ class _SheetBody extends StatelessWidget {
                   isSelected: isSelected,
                   onSelect: onSelectStation,
                   onRetry: onRetry,
+                  showNoMatchPinHint: showNoMatchPinHint,
                 ),
                 const SizedBox(height: NapSpace.s16),
               ],

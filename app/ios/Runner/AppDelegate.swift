@@ -34,6 +34,10 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     traces.attach(engineBridge.pluginRegistry.registrar(forPlugin: FlutterAssetTraceStore.pluginKey))
+    // T23.3 D1: the MapKit platform view of screens 2 and 4 (ADR-002).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: NapMapViewFactory.pluginKey) {
+      registrar.register(NapMapViewFactory(messenger: registrar.messenger()), withId: MapWire.viewType)
+    }
     let host = RuntimeHost.shared
       ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory, traces: traces)
     coreBridge.register(messenger: engineBridge.applicationRegistrar.messenger(), runtime: host.runtime)

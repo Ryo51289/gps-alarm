@@ -17,6 +17,7 @@ class OfflineSection extends StatelessWidget {
     required this.isSelected,
     required this.onSelect,
     required this.onRetry,
+    this.showNoMatchPinHint = false,
     super.key,
   });
 
@@ -24,6 +25,9 @@ class OfflineSection extends StatelessWidget {
   final bool Function(Station s) isSelected;
   final ValueChanged<Station> onSelect;
   final VoidCallback onRetry;
+
+  /// T23.3: a map is shown, so "no match" also says how to drop a pin.
+  final bool showNoMatchPinHint;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +57,15 @@ class OfflineSection extends StatelessWidget {
     } else if (queryChars(state.query) < kMinOfflineQueryChars) {
       status = PanelNote(l.destinationStartTyping);
     } else if (rows.isEmpty) {
-      status = PanelNote(l.destinationNoStationMatch(query));
+      status = showNoMatchPinHint
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PanelNote(l.destinationNoStationMatch(query)),
+                PanelNote(l.destinationNoMatchPinHint),
+              ],
+            )
+          : PanelNote(l.destinationNoStationMatch(query));
     } else {
       status = null;
     }

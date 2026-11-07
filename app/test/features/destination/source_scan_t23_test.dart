@@ -84,6 +84,7 @@ void main() {
       'android/app/src/main',
       'android/app/build.gradle.kts',
       'ios/Runner',
+      'ios/Core/Sources',
       'ios/Flutter',
       'ios/scripts',
       'pigeons',
@@ -99,6 +100,8 @@ void main() {
     expect(names, contains('android/app/build.gradle.kts'));
     expect(names, contains('pubspec.yaml'));
     expect(names, contains('ios/Runner/Info.plist'));
+    // T23.2 O2: the Swift core is scanned too (MapKit lives there, T23.3).
+    expect(names, contains('ios/Core/Sources/NapStopIOS/RuntimeHost.swift'));
     final hits = <String>[];
     for (final f in files) {
       final text = f.readAsStringSync();

@@ -8,33 +8,19 @@ library;
 import 'dart:math' as math;
 
 import 'package:meta/meta.dart';
+import 'package:napstop/core/map/map_point.dart';
 import 'package:napstop/core/text/vn_fold.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/destination/domain/station.dart';
 import 'package:napstop/features/destination/domain/station_search.dart';
 
+// T23.3: MapPoint and circleBounds moved to lib/core/map (the map widget
+// lives there); re-exported so screen 2 keeps its imports.
+export 'package:napstop/core/map/map_geometry.dart' show circleBounds;
+export 'package:napstop/core/map/map_point.dart';
+
 /// Filter chips of screen 2: "Tất cả / Ga tàu / Bến xe" (T23.2 D2).
 enum DestinationFilter { all, train, coach }
-
-/// A WGS84 point. The map widget converts it to and from the SDK type.
-@immutable
-final class MapPoint {
-  const new(this.lat, this.lng);
-
-  final double lat;
-  final double lng;
-
-  @override
-  bool operator ==(Object other) =>
-      other is MapPoint && other.lat == lat && other.lng == lng;
-
-  @override
-  int get hashCode => Object.hash(lat, lng);
-
-  /// PRIVACY: no coordinates.
-  @override
-  String toString() => 'MapPoint';
-}
 
 /// Letters/digits needed before the offline search runs (after [foldVi],
 /// spaces removed).
@@ -178,21 +164,6 @@ final class Selection {
       detail: pinnedDetail(current.name, meters),
     ),
     source: DestinationSource.mapPin,
-  );
-}
-
-const double _metersPerDegreeLat = 111320;
-
-/// Bounding box (south-west, north-east) of a circle of [radiusM] around
-/// [c], for `CameraUpdate.newLatLngBounds`.
-(MapPoint, MapPoint) circleBounds(MapPoint c, double radiusM) {
-  final dLat = radiusM / _metersPerDegreeLat;
-  final cosLat = math.cos(c.lat * math.pi / 180).abs();
-  // Near the poles the box spans every longitude.
-  final dLng = cosLat < 1e-6 ? 180.0 : radiusM / (_metersPerDegreeLat * cosLat);
-  return (
-    MapPoint(c.lat - dLat, c.lng - dLng),
-    MapPoint(c.lat + dLat, c.lng + dLng),
   );
 }
 

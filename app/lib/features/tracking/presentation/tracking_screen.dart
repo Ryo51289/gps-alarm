@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import 'package:napstop/core/bridge/core_bridge.dart';
 import 'package:napstop/core/bridge/core_bridge_provider.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/device/device_providers.dart';
+import 'package:napstop/core/map/trip_map_target.dart';
 import 'package:napstop/core/telemetry/telemetry.dart';
 import 'package:napstop/core/telemetry/telemetry_providers.dart';
 import 'package:napstop/features/alarm_settings/data/platform_alarm_caps_provider.dart';
@@ -23,6 +25,7 @@ import 'package:napstop/features/tracking/presentation/widgets/stop_confirm_shee
 import 'package:napstop/features/tracking/presentation/widgets/tracking_actions.dart';
 import 'package:napstop/features/tracking/presentation/widgets/tracking_banners.dart';
 import 'package:napstop/features/tracking/presentation/widgets/tracking_headline.dart';
+import 'package:napstop/features/tracking/presentation/widgets/tracking_map_card.dart';
 import 'package:napstop/features/tracking/presentation/widgets/tracking_status_row.dart';
 import 'package:napstop/features/tracking/presentation/widgets/trip_progress_bar.dart';
 import 'package:napstop/l10n/gen/app_localizations.dart';
@@ -66,6 +69,16 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   Timer? _previewEnd;
 
   bool _visible = true;
+
+  /// T23.3 Phần B (iOS): map card, closed whenever screen 4 opens.
+  bool _mapOpen = false;
+
+  /// Location permission `whileInUse`/`always`, read with [_refreshEnv].
+  bool _locationAuthorized = false;
+
+  /// Trip whose row was read for the card (once per trip).
+  String? _mapTripId;
+  TripMapTarget? _mapTarget;
 
   /// Waiting for the TripEnded event after an ENDED view.
   Timer? _endReasonWait;
@@ -120,7 +133,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   // ------------------------------------------------------------- lifecycle
 
   void _onHide() {
-    _visible = false;
+    // Rebuild: the map card stops MapKit's location dot (D17).
+    setState(() => _visible = false);
     _poll?.cancel();
     _poll = null;
     _tick?.cancel();
@@ -133,7 +147,7 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
   }
 
   void _onShow() {
-    _visible = true;
+    setState(() => _visible = true);
     unawaited(_refreshEnv());
     _startPolling();
     _syncTick(ref.read(trackedTripProvider).value);
@@ -193,8 +207,12 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     final deviceInfo = ref.read(deviceInfoProvider.future);
     List<StartRequirement> missing;
     bool? silentOk;
+    var locationAuthorized = false;
     try {
       final permissions = await _bridge.permissionStatus();
+      locationAuthorized =
+          permissions.location == LocationAccessMsg.whileInUse ||
+          permissions.location == LocationAccessMsg.always;
       final info = await deviceInfo;
       missing = checkStart(permissions, info).missing;
       silentOk = ringsInSilent(permissions, info);
@@ -212,10 +230,26 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     }
     setState(() {
       _missing = missing;
+      _locationAuthorized = locationAuthorized;
       _ringsInSilent = silentOk;
       _device = device;
       _nowMs = _now;
     });
+  }
+
+  /// T23.3 Phần B: the destination of the map card comes from the trip row
+  /// (the bridge carries no coordinates, T14 D5), read once per trip. iOS
+  /// only; no row or no valid destination = no map button.
+  Future<void> _loadMapTarget(String tripId) async {
+    if (defaultTargetPlatform != TargetPlatform.iOS || _mapTripId == tripId) {
+      return;
+    }
+    _mapTripId = tripId;
+    final target = await ref.read(tripMapTargetReaderProvider)(tripId);
+    if (!mounted || _mapTripId != tripId) {
+      return;
+    }
+    setState(() => _mapTarget = target);
   }
 
   Future<void> _pollDevice() async {
@@ -240,6 +274,9 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     _nowMs = _now;
     _setCrashKeys(status);
     _syncTick(status);
+    if (status is TrackingActive) {
+      unawaited(_loadMapTarget(status.trip.tripId));
+    }
     switch (status) {
       case TrackingActive(:final trip) when wantsBatterySheetOf(trip):
         _scheduleSheetCheck();
@@ -611,6 +648,8 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
     final simulation = trip.simulation;
     final progress = view.progress;
     final marker = view.markerProgress;
+    // Set on iOS only, for this trip.
+    final mapTarget = _mapTripId == trip.tripId ? _mapTarget : null;
     const gap = SizedBox(height: NapSpace.section);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -671,6 +710,29 @@ class _TrackingScreenState extends ConsumerState<TrackingScreen> {
                             (marker * 100).round(),
                           ),
                   ),
+                ],
+                if (mapTarget != null) ...[
+                  gap,
+                  NapButton(
+                    label: _mapOpen ? l.trackingMapHide : l.trackingMapShow,
+                    variant: NapButtonVariant.secondary,
+                    size: NapButtonSize.medium,
+                    onPressed: () => setState(() => _mapOpen = !_mapOpen),
+                  ),
+                  if (_mapOpen) ...[
+                    const SizedBox(height: NapSpace.s12),
+                    TrackingMapCard(
+                      destination: mapTarget.destination,
+                      radiusM: mapTarget.radiusM,
+                      // Off under /alarm too (review T23.3 #4): saves battery.
+                      showsUser:
+                          !trip.simulated &&
+                          _locationAuthorized &&
+                          _visible &&
+                          _routeCurrent,
+                      simulated: trip.simulated,
+                    ),
+                  ],
                 ],
                 gap,
                 TrackingStatusRow(

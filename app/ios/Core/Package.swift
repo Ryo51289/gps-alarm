@@ -19,5 +19,7 @@ let package = Package(
         .target(name: "NapStopIOS", dependencies: ["Trip", "TripRuntime"], swiftSettings: [.swiftLanguageMode(.v5)]),
         .testTarget(name: "TripTests", dependencies: ["Trip"]),
         .testTarget(name: "TripRuntimeTests", dependencies: ["Trip", "TripRuntime"]),
+        // T23.3: map wire format (MapWire.swift, Foundation only), parity with fixtures/map_wire.
+        .testTarget(name: "NapStopIOSTests", dependencies: ["NapStopIOS"]),
     ]
 )
