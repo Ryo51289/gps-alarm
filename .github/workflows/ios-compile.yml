@@ -652,6 +652,25 @@ jobs:
           bash ios/scripts/firebase-ci-check.sh --self-test
           bash ios/scripts/firebase-ci-check.sh check build/ios/iphoneos/Runner.app | tee "$RUNNER_TEMP/firebase-check.txt"
 
+      - name: TEMP T29.2 IDFA diagnostics (CI trial only)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          app=build/ios/iphoneos/Runner.app
+          {
+            echo "- IDFA diag:"
+            for b in "$app/Runner" "$app"/Frameworks/*.framework/*; do
+              [ -f "$b" ] || continue
+              case "$b" in *.plist | *.xcprivacy | *.nib | *.car) continue ;; esac
+              file "$b" | grep -q Mach-O || continue
+              echo "  - ${b#"$app"/}"
+              otool -L "$b" | grep -E 'System/Library' | sed 's/^[[:space:]]*/    L /;s/ (compat.*//' || true
+              strings -a "$b" | grep -oE 'ASIdentifierManager|advertisingIdentifier|IdentitySupport|ATTrackingManager|trackingAuthorizationStatus|AdSupport' | sort | uniq -c | sed 's/^/    S /' || true
+              nm -u "$b" 2>/dev/null | grep -E 'ASIdentifier|ATTracking|AdSupport' | sed 's/^/    U /' || true
+            done
+            find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -path '*SourcePackages/artifacts*' -name '*.xcframework' 2>/dev/null | sed 's|.*/SourcePackages/|    A |' | sort -u
+          } | tee -a "$RUNNER_TEMP/firebase-check.txt"
+
       # T29.2 FD02 / D5: not blocking (the IPA is usable without symbols). The tool output stays in
       # $RUNNER_TEMP/dsym-upload.log (not published: it may print the app id).
       - name: Upload dSYMs to Crashlytics
