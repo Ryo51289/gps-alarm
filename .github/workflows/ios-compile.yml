@@ -68,8 +68,6 @@ concurrency:
 env:
   FLUTTER_VERSION: '3.47.8'
   IOS_BUNDLE_ID: 'app.napstop'
-  # T29.2 D6: read by the Package.swift of firebase_analytics (FirebaseAnalyticsCore, no AdSupport).
-  FIREBASE_ANALYTICS_WITHOUT_ADID: 'true'
 
 defaults:
   run:
