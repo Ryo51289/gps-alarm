@@ -9,7 +9,9 @@
 #       C2 the 7 collection keys of §5 are false in the built Info.plist, no NSUserTrackingUsageDescription;
 #       C3 `otool -L` of Runner and of every binary in Runner.app/Frameworks links neither AdSupport nor
 #          AppTrackingTransparency; `nm -u` has no _OBJC_CLASS_$_ASIdentifierManager / ATTrackingManager; `strings` has no
-#          GoogleAppMeasurementIdentitySupport (the IDFA part of the FirebaseAnalytics product);
+#          GoogleAppMeasurementIdentitySupport; Runner.app/Frameworks has neither GoogleAppMeasurementIdentitySupport.framework
+#          nor GoogleAdsOnDeviceConversion.framework (what the FirebaseAnalytics, not Core, product embeds: the only signal
+#          that actually changes, see the negative control in T29.2 notes);
 #       C4 every PrivacyInfo.xcprivacy in the bundle has NSPrivacyTracking != true and no NSPrivacyTrackingDomains.
 #       Summary lines ("- ...") on stdout, "::error::" lines on stderr; exit 1 when any check fails.
 #   firebase-ci-check.sh upload-dsyms <build_dir> <GoogleService-Info.plist>
@@ -178,6 +180,14 @@ cmd_check() {
   if [ -d "$app/Frameworks" ]; then
     for fw in "$app"/Frameworks/*.framework; do
       [ -d "$fw" ] || continue
+      # The FirebaseAnalytics (not Core) product embeds these two; the IDFA code loads AdSupport at run time, so
+      # neither otool -L nor nm sees it (negative control of T29.2, CI run 42370142384 / ios-ipa-t292c-noadid).
+      case "$(basename "$fw")" in
+        GoogleAppMeasurementIdentitySupport.framework | GoogleAdsOnDeviceConversion.framework)
+          echo "::error::C3 $(rel "$fw" "$app") is embedded (FirebaseAnalytics with IDFA; set FIREBASE_ANALYTICS_WITHOUT_ADID)" >&2
+          c3=FAILED
+          ;;
+      esac
       bin="$fw/$(basename "$fw" .framework)"
       [ -f "$bin" ] && bins+=("$bin")
     done
@@ -197,8 +207,9 @@ cmd_check() {
       continue
     fi
     n=$((n + 1))
-    if grep -Eq 'AdSupport\.framework|AppTrackingTransparency\.framework' <<<"$libs"; then
-      echo "::error::C3 $(rel "$bin" "$app") links AdSupport or AppTrackingTransparency (IDFA/ATT, T29.2 D6)" >&2
+    if grep -Eq 'AdSupport\.framework|AppTrackingTransparency\.framework|GoogleAppMeasurementIdentitySupport|GoogleAdsOnDeviceConversion' \
+      <<<"$libs"; then
+      echo "::error::C3 $(rel "$bin" "$app") links AdSupport, AppTrackingTransparency or an IDFA library (T29.2 D6)" >&2
       c3=FAILED
     fi
     # Second signal, independent of the load commands (RK-T292-1): a reference to the IDFA / ATT classes, or the
@@ -541,6 +552,19 @@ EOF
   app="$(mk identity-support)"
   printf '%s\n' 'x' 'GoogleAppMeasurementIdentitySupport' >"$app/Runner.strings"
   expect 1 "Runner contains GoogleAppMeasurementIdentitySupport" "$app"
+
+  # What the CI negative control actually showed: extra embedded frameworks, clean load commands and symbols.
+  local x
+  for x in GoogleAppMeasurementIdentitySupport GoogleAdsOnDeviceConversion; do
+    app="$(mk "embedded-$x")"
+    mkdir -p "$app/Frameworks/$x.framework"
+    : >"$app/Frameworks/$x.framework/$x"
+    expect 1 "$x.framework embedded" "$app"
+  done
+
+  app="$(mk rpath-identity)"
+  echo '@rpath/GoogleAppMeasurementIdentitySupport.framework/GoogleAppMeasurementIdentitySupport' >>"$app/Runner.libs"
+  expect 1 "Runner loads GoogleAppMeasurementIdentitySupport" "$app"
 
   app="$(mk no-runner)"
   rm "$app/Runner"
