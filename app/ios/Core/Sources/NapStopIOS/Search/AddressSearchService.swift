@@ -11,7 +11,7 @@
     import MapKit
 
     @MainActor
-    public final class AddressSearchService: NSObject, MKLocalSearchCompleterDelegate {
+    public final class AddressSearchService: NSObject, @preconcurrency MKLocalSearchCompleterDelegate {
         public typealias Reply = ([String: Any]) -> Void
 
         static let completeTimeoutSeconds = 10.0

@@ -100,6 +100,33 @@ Future<void> _type(WidgetTester tester, String text) async {
   await tester.enterText(field, text);
 }
 
+/// What the address section shows now, as plain flags for a failure reason
+/// (public UI strings only, no typed text).
+String _flags(WidgetTester tester) {
+  bool has(String s) => find.text(s).evaluate().isNotEmpty;
+  return 'header=${has('Địa chỉ · Apple Maps')} '
+      'loading=${has('Đang tìm địa chỉ…')} '
+      'empty=${has('Không tìm thấy địa chỉ nào.')} '
+      'offline=${has('Không có mạng. Vẫn tìm được ga, bến xe.')} '
+      'unavailable=${has('Không tìm được địa chỉ lúc này.')} '
+      'throttled=${has('Tìm địa chỉ đang tạm bận. Thử lại sau ít phút.')} '
+      'resolving=${has('Đang lấy vị trí…')}';
+}
+
+/// Waits for the address row [index] (a fake item of the real channel).
+Future<void> _expectRow(WidgetTester tester, int index) async {
+  final row = find.byKey(ValueKey('address-$index'));
+  expect(
+    await _pumpUntil(
+      tester,
+      () => row.evaluate().isNotEmpty,
+      timeout: const Duration(seconds: 10),
+    ),
+    isTrue,
+    reason: 'no address row $index: ${_flags(tester)}',
+  );
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -108,46 +135,40 @@ void main() {
     await _fake(null);
   });
 
+  // Titles carry the token "zzq" so that no station of the offline dataset
+  // matches the same text.
   testWidgets('AS-I01 fake suggestions come through the real channel', (
     tester,
   ) async {
     await _fake([
       {
-        't': 'Bến xe Giáp Bát',
+        't': 'Zzq Giáp Bát',
         's': 'Hà Nội',
         'lat': 20.9806,
         'lng': 105.8412,
         'country': 'VN',
       },
       {
-        't': 'Bến Thành',
+        't': 'Zzq Thành',
         's': 'TP HCM',
         'lat': 10.7725,
         'lng': 106.698,
         'country': 'VN',
       },
-      {'t': 'Phố khác', 's': '', 'lat': 10.0, 'lng': 106.0, 'country': 'VN'},
+      {'t': 'Khác', 's': '', 'lat': 10, 'lng': 106, 'country': 'VN'},
     ]);
     await _openScreen2(tester);
-    await _type(tester, 'bến');
-    expect(
-      await _pumpUntil(
-        tester,
-        () => find.text('Bến Thành').evaluate().isNotEmpty,
-        timeout: const Duration(seconds: 10),
-      ),
-      isTrue,
-      reason: 'no address row',
-    );
+    await _type(tester, 'zzq');
+    await _expectRow(tester, 1);
     expect(find.text('Địa chỉ · Apple Maps'), findsOneWidget);
-    expect(find.text('Phố khác'), findsNothing);
-    final row = find.text('Bến Thành').first;
+    expect(find.text('Khác'), findsNothing);
+    final row = find.byKey(const ValueKey('address-1'));
     await tester.ensureVisible(row);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(row);
     await _wait(tester, const Duration(seconds: 3));
     final s = await _diagState(tester);
-    expect(s['annotations'], 1);
+    expect(s['annotations'], 1, reason: _flags(tester));
     final pin = s['pin']! as List;
     expect((pin[0]! as num).toDouble(), closeTo(10.7725, 1e-4));
     expect((pin[1]! as num).toDouble(), closeTo(106.698, 1e-4));
@@ -157,20 +178,12 @@ void main() {
     tester,
   ) async {
     await _fake([
-      {'t': 'Điểm xa', 's': '', 'lat': 16.5, 'lng': 111.6, 'country': null},
+      {'t': 'Zzq xa', 's': '', 'lat': 16.5, 'lng': 111.6, 'country': null},
     ]);
     await _openScreen2(tester);
-    await _type(tester, 'điểm');
-    expect(
-      await _pumpUntil(
-        tester,
-        () => find.text('Điểm xa').evaluate().isNotEmpty,
-        timeout: const Duration(seconds: 10),
-      ),
-      isTrue,
-      reason: 'no address row',
-    );
-    final row = find.text('Điểm xa').first;
+    await _type(tester, 'zzq');
+    await _expectRow(tester, 0);
+    final row = find.byKey(const ValueKey('address-0'));
     await tester.ensureVisible(row);
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(row);
@@ -181,10 +194,10 @@ void main() {
             .text('NapStop chưa hỗ trợ điểm đến ở khu vực này.')
             .evaluate()
             .isNotEmpty,
-        timeout: const Duration(seconds: 5),
+        timeout: const Duration(seconds: 8),
       ),
       isTrue,
-      reason: 'no snack bar',
+      reason: 'no snack bar: ${_flags(tester)}',
     );
     final s = await _diagState(tester);
     expect(s['annotations'], 0);

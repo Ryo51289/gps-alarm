@@ -433,8 +433,8 @@ import MapKit
 
 final class AddressSearchErrorCodeTests: XCTestCase {
   func testMapKitErrorCodesMatchTheWireConstants() {
-    XCTAssertEqual(MKError.Code.loadingThrottled.rawValue, AddressSearchWire.mkLoadingThrottled)
-    XCTAssertEqual(MKError.Code.placemarkNotFound.rawValue, AddressSearchWire.mkPlacemarkNotFound)
+    XCTAssertEqual(Int(MKError.Code.loadingThrottled.rawValue), AddressSearchWire.mkLoadingThrottled)
+    XCTAssertEqual(Int(MKError.Code.placemarkNotFound.rawValue), AddressSearchWire.mkPlacemarkNotFound)
     XCTAssertEqual(MKError.errorDomain, AddressSearchWire.mkErrorDomain)
   }
 }
