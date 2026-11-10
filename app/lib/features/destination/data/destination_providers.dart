@@ -1,9 +1,12 @@
-/// Providers of screen 2's data (T23 §2, T23.2): the offline catalog of
+/// Providers of screen 2's data (T23 §2, T23.2, T23.5): the offline catalog of
 /// stations. Search runs on this catalog only (ADR-002 §4).
 library;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:napstop/features/destination/data/address_search_client.dart';
 import 'package:napstop/features/destination/data/station_repository.dart';
+import 'package:napstop/features/destination/presentation/widgets/destination_map.dart';
 
 final stationRepositoryProvider = Provider<StationRepository>(
   (ref) => StationRepository(),
@@ -14,4 +17,21 @@ final stationRepositoryProvider = Provider<StationRepository>(
 /// `ref.invalidate` (the "Thử lại" button; no automatic retry, T22 D3).
 final stationCatalogProvider = FutureProvider<StationCatalog>(
   (ref) => ref.watch(stationRepositoryProvider).load(),
+);
+
+/// Apple Maps address search (T23.5): iOS only; Android has no MapKit
+/// (null). Widget tests override it with a fake.
+final addressSearchClientProvider = Provider<AddressSearchClient?>(
+  (ref) => defaultTargetPlatform == TargetPlatform.iOS
+      ? const MethodChannelAddressSearchClient()
+      : null,
+);
+
+/// D10: address suggestions are shown only with a client and a map on the
+/// same screen (DPLA Attachment 6 §2.4: an address result is shown with its
+/// map).
+final addressSearchEnabledProvider = Provider<bool>(
+  (ref) =>
+      ref.watch(addressSearchClientProvider) != null &&
+      ref.watch(destinationMapBuilderProvider) != null,
 );

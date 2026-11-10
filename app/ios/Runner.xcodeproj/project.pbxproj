@@ -29,6 +29,7 @@
 		D17200012EC8000100A0B001 /* IOSAlarmHostApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */; };
 		D18100012EC9000100A0B001 /* FlutterAssetTraceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D18100022EC9000100A0B001 /* FlutterAssetTraceStore.swift */; };
 		D1A300012ECA000100A0B001 /* NapMapPlatformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A300022ECA000100A0B001 /* NapMapPlatformView.swift */; };
+		D1A300052ECA000100A0B001 /* AddressSearchChannel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A300042ECA000100A0B001 /* AddressSearchChannel.swift */; };
 		D17200032EC8000100A0B001 /* alarm_horn.wav in Resources */ = {isa = PBXBuildFile; fileRef = D17200062EC8000100A0B001 /* alarm_horn.wav */; };
 		D17200042EC8000100A0B001 /* alarm_bell.wav in Resources */ = {isa = PBXBuildFile; fileRef = D17200072EC8000100A0B001 /* alarm_bell.wav */; };
 		D17200052EC8000100A0B001 /* alarm_beep.wav in Resources */ = {isa = PBXBuildFile; fileRef = D17200082EC8000100A0B001 /* alarm_beep.wav */; };
@@ -92,6 +93,7 @@
 		D17200022EC8000100A0B001 /* IOSAlarmHostApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSAlarmHostApi.swift; sourceTree = "<group>"; };
 		D18100022EC9000100A0B001 /* FlutterAssetTraceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlutterAssetTraceStore.swift; sourceTree = "<group>"; };
 		D1A300022ECA000100A0B001 /* NapMapPlatformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NapMapPlatformView.swift; sourceTree = "<group>"; };
+		D1A300042ECA000100A0B001 /* AddressSearchChannel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressSearchChannel.swift; sourceTree = "<group>"; };
 		D17200062EC8000100A0B001 /* alarm_horn.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_horn.wav; sourceTree = "<group>"; };
 		D17200072EC8000100A0B001 /* alarm_bell.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_bell.wav; sourceTree = "<group>"; };
 		D17200082EC8000100A0B001 /* alarm_beep.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_beep.wav; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 			isa = PBXGroup;
 			children = (
 				D1A300022ECA000100A0B001 /* NapMapPlatformView.swift */,
+				D1A300042ECA000100A0B001 /* AddressSearchChannel.swift */,
 			);
 			path = Map;
 			sourceTree = "<group>";
@@ -397,6 +400,7 @@
 				D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */,
 				D18100012EC9000100A0B001 /* FlutterAssetTraceStore.swift in Sources */,
 				D1A300012ECA000100A0B001 /* NapMapPlatformView.swift in Sources */,
+				D1A300052ECA000100A0B001 /* AddressSearchChannel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

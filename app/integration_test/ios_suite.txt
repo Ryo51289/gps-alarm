@@ -16,3 +16,5 @@ integration_test/t18_1_ios_simulation_test.dart
 integration_test/map_ios_test.dart
 # T17.1 PC05 needs a point 1.23 km from the station: its own group, last.
 integration_test/t17_1_ios_permissions_test.dart 17.4800199,106.5997285
+# T23.5: address search channel (Apple Maps) on the Simulator, NAPSTOP_DIAG diagFake; no point.
+integration_test/address_search_ios_test.dart

@@ -18,6 +18,7 @@ class OfflineSection extends StatelessWidget {
     required this.onSelect,
     required this.onRetry,
     this.showNoMatchPinHint = false,
+    this.addressOn = false,
     super.key,
   });
 
@@ -28,6 +29,9 @@ class OfflineSection extends StatelessWidget {
 
   /// T23.3: a map is shown, so "no match" also says how to drop a pin.
   final bool showNoMatchPinHint;
+
+  /// T23.5: address search is on, so the "start typing" note mentions it.
+  final bool addressOn;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +59,11 @@ class OfflineSection extends StatelessWidget {
     } else if (!catalog.hasValue) {
       status = PanelNote(l.destinationCatalogLoading, loading: true);
     } else if (queryChars(state.query) < kMinOfflineQueryChars) {
-      status = PanelNote(l.destinationStartTyping);
+      status = PanelNote(
+        addressOn
+            ? l.destinationStartTypingWithAddress
+            : l.destinationStartTyping,
+      );
     } else if (rows.isEmpty) {
       status = showNoMatchPinHint
           ? Column(

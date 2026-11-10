@@ -9,6 +9,8 @@ import UIKit
   private let coreBridge = CoreBridgeStub()
   /// T18.1 D12: bundled simulation traces; the registrar is attached once the Flutter engine exists.
   private let traces = FlutterAssetTraceStore()
+  /// T23.5: address search channel (Apple Maps), created with the Flutter engine.
+  private var addressSearch: AddressSearchChannel?
 
   override func application(
     _ application: UIApplication,
@@ -37,6 +39,10 @@ import UIKit
     // T23.3 D1: the MapKit platform view of screens 2 and 4 (ADR-002).
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: NapMapViewFactory.pluginKey) {
       registrar.register(NapMapViewFactory(messenger: registrar.messenger()), withId: MapWire.viewType)
+    }
+    // T23.5 D1: the address search channel (app level, not tied to a map view).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NapStopAddressSearch") {
+      addressSearch = AddressSearchChannel.register(messenger: registrar.messenger())
     }
     let host = RuntimeHost.shared
       ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory, traces: traces)

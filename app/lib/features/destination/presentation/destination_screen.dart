@@ -13,10 +13,12 @@ import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/core/trip/trip_providers.dart';
 import 'package:napstop/features/destination/data/destination_providers.dart';
+import 'package:napstop/features/destination/domain/address_search.dart';
 import 'package:napstop/features/destination/domain/destination_logic.dart';
 import 'package:napstop/features/destination/domain/station.dart';
 import 'package:napstop/features/destination/presentation/destination_controller.dart';
 import 'package:napstop/features/destination/presentation/destination_strings.dart';
+import 'package:napstop/features/destination/presentation/widgets/address_section.dart';
 import 'package:napstop/features/destination/presentation/widgets/destination_bottom_bar.dart';
 import 'package:napstop/features/destination/presentation/widgets/destination_map.dart';
 import 'package:napstop/features/destination/presentation/widgets/map_unavailable_placeholder.dart';
@@ -227,6 +229,26 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     _collapse();
   }
 
+  Future<void> _onSelectAddress(int nativeIndex) async {
+    final pick = await _controller.selectAddress(nativeIndex);
+    if (!mounted) {
+      return;
+    }
+    final l = AppLocalizations.of(context);
+    switch (pick) {
+      case AddressPick.picked:
+        _collapse();
+      case AddressPick.outsideArea:
+        _showSnack(l.destinationAddressOutsideArea);
+      case AddressPick.offline:
+        _showSnack(l.destinationAddressOffline);
+      case AddressPick.failed:
+        _showSnack(l.destinationAddressResolveFailed);
+      case AddressPick.ignored:
+        break;
+    }
+  }
+
   void _onLongPress(MapPoint p) {
     _controller.dropPin(
       p,
@@ -333,6 +355,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     // T23.2 D4: no builder (no map on this platform yet) = placeholder.
     final mapBuilder = ref.watch(destinationMapBuilderProvider);
     final mapAvailable = mapBuilder != null;
+    final addressOn = ref.watch(addressSearchEnabledProvider);
     final selection = state.selection;
     final topInset = MediaQuery.paddingOf(context).top;
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
@@ -419,6 +442,9 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                             onFilter: _controller.setFilter,
                             isSelected: _controller.isSelectedStation,
                             onSelectStation: _onSelectStation,
+                            isSelectedAddress: _controller.isSelectedAddress,
+                            onSelectAddress: _onSelectAddress,
+                            addressOn: addressOn,
                             onRetry: () =>
                                 ref.invalidate(stationCatalogProvider),
                           ),
@@ -465,7 +491,9 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                     ),
                     Expanded(
                       child: NapSearchField(
-                        hint: l.destinationSearchHint,
+                        hint: addressOn
+                            ? l.destinationSearchHintWithAddress
+                            : l.destinationSearchHint,
                         controller: _query,
                         focusNode: _focus,
                         autofocus: true,
@@ -513,6 +541,9 @@ class _SheetBody extends StatelessWidget {
     required this.onFilter,
     required this.isSelected,
     required this.onSelectStation,
+    required this.isSelectedAddress,
+    required this.onSelectAddress,
+    required this.addressOn,
     required this.onRetry,
   });
 
@@ -523,6 +554,9 @@ class _SheetBody extends StatelessWidget {
   final ValueChanged<DestinationFilter> onFilter;
   final bool Function(Station s) isSelected;
   final ValueChanged<Station> onSelectStation;
+  final bool Function(AddressSuggestion s) isSelectedAddress;
+  final ValueChanged<int> onSelectAddress;
+  final bool addressOn;
   final VoidCallback onRetry;
 
   @override
@@ -577,6 +611,12 @@ class _SheetBody extends StatelessWidget {
                   onSelect: onSelectStation,
                   onRetry: onRetry,
                   showNoMatchPinHint: showNoMatchPinHint,
+                  addressOn: addressOn,
+                ),
+                AddressSection(
+                  state: state,
+                  isSelected: isSelectedAddress,
+                  onSelect: onSelectAddress,
                 ),
                 const SizedBox(height: NapSpace.s16),
               ],
