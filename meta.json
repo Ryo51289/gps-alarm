@@ -1,0 +1,14 @@
+{
+  "ref": "ci/ios-ipa-t292e",
+  "sha": "3ab549df6589d8961c6c626fcd406f224e2efb11",
+  "runId": "42741120860",
+  "runUrl": "https://github.com/Ryo51289/gps-alarm/actions/runs/42741120860",
+  "publishedAt": "2026-11-10T02:23:28Z",
+  "jobs": {
+    "plan": "success",
+    "swift-macos": "skipped",
+    "ios-sim": "skipped",
+    "ios-device": "success"
+  },
+  "warnings": 0
+}
