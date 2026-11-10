@@ -21,7 +21,9 @@ import 'package:napstop/core/map/nap_map_view.dart';
 import 'package:napstop/features/destination/data/address_search_client.dart';
 import 'package:napstop/features/destination/data/address_search_wire.dart';
 import 'package:napstop/features/destination/domain/address_search.dart';
+import 'package:napstop/features/destination/presentation/destination_screen.dart';
 import 'package:napstop/features/onboarding/data/onboarding_progress.dart';
+import 'package:napstop/l10n/gen/app_localizations.dart';
 
 final bool _notIos = !Platform.isIOS;
 
@@ -102,15 +104,19 @@ Future<void> _type(WidgetTester tester, String text) async {
 
 /// What the address section shows now, as plain flags for a failure reason
 /// (public UI strings only, no typed text).
+AppLocalizations _l(WidgetTester tester) =>
+    AppLocalizations.of(tester.element(find.byType(DestinationScreen)));
+
 String _flags(WidgetTester tester) {
+  final l = _l(tester);
   bool has(String s) => find.text(s).evaluate().isNotEmpty;
-  return 'header=${has('Địa chỉ · Apple Maps')} '
-      'loading=${has('Đang tìm địa chỉ…')} '
-      'empty=${has('Không tìm thấy địa chỉ nào.')} '
-      'offline=${has('Không có mạng. Vẫn tìm được ga, bến xe.')} '
-      'unavailable=${has('Không tìm được địa chỉ lúc này.')} '
-      'throttled=${has('Tìm địa chỉ đang tạm bận. Thử lại sau ít phút.')} '
-      'resolving=${has('Đang lấy vị trí…')}';
+  return 'header=${has(l.destinationAddressHeader)} '
+      'loading=${has(l.destinationAddressLoading)} '
+      'empty=${has(l.destinationAddressEmpty)} '
+      'offline=${has(l.destinationAddressOffline)} '
+      'unavailable=${has(l.destinationAddressUnavailable)} '
+      'throttled=${has(l.destinationAddressThrottled)} '
+      'resolving=${has(l.destinationAddressResolving)}';
 }
 
 /// Waits for the address row [index] (a fake item of the real channel).
@@ -160,7 +166,7 @@ void main() {
     await _openScreen2(tester);
     await _type(tester, 'zzq');
     await _expectRow(tester, 1);
-    expect(find.text('Địa chỉ · Apple Maps'), findsOneWidget);
+    expect(find.text(_l(tester).destinationAddressHeader), findsOneWidget);
     expect(find.text('Khác'), findsNothing);
     final row = find.byKey(const ValueKey('address-1'));
     await tester.ensureVisible(row);
@@ -191,7 +197,7 @@ void main() {
       await _pumpUntil(
         tester,
         () => find
-            .text('NapStop chưa hỗ trợ điểm đến ở khu vực này.')
+            .text(_l(tester).destinationAddressOutsideArea)
             .evaluate()
             .isNotEmpty,
         timeout: const Duration(seconds: 8),
