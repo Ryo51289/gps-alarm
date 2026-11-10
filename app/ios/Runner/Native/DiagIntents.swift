@@ -84,4 +84,20 @@
       return .result()
     }
   }
+
+  /// T29.2 §4.2 PM04: a native crash for Crashlytics. Opens the app, then crashes 8 s later so Dart has configured
+  /// Firebase in this process (crashes before that are not recorded, RK-T292-5). The message is a literal (FU05).
+  @available(iOS 16.0, *)
+  struct DiagCrashIntent: AppIntent {
+    static var title: LocalizedStringResource = "NapStop: thử crash native"
+    static var openAppWhenRun = true
+
+    func perform() async throws -> some IntentResult {
+      Task {
+        try? await Task.sleep(nanoseconds: 8_000_000_000)
+        fatalError("T29.2 native probe")
+      }
+      return .result()
+    }
+  }
 #endif

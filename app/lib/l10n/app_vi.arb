@@ -2837,5 +2837,57 @@
   "alarmFallbackNoteIos": "Báo thức đang kêu. Bạn có thể tắt ngay tại đây.",
   "@alarmFallbackNoteIos": {
     "description": "Flutter screen 5 on iOS (T28.3 §7): note while the iPhone alarm rings and the app is open (replaces alarmFallbackNote)."
+  },
+  "destinationSearchHintWithAddress": "Tìm ga, bến xe, địa chỉ…",
+  "@destinationSearchHintWithAddress": {
+    "description": "Screen 2 (iOS): hint of the search field when address search (Apple Maps) is on."
+  },
+  "destinationStartTypingWithAddress": "Gõ tên ga, bến xe hoặc địa chỉ.",
+  "@destinationStartTypingWithAddress": {
+    "description": "Screen 2 (iOS): note before the user typed enough, when address search is on."
+  },
+  "destinationAddressHeader": "Địa chỉ · Apple Maps",
+  "@destinationAddressHeader": {
+    "description": "Screen 2 (iOS): header of the address suggestions section."
+  },
+  "destinationAddressDisclosure": "Nội dung bạn gõ được gửi tới Apple để tìm địa chỉ. NapStop không gửi vị trí của bạn.",
+  "@destinationAddressDisclosure": {
+    "description": "Screen 2 (iOS): always shown in the address section; what is sent to Apple."
+  },
+  "destinationAddressLoading": "Đang tìm địa chỉ…",
+  "@destinationAddressLoading": {
+    "description": "Screen 2 (iOS): address suggestions are loading."
+  },
+  "destinationAddressEmpty": "Không tìm thấy địa chỉ nào.",
+  "@destinationAddressEmpty": {
+    "description": "Screen 2 (iOS): Apple returned no address suggestion."
+  },
+  "destinationAddressOffline": "Không có mạng. Vẫn tìm được ga, bến xe.",
+  "@destinationAddressOffline": {
+    "description": "Screen 2 (iOS): no connection for address search; stations still work."
+  },
+  "destinationAddressThrottled": "Tìm địa chỉ đang tạm bận. Thử lại sau ít phút.",
+  "@destinationAddressThrottled": {
+    "description": "Screen 2 (iOS): Apple rate-limited the address search."
+  },
+  "destinationAddressUnavailable": "Không tìm được địa chỉ lúc này.",
+  "@destinationAddressUnavailable": {
+    "description": "Screen 2 (iOS): address search failed (error or timeout)."
+  },
+  "destinationAddressResolving": "Đang lấy vị trí…",
+  "@destinationAddressResolving": {
+    "description": "Screen 2 (iOS): subtitle of the address row whose location is being read."
+  },
+  "destinationAddressRowFallback": "Địa chỉ",
+  "@destinationAddressRowFallback": {
+    "description": "Screen 2 (iOS): subtitle of an address row that has no secondary line."
+  },
+  "destinationAddressResolveFailed": "Không lấy được vị trí của địa chỉ này. Thử lại.",
+  "@destinationAddressResolveFailed": {
+    "description": "Snack bar on screen 2 (iOS): the chosen address could not be located."
+  },
+  "destinationAddressOutsideArea": "NapStop chưa hỗ trợ điểm đến ở khu vực này.",
+  "@destinationAddressOutsideArea": {
+    "description": "Snack bar on screen 2 (iOS): the chosen address is outside the supported area. Neutral wording on purpose."
   }
 }

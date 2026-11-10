@@ -130,7 +130,23 @@ void main() {
             'lib/core/telemetry/remote_config/engine_params_source.dart',
         'TripConfigRejected':
             'lib/features/alarm_settings/data/trip_start_reporter.dart',
+        // T29.2 §4.2 (coder, for review): fixed literal message, probe IPA.
+        'TelemetryProbeMarker': 'lib/core/telemetry/diag/telemetry_probe.dart',
       });
+    });
+
+    test('TelemetryProbeMarker: const, no argument, only in the probe', () {
+      for (final MapEntry(key: path, value: text) in lib.entries) {
+        final all = countIn(text, RegExp(r'\bTelemetryProbeMarker\('));
+        final constNoArg = countIn(
+          text,
+          RegExp(r'const\s+TelemetryProbeMarker\(\)'),
+        );
+        expect(all, constNoArg, reason: path);
+        if (path != 'lib/core/telemetry/diag/telemetry_probe.dart') {
+          expect(all, 0, reason: '$path builds a TelemetryProbeMarker');
+        }
+      }
     });
 
     test('RemoteConfigInvalid: const, no argument', () {

@@ -22,6 +22,8 @@ enum DestinationKind {
 }
 
 /// How the destination was chosen (T29 `dest_source`).
+/// `places` = online address search (Google Places before ADR-002, Apple
+/// MapKit since T23.5).
 enum DestinationSource { station, places, mapPin, savedPlace, recentTrip }
 
 /// Longest destination name accepted by the native side (T14 V2).

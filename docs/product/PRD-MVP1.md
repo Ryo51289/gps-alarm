@@ -26,12 +26,16 @@ Chỉ số thành công của bản demo/beta:
 **Ngoài MVP 1 (V2):** chia sẻ cho người nhà, trang web người nhà, Zalo/SMS, gọi dậy từ xa (màn 10, 13–19),
 tài khoản, thanh toán, bản đồ offline.
 
+_Cập nhật 2026-11-07 (PO mở lại phạm vi, ADR-002 §16 Amendment): trong MVP 1 thêm **tìm theo địa chỉ cụ thể trên iOS** (T23.5) và **điểm dừng
+xe buýt trong dataset offline** (T24.3). Đã bỏ khỏi "ngoài phạm vi": tìm địa chỉ tự do bằng Apple MapKit Search (iOS), trạm dừng buýt Hà Nội/TP. HCM.
+Vẫn ngoài phạm vi: tìm địa chỉ trên Android, trạm buýt ngoài hai thành phố, hiển thị lớp trạm trên bản đồ._
+
 ## 3. Màn hình
 | # | Màn | Ghi chú MVP 1 |
 |---|---|---|
 | 0 | Cấp quyền | Vị trí "Khi dùng ứng dụng" + "Chính xác" (Android **không** xin vị trí nền — ADR-001); thông báo; Android: báo thức toàn màn hình, báo thức chính xác (chỉ khi máy chưa cấp), hướng dẫn tắt tối ưu pin theo hãng; iOS 26+: báo thức (AlarmKit). Chi tiết và mức bắt buộc: §3.1 |
 | 1 | Trang chủ | Ô tìm kiếm, điểm đã lưu (Nhà/Quê/Công ty), chuyến gần đây, thẻ "Sẵn sàng" (quyền + pin + âm lượng) |
-| 2 | Chọn điểm đến | Dataset ga/bến offline (tìm không dấu) → fallback Places; bản đồ ghim, vòng tròn vùng báo |
+| 2 | Chọn điểm đến | Dataset ga/bến và **trạm buýt** (Hà Nội, TP. HCM) offline từ OpenStreetMap, tìm không dấu, có dòng ghi công OSM. **iOS:** thêm gợi ý **địa chỉ cụ thể** của Apple Maps (`MKLocalSearch`) dưới kết quả offline, chỉ gửi chuỗi gõ (không gửi vị trí), có dòng công bố, chọn → ghim + vòng tròn vùng báo. Không có trong danh sách thì nhấn giữ bản đồ để ghim (iOS). Android: chưa có bản đồ và chưa có tìm địa chỉ (T23.4). Chi tiết: spec T23.5, T24.3 |
 | 3 | Cài đặt báo | 3 chế độ, nhắc nhẹ, kiểu báo, cách tắt, cảnh báo khoảng cách quá ngắn |
 | 4 | Đang theo dõi | Khoảng cách/ETA chữ lớn, thanh tiến độ + mốc báo, trạng thái GPS/pin/tai nghe, dừng theo dõi |
 | 5 | Báo thức | Toàn màn hình, nền tối, vuốt hết thanh để tắt, báo lại tối đa 1 lần |
@@ -134,10 +138,11 @@ cùng đường ống Location → Trip Engine → Alarm như dữ liệu thật
 
 ## 5. Yêu cầu phi chức năng
 - Pin ≤ 15% / 10 giờ; cold start ≤ 2 giây; app không crash trong 10 giờ chạy nền.
-- Chạy offline hoàn toàn khi đã chọn điểm đến (trừ bản đồ nền và tìm địa chỉ).
+- Chạy offline hoàn toàn khi đã chọn điểm đến (trừ bản đồ nền và tìm địa chỉ; tìm ga/bến/trạm buýt vẫn offline).
 - Android 8.0+ (API 26), target SDK mới nhất; iOS 16+ (AlarmKit khi iOS 26+).
 - Tiếp cận: nút ≥ 44 px, tương phản ≥ 4.5:1, nhãn cho icon, hỗ trợ cỡ chữ hệ thống.
-- Quyền riêng tư: vị trí không rời khỏi máy; analytics chỉ ghi sự kiện, không toạ độ.
+- Quyền riêng tư: vị trí không rời khỏi máy; analytics chỉ ghi sự kiện, không toạ độ. Tìm địa chỉ (iOS) gửi tới Apple **chỉ chuỗi người dùng gõ**
+  và vùng khung Việt Nam; không gửi vị trí hiện tại; không ghi nội dung tìm kiếm hay điểm đến vào log hay analytics; có dòng công bố trên màn 2.
 
 ## 6. Ngoài phạm vi kỹ thuật MVP 1
 Backend, tài khoản, đồng bộ, API tìm đường, bản đồ offline, Live Activity (stretch goal nếu kịp).

@@ -322,6 +322,30 @@ flutter drive --profile --driver=test_driver/integration_test.dart   --target=in
 flutter test integration_test/destination_flow_test.dart -d <device-id>
 ```
 
+## Firebase iOS (T29.2)
+
+- Cấu hình: `ios/Runner/GoogleService-Info.plist` (app iOS `app.napstop`, project `napstop-dev-10636`), nằm trong phase
+  Resources của Runner. Khoá Firebase không phải bí mật (T29.2 D3), file được commit; `.gitignore` chỉ mở cho đúng đường dẫn này.
+- Dart: `lib/app/firebase/firebase_options_ios.dart` viết tay từ plist (không chạy `flutterfire configure`). Đổi plist thì sửa
+  file Dart theo; `test/app/firebase_options_test.dart` (FU02) đỏ khi hai file lệch. `firebaseOptionsFor` trả options iOS cho
+  mọi flavor (iOS chỉ có một bản build tới T40.1), Android vẫn `null` tới bước B của T29.
+- Không gửi gì khi chưa đồng ý: `Info.plist` tắt sẵn Crashlytics, Analytics, IDFV, ad storage/user data/personalization và
+  `screen_view` tự động. Đồng ý (T29 Q2, opt-in) bật lại qua `TelemetryConsentController`.
+- Không IDFA, không ATT: mọi bản build iOS phải có biến môi trường `FIREBASE_ANALYTICS_WITHOUT_ADID=true` (CI đặt ở `env:` của
+  `ios-compile.yml`); khi đó `firebase_analytics` liên kết `FirebaseAnalyticsCore`, không có AdSupport. Build trên Mac:
+  `FIREBASE_ANALYTICS_WITHOUT_ADID=true flutter build ios ...`.
+- CI `ios-device`: `ios/scripts/firebase-ci-check.sh` kiểm bundle (plist, khoá tắt thu thập, không AdSupport/ATT, privacy
+  manifest của SDK; chặn), rồi tải dSYM lên Crashlytics (không chặn) và lưu artifact `napstop-ios-dsyms`. Chạy thử cục bộ
+  (WSL, cần `jq`): `bash ios/scripts/firebase-ci-check.sh --self-test`.
+- IPA "fb" để thử trên iPhone: đẩy nhánh `ci/ios-ipa-fb-<id>` (hoặc `ci/ios-all-fb-<id>`); IPA có
+  `NAPSTOP_TELEMETRY=on` + `NAPSTOP_TELEMETRY_PROBE=true`. Mở app: đầu dò gửi 8 sự kiện catalog, một non-fatal
+  `TelemetryProbeMarker` và sau 20 s một crash Dart `TelemetryProbeFatal`. Crash native: Shortcuts → "NapStop: thử crash
+  native" (chỉ bản `NAPSTOP_DIAG`). IPA `ci/ios-ipa-<id>` thường dùng để kiểm "không gửi gì khi chưa đồng ý".
+- Xem kết quả: GA4 → Reports → Realtime (lọc platform iOS; đưa app xuống nền để đẩy dữ liệu, chờ tới 30 phút). DebugView trên
+  iPhone chỉ bật được bằng launch argument của Xcode (`-FIRDebugEnabled`), nên không dùng. Crashlytics → app iOS.
+- Bản cài bằng xtool có bundle `XTL-GVZRXTZPQ7.app.napstop`. Nếu SDK từ chối chạy vì lệch bundle (PM02), Plan B ở
+  `docs/specs/T29.2.md` §7: thêm app Firebase thứ hai và chọn options theo bundle id lúc chạy (báo designer trước).
+
 ## Chuỗi hiển thị (ARB, gen-l10n)
 
 - Bản gốc tiếng Việt `lib/l10n/app_vi.arb`, bản dịch `lib/l10n/app_en.arb`. Mỗi khoá cần `@khoá.description` (tiếng

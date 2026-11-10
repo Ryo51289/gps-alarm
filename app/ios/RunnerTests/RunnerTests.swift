@@ -427,3 +427,14 @@ final class T173NotificationRequestTests: XCTestCase {
     XCTAssertTrue(reqs.allSatisfy { $0.content.interruptionLevel == .timeSensitive })
   }
 }
+
+// T23.5 AS-X01: the numeric MKError codes the Linux-testable AddressSearchWire relies on (docs/specs/T23.5.md §3).
+import MapKit
+
+final class AddressSearchErrorCodeTests: XCTestCase {
+  func testMapKitErrorCodesMatchTheWireConstants() {
+    XCTAssertEqual(Int(MKError.Code.loadingThrottled.rawValue), AddressSearchWire.mkLoadingThrottled)
+    XCTAssertEqual(Int(MKError.Code.placemarkNotFound.rawValue), AddressSearchWire.mkPlacemarkNotFound)
+    XCTAssertEqual(MKError.errorDomain, AddressSearchWire.mkErrorDomain)
+  }
+}

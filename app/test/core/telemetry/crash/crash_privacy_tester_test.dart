@@ -130,6 +130,7 @@ const Set<String> _reasons = {
   'historyWriteFailed',
   'remoteConfigInvalid',
   'analyticsGuardViolation',
+  'addressSearchFailed',
   'other',
 };
 

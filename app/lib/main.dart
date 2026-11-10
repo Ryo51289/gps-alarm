@@ -7,6 +7,7 @@ import 'package:napstop/core/preferences/app_settings.dart';
 import 'package:napstop/core/preferences/display_preferences.dart';
 import 'package:napstop/core/preferences/preferences_repository.dart';
 import 'package:napstop/core/storage/shared_preferences_key_value_store.dart';
+import 'package:napstop/core/telemetry/diag/telemetry_probe.dart';
 import 'package:napstop/core/telemetry/telemetry_bootstrap.dart';
 import 'package:napstop/core/telemetry/telemetry_providers.dart';
 import 'package:napstop/features/destination/data/station_license.dart';
@@ -42,6 +43,11 @@ Future<void> main() async {
       child: NapStopApp(flavor: flavor),
     ),
   );
+  // T29.2 §4.2: only in the "fb" test IPA (define); a false constant
+  // otherwise, so this is tree-shaken away.
+  if (kTelemetryProbe) {
+    runTelemetryProbe(telemetry, flavor: flavor);
+  }
 }
 
 /// T28 D8: at most [timeout]; any error → defaults (the repository never

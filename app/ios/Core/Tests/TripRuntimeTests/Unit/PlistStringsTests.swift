@@ -53,7 +53,14 @@ struct PlistStringsTests {
         let p = try Self.plist("\(Self.runnerDir)/PrivacyInfo.xcprivacy")
         #expect(Self.bool(p["NSPrivacyTracking"]) == false)
         #expect((p["NSPrivacyTrackingDomains"] as? [Any])?.isEmpty == true)
-        #expect((p["NSPrivacyCollectedDataTypes"] as? [Any])?.isEmpty == true)
+        // T29.2 §6.3: the data the app sends through Firebase (no location type); FU04 checks linked/tracking/purposes.
+        let collected = (p["NSPrivacyCollectedDataTypes"] as? [[String: Any]] ?? [])
+            .compactMap { $0["NSPrivacyCollectedDataType"] as? String }
+        #expect(Set(collected) == [
+            "NSPrivacyCollectedDataTypeProductInteraction", "NSPrivacyCollectedDataTypeCrashData",
+            "NSPrivacyCollectedDataTypeOtherDiagnosticData", "NSPrivacyCollectedDataTypeDeviceID",
+        ])
+        #expect(!collected.contains { $0.contains("Location") })
         let apis = p["NSPrivacyAccessedAPITypes"] as? [[String: Any]] ?? []
         var got: [String: [String]] = [:]
         for a in apis {

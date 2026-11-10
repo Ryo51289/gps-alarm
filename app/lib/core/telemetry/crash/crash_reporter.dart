@@ -27,6 +27,7 @@ enum NonFatalReason {
   historyWriteFailed,
   remoteConfigInvalid,
   analyticsGuardViolation,
+  addressSearchFailed,
   other,
 }
 

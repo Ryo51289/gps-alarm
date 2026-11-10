@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "completeRequest": [
+    {"name": "valid", "valid": true,
+     "input": {"v": 1, "gen": 7, "query": "nguyen trai", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "valid unicode", "valid": true,
+     "input": {"v": 1, "gen": 1, "query": "Đường Hoàng Sa", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "version 2", "valid": false,
+     "input": {"v": 2, "gen": 7, "query": "abc", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "missing gen", "valid": false,
+     "input": {"v": 1, "query": "abc", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "missing region", "valid": false,
+     "input": {"v": 1, "gen": 7, "query": "abc"}},
+    {"name": "region south above north", "valid": false,
+     "input": {"v": 1, "gen": 7, "query": "abc", "region": {"s": 23.6, "w": 102.0, "n": 8.3, "e": 109.7}}},
+    {"name": "query not a string", "valid": false,
+     "input": {"v": 1, "gen": 7, "query": 5, "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "query of 64 runes", "valid": true,
+     "input": {"v": 1, "gen": 2, "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "query of 65 runes is cut by Dart, refused by native", "valid": false, "clipTo64": true,
+     "input": {"v": 1, "gen": 2, "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "null", "valid": false, "input": null}
+  ],
+  "resolveRequest": [
+    {"name": "valid", "valid": true, "input": {"v": 1, "gen": 7, "index": 2}},
+    {"name": "negative index", "valid": false, "input": {"v": 1, "gen": 7, "index": -1}},
+    {"name": "version 0", "valid": false, "input": {"v": 0, "gen": 7, "index": 2}},
+    {"name": "missing index", "valid": false, "input": {"v": 1, "gen": 7}},
+    {"name": "string index", "valid": false, "input": {"v": 1, "gen": 7, "index": "2"}}
+  ],
+  "completeReply": [
+    {"name": "ok two items", "valid": true, "gen": 7, "status": "ok", "count": 2,
+     "input": {"gen": 7, "status": "ok", "items": [{"t": "Nguyễn Trãi", "s": "Hà Nội"}, {"t": "Nguyễn Trãi", "s": ""}]}},
+    {"name": "ok empty", "valid": true, "gen": 3, "status": "ok", "count": 0,
+     "input": {"gen": 3, "status": "ok", "items": []}},
+    {"name": "throttled", "valid": true, "gen": 3, "status": "throttled", "count": 0,
+     "input": {"gen": 3, "status": "throttled"}},
+    {"name": "missing status", "valid": false, "input": {"gen": 3, "items": []}},
+    {"name": "unknown status", "valid": false, "input": {"gen": 3, "status": "weird"}},
+    {"name": "resolve-only status in complete", "valid": false, "input": {"gen": 3, "status": "stale"}},
+    {"name": "items not a list", "valid": false, "input": {"gen": 3, "status": "ok", "items": "x"}},
+    {"name": "item missing s", "valid": false, "input": {"gen": 3, "status": "ok", "items": [{"t": "a"}]}},
+    {"name": "gen not int", "valid": false, "input": {"gen": "3", "status": "ok", "items": []}},
+    {"name": "null", "valid": false, "input": null}
+  ],
+  "resolveReply": [
+    {"name": "ok VN", "valid": true, "status": "ok",
+     "input": {"status": "ok", "lat": 21.03, "lng": 105.85, "country": "VN"}},
+    {"name": "ok no country", "valid": true, "status": "ok",
+     "input": {"status": "ok", "lat": 21.03, "lng": 105.85, "country": null}},
+    {"name": "stale", "valid": true, "status": "stale", "input": {"status": "stale"}},
+    {"name": "notFound", "valid": true, "status": "notFound", "input": {"status": "notFound"}},
+    {"name": "ok missing lng", "valid": false, "input": {"status": "ok", "lat": 21.03}},
+    {"name": "ok lat out of range", "valid": false, "input": {"status": "ok", "lat": 91, "lng": 105.85}},
+    {"name": "ok country not a string", "valid": false, "input": {"status": "ok", "lat": 21.03, "lng": 105.85, "country": 84}},
+    {"name": "unknown status", "valid": false, "input": {"status": "x"}}
+  ],
+  "errorStatus": [
+    {"domain": "MKErrorDomain", "code": 3, "underlying": null, "status": "throttled"},
+    {"domain": "MKErrorDomain", "code": 4, "underlying": null, "status": "notFound"},
+    {"domain": "NSURLErrorDomain", "code": -1009, "underlying": null, "status": "network"},
+    {"domain": "MKErrorDomain", "code": 2, "underlying": "NSURLErrorDomain", "status": "network"},
+    {"domain": "Foo", "code": 1, "underlying": null, "status": "failed"}
+  ]
+}

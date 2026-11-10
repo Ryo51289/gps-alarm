@@ -543,5 +543,18 @@
   "trackingTileAlarmIos": "Alarm",
   "trackingTileAlarmIosSilentOk": "Rings on Silent",
   "trackingTileAlarmIosSilentRisk": "Turn off Silent",
-  "alarmFallbackNoteIos": "Your alarm is ringing. You can stop it here."
+  "alarmFallbackNoteIos": "Your alarm is ringing. You can stop it here.",
+  "destinationSearchHintWithAddress": "Search stations, addresses…",
+  "destinationStartTypingWithAddress": "Type a station or an address.",
+  "destinationAddressHeader": "Addresses · Apple Maps",
+  "destinationAddressDisclosure": "What you type is sent to Apple to find addresses. NapStop doesn't send your location.",
+  "destinationAddressLoading": "Searching addresses…",
+  "destinationAddressEmpty": "No address found.",
+  "destinationAddressOffline": "No connection. You can still search stations.",
+  "destinationAddressThrottled": "Address search is busy. Try again in a few minutes.",
+  "destinationAddressUnavailable": "Address search isn't available right now.",
+  "destinationAddressResolving": "Getting location…",
+  "destinationAddressRowFallback": "Address",
+  "destinationAddressResolveFailed": "Couldn't get this address's location. Try again.",
+  "destinationAddressOutsideArea": "NapStop doesn't support destinations in this area yet."
 }

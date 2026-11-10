@@ -258,6 +258,41 @@ có báo cáo hỏng [AP-URL-FORUM]. Đưa vào "Đề xuất sau MVP".
 - Có plugin MapKit hỗ trợ SPM, được bảo trì → có thể thay mã tự viết nếu giảm được bảo trì.
 - Cần tìm địa chỉ tự do → ADR/spec riêng (VietMap hoặc `MKLocalSearchCompleter`).
 
+## 16. Amendment 2026-11-07 — mở lại phạm vi tìm địa chỉ và thêm trạm buýt
+
+PO quyết ngày 07/11/2026. Phần này **thay** các câu nói "không tìm địa chỉ tự do trong MVP 1": §4 (đoạn "Không có geocoding địa chỉ tự do"), §12 Q3,
+§7 hệ quả "Mất tìm địa chỉ tự do", §14 dòng thứ ba. Các phần khác (MapKit qua PlatformView, bỏ Google, Android chưa có bản đồ) giữ nguyên.
+
+**Quyết định**
+1. **iOS: tìm địa chỉ bằng `MKLocalSearchCompleter` + `MKLocalSearch`** (spec `docs/specs/T23.5.md`). Không khoá, không tài khoản. `DestinationSource.places` và
+   `DestinationKind.address` (đã giữ trong enum ở §4) được **dùng lại** làm nguồn/loại của đích địa chỉ nên không đổi drift/Analytics.
+2. Nội dung gửi ra ngoài: chuỗi gõ và vùng khung Việt Nam; **không** vị trí người dùng; không log; không Analytics; có dòng công bố trên màn 2.
+   Quy tắc "vị trí không rời máy" giữ nguyên, nhưng "nội dung tìm kiếm không rời máy" **không còn đúng** cho mục địa chỉ trên iOS (cập nhật PRD §5, T40).
+3. Kênh: `MethodChannel` ứng dụng `app.napstop/address_search` (không Pigeon, T14 D5), cùng nguyên tắc T23.3 D3.
+4. **Android: không có tìm địa chỉ** (không có MapKit, chưa có bản đồ). Ứng viên khi làm T23.4: VietMap (§4) hoặc nhà cung cấp khác, cần ADR/spec riêng.
+5. **Trạm buýt Hà Nội + TP. HCM** nằm trong dataset offline từ OSM (spec `docs/specs/T24.3.md`), file riêng `bus_stops.json`; cả Android và iOS. Đây là dữ liệu
+   ODbL cùng nghĩa vụ ghi công/công bố như T24.
+
+**Phương án đã loại:** VietMap/Nominatim cho iOS (thêm nhà cung cấp, thanh toán hoặc cấm autocomplete phía client, §10); tìm địa chỉ cả Android bằng Nominatim (cấm).
+
+**Hệ quả và rủi ro mới**
+- Điều khoản Apple Developer Program License Agreement, Attachment 6: §2.4 phải hiện bản đồ Apple cùng kết quả địa chỉ; §2.5 Map Data (gồm toạ độ,
+  §1.2) không được cache/lưu quá mức tạm thời; §2.2 không dùng trong "secondary or derived database"; §2.7 Apple có thể giới hạn số giao dịch
+  [DPLA-A6]. Lưu đích địa chỉ vào lịch sử/điểm đã lưu có thể vi phạm §2.5 → **T23.5 Q1** (PO quyết; cần tư vấn pháp lý trước T40). Chưa tra
+  điều khoản "MapKit" riêng trong Apple Developer Terms ngoài DPLA.
+- Giới hạn tần suất của MapKit Search không có số công bố; `MKError.loadingThrottled` nói lỗi có thể xảy ra khi "an app makes frequent requests for
+  data over a short period of time" [MK-THR]. Giảm bằng debounce 400 ms, tối thiểu 3 ký tự, nghỉ 30 s khi bị giới hạn.
+- Chủ quyền biển đảo (R2): kết quả tìm kiếm có thể trỏ tới hoặc gắn nhãn hai quần đảo. T23.5 lọc nhãn Trung Quốc ở gợi ý và từ chối điểm ngoài khung
+  `kVietnamBounds` (đảo xa bờ nằm ngoài khung camera T23.3 D11). Vẫn cần xác nhận pháp lý trước T40.
+- Quyền riêng tư: Apple nhận chuỗi gõ; tài liệu không nói MapKit có tự kèm vị trí thiết bị vào yêu cầu tìm hay không (T23.5 R3).
+- T40: chính sách riêng tư và App Privacy thêm "nội dung tìm địa chỉ được gửi tới Apple" (iOS).
+
+**Tham khảo bổ sung (kiểm 2026-11-07)**
+- [MK-THR] https://developer.apple.com/documentation/mapkit/mkerror/code/loadingthrottled
+- [DPLA-A6] https://developer.apple.com/support/terms/apple-developer-program-license-agreement/ (Attachment 6)
+- `MKLocalSearchCompleter`: https://developer.apple.com/documentation/mapkit/mklocalsearchcompleter ; `MKLocalSearch`: https://developer.apple.com/documentation/mapkit/mklocalsearch
+- Spec: `docs/specs/T23.5.md`, `docs/specs/T24.3.md`.
+
 ## 15. Tham khảo (kiểm 2026-11-06)
 
 Google

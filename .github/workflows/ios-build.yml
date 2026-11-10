@@ -1,3 +1,6 @@
+# Generic remote iOS build (S3, ios-builder). builder.json points it at spikes/ios-probe, not app/; the NapStop app is
+# built by ios-compile.yml. FIREBASE_ANALYTICS_WITHOUT_ADID is set anyway (T29.2 D6) so a dispatch with ios_path=app
+# never links FirebaseAnalytics with AdSupport.
 name: iOS Build
 run-name: iOS Build ${{ inputs.build_id || github.ref_name }}
 
@@ -63,6 +66,10 @@ on:
         required: false
         type: string
         default: ''
+
+env:
+  # T29.2 D6: firebase_analytics links FirebaseAnalyticsCore (no IDFA / AdSupport) when this is set.
+  FIREBASE_ANALYTICS_WITHOUT_ADID: 'true'
 
 jobs:
   build:
