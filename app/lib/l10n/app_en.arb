@@ -547,7 +547,7 @@
   "destinationSearchHintWithAddress": "Search stations, addresses…",
   "destinationStartTypingWithAddress": "Type a station or an address.",
   "destinationAddressHeader": "Addresses · Apple Maps",
-  "destinationAddressDisclosure": "What you type is sent to Apple to find addresses. Your location is not sent.",
+  "destinationAddressDisclosure": "What you type is sent to Apple to find addresses. NapStop doesn't send your location.",
   "destinationAddressLoading": "Searching addresses…",
   "destinationAddressEmpty": "No address found.",
   "destinationAddressOffline": "No connection. You can still search stations.",

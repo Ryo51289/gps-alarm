@@ -24,8 +24,22 @@ const int kAddressDisplayLimit = 5;
 /// Most suggestions accepted from the native side.
 const int kMaxAddressItems = 15;
 
+/// Longest text the native side accepts (runes, Unicode scalars). A longer
+/// text is cut before it is sent: a full street address is often longer.
+const int kMaxAddressQueryRunes = 64;
+
 /// Pause after Apple rate-limited the search (D14).
 const Duration kAddressThrottleCooldown = Duration(seconds: 30);
+
+/// The text sent to Apple: trimmed, at most [kMaxAddressQueryRunes] runes (cut
+/// by rune, never inside a surrogate pair), trimmed again after the cut.
+String addressQueryOf(String raw) {
+  final t = raw.trim();
+  if (t.runes.length <= kMaxAddressQueryRunes) {
+    return t;
+  }
+  return String.fromCharCodes(t.runes.take(kMaxAddressQueryRunes)).trim();
+}
 
 /// One suggestion of Apple Maps: text only, no coordinates yet.
 @immutable

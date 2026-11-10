@@ -16,6 +16,8 @@ import 'package:napstop/app/clock.dart';
 import 'package:napstop/core/bridge/core_bridge.dart';
 import 'package:napstop/core/bridge/core_bridge_provider.dart';
 import 'package:napstop/core/diagnostics/report_error.dart';
+import 'package:napstop/core/telemetry/crash/crash_reporter.dart';
+import 'package:napstop/core/telemetry/telemetry_providers.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/destination/data/address_search_client.dart';
 import 'package:napstop/features/destination/data/address_search_wire.dart';
@@ -415,7 +417,14 @@ class DestinationController extends Notifier<DestinationState> {
       return;
     }
     _addressReported = true;
-    reportNonFatal('destination.addressSearch', error, stack);
+    try {
+      ref
+          .read(telemetryProvider)
+          .crash
+          .recordNonFatal(error, stack, NonFatalReason.addressSearchFailed);
+    } on Object {
+      // Telemetry never breaks the search.
+    }
   }
 
   Future<void> _cancelNative() async {
@@ -464,7 +473,7 @@ class DestinationController extends Notifier<DestinationState> {
       return;
     }
     final gen = ++_addressGen;
-    final query = state.query.trim();
+    final query = addressQueryOf(state.query);
     final CompleteReply reply;
     try {
       reply = await client.complete(gen: gen, query: query);
@@ -481,7 +490,9 @@ class DestinationController extends Notifier<DestinationState> {
     }
     // A late answer, one of a superseded request, or one for a text the
     // user has since changed is dropped.
-    if (_isStale(gen) || reply.gen != gen || state.query.trim() != query) {
+    if (_isStale(gen) ||
+        reply.gen != gen ||
+        addressQueryOf(state.query) != query) {
       return;
     }
     switch (reply.status) {

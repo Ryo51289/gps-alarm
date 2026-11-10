@@ -2850,7 +2850,7 @@
   "@destinationAddressHeader": {
     "description": "Screen 2 (iOS): header of the address suggestions section."
   },
-  "destinationAddressDisclosure": "Nội dung bạn gõ được gửi tới Apple để tìm địa chỉ. Vị trí của bạn không được gửi.",
+  "destinationAddressDisclosure": "Nội dung bạn gõ được gửi tới Apple để tìm địa chỉ. NapStop không gửi vị trí của bạn.",
   "@destinationAddressDisclosure": {
     "description": "Screen 2 (iOS): always shown in the address section; what is sent to Apple."
   },

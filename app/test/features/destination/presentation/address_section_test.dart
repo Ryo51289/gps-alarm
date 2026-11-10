@@ -1,8 +1,14 @@
 // T23.5 AS-W01..AS-W05: the address section of screen 2 (iOS, map on).
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:napstop/app/router/app_routes.dart';
+import 'package:napstop/core/bridge/core_bridge.dart';
 import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/map/map_point.dart';
+import 'package:napstop/core/telemetry/analytics/analytics_event.dart';
+import 'package:napstop/core/trip/domain/trip_destination.dart';
+import 'package:napstop/core/trip/domain/trip_draft.dart';
+import 'package:napstop/features/alarm_settings/data/trip_start_reporter.dart';
 import 'package:napstop/features/destination/data/address_search_wire.dart';
 import 'package:napstop/features/destination/data/destination_providers.dart';
 import 'package:napstop/features/destination/domain/address_search.dart';
@@ -14,7 +20,7 @@ import 'destination_harness.dart';
 const _header = 'Địa chỉ · Apple Maps';
 const _disclosure =
     'Nội dung bạn gõ được gửi tới Apple để tìm địa chỉ. '
-    'Vị trí của bạn không được gửi.';
+    'NapStop không gửi vị trí của bạn.';
 
 CompleteReply _ok(int gen) => CompleteReply(
   gen: gen,
@@ -172,6 +178,41 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'AS-W07 confirming an address opens screen 3 with places/address',
+    (tester) async {
+      final client = FakeAddressClient();
+      final h = await _pump(tester, client);
+      await _type(tester, 'nguyen trai');
+      await _answer(tester, client);
+      await tester.ensureVisible(find.byKey(const ValueKey('address-0')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('address-0')));
+      await tester.pump();
+      client.resolves.single.done.complete(
+        const ResolveReply(
+          status: AddressStatus.ok,
+          point: MapPoint(21, 105.8),
+          country: 'VN',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Chọn Nguyễn Trãi'));
+      expect(h.app.location, AppRoutes.alarmSettings);
+      final draft = h.app.extra! as TripDraft;
+      expect(draft.source, DestinationSource.places);
+      expect(draft.destination.kind, DestinationKind.address);
+      expect(draft.destination.detail, 'Thanh Xuân, Hà Nội');
+      expect(draft.vehicleHint, VehicleKindMsg.unknown);
+      // The analytics event of this choice carries two tags and no text.
+      final event = DestinationSelectedEvent(
+        source: destSourceTagOf(draft.source),
+        kind: DestKindTag.address,
+      );
+      expect(event.toParameters(), {'source': 'places', 'kind': 'address'});
+    },
+  );
 
   testWidgets('AS-W06 small screen, big text, dark: no overflow', (
     tester,

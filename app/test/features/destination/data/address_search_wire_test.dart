@@ -29,6 +29,30 @@ void main() {
     );
   });
 
+  test('AS-D06 completeRequest cases: the cut text is what native accepts', () {
+    for (final c in _list('completeRequest')) {
+      final input = c['input'];
+      if (input is! Map || input['query'] is! String) {
+        continue;
+      }
+      final cut = addressQueryOf(input['query'] as String);
+      final sent = encodeComplete(
+        gen: (input['gen'] as int?) ?? 0,
+        query: cut,
+        region: kVietnamBounds,
+      );
+      expect(
+        (sent['query']! as String).runes.length,
+        lessThanOrEqualTo(kMaxAddressQueryRunes),
+        reason: c['name']! as String,
+      );
+      if (c['clipTo64'] == true) {
+        expect(cut.runes.length, 64);
+        expect(cut, (input['query'] as String).substring(0, 64));
+      }
+    }
+  });
+
   test('AS-D06 completeReply cases', () {
     for (final c in _list('completeReply')) {
       final r = decodeCompleteReply(c['input']);

@@ -2,12 +2,13 @@
 // client, fake time.
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:napstop/app/clock.dart';
 import 'package:napstop/core/bridge/core_bridge_provider.dart';
+import 'package:napstop/core/telemetry/telemetry.dart';
+import 'package:napstop/core/telemetry/telemetry_providers.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/destination/data/address_search_client.dart';
 import 'package:napstop/features/destination/data/address_search_wire.dart';
@@ -16,6 +17,7 @@ import 'package:napstop/features/destination/domain/address_search.dart';
 import 'package:napstop/features/destination/domain/destination_logic.dart';
 import 'package:napstop/features/destination/presentation/destination_controller.dart';
 
+import '../../../core/telemetry/telemetry_fakes.dart';
 import '../../../helpers/fake_core_bridge.dart';
 import '../../../helpers/test_station_catalog.dart';
 
@@ -62,7 +64,9 @@ void main() {
   late FakeAddressClient client;
   late ProviderContainer container;
   late DateTime now;
-  final reported = <FlutterErrorDetails>[];
+  late RecordingCrashSink crashSink;
+
+  final base = Telemetry.noop();
 
   ProviderContainer newContainer({required bool enabled}) =>
       ProviderContainer.test(
@@ -75,18 +79,23 @@ void main() {
           clockProvider.overrideWithValue(() => now),
           addressSearchClientProvider.overrideWithValue(client),
           addressSearchEnabledProvider.overrideWithValue(enabled),
+          telemetryProvider.overrideWithValue(
+            Telemetry(
+              analytics: base.analytics,
+              crash: CrashReporter(crashSink),
+              engineParams: base.engineParams,
+              consent: base.consent,
+            ),
+          ),
         ],
       )..listen(destinationControllerFamily(_key), (_, _) {});
 
   setUp(() {
     client = FakeAddressClient();
     now = DateTime(2026, 11, 10, 12);
-    reported.clear();
+    crashSink = RecordingCrashSink();
     container = newContainer(enabled: true);
   });
-
-  /// The test binding replaces FlutterError.onError when a test starts.
-  void capture() => FlutterError.onError = reported.add;
 
   DestinationController ctrl() =>
       container.read(destinationControllerFamily(_key).notifier);
@@ -150,7 +159,6 @@ void main() {
   });
 
   testWidgets('AS-C03 statuses and errors', (tester) async {
-    capture();
     await settle(tester);
     Future<void> reply(String q, CompleteReply r) async {
       ctrl().setQuery(q);
@@ -198,8 +206,9 @@ void main() {
     client.completes.last.done.completeError(MissingPluginException());
     await settle(tester);
     expect(state().address, isA<AddressUnavailable>());
-    expect(reported.length, 1);
-    expect(reported.single.exception.toString(), isNot(contains('abc')));
+    expect(crashSink.errors.length, 1);
+    expect(crashSink.errors.single.reason, 'addressSearchFailed');
+    expect(crashSink.allText.join(' '), isNot(contains('abc')));
   });
 
   testWidgets('AS-C04 hidden for other chips, short text', (tester) async {
@@ -262,7 +271,6 @@ void main() {
   });
 
   testWidgets('AS-C06 outside area, offline, stale, errors', (tester) async {
-    capture();
     await settle(tester);
     await results(tester, 'pho');
     Future<AddressPick> pick(ResolveReply r) {
@@ -374,5 +382,30 @@ void main() {
     await results(tester, 'pho');
     expect(state().toString(), isNot(contains('Phố')));
     expect(state().address.toString(), 'AddressResults(3)');
+  });
+
+  testWidgets('AS-C10 a long text is cut to 64 runes before it is sent', (
+    tester,
+  ) async {
+    await settle(tester);
+    Future<String> sent(String q) async {
+      ctrl().setQuery(q);
+      await settle(tester, 450);
+      final call = client.completes.last;
+      call.done.complete(_ok(call.gen));
+      await settle(tester);
+      expect(state().address, isA<AddressResults>());
+      return call.query;
+    }
+
+    expect((await sent('a' * 64)).runes.length, 64);
+    expect((await sent('b' * 65)).runes.length, 64);
+    expect((await sent('c' * 100)).runes.length, 64);
+    final emoji = await sent('d' * 63 + '😀😀');
+    expect(emoji.runes.length, 64);
+    expect(emoji.endsWith('😀'), isTrue);
+    expect(emoji.endsWith('😀😀'), isFalse);
+    // A text of 70 characters with spaces keeps its answer (no failure).
+    expect(state().address, isNot(isA<AddressUnavailable>()));
   });
 }

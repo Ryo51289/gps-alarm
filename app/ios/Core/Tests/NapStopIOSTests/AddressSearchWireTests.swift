@@ -31,6 +31,12 @@ struct AddressSearchWireTests {
                 #expect(r.region == MapBoundsWire(s: 8.3, w: 102.0, n: 23.6, e: 109.7))
             } else {
                 #expect(parsed == nil, Comment(rawValue: Self.name(c)))
+                // Dart cuts such a text to 64 runes before it sends it (T23.5 review 1): the cut text is accepted.
+                if c["clipTo64"]?.boolValue == true, case .string(let q)? = c["input"]?["query"] {
+                    var cut: [String: Any] = (c["input"]?.codecValue as? [String: Any]) ?? [:]
+                    cut["query"] = String(String.UnicodeScalarView(q.unicodeScalars.prefix(AddressSearchWire.maxQueryRunes)))
+                    #expect(AddressSearchWire.completeRequest(cut) != nil, Comment(rawValue: Self.name(c)))
+                }
             }
         }
     }

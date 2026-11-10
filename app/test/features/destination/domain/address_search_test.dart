@@ -80,6 +80,31 @@ void main() {
     expect(t.detail, 'Hà Nội');
   });
 
+  test('AS-D05b the 200th unit is a high surrogate: one unit less', () {
+    const p = MapPoint(21.03, 105.85);
+    final title = '${'a' * 199}😀${'b' * 50}';
+    final d = addressDestination(_s(title), p);
+    expect(d.name.length, 199);
+    expect(d.name, 'a' * 199);
+    expect(d.isValid, isTrue);
+    // The detail is cut the same way.
+    final e = addressDestination(_s('Phố', title), p);
+    expect(e.detail!.length, 199);
+  });
+
+  test('AS-D10 addressQueryOf cuts by rune', () {
+    expect(addressQueryOf('  abc  '), 'abc');
+    expect(addressQueryOf('a' * 64).runes.length, 64);
+    expect(addressQueryOf('a' * 65).runes.length, 64);
+    expect(addressQueryOf('a' * 100).runes.length, 64);
+    final emoji = addressQueryOf('${'x' * 63}😀😀');
+    expect(emoji.runes.length, 64);
+    expect(emoji.endsWith('😀'), isTrue);
+    expect(emoji.endsWith('😀😀'), isFalse);
+    // A cut that leaves a trailing space is trimmed again.
+    expect(addressQueryOf('${'a' * 63} bbb'), 'a' * 63);
+  });
+
   test('AS-D08 toString prints no text', () {
     expect(_s('Bí mật', 'Kín').toString(), isNot(contains('Bí')));
   });

@@ -98,6 +98,11 @@
             if #available(iOS 18.0, *) {
                 completer.regionPriority = .required
             }
+            // The same fragment again may not produce an update (no snapshot yet, e.g. after an
+            // error): clear it first so the delegate always fires.
+            if completer.queryFragment == query {
+                completer.queryFragment = ""
+            }
             completer.queryFragment = query
             completeTimer?.cancel()
             completeTimer = Task { @MainActor [weak self] in

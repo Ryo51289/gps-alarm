@@ -15,6 +15,10 @@
      "input": {"v": 1, "gen": 7, "query": "abc", "region": {"s": 23.6, "w": 102.0, "n": 8.3, "e": 109.7}}},
     {"name": "query not a string", "valid": false,
      "input": {"v": 1, "gen": 7, "query": 5, "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "query of 64 runes", "valid": true,
+     "input": {"v": 1, "gen": 2, "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
+    {"name": "query of 65 runes is cut by Dart, refused by native", "valid": false, "clipTo64": true,
+     "input": {"v": 1, "gen": 2, "query": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "region": {"s": 8.3, "w": 102.0, "n": 23.6, "e": 109.7}}},
     {"name": "null", "valid": false, "input": null}
   ],
   "resolveRequest": [
