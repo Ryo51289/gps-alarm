@@ -1,0 +1,44 @@
+## ios-device
+
+- status: success; build: success; diag: true
+- telemetry: auto
+- firebase checks: success
+- C1 GoogleService-Info.plist in bundle: ok (BUNDLE_ID expected app.napstop)
+- C2 Info.plist collection keys (7 false): ok
+- C3 no AdSupport / AppTrackingTransparency (7 binaries): ok
+- C4 privacy manifests (23, no tracking): ok
+  - Firebase_FirebaseABTesting.bundle/PrivacyInfo.xcprivacy
+  - Firebase_FirebaseCore.bundle/PrivacyInfo.xcprivacy
+  - Firebase_FirebaseCoreExtension.bundle/PrivacyInfo.xcprivacy
+  - Firebase_FirebaseCoreInternal.bundle/PrivacyInfo.xcprivacy
+  - Firebase_FirebaseCrashlytics.bundle/PrivacyInfo.xcprivacy
+  - Firebase_FirebaseInstallations.bundle/PrivacyInfo.xcprivacy
+  - Firebase_FirebaseRemoteConfig.bundle/PrivacyInfo.xcprivacy
+  - Frameworks/Flutter.framework/PrivacyInfo.xcprivacy
+  - GoogleDataTransport_GoogleDataTransport.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-AppDelegateSwizzler.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-Environment.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-Logger.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-MethodSwizzler.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-NSData.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-Network.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-Reachability.bundle/PrivacyInfo.xcprivacy
+  - GoogleUtilities_GoogleUtilities-UserDefaults.bundle/PrivacyInfo.xcprivacy
+  - PrivacyInfo.xcprivacy
+  - Promises_FBLPromises.bundle/PrivacyInfo.xcprivacy
+  - nanopb_nanopb.bundle/PrivacyInfo.xcprivacy
+  - package_info_plus_package_info_plus.bundle/PrivacyInfo.xcprivacy
+  - shared_preferences_foundation_shared_preferences_foundation.bundle/PrivacyInfo.xcprivacy
+  - url_launcher_ios_url_launcher_ios.bundle/PrivacyInfo.xcprivacy
+- dSYM step: success
+- dSYM: 5 found (Flutter engine: Flutter.framework.dSYM (from the build))
+  - App.framework.dSYM 18C587AA-B9E8-5B8B-849C-A944A4F5A2B0 arm64
+  - Flutter.framework.dSYM 4C4C445B-5555-3144-A197-ADB2A127B333 arm64
+  - Runner.app.dSYM 26150F26-7934-3B90-B9E0-CA52579CCA77 arm64
+  - objective_c.framework.dSYM DA4CBC6F-F73F-37F3-AB10-DA313BD42AA6 arm64
+  - sqlite3.framework.dSYM 2948CD94-FF5F-3FF1-B0FA-CAFF033A7BB3 arm64
+- dSYM upload: ok (exit 0), 5 file(s), tool from SwiftPM checkout
+- Flutter: Flutter 3.47.8 • channel stable • https://github.com/flutter/flutter.git; Xcode: Xcode 26.6
+- SwiftPM cache: hit=false 
+- SWIFT_ACTIVE_COMPILATION_CONDITIONS (Runner, Release) = NAPSTOP_DIAG
+- ipa:  16M, artifact napstop-ios-unsigned (unsigned, 7 days; install with xtool install)
