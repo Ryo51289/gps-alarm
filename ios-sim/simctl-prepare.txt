@@ -1,0 +1,301 @@
+Monitoring boot status for iPhone Air (D26ED71E-9D97-4E79-B376-C104ABB9517A).
+[2026-11-11 04:50:42 +0000] Status=2, isTerminal=NO, Elapsed=00:08.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:05 seconds
+
+[2026-11-11 04:50:43 +0000] Status=2, isTerminal=NO, Elapsed=00:09.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:06 seconds
+
+[2026-11-11 04:50:44 +0000] Status=2, isTerminal=NO, Elapsed=00:10.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:07 seconds
+
+[2026-11-11 04:50:45 +0000] Status=2, isTerminal=NO, Elapsed=00:11.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:08 seconds
+
+[2026-11-11 04:50:46 +0000] Status=2, isTerminal=NO, Elapsed=00:12.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:09 seconds
+
+[2026-11-11 04:50:47 +0000] Status=2, isTerminal=NO, Elapsed=00:13.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:10 seconds
+
+[2026-11-11 04:50:48 +0000] Status=2, isTerminal=NO, Elapsed=00:14.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:11 seconds
+
+[2026-11-11 04:50:49 +0000] Status=2, isTerminal=NO, Elapsed=00:15.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:12 seconds
+
+[2026-11-11 04:50:50 +0000] Status=2, isTerminal=NO, Elapsed=00:16.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:13 seconds
+
+[2026-11-11 04:50:51 +0000] Status=2, isTerminal=NO, Elapsed=00:17.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:14 seconds
+
+[2026-11-11 04:50:52 +0000] Status=2, isTerminal=NO, Elapsed=00:18.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:15 seconds
+
+[2026-11-11 04:50:53 +0000] Status=2, isTerminal=NO, Elapsed=00:19.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:16 seconds
+
+[2026-11-11 04:50:54 +0000] Status=2, isTerminal=NO, Elapsed=00:20.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:17 seconds
+
+[2026-11-11 04:50:55 +0000] Status=2, isTerminal=NO, Elapsed=00:21.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:18 seconds
+
+[2026-11-11 04:50:56 +0000] Status=2, isTerminal=NO, Elapsed=00:22.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:19 seconds
+
+[2026-11-11 04:50:57 +0000] Status=2, isTerminal=NO, Elapsed=00:23.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:20 seconds
+
+[2026-11-11 04:50:58 +0000] Status=2, isTerminal=NO, Elapsed=00:24.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:21 seconds
+
+[2026-11-11 04:50:59 +0000] Status=2, isTerminal=NO, Elapsed=00:25.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:22 seconds
+
+[2026-11-11 04:51:00 +0000] Status=2, isTerminal=NO, Elapsed=00:26.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:23 seconds
+
+[2026-11-11 04:51:01 +0000] Status=2, isTerminal=NO, Elapsed=00:27.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:24 seconds
+
+[2026-11-11 04:51:02 +0000] Status=2, isTerminal=NO, Elapsed=00:28.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:25 seconds
+
+[2026-11-11 04:51:03 +0000] Status=2, isTerminal=NO, Elapsed=00:29.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.-0LaunchServicesMigrator (00LaunchServicesMigrator.migrator, user-agnostic)
+		Migration Elapsed:00:26 seconds
+
+[2026-11-11 04:51:05 +0000] Status=2, isTerminal=NO, Elapsed=00:31.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:28 seconds
+
+[2026-11-11 04:51:05 +0000] Status=2, isTerminal=NO, Elapsed=00:31.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:28 seconds
+
+[2026-11-11 04:51:06 +0000] Status=2, isTerminal=NO, Elapsed=00:32.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:29 seconds
+
+[2026-11-11 04:51:07 +0000] Status=2, isTerminal=NO, Elapsed=00:33.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.managedconfiguration.migrator (MCProfile.migrator, user-agnostic)
+		Migration Elapsed:00:30 seconds
+
+[2026-11-11 04:51:08 +0000] Status=2, isTerminal=NO, Elapsed=00:34.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.MobileSafari.migrator (MobileSafari.migrator)
+		Migration Elapsed:00:31 seconds
+
+[2026-11-11 04:51:09 +0000] Status=2, isTerminal=NO, Elapsed=00:35.
+	Waiting on Data Migration
+		Reason:Running plugin com.apple.PreferencesMigrator (PreferencesMigrator.migrator)
+		Migration Elapsed:00:32 seconds
+
+[2026-11-11 04:51:10 +0000] Status=3, isTerminal=YES, Elapsed=00:36.
+	Data Migration Failed
+
+--- xcrun simctl help location
+Control a device's simulated location
+Usage: simctl location <device> <action> [arguments]
+
+    list
+        List available simulation scenarios.
+
+    clear
+        Stop any running scenario and clear any simulated location.
+
+    set <lat1>,<lon1>
+        Set the location to a specific latitude and longitude.
+
+    run <scenario>
+        Run a simulated location scenario (use the list action to get a list of scenarios).
+
+    start [--speed=<meters/sec>] [--distance=<meters per second>|--interval=<seconds>] <lat1>,<lon1> <latN>,<lonN>...
+        Set the location to a series of waypoints specified as 'lat,lon' pairs, interpolating between them over time.
+        At least two waypoints are required. Use '-' to read waypoints from stdin, one waypoint per line.
+
+        Speed specifies how quickly to move between waypoints in meters per second. If not specified 20m/s is used.
+
+        The system will issue location updates along the path between each pair of waypoints. Use distance or interval to 
+        control how often those updates are issued. Distance will issue an update every <meters> travelled without regard
+        for the time between updates. Interval will issue updates at fixed times without regard for how much
+        the location moves between updates.
+        If neither are specified an interval of 1.0 seconds is used. If both are specified the system picks ones.
+
+        Example simulating a direct line between San Francisco and New York City, with updates every km:
+          start --distance=1000 --speed=260 37.629538,-122.395733 40.628083,-73.768254
+
+Latitude and longitude pairs must be specified using '.' as the decimal separator and ',' as the field separator.
+
+
+--- xcrun simctl help launch (SIMCTL_CHILD_ environment)
+If you want to set environment variables in the resulting environment, set them in the calling environment with a SIMCTL_CHILD_ prefix.
+--- xcrun simctl help privacy
+Grant, revoke, or reset privacy and permissions
+Usage: simctl privacy <device> <action> <service> [<bundle identifier>]
+
+	action
+	     The action to take:
+	         grant - Grant access without prompting. Requires bundle identifier.
+	         revoke - Revoke access, denying all use of the service. Requires bundle identifier.
+	         reset - Reset access, prompting on next use. Bundle identifier optional.
+	     Some permission changes will terminate the application if running.
+	service
+	     The service:
+	         all - Apply the action to all services.
+	         calendar - Allow access to calendar.
+	         contacts-limited - Allow access to basic contact info.
+	         contacts - Allow access to full contact details.
+	         location - Allow access to location services when app is in use.
+	         location-always - Allow access to location services at all times.
+	         photos-add - Allow adding photos to the photo library.
+	         photos - Allow full access to the photo library.
+	         media-library - Allow access to the media library.
+	         microphone - Allow access to audio input.
+	         motion - Allow access to motion and fitness data.
+	         reminders - Allow access to reminders.
+	         siri - Allow use of the app with Siri.
+	bundle identifier
+	     The bundle identifier of the target application.
+
+Examples:
+	reset all permissions: privacy <device> reset all
+	grant test host photo permissions: privacy <device> grant photos com.example.app.test-host
+
+Warning:
+Normally applications must have valid Info.plist usage description keys and follow the API guidelines to request access to services. Using this command to bypass those requirements can mask bugs.
+
+
+---
+fakeAlarms: app.napstop not installed yet (container written after install; env switch at launch)
+privacy grant location: ok for app.napstop
+Monitoring boot status for iPhone Air (D26ED71E-9D97-4E79-B376-C104ABB9517A).
+Device already booted, nothing to do.
+
+--- xcrun simctl help location
+Control a device's simulated location
+Usage: simctl location <device> <action> [arguments]
+
+    list
+        List available simulation scenarios.
+
+    clear
+        Stop any running scenario and clear any simulated location.
+
+    set <lat1>,<lon1>
+        Set the location to a specific latitude and longitude.
+
+    run <scenario>
+        Run a simulated location scenario (use the list action to get a list of scenarios).
+
+    start [--speed=<meters/sec>] [--distance=<meters per second>|--interval=<seconds>] <lat1>,<lon1> <latN>,<lonN>...
+        Set the location to a series of waypoints specified as 'lat,lon' pairs, interpolating between them over time.
+        At least two waypoints are required. Use '-' to read waypoints from stdin, one waypoint per line.
+
+        Speed specifies how quickly to move between waypoints in meters per second. If not specified 20m/s is used.
+
+        The system will issue location updates along the path between each pair of waypoints. Use distance or interval to 
+        control how often those updates are issued. Distance will issue an update every <meters> travelled without regard
+        for the time between updates. Interval will issue updates at fixed times without regard for how much
+        the location moves between updates.
+        If neither are specified an interval of 1.0 seconds is used. If both are specified the system picks ones.
+
+        Example simulating a direct line between San Francisco and New York City, with updates every km:
+          start --distance=1000 --speed=260 37.629538,-122.395733 40.628083,-73.768254
+
+Latitude and longitude pairs must be specified using '.' as the decimal separator and ',' as the field separator.
+
+
+--- xcrun simctl help launch (SIMCTL_CHILD_ environment)
+If you want to set environment variables in the resulting environment, set them in the calling environment with a SIMCTL_CHILD_ prefix.
+--- xcrun simctl help privacy
+Grant, revoke, or reset privacy and permissions
+Usage: simctl privacy <device> <action> <service> [<bundle identifier>]
+
+	action
+	     The action to take:
+	         grant - Grant access without prompting. Requires bundle identifier.
+	         revoke - Revoke access, denying all use of the service. Requires bundle identifier.
+	         reset - Reset access, prompting on next use. Bundle identifier optional.
+	     Some permission changes will terminate the application if running.
+	service
+	     The service:
+	         all - Apply the action to all services.
+	         calendar - Allow access to calendar.
+	         contacts-limited - Allow access to basic contact info.
+	         contacts - Allow access to full contact details.
+	         location - Allow access to location services when app is in use.
+	         location-always - Allow access to location services at all times.
+	         photos-add - Allow adding photos to the photo library.
+	         photos - Allow full access to the photo library.
+	         media-library - Allow access to the media library.
+	         microphone - Allow access to audio input.
+	         motion - Allow access to motion and fitness data.
+	         reminders - Allow access to reminders.
+	         siri - Allow use of the app with Siri.
+	bundle identifier
+	     The bundle identifier of the target application.
+
+Examples:
+	reset all permissions: privacy <device> reset all
+	grant test host photo permissions: privacy <device> grant photos com.example.app.test-host
+
+Warning:
+Normally applications must have valid Info.plist usage description keys and follow the API guidelines to request access to services. Using this command to bypass those requirements can mask bugs.
+
+
+---
+fakeAlarms: set in the app container of app.napstop
+privacy grant location: ok for app.napstop
+fakeAlarms: set in the app container of app.napstop
+privacy grant location: ok for app.napstop
+fakeAlarms: set in the app container of app.napstop
+privacy grant location: ok for app.napstop
