@@ -1,0 +1,16 @@
+MI01 center=15.950,102.000 initialCameraEnd=null
+MI05 lat=16.5 center.lng=106.496 visible.w=102.092 visible.e=110.900 distanceM=2445760.2943150825 maxDistanceM=2450154.230887567 boundaryEast=106.49583169886412
+MI05 lat=12.2 center.lng=106.496 visible.w=102.092 visible.e=110.900 distanceM=2492296.414621546 maxDistanceM=2450154.230887567 boundaryEast=106.49583169886412
+MI05 lat=9.0 center.lng=106.496 visible.w=102.092 visible.e=110.900 distanceM=2517980.7916247947 maxDistanceM=2450154.230887567 boundaryEast=106.49583169886412
+MI05b lat=16.5 center.lng=106.490 visible.w=102.080 visible.e=110.900 distanceM=654876.9883894634 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+MI05b lat=12.2 center.lng=106.490 visible.w=102.080 visible.e=110.900 distanceM=667337.5039961905 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+MI05b lat=9.0 center.lng=106.490 visible.w=102.080 visible.e=110.900 distanceM=674214.7550087464 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+MI05d before boundaryEast=106.49583169886412
+MI05d framed center.lng=109.3768 boundaryEast=109.4
+MI05e visible.w=108.993 visible.e=109.376 boundaryEast=109.4
+MI05f screen2 visible.w=102.236 visible.e=109.464 distanceM=2012592.9342479159 maxDistanceM=2450154.230887567 boundaryEast=107.28315829539991
+MI05f 800x300 visible.w=101.443 visible.e=110.257 distanceM=656199.9433983322 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+MI06b lat=16.5 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1334277.1476416145 maxDistanceM=1327528.6273302292 boundaryEast=106.49999999998052
+MI06b lat=12.2 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1359664.7876360742 maxDistanceM=1327528.6273302292 boundaryEast=106.49999999998052
+MI06b lat=9.0 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1373676.8219987648 maxDistanceM=1327528.6273302292 boundaryEast=106.49999999998052
+MI06c framed center.lng=106.5997 boundaryEast=109.4

@@ -1,0 +1,125 @@
+ci-sim timeout: perl process-group fallback, 1860s
+Resolving dependencies...
+Downloading packages...
+  built_collection 5.1.2 (6.0.0 available)
+  code_assets 1.2.1 (2.2.0 available)
+  cupertino_icons 1.0.9 (2.0.0 available)
+  drift 2.35.3 (2.35.4 available)
+  drift_dev 2.35.2 (2.35.3 available)
+  flutter_riverpod 3.4.3 (3.5.0 available)
+  go_router 17.5.0 (18.1.4 available)
+  hooks 2.0.2 (2.2.0 available)
+  jni 1.1.1 (1.1.2 available)
+  material_color_utilities 0.13.0 (0.13.1 available)
+  meta 1.18.3 (1.19.0 available)
+  native_toolchain_c 0.19.2 (0.19.6 available)
+  objective_c 9.5.0 (9.6.3 available)
+  pigeon 29.1.0 (30.0.1 available)
+  record_use 0.6.0 (1.1.1 available)
+  riverpod 3.4.3 (3.5.0 available)
+  shared_preferences_foundation 2.5.7 (2.6.1 available)
+  sqlite3 3.5.2 (3.9.1 available)
+  test_api 0.7.12 (0.7.15 available)
+  vector_math 2.4.0 (2.4.4 available)
+Got dependencies!
+20 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+
+Running Xcode build...                                          
+Xcode build done.                                           229.4s
+::group::✅ Passing tests
+✅ ios_smoke_test app starts
+✅ ios_smoke_test deviceInfo reports iOS
+✅ ios_smoke_test currentTrip answers
+✅ ios_smoke_test pendingFinishedTrips answers
+::endgroup::
+::group::✅ ios_smoke_test diag: permissions and startTrip probe
+NAPSTOP_DIAG permissions: location=whileInUse precise=granted services=true notifications=notDetermined alarmKit=notDetermined
+NAPSTOP_DIAG startTrip probe: accepted
+::endgroup::
+::group::✅ Passing tests
+✅ firebase_ios_test SI01 Firebase on iOS: real SDK, collection off
+✅ t18_1_ios_simulation_test SIC02 bus at 600x rings DISTANCE within 15 s, 5 runs out of 5
+✅ t18_1_ios_simulation_test SIC03 a stub id or an unknown trace is simulation-unavailable
+::endgroup::
+::group::❌ map_ios_test MI01 screen 2 has the MapKit view and it gets ready (failed)
+MI01 center=15.950,102.000 initialCameraEnd=null
+══╡ EXCEPTION CAUGHT BY FLUTTER TEST FRAMEWORK ╞════════════════════════════════════════════════════
+The following TestFailure was thrown running a test:
+Expected: a numeric value within <0.5> of <105.85>
+  Actual: <101.99999999999997>
+   Which:  differs by <3.8500000000000227>
+
+When the exception was thrown, this was the stack:
+#4      main.<anonymous closure> (file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/map_ios_test.dart:261:7)
+<asynchronous suspension>
+#5      testWidgets.<anonymous closure>.<anonymous closure> (package:flutter_test/src/widget_tester.dart:192:15)
+<asynchronous suspension>
+#6      TestWidgetsFlutterBinding._runTestBody (package:flutter_test/src/binding.dart:1953:5)
+<asynchronous suspension>
+<asynchronous suspension>
+(elided one frame from package:stack_trace)
+
+This was caught by the test expectation on the following line:
+  file:///Users/runner/work/gps-alarm/gps-alarm/app/integration_test/map_ios_test.dart line 261
+The test description was:
+  MI01 screen 2 has the MapKit view and it gets ready
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Test failed. See exception logs above.
+The test description was: MI01 screen 2 has the MapKit view and it gets ready
+
+::endgroup::
+::group::✅ Passing tests
+✅ map_ios_test MI02 long press drops a pin
+✅ map_ios_test MI03 pin drags: 300 m keeps the station, 2 km pins, undo
+✅ map_ios_test MI04 choosing a station frames it and its zone
+::endgroup::
+::group::✅ map_ios_test MI05 screen 2: the camera cannot show the islands
+MI05 lat=16.5 center.lng=106.496 visible.w=102.092 visible.e=110.900 distanceM=2445760.2943150825 maxDistanceM=2450154.230887567 boundaryEast=106.49583169886412
+MI05 lat=12.2 center.lng=106.496 visible.w=102.092 visible.e=110.900 distanceM=2492296.414621546 maxDistanceM=2450154.230887567 boundaryEast=106.49583169886412
+MI05 lat=9.0 center.lng=106.496 visible.w=102.092 visible.e=110.900 distanceM=2517980.7916247947 maxDistanceM=2450154.230887567 boundaryEast=106.49583169886412
+::endgroup::
+::group::✅ map_ios_test MI05b landscape view 800x300: the span limit follows the view
+MI05b lat=16.5 center.lng=106.490 visible.w=102.080 visible.e=110.900 distanceM=654876.9883894634 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+MI05b lat=12.2 center.lng=106.490 visible.w=102.080 visible.e=110.900 distanceM=667337.5039961905 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+MI05b lat=9.0 center.lng=106.490 visible.w=102.080 visible.e=110.900 distanceM=674214.7550087464 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+::endgroup::
+::group::✅ Passing tests
+✅ map_ios_test MI05c the easternmost station can be centered
+::endgroup::
+::group::✅ map_ios_test MI05d zoomed out first, then framing the easternmost station (R2-1)
+MI05d before boundaryEast=106.49583169886412
+MI05d framed center.lng=109.3768 boundaryEast=109.4
+::endgroup::
+::group::✅ map_ios_test MI05e Ga Hà Nội, then Ga Nha Trang (animated): station in view, east edge within the limit (R3-2)
+MI05e visible.w=108.993 visible.e=109.376 boundaryEast=109.4
+::endgroup::
+::group::✅ map_ios_test MI05f first camera of screen 2 and of an 800x300 view, no gesture: east edge below 111
+MI05f screen2 visible.w=102.236 visible.e=109.464 distanceM=2012592.9342479159 maxDistanceM=2450154.230887567 boundaryEast=107.28315829539991
+MI05f 800x300 visible.w=101.443 visible.e=110.257 distanceM=656199.9433983322 maxDistanceM=655177.0651354857 boundaryEast=106.48994015062343
+::endgroup::
+::group::✅ map_ios_test MI06 screen 4 card of a simulated trip: no location dot, fixed pin; MI06b islands hidden in the card
+MI06b lat=16.5 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1334277.1476416145 maxDistanceM=1327528.6273302292 boundaryEast=106.49999999998052
+MI06b lat=12.2 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1359664.7876360742 maxDistanceM=1327528.6273302292 boundaryEast=106.49999999998052
+MI06b lat=9.0 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1373676.8219987648 maxDistanceM=1327528.6273302292 boundaryEast=106.49999999998052
+MI06c framed center.lng=106.5997 boundaryEast=109.4
+::endgroup::
+::group::✅ Passing tests
+✅ address_search_ios_test AS-I01 fake suggestions come through the real channel
+✅ address_search_ios_test AS-I02 a point outside the supported area is refused
+✅ address_search_ios_test AS-I03 real MapKit answers in a decodable way
+✅ t17_ios_runtime_test II01 start inside the alarm zone rings, dismiss ends on time
+✅ t17_ios_runtime_test II02 second start is refused while a trip runs
+✅ t17_ios_runtime_test II03 + II04 far trip: no simulation echoed, stopTrip ends it cancelled
+✅ t17_ios_runtime_test II05 a simulated trip with a stub id is simulation-unavailable
+✅ t17_2_ios_alarm_test AC04 now alarm: snooze button + default sound; snooze → SnoozedMsg
+✅ t28_3_ios_ui_test PI01 screen 12: no volume slider, iOS notes; "Nghe thử" horn plays
+::endgroup::
+::group::✅ t28_3_ios_ui_test PI02 alarm while the app is open: Flutter screen 5 within 6 s, no "Mở màn báo thức"; swipe → TripEndedMsg
+T28_3_PI02_LIFECYCLE shown=true [atAlarm:null]
+::endgroup::
+::group::✅ Passing tests
+✅ t28_3_ios_ui_test PI03 screen 8: "Chỉ đường quay lại" opens the Google Maps URL (T27 D8)
+::endgroup::
+
+::error::29 tests passed, 1 failed.
