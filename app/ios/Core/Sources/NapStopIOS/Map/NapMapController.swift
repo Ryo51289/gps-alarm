@@ -70,12 +70,22 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
     private let maxLngSpan: Double?
     private var boundaryEast: Double?
     private var measureScheduled = false
-    /// End of the window in which the initial camera is re-applied (see `applyInitialCamera`).
-    private var initialCameraUntil: Date?
-    /// Why the initial-camera window ended early ("frame", "gesture:<recognizer>", "longPress", "pinDrag"); nil while open
-    /// or after it expired. Only read by the `diagState` command of NAPSTOP_DIAG builds (no logging here, MC06).
+    /// The initial camera (the `initial` box, centered) is re-applied, with no time limit, after every layout, load and
+    /// drift until the user acts on the map or Dart frames something (T23.3 round 7: a timed window raced the resizes
+    /// of a slow CI runner, MI01 at 102°E on `ci/ios-all-t235b`). See `applyInitialCamera`.
+    private var initialCameraPending = true
+    private var applyingInitialCamera = false
+    private var initialCameraApplyCount = 0
+    private static let initialCameraMaxApplies = 24
+    private let createdAt = ProcessInfo.processInfo.systemUptime
+    private var initialCameraLog: [String] = []
+    /// Why the initial camera stopped being re-applied ("frame", "gesture:<recognizer>", "longPress", "pinDrag"); nil
+    /// while it is still pending. Only read by the `diagState` command of NAPSTOP_DIAG builds (no logging, MC06).
     public private(set) var initialCameraEndReason: String?
-    private static let initialCameraWindow: TimeInterval = 2
+    /// Number of times the initial camera was applied (diagnostics).
+    public var initialCameraApplied: Int { initialCameraApplyCount }
+    /// "<reason>@<ms since creation>" of the last applications (diagnostics).
+    public var initialCameraEvents: [String] { initialCameraLog }
     /// Set while `frame` moves the boundary and the camera together: layer 2 must not undo it half-way.
     private var boundaryUpdatesSuspended = false
     private static let boundaryHysteresis = 0.02
@@ -266,19 +276,28 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
         return recognizers.first { $0 !== longPressRecognizer && ($0.state == .began || $0.state == .changed) }
     }
 
+    /// The `diagZoomOutAt` command acts like a user gesture (NAPSTOP_DIAG tests only).
+    public func cancelInitialCamera(_ reason: String) { endInitialCamera(reason) }
+
     private func endInitialCamera(_ reason: String) {
-        guard initialCameraActive else { return }
-        initialCameraUntil = nil
+        guard initialCameraPending else { return }
+        initialCameraPending = false
         initialCameraEndReason = reason
     }
 
     /// D11 layer 2: lower or raise the east limit of the center with the span now visible.
     public func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
         updateCenterBoundary()
+        reapplyInitialCameraIfDrifted()
     }
 
     public func mapViewDidFinishLoadingMap(_ mapView: MKMapView) {
+        applyInitialCamera("loaded")
         sendReady()
+    }
+
+    public func mapViewDidFinishRenderingMap(_ mapView: MKMapView, fullyRendered: Bool) {
+        applyInitialCamera("rendered")
     }
 
     public func mapViewDidFailLoadingMap(_ mapView: MKMapView, withError error: Error) {
@@ -314,7 +333,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
             guard let self else { return }
             self.measureScheduled = false
             self.measureSpan()
-            if self.initialCameraActive { self.applyInitialCamera() }
+            self.applyInitialCamera("resize")
         }
     }
 
@@ -335,8 +354,15 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
     /// Reset only when it moved by more than 0.02° (a boundary change moves the camera, which calls back here).
     private func updateCenterBoundary() {
         guard !boundaryUpdatesSuspended, let c = centerBounds, let limit = eastLimit else { return }
-        let span = Self.lngSpan(view.visibleMapRect)
-        setBoundaryEast(max(c.w, MapCameraGuard.centerEastLimit(visibleLngSpan: span, capEast: c.e, eastLimit: limit)))
+        setBoundaryEast(centerEastBoundary(forSpan: Self.lngSpan(view.visibleMapRect), centerBounds: c, eastLimit: limit))
+    }
+
+    /// East edge of the center boundary for a view spanning `span` degrees. The span is capped at `maxLngSpan`: layer 1
+    /// keeps the real span below it, so a larger one is a view in transition (resize, first layout) and must not
+    /// collapse the boundary onto its west edge, which pinned the camera center at 102°E (CI `ci/ios-all-t235b`, MI01).
+    private func centerEastBoundary(forSpan span: Double, centerBounds c: MapBoundsWire, eastLimit limit: Double) -> Double {
+        let capped = maxLngSpan.map { min(span, $0) } ?? span
+        return max(c.w, MapCameraGuard.centerEastLimit(visibleLngSpan: capped, capEast: c.e, eastLimit: limit))
     }
 
     private func setBoundaryEast(_ east: Double, force: Bool = false) {
@@ -358,8 +384,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
 
     private func didFirstLayout() {
         laidOut = true
-        initialCameraUntil = Date().addingTimeInterval(Self.initialCameraWindow)
-        applyInitialCamera()
+        applyInitialCamera("layout")
         if let f = pendingFrame {
             pendingFrame = nil
             frame(f)
@@ -368,21 +393,53 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
 
     /// First CI runs (07/11, MI01/MI05f): a box larger than the zoom range allows (Vietnam on screen 2) set from
     /// `layoutSubviews` left the camera center pinned to the boundary's west edge (102°E). The initial box is applied
-    /// again, with an explicit camera center, after each settled size change (Flutter resizes the view once more in
-    /// its next frame, D9) during a short window, until Dart frames something.
-    private var initialCameraActive: Bool {
-        guard let until = initialCameraUntil else { return false }
-        return Date() < until
-    }
-
-    private func applyInitialCamera() {
-        view.setVisibleMapRect(Self.mapRect(initial), animated: false)
-        let center = CLLocationCoordinate2D(
-            latitude: (initial.s + initial.n) / 2, longitude: (initial.w + initial.e) / 2)
+    /// with an explicit camera center, and the center boundary first set for the span it will have (as `frame` does,
+    /// capped at `maxLngSpan`). Deterministic, not timed: it runs after the first layout, every size change, the map
+    /// finishing loading or rendering, and whenever the center drifted from the box, until the user acts on the map or
+    /// Dart frames something (`endInitialCamera`). A cap on the number of applications guards against a loop.
+    private func applyInitialCamera(_ reason: String) {
+        guard initialCameraPending, laidOut, !applyingInitialCamera, view.bounds.width > 0, view.bounds.height > 0,
+            initialCameraApplyCount < Self.initialCameraMaxApplies
+        else { return }
+        applyingInitialCamera = true
+        defer { applyingInitialCamera = false }
+        initialCameraApplyCount += 1
+        let ms = Int((ProcessInfo.processInfo.systemUptime - createdAt) * 1000)
+        initialCameraLog.append("\(reason)@\(ms)")
+        if initialCameraLog.count > 24 { initialCameraLog.removeFirst() }
+        let rect = Self.mapRect(initial)
+        if let c = centerBounds, let limit = eastLimit,
+            let target = MapCameraGuard.targetLngSpan(
+                rectLngSpan: Self.degrees(rect.size.width), rectHeightLng: Self.degrees(rect.size.height),
+                viewWidth: Double(view.bounds.width), viewHeight: Double(view.bounds.height), padTop: 0, padLeft: 0,
+                padBottom: 0, padRight: 0)
+        {
+            boundaryUpdatesSuspended = true
+            setBoundaryEast(centerEastBoundary(forSpan: target, centerBounds: c, eastLimit: limit), force: true)
+        }
+        view.setVisibleMapRect(rect, animated: false)
         view.setCamera(
             MKMapCamera(
-                lookingAtCenter: center, fromDistance: view.camera.centerCoordinateDistance, pitch: 0, heading: 0),
+                lookingAtCenter: Self.initialCenter(initial), fromDistance: view.camera.centerCoordinateDistance, pitch: 0,
+                heading: 0),
             animated: false)
+        boundaryUpdatesSuspended = false
+        updateCenterBoundary()
+    }
+
+    /// A region change that is not a user gesture moved the center off the initial box (a layout, a boundary change):
+    /// put it back.
+    private func reapplyInitialCameraIfDrifted() {
+        guard initialCameraPending, laidOut, !applyingInitialCamera, activeGesture() == nil else { return }
+        let want = Self.initialCenter(initial)
+        let have = view.centerCoordinate
+        if abs(have.latitude - want.latitude) > 0.05 || abs(have.longitude - want.longitude) > 0.05 {
+            applyInitialCamera("drift")
+        }
+    }
+
+    private static func initialCenter(_ b: MapBoundsWire) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: (b.s + b.n) / 2, longitude: (b.w + b.e) / 2)
     }
 
     private func sendReady() {

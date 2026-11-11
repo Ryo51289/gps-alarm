@@ -116,6 +116,7 @@ final class NapMapPlatformView: NSObject, FlutterPlatformView {
           return true
         }
         // Far beyond the zoom range: MapKit clamps it to cameraBoundary / cameraZoomRange (D11).
+        controller.cancelInitialCamera("diagZoom")
         let camera = MKMapCamera(
           lookingAtCenter: CLLocationCoordinate2D(latitude: c.lat, longitude: c.lng), fromDistance: 50_000_000,
           pitch: 0, heading: 0)
@@ -136,6 +137,8 @@ final class NapMapPlatformView: NSObject, FlutterPlatformView {
           "maxDistanceM": controller.maxDistanceM.map { $0 as Any } ?? NSNull(),
           "boundaryEast": controller.centerBoundaryEast.map { $0 as Any } ?? NSNull(),
           "initialCameraEnd": controller.initialCameraEndReason.map { $0 as Any } ?? NSNull(),
+          "initialCameraApplied": controller.initialCameraApplied,
+          "initialCameraEvents": controller.initialCameraEvents,
           "pin": state.pin.map { MapWire.pointArgs($0) as Any } ?? NSNull(),
         ] as [String: Any])
       default:

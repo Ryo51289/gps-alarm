@@ -7,8 +7,8 @@
 #       C1 GoogleService-Info.plist is in the bundle, BUNDLE_ID = $NAPSTOP_EXPECT_BUNDLE_ID [app.napstop], GOOGLE_APP_ID
 #          is an iOS app id;
 #       C2 the 7 collection keys of §5 are false in the built Info.plist, no NSUserTrackingUsageDescription;
-#       C3 `otool -L` of Runner and of every binary in Runner.app/Frameworks links neither AdSupport nor
-#          AppTrackingTransparency; `nm -u` has no _OBJC_CLASS_$_ASIdentifierManager / ATTrackingManager; `strings` has no
+#       C3 (red: one "  - C3 <signal>: <binary>" line plus up to 3 matching lines per signal, in the summary) `otool -L` of Runner and of every binary in Runner.app/Frameworks links neither AdSupport nor
+#          AppTrackingTransparency; `nm -u` has no _OBJC_CLASS_$_ASIdentifierManager / ATTrackingManager; `strings` (minus the two log messages of the Firebase Analytics wrapper) has no
 #          GoogleAppMeasurementIdentitySupport; Runner.app/Frameworks has neither GoogleAppMeasurementIdentitySupport.framework
 #          nor GoogleAdsOnDeviceConversion.framework (what the FirebaseAnalytics, not Core, product embeds: the only signal
 #          that actually changes, see the negative control in T29.2 notes);
@@ -123,7 +123,7 @@ cmd_check() {
   [ -n "$app" ] || die "usage: firebase-ci-check.sh check <Runner.app>"
   [ -d "$app" ] || die "$app is not a directory"
   command -v jq >/dev/null 2>&1 || die "jq is required"
-  local otool="${NAPSTOP_OTOOL:-otool}" nm="${NAPSTOP_NM:-nm}" strings_tool="${NAPSTOP_STRINGS:-strings}" syms hits
+  local otool="${NAPSTOP_OTOOL:-otool}" nm="${NAPSTOP_NM:-nm}" strings_tool="${NAPSTOP_STRINGS:-strings}" syms hits line
   local want_bundle="${NAPSTOP_EXPECT_BUNDLE_ID:-app.napstop}"
   local failed=0 json v
 
@@ -175,7 +175,10 @@ cmd_check() {
   echo "- C2 Info.plist collection keys (${#COLLECTION_KEYS[@]} false): $c2"
 
   # C3
-  local c3=ok n=0 bin libs fw
+  # Every failure is also kept as a "  - C3 <signal>: <binary> ..." line under the C3 summary line (the CI summary only
+  # keeps stdout), so a red C3 says which binary and which signal (embedded framework, otool, nm, strings) did it.
+  local c3=ok n=0 bin libs fw rb
+  local c3_detail=()
   local bins=("$app/Runner")
   if [ -d "$app/Frameworks" ]; then
     for fw in "$app"/Frameworks/*.framework; do
@@ -185,6 +188,7 @@ cmd_check() {
       case "$(basename "$fw")" in
         GoogleAppMeasurementIdentitySupport.framework | GoogleAdsOnDeviceConversion.framework)
           echo "::error::C3 $(rel "$fw" "$app") is embedded (FirebaseAnalytics with IDFA; set FIREBASE_ANALYTICS_WITHOUT_ADID)" >&2
+          c3_detail+=("  - C3 embedded-framework: $(rel "$fw" "$app")")
           c3=FAILED
           ;;
       esac
@@ -196,44 +200,64 @@ cmd_check() {
     done
   fi
   for bin in "${bins[@]}"; do
+    rb="$(rel "$bin" "$app")"
     if [ ! -f "$bin" ]; then
-      echo "::error::C3 $(rel "$bin" "$app") not found" >&2
+      echo "::error::C3 $rb not found" >&2
+      c3_detail+=("  - C3 missing-binary: $rb")
       c3=FAILED
       continue
     fi
     if ! libs="$("$otool" -L "$bin" 2>&1)"; then
-      echo "::error::C3 otool -L failed on $(rel "$bin" "$app")" >&2
+      echo "::error::C3 otool -L failed on $rb" >&2
+      c3_detail+=("  - C3 otool-failed: $rb")
       c3=FAILED
       continue
     fi
     n=$((n + 1))
-    if grep -Eq 'AdSupport\.framework|AppTrackingTransparency\.framework|GoogleAppMeasurementIdentitySupport|GoogleAdsOnDeviceConversion' \
-      <<<"$libs"; then
-      echo "::error::C3 $(rel "$bin" "$app") links AdSupport, AppTrackingTransparency or an IDFA library (T29.2 D6)" >&2
+    hits="$(grep -E 'AdSupport\.framework|AppTrackingTransparency\.framework|GoogleAppMeasurementIdentitySupport|GoogleAdsOnDeviceConversion' \
+      <<<"$libs" | head -n 3 | cut -c1-160 || true)"
+    if [ -n "$hits" ]; then
+      echo "::error::C3 $rb links AdSupport, AppTrackingTransparency or an IDFA library (T29.2 D6)" >&2
+      c3_detail+=("  - C3 otool-L: $rb")
+      while IFS= read -r line; do c3_detail+=("      $(printf '%s' "$line" | tr -d '\t')"); done <<<"$hits"
       c3=FAILED
     fi
-    # Second signal, independent of the load commands (RK-T292-1): a reference to the IDFA / ATT classes, or the
-    # GoogleAppMeasurementIdentitySupport library that the FirebaseAnalytics (not Core) product adds.
+    # Second signal, independent of the load commands (RK-T292-1): a reference to the IDFA / ATT classes.
     if ! syms="$("$nm" -u "$bin" 2>/dev/null)"; then
-      echo "::error::C3 nm -u failed on $(rel "$bin" "$app")" >&2
+      echo "::error::C3 nm -u failed on $rb" >&2
+      c3_detail+=("  - C3 nm-failed: $rb")
       c3=FAILED
       continue
     fi
     # shellcheck disable=SC2016 # a literal $ in the symbol name
-    if grep -Eq '_OBJC_CLASS_\$_(ASIdentifierManager|ATTrackingManager)([^A-Za-z0-9_]|$)' <<<"$syms"; then
-      echo "::error::C3 $(rel "$bin" "$app") references ASIdentifierManager or ATTrackingManager (IDFA/ATT)" >&2
+    hits="$(grep -E '_OBJC_CLASS_\$_(ASIdentifierManager|ATTrackingManager)([^A-Za-z0-9_]|$)' <<<"$syms" |
+      head -n 3 | cut -c1-160 || true)"
+    if [ -n "$hits" ]; then
+      echo "::error::C3 $rb references ASIdentifierManager or ATTrackingManager (IDFA/ATT)" >&2
+      c3_detail+=("  - C3 nm-u: $rb")
+      while IFS= read -r line; do c3_detail+=("      $line"); done <<<"$hits"
       c3=FAILED
     fi
-    # grep -c reads the whole stream: `grep -q` exits early and strings dies of SIGPIPE (141), which pipefail turns into
-    # "no match" on a large binary (tester T29.2 L1).
-    hits="$("$strings_tool" -a "$bin" 2>/dev/null | grep -c 'GoogleAppMeasurementIdentitySupport' || true)"
-    if [ "${hits:-0}" -gt 0 ]; then
-      echo "::error::C3 $(rel "$bin" "$app") contains GoogleAppMeasurementIdentitySupport (FirebaseAnalytics with IDFA)" >&2
+    # Both FirebaseAnalytics builds (with and without IDFA) carry two log messages of the Firebase Analytics wrapper in
+    # Runner: "GoogleAppMeasurementIdentitySupport dependency is linked." and "... is not currently linked. IDFA will
+    # not be accessible." They are metadata, not a link (CI run 42960631516, ios-ipa-fb-c3diag), so they are skipped;
+    # the real signals are the embedded framework above and otool -L / nm -u.
+    # Third signal: the strings of the binary. awk reads the whole stream (`grep -q` exits early and strings dies of
+    # SIGPIPE, which pipefail turns into "no match" on a large binary, tester T29.2 L1). Up to 3 matching lines, each cut
+    # to 160 characters, tell metadata (a path or a module name) from a real reference.
+    hits="$("$strings_tool" -a "$bin" 2>/dev/null |
+      awk '/GoogleAppMeasurementIdentitySupport/ && !/GoogleAppMeasurementIdentitySupport dependency is (not currently )?linked/ { if (++c <= 3) print substr($0, 1, 160) }' || true)"
+    if [ -n "$hits" ]; then
+      echo "::error::C3 $rb contains GoogleAppMeasurementIdentitySupport in its strings" >&2
+      c3_detail+=("  - C3 strings: $rb")
+      while IFS= read -r line; do c3_detail+=("      $line"); done <<<"$hits"
       c3=FAILED
     fi
   done
   [ "$c3" = ok ] || failed=1
+  local i
   echo "- C3 no AdSupport / AppTrackingTransparency ($n binaries): $c3"
+  for ((i = 0; i < ${#c3_detail[@]}; i++)); do printf '%s\n' "${c3_detail[$i]}"; done
 
   # C4
   local c4=ok m=0 names=() f
@@ -574,6 +598,45 @@ EOF
   app="$(mk rpath-identity)"
   echo '@rpath/GoogleAppMeasurementIdentitySupport.framework/GoogleAppMeasurementIdentitySupport' >>"$app/Runner.libs"
   expect 1 "Runner loads GoogleAppMeasurementIdentitySupport" "$app"
+
+  # Log messages of the Firebase Analytics wrapper (present with and without IDFA): not a link, must pass; a path must fail.
+  app="$(mk log-messages)"
+  printf '%s\n' 'GoogleAppMeasurementIdentitySupport dependency is linked.' \
+    'GoogleAppMeasurementIdentitySupport dependency is not currently linked. IDFA will not be accessible.' \
+    >"$app/Runner.strings"
+  expect 0 "wrapper log messages only" "$app"
+  grep -q '^- C3 no AdSupport / AppTrackingTransparency (2 binaries): ok$' "$tmp/out" || {
+    failed=$((failed + 1)); echo "self-test FAIL: C3 summary line missing" >&2; }
+  printf '%s\n' 'GoogleAppMeasurementIdentitySupport dependency is linked.' \
+    '/Pods/GoogleAppMeasurementIdentitySupport/Sources/IdentitySupport.m' >"$app/Runner.strings"
+  expect 1 "log message plus a module path" "$app"
+
+  # The summary names the binary and the signal, with at most 3 matching lines of <= 160 characters.
+  app="$(mk detail)"
+  printf '%s\n' 'x' "GoogleAppMeasurementIdentitySupport $(head -c 300 /dev/zero | tr '\0' 'b')" l2 \
+    GoogleAppMeasurementIdentitySupport/3 GoogleAppMeasurementIdentitySupport/4 >"$app/Frameworks/FirebaseCrashlytics.framework/FirebaseCrashlytics.strings"
+  expect 1 "strings detail" "$app"
+  if ! grep -q '^  - C3 strings: Frameworks/FirebaseCrashlytics.framework/FirebaseCrashlytics$' "$tmp/out" \
+    || [ "$(grep -c '^      GoogleAppMeasurementIdentitySupport' "$tmp/out")" != 3 ] \
+    || [ "$(awk '{ if (length($0) > 166) n++ } END { print n + 0 }' "$tmp/out")" != 0 ]; then
+    failed=$((failed + 1))
+    echo "self-test FAIL: C3 strings detail missing in the summary" >&2
+    sed 's/^/    /' "$tmp/out" >&2
+  fi
+  app="$(mk detail-nm)"
+  echo "${objc}ASIdentifierManager" >"$app/Runner.nm"
+  expect 1 "nm detail" "$app"
+  if ! { grep -q '^  - C3 nm-u: Runner$' "$tmp/out" && grep -q "^      ${objc}ASIdentifierManager" "$tmp/out"; }; then
+    failed=$((failed + 1)); echo "self-test FAIL: C3 nm detail missing in the summary" >&2
+  fi
+  app="$(mk detail-emb)"
+  mkdir -p "$app/Frameworks/GoogleAdsOnDeviceConversion.framework"
+  expect 1 "embedded detail" "$app"
+  grep -q '^  - C3 embedded-framework: Frameworks/GoogleAdsOnDeviceConversion.framework$' "$tmp/out" || {
+    failed=$((failed + 1)); echo "self-test FAIL: C3 embedded detail missing in the summary" >&2; }
+  app="$(mk detail-ok)"
+  expect 0 "no detail when ok" "$app"
+  ! grep -q '  - C3' "$tmp/out" || { failed=$((failed + 1)); echo "self-test FAIL: C3 detail on a good bundle" >&2; }
 
   app="$(mk no-runner)"
   rm "$app/Runner"

@@ -256,10 +256,28 @@ void main() {
       print(
         'MI01 center=${center[0].toStringAsFixed(3)},'
         '${center[1].toStringAsFixed(3)} '
-        'initialCameraEnd=${s['initialCameraEnd']}',
+        'initialCameraEnd=${s['initialCameraEnd']} '
+        'applied=${s['initialCameraApplied']} '
+        'events=${s['initialCameraEvents']}',
       );
       expect(center[1].toDouble(), closeTo(105.85, 0.5));
       expect(center[0].toDouble(), closeTo(15.95, 1));
+      // Not timing dependent (round 7): still centered once everything
+      // (D9 resize, tiles, boundary) has settled.
+      await _wait(tester, const Duration(seconds: 3));
+      final later = await _diagState(tester);
+      final c2 = (later['center']! as List).cast<num>();
+      // Public camera numbers for the spec notes (no user data).
+      // ignore: avoid_print
+      print(
+        'MI01 later center=${c2[0].toStringAsFixed(3)},'
+        '${c2[1].toStringAsFixed(3)} '
+        'applied=${later['initialCameraApplied']} '
+        'events=${later['initialCameraEvents']} '
+        'boundaryEast=${later['boundaryEast']}',
+      );
+      expect(c2[1].toDouble(), closeTo(105.85, 0.5));
+      expect(c2[0].toDouble(), closeTo(15.95, 1));
     },
   );
 
