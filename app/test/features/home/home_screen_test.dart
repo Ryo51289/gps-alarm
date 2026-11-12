@@ -144,10 +144,12 @@ void main() {
   ) async {
     TripDestination? next = kBenXeMyDinh;
     var picks = 0;
+    final slots = <SavedPlaceSlot>[];
     final h = await pumpAppHarness(
       tester,
       overrides: [
-        destinationPickerProvider.overrideWithValue((_) async {
+        destinationPickerProvider.overrideWithValue((_, slot) async {
+          slots.add(slot);
           picks++;
           return next;
         }),
@@ -177,14 +179,20 @@ void main() {
       await h.read(savedPlacesRepositoryProvider).get(SavedPlaceSlot.hometown),
       isNull,
     );
+    // T23.7 H1: the picker is told which slot it fills.
+    expect(slots, [SavedPlaceSlot.work, SavedPlaceSlot.hometown]);
   });
 
   testWidgets('W06 long press: remove, undo, change', (tester) async {
+    final slots = <SavedPlaceSlot>[];
     final h = await pumpAppHarness(
       tester,
       seed: seedW01,
       overrides: [
-        destinationPickerProvider.overrideWithValue((_) async => kGaHue),
+        destinationPickerProvider.overrideWithValue((_, slot) async {
+          slots.add(slot);
+          return kGaHue;
+        }),
       ],
     );
     Finder homeName(String name) => find.descendant(
@@ -214,6 +222,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(homeName(kGaHue.name), findsOneWidget);
     expect(h.location, AppRoutes.home);
+    // T23.7 H1: "Đổi địa điểm" picks into the long-pressed slot.
+    expect(slots, [SavedPlaceSlot.home]);
   });
 
   testWidgets('W06b empty tiles have no long-press sheet', (tester) async {
@@ -238,7 +248,7 @@ void main() {
       tester,
       db: slow,
       overrides: [
-        destinationPickerProvider.overrideWithValue((_) async {
+        destinationPickerProvider.overrideWithValue((_, _) async {
           picks++;
           return kGaHue;
         }),
@@ -574,7 +584,7 @@ void main() {
       tester,
       overrides: [
         destinationPickerProvider.overrideWithValue(
-          (_) async => const TripDestination(
+          (_, _) async => const TripDestination(
             name: 'Bad',
             lat: 99,
             lng: 0,

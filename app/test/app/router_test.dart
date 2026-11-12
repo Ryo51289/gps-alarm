@@ -4,8 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/app/router/app_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
+import 'package:napstop/core/trip/domain/saved_place.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
+import 'package:napstop/features/destination/presentation/destination_screen.dart';
 
 import '../helpers/app_harness.dart';
 import '../helpers/fake_core_bridge.dart';
@@ -134,6 +136,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(h.location, AppRoutes.destination);
     expect(h.router.state.uri.queryParameters['mode'], kDestinationModePick);
+    h.router.pop(kGaHue);
+    await tester.pumpAndSettle();
+    expect(await result, kGaHue);
+  });
+
+  test('T23.7 P1: destinationPickFor adds the slot', () {
+    expect(
+      AppRoutes.destinationPickFor(SavedPlaceSlot.work),
+      '/destination?mode=pick&slot=work',
+    );
+    expect(AppRoutes.destinationPick, '/destination?mode=pick');
+  });
+
+  testWidgets('T23.7 R1: pickDestination(slot:) puts the slot in the query', (
+    tester,
+  ) async {
+    final h = await pumpAppHarness(tester);
+    final context = tester.element(find.text('Hôm nay bạn xuống ở đâu?'));
+    final result = context.pickDestination(slot: SavedPlaceSlot.work);
+    await tester.pumpAndSettle();
+    expect(h.location, AppRoutes.destination);
+    final query = h.router.state.uri.queryParameters;
+    expect(query['mode'], kDestinationModePick);
+    expect(query[kDestinationSlotParam], 'work');
+    expect(
+      tester.widget<DestinationScreen>(find.byType(DestinationScreen)).pickSlot,
+      SavedPlaceSlot.work,
+    );
     h.router.pop(kGaHue);
     await tester.pumpAndSettle();
     expect(await result, kGaHue);

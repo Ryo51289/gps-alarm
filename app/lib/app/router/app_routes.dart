@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:napstop/core/trip/domain/saved_place.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/features/alarm/domain/route_back.dart';
@@ -33,6 +34,10 @@ abstract final class AppRoutes {
   /// Screen 2 as a picker.
   static const String destinationPick = '/destination?mode=pick';
 
+  /// Screen 2 as a picker for [slot] (T23.7).
+  static String destinationPickFor(SavedPlaceSlot slot) =>
+      '$destinationPick&$kDestinationSlotParam=${slot.name}';
+
   /// Screen 3 (T25); `extra` must be a [TripDraft] or an
   /// `AlarmSettingsArgs` (preset, simulation).
   static const String alarmSettings = '/alarm-settings';
@@ -52,13 +57,23 @@ abstract final class AppRoutes {
 /// confirming pops a [TripDestination] instead of opening screen 3.
 const String kDestinationModePick = 'pick';
 
+/// Query key of `/destination?mode=pick` naming the saved place slot the
+/// pick goes into (T23.7). Value: `SavedPlaceSlot.name`.
+const String kDestinationSlotParam = 'slot';
+
 extension AppNavigation on BuildContext {
   /// Screen 2, normal flow (ends at screen 3).
   Future<void> openDestinationSearch() => push<void>(AppRoutes.destination);
 
-  /// Screen 2 as a picker; null when the user backs out.
-  Future<TripDestination?> pickDestination() =>
-      push<TripDestination>(AppRoutes.destinationPick);
+  /// Screen 2 as a picker; null when the user backs out. With [slot], the
+  /// confirm button reads `Lưu vào <slot>` and Back with a pending choice
+  /// asks first (T23.7).
+  Future<TripDestination?> pickDestination({SavedPlaceSlot? slot}) =>
+      push<TripDestination>(
+        slot == null
+            ? AppRoutes.destinationPick
+            : AppRoutes.destinationPickFor(slot),
+      );
 
   /// Screen 3 prefilled with [draft].
   Future<void> openAlarmSettings(TripDraft draft) =>
@@ -82,13 +97,13 @@ extension AppNavigation on BuildContext {
   Future<void> openBatteryGuide() => push<void>(AppRoutes.batteryGuide);
 }
 
-/// Opens screen 2 as a picker. A seam for widget tests (screen 2 is a
-/// placeholder until T23).
+/// Opens screen 2 as a picker for [slot]. A seam for widget tests.
 typedef DestinationPicker = Future<TripDestination?> Function(
   BuildContext context,
+  SavedPlaceSlot slot,
 );
 
 final destinationPickerProvider = Provider<DestinationPicker>(
   (ref) =>
-      (context) => context.pickDestination(),
+      (context, slot) => context.pickDestination(slot: slot),
 );

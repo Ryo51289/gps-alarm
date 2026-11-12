@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/app/router/app_shell.dart';
+import 'package:napstop/core/trip/domain/saved_place.dart';
 import 'package:napstop/features/alarm/domain/route_back.dart';
 import 'package:napstop/features/alarm/presentation/alarm_fallback_screen.dart';
 import 'package:napstop/features/alarm/presentation/overshoot_screen.dart';
@@ -82,9 +83,19 @@ GoRouter createAppRouter({String initialLocation = AppRoutes.home}) {
       GoRoute(
         path: AppRoutes.destination,
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => DestinationScreen(
-          pickMode: state.uri.queryParameters['mode'] == kDestinationModePick,
-        ),
+        builder: (context, state) {
+          final query = state.uri.queryParameters;
+          final pick = query['mode'] == kDestinationModePick;
+          return DestinationScreen(
+            pickMode: pick,
+            // T23.7: unknown/missing value = plain picker (no slot). Ignored
+            // outside pick mode.
+            pickSlot: pick
+                ? SavedPlaceSlot.values
+                      .asNameMap()[query[kDestinationSlotParam]]
+                : null,
+          );
+        },
       ),
       GoRoute(
         path: AppRoutes.alarmSettings,

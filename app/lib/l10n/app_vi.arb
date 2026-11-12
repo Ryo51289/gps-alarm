@@ -1082,6 +1082,41 @@
   "@destinationConfirmDisabled": {
     "description": "Screen 2 main button before anything is chosen (disabled)."
   },
+  "destinationConfirmSaveTo": "Lưu vào {slot}",
+  "@destinationConfirmSaveTo": {
+    "description": "Screen 2 main button when picking for a saved place slot (T23.7).",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationLeaveSaveTitle": "Lưu vào {slot}?",
+  "@destinationLeaveSaveTitle": {
+    "description": "Screen 2 picker: dialog title when leaving with a pending choice.",
+    "placeholders": {
+      "slot": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationLeaveSaveBody": "Đã chọn: {name}",
+  "@destinationLeaveSaveBody": {
+    "description": "Screen 2 picker leave dialog: the pending destination.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationLeaveSave": "Lưu",
+  "@destinationLeaveSave": {
+    "description": "Leave dialog: save the choice into the slot and go back."
+  },
+  "destinationLeaveDiscard": "Bỏ",
+  "@destinationLeaveDiscard": {
+    "description": "Leave dialog: go back without saving."
+  },
   "destinationSave": "Lưu điểm này",
   "@destinationSave": {
     "description": "Screen 2: label of the button that saves the chosen place."

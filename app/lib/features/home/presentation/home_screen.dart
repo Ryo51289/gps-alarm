@@ -91,7 +91,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// Screen 2 as a picker; the result goes into [slot].
   Future<void> _pickInto(SavedPlaceSlot slot) async {
-    final destination = await ref.read(destinationPickerProvider)(context);
+    final destination = await ref.read(destinationPickerProvider)(
+      context,
+      slot,
+    );
     if (destination == null || !mounted) {
       return;
     }

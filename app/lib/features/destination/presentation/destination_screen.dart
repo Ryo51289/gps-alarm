@@ -9,6 +9,7 @@ import 'package:napstop/core/design/design.dart';
 import 'package:napstop/core/format/distance_format.dart';
 import 'package:napstop/core/map/map_geometry.dart';
 import 'package:napstop/core/map/map_wire.dart';
+import 'package:napstop/core/trip/domain/saved_place.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/core/trip/domain/trip_draft.dart';
 import 'package:napstop/core/trip/trip_providers.dart';
@@ -21,6 +22,7 @@ import 'package:napstop/features/destination/presentation/destination_strings.da
 import 'package:napstop/features/destination/presentation/widgets/address_section.dart';
 import 'package:napstop/features/destination/presentation/widgets/destination_bottom_bar.dart';
 import 'package:napstop/features/destination/presentation/widgets/destination_map.dart';
+import 'package:napstop/features/destination/presentation/widgets/leave_save_dialog.dart';
 import 'package:napstop/features/destination/presentation/widgets/map_unavailable_placeholder.dart';
 import 'package:napstop/features/destination/presentation/widgets/offline_section.dart';
 import 'package:napstop/features/destination/presentation/widgets/save_place_sheet.dart';
@@ -42,10 +44,16 @@ const double _kBadgeHeight = 32;
 
 /// Screen 2 "Chọn điểm đến" (T23 §9, §10). With [pickMode] (`?mode=pick`)
 /// confirming pops the `TripDestination` instead of opening screen 3.
+/// With [pickSlot] (T23.7) the button reads `Lưu vào <slot>` and Back with a
+/// pending choice asks first.
 class DestinationScreen extends ConsumerStatefulWidget {
-  const new({this.pickMode = false, super.key});
+  const new({this.pickMode = false, this.pickSlot, super.key})
+    : assert(pickSlot == null || pickMode, 'pickSlot needs pickMode');
 
   final bool pickMode;
+
+  /// Saved place slot the pick goes into; only in [pickMode].
+  final SavedPlaceSlot? pickSlot;
 
   @override
   ConsumerState<DestinationScreen> createState() => _DestinationScreenState();
@@ -60,6 +68,9 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
 
   /// "Chọn …" is navigating: a second tap is ignored (review T23 #14).
   bool _navigating = false;
+
+  /// The leave dialog is open: a second Back does not open another (T23.7).
+  bool _asking = false;
   final _focus = FocusNode();
   final _sheet = DraggableScrollableController();
   Timer? _paddingTimer;
@@ -303,6 +314,44 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
     unawaited(_openAlarmSettings(destination, selection.source));
   }
 
+  /// T23.7: Back with a pending choice for a slot asks `Lưu vào <slot>?`.
+  /// Save = the confirm button; discard = leave with null; dismissed = stay.
+  Future<void> _askLeave() async {
+    final slot = widget.pickSlot;
+    final selection = ref.read(_provider).selection;
+    if (_asking || slot == null || selection == null || _navigating) {
+      return;
+    }
+    _asking = true;
+    _focus.unfocus();
+    final choice = await showLeaveSaveDialog(
+      context,
+      slotLabel: AppLocalizations.of(context).savedSlotLabel(slot),
+      destinationName: selection.destination.name,
+    );
+    _asking = false;
+    if (!mounted) {
+      return;
+    }
+    switch (choice) {
+      case LeaveSaveChoice.save:
+        // A pending address resolve may have replaced the choice while the
+        // dialog was up: never save a point other than the one it named.
+        // Stay on screen 2, where the new choice and "Lưu vào <slot>" show.
+        if (ref.read(_provider).selection != selection) {
+          break;
+        }
+        _confirm();
+      case LeaveSaveChoice.discard:
+        _controller.cancelPending();
+        _navigating = true;
+        // Pops directly (null), past the PopScope.
+        context.pop();
+      case null:
+        break;
+    }
+  }
+
   /// Screen 3 on top; screen 2 stays below it. Back from screen 3 resumes
   /// what [DestinationController.cancelPending] stopped.
   Future<void> _openAlarmSettings(
@@ -459,9 +508,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                   ),
                 ),
                 DestinationBottomBar(
-                  confirmLabel: selection == null
-                      ? l.destinationConfirmDisabled
-                      : l.destinationConfirm(selection.destination.name),
+                  confirmLabel: _confirmLabel(l, selection),
                   saveLabel: l.destinationSave,
                   showSave: !widget.pickMode,
                   onConfirm: selection == null ? null : _confirm,
@@ -492,7 +539,8 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                       semanticLabel: l.commonBack,
                       variant: NapIconButtonVariant.floating,
                       size: NapSizes.minTouch,
-                      onPressed: () => context.pop(),
+                      // maybePop goes through the PopScope (T23.7).
+                      onPressed: () => Navigator.maybePop(context),
                     ),
                     Expanded(
                       child: NapSearchField(
@@ -522,17 +570,35 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
         ],
       ),
     );
+    // T23.7: a pending choice for a slot is not dropped by Back. The iOS
+    // edge swipe is disabled meanwhile (no gesture while canPop is false).
+    final guardLeave =
+        widget.pickSlot != null && selection != null && !_navigating;
     // Back (app button or system) stops pending distance work at
     // once: the screen stays mounted for the exit animation (test report
     // T23 B1).
     return PopScope<Object?>(
+      canPop: !guardLeave,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) {
           _controller.cancelPending();
+          return;
         }
+        unawaited(_askLeave());
       },
       child: scaffold,
     );
+  }
+
+  String _confirmLabel(AppLocalizations l, Selection? selection) {
+    final slot = widget.pickSlot;
+    if (selection == null) {
+      return l.destinationConfirmDisabled;
+    }
+    if (slot != null) {
+      return l.destinationConfirmSaveTo(l.savedSlotLabel(slot));
+    }
+    return l.destinationConfirm(selection.destination.name);
   }
 }
 

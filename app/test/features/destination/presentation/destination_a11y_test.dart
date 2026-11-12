@@ -1,10 +1,14 @@
 // T23 TW25–TW27: screen 2 accessibility (touch targets, labels, contrast,
 // text scale 2.0, semantics).
+import 'dart:async';
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:napstop/app/router/app_routes.dart';
 import 'package:napstop/core/design/design.dart';
+import 'package:napstop/core/trip/domain/saved_place.dart';
 import 'package:napstop/features/destination/data/stations_codec.dart';
 
 import 'destination_harness.dart';
@@ -80,4 +84,61 @@ void main() {
 
     handle.dispose();
   });
+
+  // T23.7 Y1: the leave dialog of the slot picker.
+  for (final theme in [NapThemeKind.light, NapThemeKind.dark]) {
+    testWidgets('T23.7 Y1 leave dialog guidelines (${theme.name})', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _openLeaveDialog(tester, theme: theme);
+      expect(find.text('Lưu vào Công ty?'), findsOneWidget);
+      await expectGuidelines(tester);
+      final named = find
+          .bySemanticsLabel('Lưu vào Công ty?')
+          .evaluate()
+          .map((e) => e.renderObject!.debugSemantics!)
+          .where((n) => n.getSemanticsData().flagsCollection.namesRoute);
+      expect(named, isNotEmpty);
+      handle.dispose();
+    });
+  }
+
+  testWidgets('T23.7 Y1 "Lưu vào …" button guidelines', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pumpDestination(tester, open: false);
+    unawaited(homeContext(tester).pickDestination(slot: SavedPlaceSlot.work));
+    await tester.pumpAndSettle();
+    await selectDongHoi(tester);
+    expect(find.text('Lưu vào Công ty'), findsOneWidget);
+    await expectGuidelines(tester);
+    handle.dispose();
+  });
+
+  testWidgets('T23.7 Y2 leave dialog at text scale 2.0', (tester) async {
+    await _openLeaveDialog(tester, textScale: 2);
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('leave-save')).hitTestable(), findsOne);
+    expect(find.byKey(const ValueKey('leave-discard')).hitTestable(), findsOne);
+  });
+}
+
+/// Screen 2 picking for "Công ty" with Ga Đồng Hới chosen, Back pressed.
+Future<void> _openLeaveDialog(
+  WidgetTester tester, {
+  NapThemeKind theme = NapThemeKind.light,
+  double textScale = 1.0,
+}) async {
+  await pumpDestination(
+    tester,
+    open: false,
+    theme: theme,
+    textScale: textScale,
+  );
+  unawaited(homeContext(tester).pickDestination(slot: SavedPlaceSlot.work));
+  await tester.pumpAndSettle();
+  await selectDongHoi(tester);
+  await tester.tap(find.byTooltip('Quay lại'));
+  await tester.pumpAndSettle();
+  expect(find.byType(AlertDialog), findsOneWidget);
 }
