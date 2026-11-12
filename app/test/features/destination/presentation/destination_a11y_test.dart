@@ -69,7 +69,7 @@ void main() {
       expect('${node.label} ${node.tooltip}', contains(label), reason: label);
     }
     final osm = tester.getSemantics(
-      find.text('Dữ liệu ga/bến © OpenStreetMap contributors'),
+      find.text('Dữ liệu ga, bến, trạm buýt © OpenStreetMap contributors'),
     );
     expect(osm.flagsCollection.isLink, isTrue);
     expect(osm.hint, 'Mở trang bản quyền OpenStreetMap');

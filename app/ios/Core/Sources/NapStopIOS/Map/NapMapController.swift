@@ -233,7 +233,17 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
         marker.displayPriority = .required
         marker.isAccessibilityElement = true
         marker.accessibilityLabel = pinLabel
+        marker.glyphImage = Self.glyphImage(state.glyph)
         return marker
+    }
+
+    /// T24.3 §6.6: `MKMarkerAnnotationView.glyphImage` (template image, about 20×20 pt); nil = MapKit's default glyph.
+    /// `bus.fill` exists since SF Symbols 1 (iOS 13); if it is ever missing the pin keeps the default glyph (R10).
+    public static func glyphImage(_ glyph: MapPinGlyph?) -> UIImage? {
+        switch glyph {
+        case .bus: return UIImage(systemName: "bus.fill")
+        case nil: return nil
+        }
     }
 
     public func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
@@ -463,6 +473,7 @@ public final class NapMapController: NSObject, MKMapViewDelegate, UIGestureRecog
                 p.coordinate = coordinate
             }
             view.view(for: p)?.isDraggable = s.pinDraggable
+            (view.view(for: p) as? MKMarkerAnnotationView)?.glyphImage = Self.glyphImage(s.glyph)
         } else {
             let p = MKPointAnnotation()
             p.coordinate = coordinate

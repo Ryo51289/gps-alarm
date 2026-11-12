@@ -17,7 +17,9 @@ enum DestinationKind {
   static DestinationKind fromStation(StationKind kind) => switch (kind) {
     StationKind.train => train,
     StationKind.coach => coach,
-    StationKind.bus => bus,
+    // T24.3 D3: a roadside bus stop is stored as a bus destination (no new
+    // wire value, same vehicle hint).
+    StationKind.bus || StationKind.busStop => bus,
   };
 }
 

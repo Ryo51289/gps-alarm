@@ -1,0 +1,8 @@
+{
+  "fetchedAt": "2026-11-12T01:25:30Z",
+  "endpoint": "https://overpass-api.de/api/interpreter",
+  "osmBase": "2026-11-12T01:24:05Z",
+  "areasBase": "2026-11-11T18:13:58Z",
+  "bytes": 3128285,
+  "query": "[out:json][timeout:300];\nrel[\"ISO3166-2\"~\"^VN-(HN|SG)$\"][boundary=administrative];\nmap_to_area->.cities;\n(\n  node(area.cities)[highway=bus_stop];\n  node(area.cities)[public_transport=platform][bus=yes];\n  way(area.cities)[public_transport=platform][bus=yes];\n)->.bs;\n.bs out center;\nforeach.cities->.c(\n  .c out tags;\n  nwr.bs(area.c);\n  out ids;\n);\n"
+}

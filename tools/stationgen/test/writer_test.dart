@@ -9,7 +9,7 @@ import 'helpers.dart';
 const String _golden = r'''
 {
   "schemaVersion": 1,
-  "generator": {"name": "stationgen", "version": "1.0.0"},
+  "generator": {"name": "stationgen", "version": "1.1.0"},
   "source": {"osmBase": "2026-11-01T00:00:00Z", "attribution": "© OpenStreetMap contributors", "license": "ODbL-1.0", "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/", "copyrightUrl": "https://www.openstreetmap.org/copyright"},
   "counts": {"train": 1, "coach": 1, "bus": 1},
   "stations": [

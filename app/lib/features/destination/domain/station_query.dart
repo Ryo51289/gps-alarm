@@ -8,12 +8,18 @@ import 'package:napstop/features/destination/domain/station.dart';
 const int kMaxQueryLength = 64;
 
 /// Folded kind prefixes, tried in this order (longer first). Same table as
-/// `tools/stationgen/lib/src/prefixes.dart`.
+/// `tools/stationgen/lib/src/prefixes.dart`, plus the app-only bus stop
+/// rows of T24.3 §6.3 (the tool does not build bus stops from prefixes);
+/// `tram xe buyt` is `busStop` here and `bus` in the tool.
 const List<(List<String>, StationKind)> kKindPrefixes = [
+  (['diem', 'dung', 'xe', 'buyt'], StationKind.busStop),
   (['ben', 'xe', 'khach'], StationKind.coach),
   (['ben', 'xe', 'buyt'], StationKind.bus),
-  (['tram', 'xe', 'buyt'], StationKind.bus),
+  (['tram', 'xe', 'buyt'], StationKind.busStop),
   (['diem', 'trung', 'chuyen'], StationKind.bus),
+  (['diem', 'dung'], StationKind.busStop),
+  (['tram', 'dung'], StationKind.busStop),
+  (['tram', 'buyt'], StationKind.busStop),
   (['ga', 'tau'], StationKind.train),
   (['nha', 'ga'], StationKind.train),
   (['ben', 'xe'], StationKind.coach),

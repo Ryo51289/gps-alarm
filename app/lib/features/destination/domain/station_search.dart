@@ -5,6 +5,8 @@
 /// user (spec §8).
 library;
 
+import 'dart:typed_data';
+
 import 'package:napstop/core/text/vn_fold.dart';
 import 'package:napstop/features/destination/domain/station.dart';
 import 'package:napstop/features/destination/domain/station_query.dart';
@@ -95,6 +97,7 @@ final class _Entry {
     required this.provinceCompact,
     required this.provinceCoreText,
     required this.provinceCoreCompact,
+    required this.charMask,
   });
 
   final Station station;
@@ -110,6 +113,30 @@ final class _Entry {
   final String provinceCompact;
   final String provinceCoreText;
   final String provinceCoreCompact;
+
+  /// [_charBit] of the first letter of every key and province token.
+  final int charMask;
+}
+
+/// Bit of a folded first letter: a–z → 0–25, 0–9 → 26–35.
+int _charBit(int codeUnit) =>
+    codeUnit >= 0x61 ? 1 << (codeUnit - 0x61) : 1 << (26 + codeUnit - 0x30);
+
+/// Whether a words-typed-together tier (T23 §4.2 steps 2, 3, 5 and the
+/// compact province name) could match [e] for the compact query [qc].
+bool _compactPossible(_Entry e, String qc) {
+  if (qc.length < 4) {
+    return false;
+  }
+  if (qc == e.provinceCompact || qc == e.provinceCoreCompact) {
+    return true;
+  }
+  for (final k in e.keys) {
+    if (k.compact.startsWith(qc) || k.qualifiedCompact == qc) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /// A candidate while searching: the match, the length of its key and its
@@ -117,10 +144,29 @@ final class _Entry {
 typedef _Found = (StationMatch match, int keyLength, int group);
 
 /// In-memory index over the dataset; linear scan with precomputed keys.
+///
+/// T24.3 §6.2: with `bucketByFirstChar` the scan only visits the entries
+/// with a key or province token starting with the first letter of the first
+/// query token. That is an exact superset of every tier but
+/// [StationMatchTier.substring]: the exact, prefix, token and province tiers
+/// need every query token to prefix a key or province token, fuzzy needs
+/// the same first letter (T24 §7.3), and a words-typed-together match
+/// ("bachkhoa") starts with the first letter of a key token. It is tighter
+/// than the union of the buckets of every query token (spec §6.2) with the
+/// same results. Inside the bucket an entry is skipped when the first letter
+/// of another query token is not among the first letters of its tokens and
+/// no words-typed-together match is possible. Without [substringTier] that
+/// tier is skipped (match inside a word); buckets are only used then.
+/// Ranks, scores and order are otherwise unchanged.
 final class StationSearchIndex {
   /// Precomputes the core tokens of names and aliases and the province
-  /// tokens.
-  factory(List<Station> stations) {
+  /// tokens. The defaults (full scan, substring tier on) are the T24
+  /// behaviour of the station dataset.
+  factory(
+    List<Station> stations, {
+    bool bucketByFirstChar = false,
+    bool substringTier = true,
+  }) {
     final entries = <_Entry>[];
     for (final s in stations) {
       final keys = <_Key>[];
@@ -156,15 +202,60 @@ final class StationSearchIndex {
           provinceCompact: province.join(),
           provinceCoreText: provinceCore.join(' '),
           provinceCoreCompact: provinceCore.join(),
+          charMask: _maskOf([for (final k in keys) ...k.tokens, ...province]),
         ),
       );
     }
-    return StationSearchIndex._(List.unmodifiable(entries));
+    return StationSearchIndex._(
+      List.unmodifiable(entries),
+      bucketByFirstChar && !substringTier ? _bucketsOf(entries) : null,
+      substringTier: substringTier,
+    );
   }
 
-  new _(this._entries);
+  new _(this._entries, this._buckets, {required this.substringTier});
 
   final List<_Entry> _entries;
+
+  /// Entry indices (ascending) per first code unit of a key or province
+  /// token; null for a full scan.
+  final Map<int, Uint32List>? _buckets;
+
+  /// Whether the substring tier (query inside a word) is searched.
+  final bool substringTier;
+
+  static int _maskOf(List<String> tokens) {
+    var m = 0;
+    for (final t in tokens) {
+      m |= _charBit(t.codeUnitAt(0));
+    }
+    return m;
+  }
+
+  static Map<int, Uint32List> _bucketsOf(List<_Entry> entries) {
+    final lists = <int, List<int>>{};
+    for (final (i, e) in entries.indexed) {
+      final chars = <int>{
+        for (final k in e.keys)
+          for (final t in k.tokens) t.codeUnitAt(0),
+        for (final t in e.provinceTokens) t.codeUnitAt(0),
+      };
+      for (final c in chars) {
+        (lists[c] ??= []).add(i);
+      }
+    }
+    return {
+      for (final MapEntry(:key, :value) in lists.entries)
+        key: Uint32List.fromList(value),
+    };
+  }
+
+  /// Entry indices to score for [tokens] (bucket of the first letter of
+  /// the first token); null = every entry.
+  Uint32List? _candidates(List<String> tokens) =>
+      _buckets == null ? null : _buckets[tokens.first.codeUnitAt(0)] ?? _none;
+
+  static final Uint32List _none = Uint32List(0);
 
   /// Number of indexed stations.
   int get length => _entries.length;
@@ -186,8 +277,19 @@ final class StationSearchIndex {
     final hint = q.kindHint ?? kindHint;
     final qs = q.tokens.join(' ');
     final qc = q.tokens.join();
+    final queryMask = _maskOf(q.tokens);
     final found = <_Found>[];
-    for (final e in _entries) {
+    final candidates = _candidates(q.tokens);
+    final n = candidates?.length ?? _entries.length;
+    for (var i = 0; i < n; i++) {
+      final e = _entries[candidates == null ? i : candidates[i]];
+      // Bucketed index: every tier left needs each query token's first
+      // letter among the entry's, except the compact ones.
+      if (candidates != null &&
+          queryMask & ~e.charMask != 0 &&
+          !_compactPossible(e, qc)) {
+        continue;
+      }
       final hinted = hint != null && hint == e.station.kind;
       final qualifiedAllowed = hinted && e.station.kind != StationKind.train;
       StationMatch? best;
@@ -200,6 +302,7 @@ final class StationSearchIndex {
           qc,
           e.provinceTokens,
           qualifiedAllowed: qualifiedAllowed,
+          substringTier: substringTier,
         );
         if (m == null) {
           continue;
@@ -240,9 +343,41 @@ final class StationSearchIndex {
         found.add((best, bestLen, hinted && strong ? 0 : 1));
       }
     }
-    found.sort(_compareFound);
-    return [for (final (m, _, _) in found.take(limit)) m];
+    return [for (final (m, _, _) in _best(found, limit)) m];
   }
+}
+
+/// The first [limit] of [found] in [_compareFound] order, the same as
+/// sorting everything and taking [limit]. With thousands of matches (a
+/// short query or a province name over the bus stops, T24.3) only the
+/// best [limit] are kept in order.
+List<_Found> _best(List<_Found> found, int limit) {
+  if (found.length <= limit * 4) {
+    found.sort(_compareFound);
+    return found.length <= limit ? found : found.sublist(0, limit);
+  }
+  final best = <_Found>[];
+  for (final f in found) {
+    if (best.length == limit && _compareFound(f, best.last) >= 0) {
+      continue;
+    }
+    // Binary search for the first element after f.
+    var lo = 0;
+    var hi = best.length;
+    while (lo < hi) {
+      final mid = (lo + hi) >> 1;
+      if (_compareFound(best[mid], f) <= 0) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    best.insert(lo, f);
+    if (best.length > limit) {
+      best.removeLast();
+    }
+  }
+  return best;
 }
 
 /// The whole query is the province name ("bến xe huế"): full or without a
@@ -287,6 +422,7 @@ int _compareFound(_Found a, _Found b) {
   String qc,
   List<String> province, {
   required bool qualifiedAllowed,
+  required bool substringTier,
 }) {
   if (k.text == qs) {
     return (StationMatchTier.exact, 1000);
@@ -318,7 +454,7 @@ int _compareFound(_Found a, _Found b) {
       _anyOrderTokens(k.tokens, q, province, requireKeyMatch: true)) {
     return (StationMatchTier.provinceAssisted, 500);
   }
-  if (qs.length >= 3 && k.text.contains(qs)) {
+  if (substringTier && qs.length >= 3 && k.text.contains(qs)) {
     return (StationMatchTier.substring, 300);
   }
   final errors = _fuzzyErrors(k.tokens, q);

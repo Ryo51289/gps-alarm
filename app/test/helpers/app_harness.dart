@@ -73,6 +73,7 @@ class AppHarness {
 /// in-memory database. [fontFamily] is for golden tests (FlutterTest font).
 /// [seed] runs against the database before the first frame.
 /// [stationCatalog] replaces the real dataset of screen 2 (T23).
+/// [busStopCatalog] replaces the bus stops (T24.3); none by default.
 /// [keyValueStore] holds the preferences (T25); empty by default.
 /// [batteryGuides] replaces the real guides of screens 0 and 9 (T21).
 /// [useApp] pumps the real `NapStopApp` instead (T28): language and theme
@@ -97,6 +98,7 @@ Future<AppHarness> pumpAppHarness(
   Future<void> Function(ProviderContainer container)? seed,
   bool settle = true,
   Future<StationCatalog> Function()? stationCatalog,
+  Future<StationCatalog> Function()? busStopCatalog,
   KeyValueStore? keyValueStore,
   Future<BatteryGuideCatalog> Function()? batteryGuides,
   bool useApp = false,
@@ -132,6 +134,10 @@ Future<AppHarness> pumpAppHarness(
       // Screen 2 (T23): the real dataset, already decoded.
       stationCatalogProvider.overrideWith(
         (ref) => stationCatalog?.call() ?? Future.value(kTestStationCatalog),
+      ),
+      // Screen 2 (T24.3): no bus stops unless a test gives some.
+      busStopCatalogProvider.overrideWith(
+        (ref) => busStopCatalog?.call() ?? Future.value(kEmptyBusStopCatalog),
       ),
       // Screens 0 and 9 (T21): the real guides, already parsed.
       batteryGuideCatalogProvider.overrideWith(

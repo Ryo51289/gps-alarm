@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generator": {"name": "stationgen", "version": "1.0.0"},
+  "generator": {"name": "stationgen", "version": "1.1.0"},
   "source": {"osmBase": "2026-11-01T12:28:41Z", "attribution": "© OpenStreetMap contributors", "license": "ODbL-1.0", "licenseUrl": "https://opendatacommons.org/licenses/odbl/1-0/", "copyrightUrl": "https://www.openstreetmap.org/copyright"},
   "counts": {"train": 282, "coach": 229, "bus": 153},
   "stations": [

@@ -10,7 +10,9 @@
   đúng khi `valid`, và giá trị khớp `input`.
 
 Schema: `{ "version": 1, "point": [Case], "state": [Case], "frame": [Case], "creation": [Case], "centerEastLimit": {...}, "maxDistance": [...] }`,
-`Case = { "name": String, "input": <bất kỳ JSON>, "valid": Bool }`.
+`Case = { "name": String, "input": <bất kỳ JSON>, "valid": Bool }`. Ca `state` có thể thêm `"glyph": "bus" | null` (T24.3 §6.6):
+glyph mong đợi sau khi đọc; vắng = `null`. Khoá `glyph` của `input` là tuỳ chọn, giá trị lạ hoặc không phải chuỗi bị bỏ qua (state vẫn hợp lệ);
+phía Dart so `toWire()` với `input` sau khi thay `glyph` bằng giá trị mong đợi (bỏ khoá khi `null`).
 
 MW06b (D11): `centerEastLimit = { "capEast", "eastLimit", "cases": [{ "span", "expect" }] }` kiểm `centerEastLimit` (Dart) và
 `MapCameraGuard.centerEastLimit` (Swift); `maxDistance = [{ "distance", "span", "maxSpan", "expect" | null }]` chỉ phía Swift kiểm

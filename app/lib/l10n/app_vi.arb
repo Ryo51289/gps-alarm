@@ -927,7 +927,7 @@
   "@homeChipBatteryOptimization": {
     "description": "Readiness chip (Android): battery optimization still applies."
   },
-  "destinationSearchHint": "Tìm ga, bến xe…",
+  "destinationSearchHint": "Tìm ga, bến xe, trạm buýt…",
   "@destinationSearchHint": {
     "description": "Screen 2: hint of the search field floating on the map."
   },
@@ -986,7 +986,7 @@
       }
     }
   },
-  "destinationStartTyping": "Gõ tên ga hoặc bến xe.",
+  "destinationStartTyping": "Gõ tên ga, bến xe hoặc trạm buýt.",
   "@destinationStartTyping": {
     "description": "Screen 2: hint shown before the user typed enough to search."
   },
@@ -1007,7 +1007,7 @@
       }
     }
   },
-  "stationDataAttribution": "Dữ liệu ga/bến © OpenStreetMap contributors",
+  "stationDataAttribution": "Dữ liệu ga, bến, trạm buýt © OpenStreetMap contributors",
   "@stationDataAttribution": {
     "description": "Screen 2: attribution line under the offline results (OpenStreetMap, ODbL)."
   },
@@ -2838,11 +2838,11 @@
   "@alarmFallbackNoteIos": {
     "description": "Flutter screen 5 on iOS (T28.3 §7): note while the iPhone alarm rings and the app is open (replaces alarmFallbackNote)."
   },
-  "destinationSearchHintWithAddress": "Tìm ga, bến xe, địa chỉ…",
+  "destinationSearchHintWithAddress": "Tìm ga, bến xe, trạm buýt, địa chỉ…",
   "@destinationSearchHintWithAddress": {
     "description": "Screen 2 (iOS): hint of the search field when address search (Apple Maps) is on."
   },
-  "destinationStartTypingWithAddress": "Gõ tên ga, bến xe hoặc địa chỉ.",
+  "destinationStartTypingWithAddress": "Gõ tên ga, bến xe, trạm buýt hoặc địa chỉ.",
   "@destinationStartTypingWithAddress": {
     "description": "Screen 2 (iOS): note before the user typed enough, when address search is on."
   },
@@ -2889,5 +2889,67 @@
   "destinationAddressOutsideArea": "NapStop chưa hỗ trợ điểm đến ở khu vực này.",
   "@destinationAddressOutsideArea": {
     "description": "Snack bar on screen 2 (iOS): the chosen address is outside the supported area. Neutral wording on purpose."
+  },
+  "destinationFilterBusStop": "Trạm buýt",
+  "@destinationFilterBusStop": {
+    "description": "Screen 2 filter chip (T24.3): roadside bus stops of Hà Nội and TP. Hồ Chí Minh only."
+  },
+  "stationKindBusStop": "Trạm buýt",
+  "@stationKindBusStop": {
+    "description": "Kind of an offline place (T24.3): roadside city bus stop (not a bus terminal)."
+  },
+  "destinationBusStopHeader": "Trạm buýt",
+  "@destinationBusStopHeader": {
+    "description": "Screen 2 (T24.3): header of the bus stop section under the stations on chip 'Tất cả'."
+  },
+  "destinationBusStopLoading": "Đang tải trạm buýt…",
+  "@destinationBusStopLoading": {
+    "description": "Screen 2 (T24.3): the offline bus stop list is loading."
+  },
+  "destinationBusStopEmpty": "Không có trạm buýt nào khớp \"{query}\".",
+  "@destinationBusStopEmpty": {
+    "description": "Screen 2 (T24.3): no bus stop matches the query (chip 'Trạm buýt'). The placeholder is what the user typed; shown on screen only, never logged.",
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationBusStopLoadError": "Không tải được danh sách trạm buýt.",
+  "@destinationBusStopLoadError": {
+    "description": "Screen 2 (T24.3): the offline bus stop list could not be loaded; shown with a retry button."
+  },
+  "destinationRowBusSubtitle": "{kind} · {province} · tuyến {routes}",
+  "@destinationRowBusSubtitle": {
+    "description": "Screen 2 (T24.3) bus stop row subtitle with the bus routes serving it, e.g. 'Trạm buýt · Hà Nội · tuyến 03, 14'.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "province": {
+        "type": "String"
+      },
+      "routes": {
+        "type": "String"
+      }
+    }
+  },
+  "destinationRowBusSubtitleDistance": "{kind} · {province} · tuyến {routes} · cách {distance}",
+  "@destinationRowBusSubtitleDistance": {
+    "description": "Screen 2 (T24.3) bus stop row subtitle with routes and the distance from the last known position, e.g. 1,2 km.",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "province": {
+        "type": "String"
+      },
+      "routes": {
+        "type": "String"
+      },
+      "distance": {
+        "type": "String"
+      }
+    }
   }
 }

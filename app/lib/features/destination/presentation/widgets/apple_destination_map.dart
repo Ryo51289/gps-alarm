@@ -6,7 +6,8 @@ import 'package:napstop/features/destination/presentation/widgets/destination_ma
 import 'package:napstop/l10n/gen/app_localizations.dart';
 
 /// Native state of the screen 2 map for [props] (T23.3 §3.3): draggable pin
-/// and long press, never the user's location (T23 §9).
+/// and long press, never the user's location (T23 §9); a bus glyph in the
+/// pin of a bus stop (T24.3 §6.6).
 NapMapState destinationMapState(
   DestinationMapProps props, {
   required bool dark,
@@ -18,6 +19,7 @@ NapMapState destinationMapState(
     pinDraggable: true,
     longPress: true,
     dark: dark,
+    glyph: point != null && props.busStop ? MapPinGlyph.bus : null,
   );
 }
 

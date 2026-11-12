@@ -25,7 +25,7 @@ typedef _Strings = ({
 });
 
 const _Strings _vi = (
-  startTyping: 'Gõ tên ga hoặc bến xe.',
+  startTyping: 'Gõ tên ga, bến xe hoặc trạm buýt.',
   chooseDisabled: 'Chọn điểm đến',
   choose: 'Chọn ',
   mapUnavailable: 'Bản đồ chưa có trong bản này.',
@@ -33,7 +33,7 @@ const _Strings _vi = (
 );
 
 const _Strings _en = (
-  startTyping: 'Type a station name.',
+  startTyping: 'Type a station or a bus stop.',
   chooseDisabled: 'Choose a destination',
   choose: 'Choose ',
   mapUnavailable: "The map isn't available in this build.",

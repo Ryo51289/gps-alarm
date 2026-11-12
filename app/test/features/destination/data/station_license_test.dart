@@ -28,6 +28,14 @@ void main() {
     expect(text, isNot(contains('Full station database')));
   });
 
+  test('T24.3: the notice covers both offline datasets', () {
+    expect(
+      stationDataLicenseText().split('\n').first,
+      'Station data (assets/stations.json, assets/bus_stops.json) '
+      '© OpenStreetMap contributors.',
+    );
+  });
+
   test('database line once the public URL is known', () {
     expect(
       stationDataLicenseText(publicUrl: 'https://example.test/stations'),

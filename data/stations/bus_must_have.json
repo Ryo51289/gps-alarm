@@ -1,0 +1,12 @@
+[
+  {"match": "dai hoc bach khoa", "province": "Hà Nội"},
+  {"match": "benh vien bach mai", "province": "Hà Nội"},
+  {"match": "nha hat lon ha noi", "province": "Hà Nội"},
+  {"match": "times city", "province": "Hà Nội"},
+  {"match": "cong vien thong nhat", "province": "Hà Nội"},
+  {"match": "dai hoc bach khoa", "province": "TP. Hồ Chí Minh"},
+  {"match": "benh vien cho ray", "province": "TP. Hồ Chí Minh"},
+  {"match": "cho ben thanh", "province": "TP. Hồ Chí Minh"},
+  {"match": "san bay quoc te tan son nhat", "province": "TP. Hồ Chí Minh"},
+  {"match": "suoi tien", "province": "TP. Hồ Chí Minh"}
+]

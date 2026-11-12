@@ -147,7 +147,8 @@ Candidate cand(
   osmId: osmId ?? int.parse(id.replaceAll(RegExp('[^0-9]'), '0')),
 );
 
-/// Copies the real data inputs (not BUILD_REPORT.md) into a new temp dir.
+/// Copies the real data inputs of both datasets (not the reports) into a new
+/// temp dir.
 Directory copyDataToTemp() {
   final tmp = Directory.systemTemp.createTempSync('stationgen_');
   Directory('${tmp.path}/raw').createSync();
@@ -158,6 +159,11 @@ Directory copyDataToTemp() {
     'must_have.json',
     'raw/overpass.json',
     'raw/fetch-meta.json',
+    'bus_query.overpassql',
+    'bus_overrides.json',
+    'bus_must_have.json',
+    'raw/bus_overpass.json',
+    'raw/bus_fetch-meta.json',
   ]) {
     File('${dataDir.path}/$rel').copySync('${tmp.path}/$rel');
   }

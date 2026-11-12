@@ -1,4 +1,5 @@
-// T23.3 MI01-MI06, MI05b-f, MI06b-c (docs/specs/T23.3.md; MI05f added by
+// T23.3 MI01-MI06, MI05b-f, MI06b-c and T24.3 MI07 (docs/specs/T23.3.md,
+// T24.3.md; MI05f added by
 // the tester): the MapKit platform view on the iOS Simulator, real app, real
 // channel. Debug build (NAPSTOP_DIAG: the `diag*`
 // commands of Runner/Map/NapMapPlatformView.swift drive a long press and a
@@ -637,4 +638,70 @@ void main() {
       await bridge.ackFinishedTrips([tripId]);
     },
   );
+
+  // T24.3 MI07: a bus stop pin shows the SF Symbol bus.fill; the plain pin
+  // again without the glyph.
+  testWidgets('MI07 bus glyph in the pin', skip: _notIos, (tester) async {
+    await _openScreen2(tester);
+    const stop = MapPoint(21.00512, 105.84321);
+    Future<void> send(MapPinGlyph? glyph) =>
+        _channel(tester).invokeMethod<void>(
+          'setState',
+          NapMapState(
+            pin: stop,
+            radiusM: 500,
+            pinDraggable: true,
+            longPress: true,
+            glyph: glyph,
+          ).toWire(),
+        );
+    await send(MapPinGlyph.bus);
+    await _wait(tester, const Duration(seconds: 1));
+    final s = await _diagState(tester);
+    expect(s['glyph'], 'bus');
+    expect(s['glyphImage'], isTrue, reason: 'UIImage(systemName: bus.fill)');
+    expect(s['annotations'], 1);
+    await send(null);
+    await _wait(tester, const Duration(seconds: 1));
+    final plain = await _diagState(tester);
+    expect(plain['glyph'], isNull);
+    expect(plain['glyphImage'], isFalse);
+  });
+
+  // Tester T24.3 MI07b: the real flow on the Simulator. The bundled
+  // assets/bus_stops.json loads (lazy, in an isolate), a bus stop chosen from
+  // the list sends glyph bus and the 500 m zone; choosing a train station
+  // afterwards (the pin already exists: update path) drops the glyph and goes
+  // back to 1 km.
+  testWidgets('MI07b choose a bus stop, then a station', skip: _notIos, (
+    tester,
+  ) async {
+    await _openScreen2(tester);
+    await _choose(tester, 'dai hoc bach khoa', 'Đại học Bách Khoa');
+    final s = await _diagState(tester);
+    expect(s['glyph'], 'bus');
+    expect(s['glyphImage'], isTrue);
+    expect(s['radiusM'], 500);
+    expect(s['annotations'], 1);
+    // One of the three "Đại học Bách Khoa" stops of the asset (HN, HCM x2).
+    const stops = [
+      MapPoint(21.00673, 105.84504),
+      MapPoint(10.77192, 106.65774),
+      MapPoint(10.774, 106.66146),
+    ];
+    final pin = _pinOf(s);
+    expect(
+      stops.any((p) => distanceM(p, pin) <= 5),
+      isTrue,
+      reason: 'pin is not one of the stops',
+    );
+
+    await _choose(tester, 'ga ha noi', 'Ga Hà Nội');
+    await _wait(tester, const Duration(seconds: 1));
+    final st = await _diagState(tester);
+    expect(st['glyph'], isNull);
+    expect(st['glyphImage'], isFalse);
+    expect(st['radiusM'], 1000);
+    expect(st['annotations'], 1);
+  });
 }

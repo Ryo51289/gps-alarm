@@ -67,7 +67,7 @@ void main() {
     expect(find.byKey(const ValueKey('address-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('address-2')), findsOneWidget);
     expect(find.text('Địa chỉ'), findsOneWidget); // fallback subtitle
-    expect(find.text('Tìm ga, bến xe, địa chỉ…'), findsOneWidget);
+    expect(find.text('Tìm ga, bến xe, trạm buýt, địa chỉ…'), findsOneWidget);
     final headerY = tester.getTopLeft(find.text(_header)).dy;
     final rows = find.byType(OsmAttribution);
     if (rows.evaluate().isNotEmpty) {
@@ -142,7 +142,7 @@ void main() {
     await _type(tester, 'nguyen trai');
     expect(find.text(_header), findsNothing);
     expect(find.text(_disclosure), findsNothing);
-    expect(find.text('Tìm ga, bến xe…'), findsOneWidget);
+    expect(find.text('Tìm ga, bến xe, trạm buýt…'), findsOneWidget);
   });
 
   testWidgets('AS-W05 outside area and failure snack bars', (tester) async {

@@ -365,7 +365,8 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
       map = mapBuilder(
         DestinationMapProps(
           point: selection?.point,
-          radiusM: kPreviewRadiusM,
+          radiusM: previewRadiusM(selection),
+          busStop: selection?.isBusStop ?? false,
           cameraRequestId: state.cameraRequestId,
           framePadding: _framePadding,
           onLongPress: _onLongPress,
@@ -402,7 +403,10 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
               right: NapSpace.s16,
               child: NapBadge(
                 label: l.destinationAlarmZoneBadge(
-                  formatDistanceShort(kPreviewRadiusM.round(), l.localeName),
+                  formatDistanceShort(
+                    previewRadiusM(selection).round(),
+                    l.localeName,
+                  ),
                 ),
                 tone: NapTone.accent,
                 size: NapBadgeSize.medium,
@@ -447,6 +451,7 @@ class _DestinationScreenState extends ConsumerState<DestinationScreen> {
                             addressOn: addressOn,
                             onRetry: () =>
                                 ref.invalidate(stationCatalogProvider),
+                            onRetryBusStops: _controller.retryBusStops,
                           ),
                         ),
                       );
@@ -545,6 +550,7 @@ class _SheetBody extends StatelessWidget {
     required this.onSelectAddress,
     required this.addressOn,
     required this.onRetry,
+    required this.onRetryBusStops,
   });
 
   final ScrollController scroll;
@@ -558,6 +564,7 @@ class _SheetBody extends StatelessWidget {
   final ValueChanged<int> onSelectAddress;
   final bool addressOn;
   final VoidCallback onRetry;
+  final VoidCallback onRetryBusStops;
 
   @override
   Widget build(BuildContext context) {
@@ -610,6 +617,7 @@ class _SheetBody extends StatelessWidget {
                   isSelected: isSelected,
                   onSelect: onSelectStation,
                   onRetry: onRetry,
+                  onRetryBusStops: onRetryBusStops,
                   showNoMatchPinHint: showNoMatchPinHint,
                   addressOn: addressOn,
                 ),

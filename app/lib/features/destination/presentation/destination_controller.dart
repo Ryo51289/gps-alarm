@@ -106,6 +106,10 @@ final class AddressUnavailable extends AddressUiState {
   String toString() => 'AddressUnavailable';
 }
 
+/// Most rows (stations, then bus stops) measured per "cách X km" request
+/// (T24.3 §6.4; the native side accepts up to 50 points, T14).
+const int kMaxDistanceRows = 25;
+
 /// Outcome of [DestinationController.selectAddress].
 enum AddressPick { picked, outsideArea, failed, offline, ignored }
 
@@ -117,6 +121,8 @@ final class DestinationState {
     this.query = '',
     this.filter = DestinationFilter.all,
     this.offline = const [],
+    this.busCatalog,
+    this.busStops = const [],
     this.distanceByStationId = const {},
     this.selection,
     this.cameraRequestId = 0,
@@ -130,6 +136,12 @@ final class DestinationState {
 
   /// Station rows of the current query and filter.
   final List<StationMatch> offline;
+
+  /// The bus stop catalog (T24.3 D10); null until it was first needed.
+  final AsyncValue<StationCatalog>? busCatalog;
+
+  /// Bus stop rows of the current query and filter (T24.3 §6.4).
+  final List<StationMatch> busStops;
 
   /// "cách X km" per station id, already rounded by the native side (10 m
   /// under 1 km, 100 m above). PRIVACY: location data — several distances
@@ -150,6 +162,8 @@ final class DestinationState {
     DestinationFilter? filter,
     AsyncValue<StationCatalog>? catalog,
     List<StationMatch>? offline,
+    AsyncValue<StationCatalog>? Function()? busCatalog,
+    List<StationMatch>? busStops,
     Map<String, double>? distanceByStationId,
     Selection? Function()? selection,
     int? cameraRequestId,
@@ -160,6 +174,8 @@ final class DestinationState {
     filter: filter ?? this.filter,
     catalog: catalog ?? this.catalog,
     offline: offline ?? this.offline,
+    busCatalog: busCatalog == null ? this.busCatalog : busCatalog(),
+    busStops: busStops ?? this.busStops,
     distanceByStationId: distanceByStationId ?? this.distanceByStationId,
     selection: selection == null ? this.selection : selection(),
     cameraRequestId: cameraRequestId ?? this.cameraRequestId,
@@ -171,6 +187,7 @@ final class DestinationState {
   @override
   String toString() =>
       'DestinationState(${filter.name}, rows: ${offline.length}, '
+      'bus stops: ${busStops.length}, '
       '${address.runtimeType}, $selection)';
 }
 
@@ -190,6 +207,10 @@ destinationControllerFamily = NotifierProvider.autoDispose
 class DestinationController extends Notifier<DestinationState> {
   Timer? _distanceTimer;
   DateTime? _distanceBlockedUntil;
+
+  // T24.3 bus stops: listened to from the first time D10 holds.
+  ProviderSubscription<AsyncValue<StationCatalog>>? _busSub;
+  bool _busReported = false;
 
   // T23.5 address search.
   AddressSearchClient? _client;
@@ -235,6 +256,11 @@ class DestinationController extends Notifier<DestinationState> {
   }
 
   void setFilter(DestinationFilter filter) {
+    // D10: tapping "Trạm buýt" again after a failed load tries again.
+    if (filter == DestinationFilter.busStop &&
+        state.busCatalog?.hasError == true) {
+      retryBusStops();
+    }
     if (filter == state.filter) {
       return;
     }
@@ -243,7 +269,16 @@ class DestinationController extends Notifier<DestinationState> {
     _scheduleAddress();
   }
 
-  /// A station row was tapped.
+  /// Loads the bus stops again after a failure ("Thử lại", chip tapped).
+  void retryBusStops() {
+    final bus = state.busCatalog;
+    if (bus == null || !bus.hasError || bus.isLoading) {
+      return;
+    }
+    ref.invalidate(busStopCatalogProvider);
+  }
+
+  /// A station or bus stop row was tapped.
   void selectStation(Station s) {
     state = state.copyWith(
       selection: () => Selection(
@@ -251,6 +286,7 @@ class DestinationController extends Notifier<DestinationState> {
         source: DestinationSource.station,
         anchor: MapPoint(s.lat, s.lng),
         anchorName: s.name,
+        busStop: s.kind == StationKind.busStop,
       ),
       cameraRequestId: state.cameraRequestId + 1,
       undo: () => null,
@@ -315,6 +351,7 @@ class DestinationController extends Notifier<DestinationState> {
         source: next.source,
         anchor: isPin ? to : current.anchor,
         anchorName: isPin ? pinnedName : current.anchorName,
+        busStop: !isPin && current.busStop,
       ),
       undo: () => PinUndo(current),
     );
@@ -338,17 +375,65 @@ class DestinationController extends Notifier<DestinationState> {
   }
 
   void _refreshOffline() {
+    _ensureBusStops();
     final index = state.catalog.value?.index;
     final rows = index == null
         ? const <StationMatch>[]
         : offlineResults(index, state.query, state.filter);
-    state = state.copyWith(offline: rows);
+    final busIndex = state.busCatalog?.value?.index;
+    final bus = busIndex == null
+        ? const <StationMatch>[]
+        : busStopResults(busIndex, state.query, state.filter);
+    state = state.copyWith(offline: rows, busStops: bus);
     _scheduleDistances();
+  }
+
+  /// D10: starts loading the bus stops the first time they are needed.
+  void _ensureBusStops() {
+    if (_busSub != null || !shouldLoadBusStops(state.query, state.filter)) {
+      return;
+    }
+    final sub = ref.listen(
+      busStopCatalogProvider,
+      (_, next) => _onBusCatalog(next),
+    );
+    _busSub = sub;
+    final now = sub.read();
+    state = state.copyWith(busCatalog: () => now);
+    _reportBusFailure(now);
+  }
+
+  void _onBusCatalog(AsyncValue<StationCatalog> next) {
+    state = state.copyWith(busCatalog: () => next);
+    _reportBusFailure(next);
+    _refreshOffline();
+  }
+
+  /// D10: a failed load is reported once per screen, error type only (the
+  /// station search keeps working).
+  void _reportBusFailure(AsyncValue<StationCatalog> value) {
+    final error = value.error;
+    if (_busReported || error == null || value.isLoading) {
+      return;
+    }
+    _busReported = true;
+    try {
+      ref
+          .read(telemetryProvider)
+          .crash
+          .recordNonFatal(
+            error,
+            value.stackTrace ?? StackTrace.empty,
+            NonFatalReason.stationCatalogLoadFailed,
+          );
+    } on Object {
+      // Telemetry never breaks the search.
+    }
   }
 
   void _scheduleDistances() {
     _distanceTimer?.cancel();
-    if (_suspended || state.offline.isEmpty) {
+    if (_suspended || (state.offline.isEmpty && state.busStops.isEmpty)) {
       return;
     }
     _distanceTimer = Timer(kDistanceDebounce, () => unawaited(_measure()));
@@ -365,7 +450,10 @@ class DestinationController extends Notifier<DestinationState> {
     }
     final known = state.distanceByStationId;
     final stations = [
-      for (final m in state.offline.take(kDisplayLimit))
+      for (final m in [
+        ...state.offline.take(kDisplayLimit),
+        ...state.busStops,
+      ].take(kMaxDistanceRows))
         if (!known.containsKey(m.station.id)) m.station,
     ];
     if (stations.isEmpty) {

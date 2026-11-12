@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "drop": [
+    {"osm": "n10669309505", "reason": "name is a 127-character mapper note ('BUS 109 ... doesn't seem to stop here any longer (Jan 2024), go to the international terminal instead'), not a stop name; the note says the stop is no longer served", "source": "odbl:https://www.openstreetmap.org/node/10669309505"}
+  ],
+  "patch": [],
+  "add": []
+}

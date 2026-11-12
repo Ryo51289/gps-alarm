@@ -70,6 +70,7 @@ Future<DestinationHarness> pumpDestination(
   Future<void> Function(ProviderContainer container)? seed,
   bool open = true,
   Future<StationCatalog> Function()? stationCatalog,
+  Future<StationCatalog> Function()? busStopCatalog,
 }) async {
   final map = FakeMap();
   final launcher = LaunchRecorder();
@@ -84,6 +85,7 @@ Future<DestinationHarness> pumpDestination(
     fontFamily: fontFamily,
     seed: seed,
     stationCatalog: stationCatalog,
+    busStopCatalog: busStopCatalog,
     overrides: [
       if (withMap) destinationMapBuilderProvider.overrideWithValue(map.build),
       externalUrlLauncherProvider.overrideWithValue(launcher.launch),

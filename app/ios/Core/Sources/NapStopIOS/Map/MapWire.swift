@@ -47,6 +47,12 @@ public struct MapInsets: Equatable, Sendable {
     }
 }
 
+/// Symbol drawn inside the pin (T24.3 §6.6): optional `glyph` key of `<State>`.
+public enum MapPinGlyph: String, Sendable {
+    /// A roadside bus stop: SF Symbol `bus.fill`.
+    case bus
+}
+
 public struct MapStateWire: Equatable, Sendable, CustomStringConvertible {
     public let pin: MapCoordinate?
     /// Alarm zone; nil = no circle.
@@ -55,14 +61,20 @@ public struct MapStateWire: Equatable, Sendable, CustomStringConvertible {
     public let longPress: Bool
     public let showsUser: Bool
     public let dark: Bool
+    /// T24.3: symbol inside the pin; nil = the plain pin (key absent, null or unknown).
+    public let glyph: MapPinGlyph?
 
-    public init(pin: MapCoordinate?, radiusM: Double?, pinDraggable: Bool, longPress: Bool, showsUser: Bool, dark: Bool) {
+    public init(
+        pin: MapCoordinate?, radiusM: Double?, pinDraggable: Bool, longPress: Bool, showsUser: Bool, dark: Bool,
+        glyph: MapPinGlyph? = nil
+    ) {
         self.pin = pin
         self.radiusM = radiusM
         self.pinDraggable = pinDraggable
         self.longPress = longPress
         self.showsUser = showsUser
         self.dark = dark
+        self.glyph = glyph
     }
 
     /// Nothing chosen: the safe default when the creation params are invalid.
@@ -161,8 +173,11 @@ public enum MapWire {
         guard let draggable = bool(m["pinDraggable"]), let longPress = bool(m["longPress"]),
             let showsUser = bool(m["showsUser"]), let dark = bool(m["dark"])
         else { return nil }
+        // T24.3: optional; anything but a known name is ignored, never invalid (older and newer Dart both work).
+        let glyph = string(m["glyph"]).flatMap(MapPinGlyph.init(rawValue:))
         return MapStateWire(
-            pin: pin, radiusM: radius, pinDraggable: draggable, longPress: longPress, showsUser: showsUser, dark: dark)
+            pin: pin, radiusM: radius, pinDraggable: draggable, longPress: longPress, showsUser: showsUser, dark: dark,
+            glyph: glyph)
     }
 
     public static func frame(_ any: Any?) -> MapFrameWire? {
@@ -230,6 +245,13 @@ public enum MapWire {
         if let i = v as? Int { return Double(i) }
         if let i = v as? Int64 { return Double(i) }
         if let n = v as? NSNumber { return n.doubleValue }
+        return nil
+    }
+
+    static func string(_ v: Any?) -> String? {
+        guard !isNull(v), let v else { return nil }
+        if let s = v as? String { return s }
+        if let s = v as? NSString { return s as String }
         return nil
     }
 

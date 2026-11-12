@@ -22,6 +22,44 @@ const String kUserAgent =
 String overpassRequestBody(String query) =>
     'data=${Uri.encodeQueryComponent(query)}';
 
+/// Snapshot family selected by `fetch --dataset` (spec T24.3 §5).
+enum FetchDataset {
+  /// Stations (T24): `query.overpassql` → `raw/overpass.json`.
+  stations('stations', 'query.overpassql', 'overpass.json', 'fetch-meta.json'),
+
+  /// Bus stops (T24.3): `bus_query.overpassql` → `raw/bus_overpass.json`.
+  bus(
+    'bus',
+    'bus_query.overpassql',
+    'bus_overpass.json',
+    'bus_fetch-meta.json',
+  );
+
+  new(this.cliName, this.queryFile, this.rawFile, this.metaFile);
+
+  /// Value of `--dataset`.
+  final String cliName;
+
+  /// Query file in the data directory.
+  final String queryFile;
+
+  /// Snapshot file in `raw/`.
+  final String rawFile;
+
+  /// Metadata file in `raw/`.
+  final String metaFile;
+
+  /// Parses a `--dataset` value; null for anything else.
+  static FetchDataset? tryParse(String? s) {
+    for (final d in values) {
+      if (d.cliName == s) {
+        return d;
+      }
+    }
+    return null;
+  }
+}
+
 /// Files written by a successful fetch.
 final class FetchedSnapshot {
   const new({required this.raw, required this.meta, required this.snapshot});
@@ -108,8 +146,9 @@ Future<int> runFetch({
   required IOSink out,
   required IOSink err,
   required DateTime Function() clock,
+  FetchDataset dataset = FetchDataset.stations,
 }) async {
-  final queryFile = File('${dataDir.path}/query.overpassql');
+  final queryFile = File('${dataDir.path}/${dataset.queryFile}');
   if (!queryFile.existsSync()) {
     err.writeln('error: ${queryFile.path} not found');
     return kExitData;
@@ -144,14 +183,14 @@ Future<int> runFetch({
   }
   final rawDir = Directory('${dataDir.path}/raw');
   await rawDir.create(recursive: true);
-  await File('${rawDir.path}/overpass.json')
+  await File('${rawDir.path}/${dataset.rawFile}')
       .writeAsBytes(fetched.raw, flush: true);
-  await File('${rawDir.path}/fetch-meta.json')
+  await File('${rawDir.path}/${dataset.metaFile}')
       .writeAsBytes(utf8.encode(fetched.meta.encode()), flush: true);
   final s = fetched.snapshot;
   out
-    ..writeln('wrote raw/overpass.json (${fetched.raw.length} bytes)')
-    ..writeln('wrote raw/fetch-meta.json')
+    ..writeln('wrote raw/${dataset.rawFile} (${fetched.raw.length} bytes)')
+    ..writeln('wrote raw/${dataset.metaFile}')
     ..writeln('osmBase: ${s.osmBase}, areasBase: ${s.areasBase}')
     ..writeln('elements: ${s.elements.length}, admin areas: ${s.groups.length}')
     ..writeln('next: dart run bin/stationgen.dart build');

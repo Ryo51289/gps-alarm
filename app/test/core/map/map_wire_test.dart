@@ -46,6 +46,7 @@ NapMapState _state(Object? v) {
     longPress: m['longPress']! as bool,
     showsUser: m['showsUser']! as bool,
     dark: m['dark']! as bool,
+    glyph: MapPinGlyph.fromWire(m['glyph']),
   );
 }
 
@@ -124,6 +125,22 @@ void main() {
       expect(w['pinDraggable'], isFalse);
       expect(w['showsUser'], isFalse);
       expect(s.toString(), contains('pin: none'));
+    });
+
+    test('BS-W07 glyph: sent only when set, part of equality', () {
+      const bus = NapMapState(pin: _pin, radiusM: 500, glyph: MapPinGlyph.bus);
+      expect(bus.toWire()['glyph'], 'bus');
+      expect(
+        const NapMapState(pin: _pin).toWire().containsKey('glyph'),
+        isFalse,
+      );
+      expect(bus == const NapMapState(pin: _pin, radiusM: 500), isFalse);
+      expect(bus.copyWith(showsUser: true).glyph, MapPinGlyph.bus);
+      expect(MapPinGlyph.fromWire('bus'), MapPinGlyph.bus);
+      expect(MapPinGlyph.fromWire('tram'), isNull);
+      expect(MapPinGlyph.fromWire(null), isNull);
+      expect(MapPinGlyph.fromWire(1), isNull);
+      expect(_digits.hasMatch(bus.toString()), isFalse);
     });
 
     test('equality covers every field', () {
@@ -252,7 +269,15 @@ void main() {
 
     for (final c in _list('state').where((c) => c['valid'] == true)) {
       test('state: ${c['name']}', () {
-        expect(_same(_state(c['input']).toWire(), c['input']), isTrue);
+        // T24.3: the expected glyph replaces the input one (none = no key).
+        final input = {...c['input']! as Map<String, Object?>}..remove('glyph');
+        final glyph = c['glyph'];
+        if (glyph != null) {
+          input['glyph'] = glyph;
+        }
+        final s = _state(c['input']);
+        expect(s.glyph?.name, glyph);
+        expect(_same(s.toWire(), input), isTrue);
       });
     }
 

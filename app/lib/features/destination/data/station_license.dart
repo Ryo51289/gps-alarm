@@ -14,13 +14,18 @@ const String? kStationDataPublicUrl = null;
 const String kStationDataLicensePackage =
     'NapStop station data (OpenStreetMap)';
 
+/// First line (T24.3 §8: both offline datasets).
+const String _dataLine =
+    'Station data (assets/stations.json, assets/bus_stops.json) '
+    '© OpenStreetMap contributors.';
+
 const String _odblUrl = 'https://opendatacommons.org/licenses/odbl/1-0/';
 
 /// Text of the license entry; the database line only when [publicUrl] is
 /// set.
 String stationDataLicenseText({String? publicUrl = kStationDataPublicUrl}) {
   final lines = [
-    'Station data (assets/stations.json) © OpenStreetMap contributors.',
+    _dataLine,
     'Available under the Open Database License (ODbL) 1.0: $_odblUrl',
     'Source and copyright: https://www.openstreetmap.org/copyright',
     if (publicUrl != null) 'Full station database: $publicUrl',

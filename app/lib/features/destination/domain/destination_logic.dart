@@ -12,6 +12,7 @@ import 'package:napstop/core/map/map_point.dart';
 import 'package:napstop/core/text/vn_fold.dart';
 import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/destination/domain/station.dart';
+import 'package:napstop/features/destination/domain/station_query.dart';
 import 'package:napstop/features/destination/domain/station_search.dart';
 
 // T23.3: MapPoint and circleBounds moved to lib/core/map (the map widget
@@ -19,8 +20,9 @@ import 'package:napstop/features/destination/domain/station_search.dart';
 export 'package:napstop/core/map/map_geometry.dart' show circleBounds;
 export 'package:napstop/core/map/map_point.dart';
 
-/// Filter chips of screen 2: "Tất cả / Ga tàu / Bến xe" (T23.2 D2).
-enum DestinationFilter { all, train, coach }
+/// Filter chips of screen 2: "Tất cả / Ga tàu / Bến xe" (T23.2 D2) and
+/// "Trạm buýt" (T24.3 D9).
+enum DestinationFilter { all, train, coach, busStop }
 
 /// Letters/digits needed before the offline search runs (after [foldVi],
 /// spaces removed).
@@ -44,6 +46,16 @@ const Duration kDistanceRetryAfter = Duration(seconds: 30);
 /// Alarm zone previewed on the map: PRD §4 default distance (1 km, also the
 /// 1 km mark of the smart mode). Screen 3 sets the real one.
 const double kPreviewRadiusM = 1000;
+
+/// Previewed zone of a roadside bus stop (T24.3 D11): display only, screen 3
+/// and the Trip Engine are unchanged.
+const double kBusStopPreviewRadiusM = 500;
+
+/// Bus stop rows under the stations on chip "Tất cả" (T24.3 D9).
+const int kBusStopAllLimit = 5;
+
+/// Letters/digits needed before chip "Tất cả" lists bus stops (D9).
+const int kBusStopAllMinQueryChars = 3;
 
 /// A pin moved at most this far keeps the station/address identity.
 const double kPinKeepIdentityM = 500;
@@ -76,9 +88,62 @@ List<StationMatch> offlineResults(
       index
           .search(query, limit: kSearchOverfetch, kindHint: StationKind.coach)
           .where((m) => m.station.kind != StationKind.train),
+    // T24.3: the bus stop chip lists bus stops only (busStopResults).
+    DestinationFilter.busStop => const <StationMatch>[],
   };
   return List.unmodifiable(rows.take(kDisplayLimit));
 }
+
+/// D10: the bus stop dataset is loaded once the user typed a second letter
+/// or opened the "Trạm buýt" chip.
+bool shouldLoadBusStops(String query, DestinationFilter filter) =>
+    filter == DestinationFilter.busStop ||
+    queryChars(query) >= kMinOfflineQueryChars;
+
+/// §6.3: on chip "Tất cả", a query starting with a bus stop word ("trạm
+/// buýt …", "điểm dừng …") lists bus stops above the stations.
+bool busStopsFirst(String query, DestinationFilter filter) =>
+    filter == DestinationFilter.all &&
+    parseStationQuery(query).kindHint == StationKind.busStop;
+
+/// Bus stop rows of [index] (the bus stop catalog) for [filter] (T24.3
+/// §6.4): chip "Trạm buýt" up to [kDisplayLimit] from 2 letters; chip "Tất
+/// cả" up to [kBusStopAllLimit] from [kBusStopAllMinQueryChars] letters
+/// ([kDisplayLimit] when [busStopsFirst]); none on the other chips.
+List<StationMatch> busStopResults(
+  StationSearchIndex index,
+  String query,
+  DestinationFilter filter,
+) {
+  final chars = queryChars(query);
+  final Iterable<StationMatch> rows;
+  switch (filter) {
+    case DestinationFilter.busStop:
+      if (chars < kMinOfflineQueryChars) {
+        return const [];
+      }
+      rows = index
+          .search(query, limit: kSearchOverfetch, kindHint: StationKind.busStop)
+          .take(kDisplayLimit);
+    case DestinationFilter.all:
+      if (chars < kBusStopAllMinQueryChars) {
+        return const [];
+      }
+      rows = index.search(
+        query,
+        limit: busStopsFirst(query, filter) ? kDisplayLimit : kBusStopAllLimit,
+      );
+    case DestinationFilter.train || DestinationFilter.coach:
+      return const [];
+  }
+  return List.unmodifiable(rows);
+}
+
+/// Radius of the zone previewed around [selection] (D11).
+double previewRadiusM(Selection? selection) =>
+    selection != null && selection.isBusStop
+    ? kBusStopPreviewRadiusM
+    : kPreviewRadiusM;
 
 /// The chosen destination of screen 2.
 ///
@@ -91,12 +156,21 @@ final class Selection {
     required this.source,
     required this.anchor,
     required this.anchorName,
+    this.busStop = false,
   });
 
   final TripDestination destination;
   final DestinationSource source;
   final MapPoint anchor;
   final String anchorName;
+
+  /// Chosen from the bus stop dataset (T24.3 §6.4); kept while the pin stays
+  /// within [kPinKeepIdentityM]. The destination kind is then
+  /// [DestinationKind.bus] (D3).
+  final bool busStop;
+
+  /// A roadside bus stop is selected: 500 m preview, bus glyph on iOS.
+  bool get isBusStop => busStop && destination.kind == DestinationKind.bus;
 
   /// Where the pin is now.
   MapPoint get point => MapPoint(destination.lat, destination.lng);
@@ -107,10 +181,12 @@ final class Selection {
       other.destination == destination &&
       other.source == source &&
       other.anchor == anchor &&
-      other.anchorName == anchorName;
+      other.anchorName == anchorName &&
+      other.busStop == busStop;
 
   @override
-  int get hashCode => Object.hash(destination, source, anchor, anchorName);
+  int get hashCode =>
+      Object.hash(destination, source, anchor, anchorName, busStop);
 
   /// PRIVACY: no name, no coordinates.
   @override

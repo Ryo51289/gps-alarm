@@ -15,6 +15,7 @@ final class DestinationMapProps {
     required this.framePadding,
     required this.onLongPress,
     required this.onPinDragEnd,
+    this.busStop = false,
   });
 
   /// The pin, or null when nothing is chosen.
@@ -22,6 +23,9 @@ final class DestinationMapProps {
 
   /// Alarm zone radius around [point].
   final double radiusM;
+
+  /// [point] is a roadside bus stop (T24.3 §6.6: bus glyph on iOS).
+  final bool busStop;
 
   /// A new value asks the camera to frame [point] and its zone.
   final int cameraRequestId;

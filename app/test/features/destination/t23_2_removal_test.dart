@@ -6,11 +6,14 @@ import 'package:napstop/core/trip/domain/trip_destination.dart';
 import 'package:napstop/features/destination/domain/destination_logic.dart';
 
 void main() {
-  test('RU01 three filter chips, no address chip', () {
+  // T24.3 adds the bus stop chip (spec "Thay đổi phá vỡ"); still no
+  // address chip.
+  test('RU01 four filter chips, no address chip', () {
     expect(DestinationFilter.values, [
       DestinationFilter.all,
       DestinationFilter.train,
       DestinationFilter.coach,
+      DestinationFilter.busStop,
     ]);
   });
 

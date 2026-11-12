@@ -10,7 +10,7 @@ import 'package:stationgen/src/prefixes.dart';
 const String kGeneratorName = 'stationgen';
 
 /// Bump together with `version` in pubspec.yaml when the output changes.
-const String kGeneratorVersion = '1.0.0';
+const String kGeneratorVersion = '1.1.0';
 
 const int kSchemaVersion = 1;
 const String kAttribution = '© OpenStreetMap contributors';

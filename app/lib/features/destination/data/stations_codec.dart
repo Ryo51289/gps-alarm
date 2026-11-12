@@ -36,8 +36,15 @@ double _double(Map<String, Object?> m, String key, String where) {
   return v.toDouble();
 }
 
+/// Kinds of `stations.json`; bus stops live in their own file (T24.3 D1).
+const List<StationKind> _stationFileKinds = [
+  StationKind.train,
+  StationKind.coach,
+  StationKind.bus,
+];
+
 StationKind _kind(Object? v, String where) {
-  for (final k in StationKind.values) {
+  for (final k in _stationFileKinds) {
     if (k.name == v) {
       return k;
     }

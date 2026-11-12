@@ -3,7 +3,7 @@ description: >-
   Builds the offline station dataset of NapStop (app/assets/stations.json)
   from a committed OpenStreetMap (Overpass) snapshot.
 publish_to: none
-version: 1.0.0
+version: 1.1.0
 
 environment:
   sdk: ^3.13.7

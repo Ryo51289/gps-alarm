@@ -100,6 +100,23 @@ final class MapBounds {
   String toString() => 'MapBounds';
 }
 
+/// Symbol drawn inside the pin (T24.3 §6.6, optional `glyph` key of
+/// `<State>`).
+enum MapPinGlyph {
+  /// A roadside bus stop (SF Symbol `bus.fill` on iOS).
+  bus;
+
+  /// The wire value: null, absent or unknown → null (old behaviour).
+  static MapPinGlyph? fromWire(Object? v) {
+    for (final g in values) {
+      if (g.name == v) {
+        return g;
+      }
+    }
+    return null;
+  }
+}
+
 /// What the native map shows (§2 `<State>`). Never moves the camera.
 @immutable
 final class NapMapState {
@@ -110,6 +127,7 @@ final class NapMapState {
     this.longPress = false,
     this.showsUser = false,
     this.dark = false,
+    this.glyph,
   });
 
   final MapPoint? pin;
@@ -125,6 +143,10 @@ final class NapMapState {
   /// App appearance (D13), not the system one.
   final bool dark;
 
+  /// Symbol inside the pin (T24.3); null = the plain pin. Only sent when
+  /// set, so older native code keeps working.
+  final MapPinGlyph? glyph;
+
   NapMapState copyWith({bool? showsUser}) => NapMapState(
     pin: pin,
     radiusM: radiusM,
@@ -132,6 +154,7 @@ final class NapMapState {
     longPress: longPress,
     showsUser: showsUser ?? this.showsUser,
     dark: dark,
+    glyph: glyph,
   );
 
   Map<String, Object?> toWire() {
@@ -143,6 +166,7 @@ final class NapMapState {
       'longPress': longPress,
       'showsUser': showsUser,
       'dark': dark,
+      if (glyph != null) 'glyph': glyph!.name,
     };
   }
 
@@ -154,11 +178,19 @@ final class NapMapState {
       other.pinDraggable == pinDraggable &&
       other.longPress == longPress &&
       other.showsUser == showsUser &&
-      other.dark == dark;
+      other.dark == dark &&
+      other.glyph == glyph;
 
   @override
-  int get hashCode =>
-      Object.hash(pin, radiusM, pinDraggable, longPress, showsUser, dark);
+  int get hashCode => Object.hash(
+    pin,
+    radiusM,
+    pinDraggable,
+    longPress,
+    showsUser,
+    dark,
+    glyph,
+  );
 
   /// PRIVACY: no coordinates.
   @override
@@ -166,7 +198,7 @@ final class NapMapState {
       'NapMapState(pin: ${pin == null ? 'none' : 'set'}, '
       'circle: ${radiusM == null ? 'none' : 'set'}, '
       'draggable: $pinDraggable, longPress: $longPress, '
-      'showsUser: $showsUser, dark: $dark)';
+      'showsUser: $showsUser, dark: $dark, glyph: ${glyph?.name})';
 }
 
 /// A camera move (§2 `frame`).

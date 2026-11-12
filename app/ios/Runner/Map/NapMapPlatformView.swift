@@ -140,6 +140,9 @@ final class NapMapPlatformView: NSObject, FlutterPlatformView {
           "initialCameraApplied": controller.initialCameraApplied,
           "initialCameraEvents": controller.initialCameraEvents,
           "pin": state.pin.map { MapWire.pointArgs($0) as Any } ?? NSNull(),
+          // T24.3 MI07.
+          "glyph": state.glyph.map { $0.rawValue as Any } ?? NSNull(),
+          "glyphImage": NapMapController.glyphImage(state.glyph) != nil,
         ] as [String: Any])
       default:
         return false

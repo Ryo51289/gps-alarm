@@ -67,6 +67,9 @@ flutter:
   # Offline station dataset (T24), built by tools/stationgen. Loaded lazily.
   assets:
     - assets/stations.json
+    # T24.3: bus stops of Hà Nội and TP. Hồ Chí Minh (stationgen), loaded on
+    # the second letter typed or the "Trạm buýt" chip.
+    - assets/bus_stops.json
     # Screen 9 battery guides per brand (T21 §6.3); texts are ARB keys.
     - assets/battery_guides.json
     # T18: simulation traces (byte copies of fixtures/traces) + catalog.json,

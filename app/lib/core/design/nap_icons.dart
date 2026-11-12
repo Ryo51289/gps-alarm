@@ -15,6 +15,9 @@ abstract final class NapIcons {
   static const IconData train = Icons.train_outlined;
   static const IconData coach = Icons.directions_bus_outlined;
   static const IconData bus = Icons.directions_bus_filled_outlined;
+
+  /// Roadside bus stop (T24.3), unlike [bus] (bus terminal).
+  static const IconData busStop = Icons.signpost_outlined;
   static const IconData check = Icons.check;
   static const IconData info = Icons.info_outline;
   static const IconData warning = Icons.warning_amber_rounded;

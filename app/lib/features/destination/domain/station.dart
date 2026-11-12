@@ -2,10 +2,14 @@
 library;
 
 /// Station kind. Declaration order is the tie-break order of search results
-/// (train before coach before bus).
-enum StationKind { train, coach, bus }
+/// (train before coach before bus before bus stop).
+///
+/// [busStop] (T24.3) only comes from `assets/bus_stops.json`; the main
+/// `assets/stations.json` never contains it.
+enum StationKind { train, coach, bus, busStop }
 
-/// A train station, coach station or bus terminal from the offline dataset.
+/// A train station, coach station, bus terminal or roadside bus stop from
+/// the offline datasets.
 final class Station {
   const new({
     required this.id,
@@ -16,6 +20,7 @@ final class Station {
     required this.lat,
     required this.lng,
     this.aliases = const [],
+    this.routeRefs = const [],
   });
 
   /// `osm:n123` / `osm:w123` / `osm:r123` / `man:<slug>`. Not stable across
@@ -37,11 +42,15 @@ final class Station {
   /// Other display names, at most 5.
   final List<String> aliases;
 
+  /// Bus routes serving a bus stop (OSM `route_ref`, T24.3 D7), at most
+  /// 6; empty when unknown and for every other kind.
+  final List<String> routeRefs;
+
   @override
   String toString() => 'Station($id, $name, ${kind.name}, $province)';
 }
 
-/// The decoded `assets/stations.json`.
+/// The decoded `assets/stations.json` or `assets/bus_stops.json`.
 final class StationDataset {
   const new({
     required this.osmBase,

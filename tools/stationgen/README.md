@@ -14,16 +14,17 @@ Chạy **trong thư mục `tools/stationgen`** (Git Bash trên Windows; Dart c�
 cd tools/stationgen
 dart pub get
 dart run bin/stationgen.dart fetch     # CÓ MẠNG, chạy tay. Mặc định --endpoint https://overpass-api.de/api/interpreter
-dart run bin/stationgen.dart build     # offline: ghi ../../app/assets/stations.json + ../../data/stations/BUILD_REPORT.md
-dart run bin/stationgen.dart check     # offline (CI): build trong bộ nhớ, so byte 2 file đã commit, kiểm A1–A5
+dart run bin/stationgen.dart fetch --dataset bus   # T24.3: trạm buýt Hà Nội + TP. HCM → raw/bus_*
+dart run bin/stationgen.dart build     # offline: ghi stations.json, bus_stops.json (app/assets) + BUILD_REPORT.md, BUS_BUILD_REPORT.md
+dart run bin/stationgen.dart check     # offline (CI): build trong bộ nhớ, so byte 4 file đã commit, kiểm A1–A5 và B1–B4
 dart format --output=none --set-exit-if-changed . && dart analyze --fatal-infos && dart test
 ```
 
 | Lệnh | Tuỳ chọn | Exit |
 |---|---|---|
-| `fetch` | `--endpoint <https url>`, `--data <dir>` (mặc định `../../data/stations`) | 0; lỗi HTTP/response 1; thiếu `query.overpassql` 65 |
-| `build` | `--data <dir>`, `--out <file>` (mặc định `../../app/assets/stations.json`) | 0; không đạt A1–A5 1 (vẫn ghi `BUILD_REPORT.md`, không ghi `stations.json`); dữ liệu vào lỗi 65 |
-| `check` | `--data <dir>`, `--out <file>` | 0 khớp và đạt; 1 khác hoặc không đạt; 65 dữ liệu vào lỗi |
+| `fetch` | `--dataset stations|bus` (mặc định `stations`), `--endpoint <https url>`, `--data <dir>` (mặc định `../../data/stations`) | 0; lỗi HTTP/response 1; thiếu file truy vấn 65 |
+| `build` | `--data <dir>`, `--out <file>` (mặc định `../../app/assets/stations.json`), `--bus-out <file>` (mặc định `bus_stops.json` cạnh `--out`) | 0; không đạt A1–A5 / B1–B4 1 (vẫn ghi hai báo cáo, không ghi file json không đạt); dữ liệu vào lỗi hoặc thiếu `raw/bus_overpass.json` 65 |
+| `check` | `--data <dir>`, `--out <file>`, `--bus-out <file>` | 0 khớp và đạt; 1 khác hoặc không đạt; 65 dữ liệu vào lỗi |
 | sai cú pháp / không lệnh | | 64 (`--help`: 0) |
 
 `fetch` là lệnh **duy nhất** gọi mạng; `build`/`check`/test/CI không bao giờ gọi mạng (test TC14 chặn `HttpClient`).

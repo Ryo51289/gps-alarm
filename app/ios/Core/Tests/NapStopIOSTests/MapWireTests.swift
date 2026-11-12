@@ -65,6 +65,8 @@ struct MapWireTests {
         let name: String
         let input: JSONValue
         let valid: Bool
+        /// T24.3: expected glyph of a `state` case (absent = nil).
+        var glyph: MapPinGlyph? = nil
     }
 
     static let repoRoot: String = {
@@ -85,7 +87,8 @@ struct MapWireTests {
         return (root[group]?.list ?? []).map { c in
             Case(
                 name: { if case .string(let s) = c["name"] { return s } else { return "?" } }(),
-                input: c["input"] ?? .null, valid: c["valid"]?.boolValue ?? false)
+                input: c["input"] ?? .null, valid: c["valid"]?.boolValue ?? false,
+                glyph: { if case .string(let s) = c["glyph"] { return MapPinGlyph(rawValue: s) } else { return nil } }())
         }
     }
 
@@ -100,10 +103,11 @@ struct MapWireTests {
         return MapBoundsWire(s: s, w: w, n: n, e: e)
     }
 
-    static func expectedState(_ v: JSONValue) -> MapStateWire {
+    static func expectedState(_ v: JSONValue, glyph: MapPinGlyph? = nil) -> MapStateWire {
         MapStateWire(
             pin: coordinate(v["pin"]), radiusM: v["radiusM"]?.double, pinDraggable: v["pinDraggable"]!.boolValue!,
-            longPress: v["longPress"]!.boolValue!, showsUser: v["showsUser"]!.boolValue!, dark: v["dark"]!.boolValue!)
+            longPress: v["longPress"]!.boolValue!, showsUser: v["showsUser"]!.boolValue!, dark: v["dark"]!.boolValue!,
+            glyph: glyph)
     }
 
     // MARK: SW01 state
@@ -136,6 +140,25 @@ struct MapWireTests {
         ints["pin"] = [16, 107]
         #expect(MapWire.state(ints)?.radiusM == 1000)
         #expect(MapWire.state(ints)?.pin == MapCoordinate(lat: 16, lng: 107))
+    }
+
+    @Test("BS-S02 glyph: optional, unknown values ignored (T24.3)")
+    func glyph() {
+        var bus = Self.validState
+        bus["glyph"] = "bus"
+        #expect(MapWire.state(bus)?.glyph == .bus)
+        #expect(MapWire.state(Self.validState)?.glyph == nil)
+        var unknown = Self.validState
+        unknown["glyph"] = "tram"
+        #expect(MapWire.state(unknown) != nil)
+        #expect(MapWire.state(unknown)?.glyph == nil)
+        var null = Self.validState
+        null["glyph"] = NSNull()
+        #expect(MapWire.state(null)?.glyph == nil)
+        var number = Self.validState
+        number["glyph"] = 1
+        #expect(MapWire.state(number)?.glyph == nil)
+        #expect(MapStateWire.empty.glyph == nil)
     }
 
     @Test("SW01 an invalid state is nil")
@@ -352,7 +375,7 @@ struct MapWireTests {
         for c in cases {
             let parsed = MapWire.state(c.input.codecValue)
             #expect((parsed != nil) == c.valid, "\(c.name)")
-            if let parsed { #expect(parsed == Self.expectedState(c.input), "\(c.name)") }
+            if let parsed { #expect(parsed == Self.expectedState(c.input, glyph: c.glyph), "\(c.name)") }
         }
     }
 

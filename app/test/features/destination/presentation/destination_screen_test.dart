@@ -30,7 +30,7 @@ Station station(String name) =>
 
 final Station gaDongHoi = station('Ga Đồng Hới');
 
-const String kOsm = 'Dữ liệu ga/bến © OpenStreetMap contributors';
+const String kOsm = 'Dữ liệu ga, bến, trạm buýt © OpenStreetMap contributors';
 
 Finder rowTitled(String title) =>
     find.ancestor(of: find.text(title), matching: find.byType(NapListRow));
@@ -72,10 +72,17 @@ void main() {
     expect(find.byType(NapListRow), findsNWidgets(titles.length));
   });
 
-  testWidgets('RW01 three chips, no address chip', (tester) async {
+  // T24.3 adds the "Trạm buýt" chip (spec "Thay đổi phá vỡ"); still no
+  // address chip.
+  testWidgets('RW01 four chips, no address chip', (tester) async {
     await pumpDestination(tester);
     final chips = tester.widgetList<NapChip>(find.byType(NapChip));
-    expect(chips.map((c) => c.label), ['Tất cả', 'Ga tàu', 'Bến xe']);
+    expect(chips.map((c) => c.label), [
+      'Tất cả',
+      'Ga tàu',
+      'Bến xe',
+      'Trạm buýt',
+    ]);
   });
 
   testWidgets('TW02 distances shown from the native answer', (tester) async {
@@ -115,9 +122,9 @@ void main() {
     tester,
   ) async {
     await pumpDestination(tester);
-    expect(find.text('Gõ tên ga hoặc bến xe.'), findsOneWidget);
+    expect(find.text('Gõ tên ga, bến xe hoặc trạm buýt.'), findsOneWidget);
     await typeQuery(tester, 'x');
-    expect(find.text('Gõ tên ga hoặc bến xe.'), findsOneWidget);
+    expect(find.text('Gõ tên ga, bến xe hoặc trạm buýt.'), findsOneWidget);
     expect(stationTitles(tester), isEmpty);
     expect(find.byType(NapListRow), findsNothing);
   });
@@ -417,7 +424,7 @@ void main() {
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
       '',
     );
-    expect(find.text('Gõ tên ga hoặc bến xe.'), findsOneWidget);
+    expect(find.text('Gõ tên ga, bến xe hoặc trạm buýt.'), findsOneWidget);
     expect(stationTitles(tester), isEmpty);
     expect(find.text('Chọn Ga Đồng Hới'), findsNothing);
     final confirm = find.ancestor(

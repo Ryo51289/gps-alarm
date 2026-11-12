@@ -72,7 +72,7 @@ void main() {
 
     final (uri, headers, sent) = t.calls.single;
     expect(uri.toString(), 'https://overpass.example.test/api/interpreter');
-    expect(headers['User-Agent'], startsWith('NapStop-stationgen/1.0.0'));
+    expect(headers['User-Agent'], startsWith('NapStop-stationgen/1.1.0'));
     expect(
       headers['Content-Type'],
       startsWith('application/x-www-form-urlencoded'),
