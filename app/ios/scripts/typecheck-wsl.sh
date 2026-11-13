@@ -5,8 +5,9 @@
 #
 # For arm64-apple-ios16.0 and arm64-apple-ios16.0-simulator: `swiftc -emit-module` for the NapStopCore targets in
 # dependency order (Trip, TripRuntime, NapStopIOS; a target whose directory does not exist yet is "skipped"), then
-# `swiftc -typecheck` of every Swift file under app/ios/Runner, without and with -D NAPSTOP_DIAG. --self-test adds a
-# broken file to a copy of Runner and must see the compiler fail. (Until T23.2 a stub of the Google map SDK was emitted
+# `swiftc -typecheck` of every Swift file under app/ios/Runner and app/ios/Shared, without and with -D NAPSTOP_DIAG, and of
+# the widget extension app/ios/NapStopLiveActivity + Shared at arm64-apple-ios17.0[-simulator] (T23.6 LC02). --self-test
+# adds a broken file to a copy of Runner (and of the extension) and must see the compiler fail. (Until T23.2 a stub of the Google map SDK was emitted
 # too; the app no longer links any Google Maps SDK, ADR-002.)
 #
 # Limits: this does not replace the CI build (L3). It does not read project.pbxproj, does not link, does not extract
@@ -42,6 +43,8 @@ esac
 ios_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 core_dir="$ios_dir/Core"
 runner_dir="$ios_dir/Runner"
+shared_dir="$ios_dir/Shared"
+extension_dir="$ios_dir/NapStopLiveActivity"
 
 swift_bin="${NAPSTOP_SWIFT_BIN:-$HOME/opt/swift-6.4.1/usr/bin}"
 swiftc="$swift_bin/swiftc"
@@ -151,14 +154,29 @@ emit_modules() {
 }
 
 # typecheck_runner <triple> <sdk> <slice> <out> <runner dir> <on|off> <label>
+# Runner also compiles app/ios/Shared (files shared with the NapStopLiveActivity extension, T23.6).
 typecheck_runner() {
   local triple="$1" sdk="$2" slice="$3" out="$4" dir="$5" diag="$6" label="$7" files defines=()
-  mapfile -t files < <(find "$dir" -name '*.swift' | sort)
+  mapfile -t files < <({ find "$dir" -name '*.swift'; [ -d "$shared_dir" ] && find "$shared_dir" -name '*.swift'; } | sort)
   [ "$diag" = on ] && defines=(-D NAPSTOP_DIAG)
   run "$label" "$out/Runner-diag-$diag.log" \
     "$swiftc" "${common_flags[@]}" -typecheck -swift-version 5 -module-name Runner -target "$triple" -sdk "$sdk" \
     -I "$out" -F "$slice" -import-objc-header "$dir/Runner-Bridging-Header.h" \
     "${defines[@]+"${defines[@]}"}" "${files[@]}"
+}
+
+# typecheck_extension <triple> <sdk> <out> <extension dir> <label>: the widget extension (T23.6 LC02) with the shared
+# files, as its own module, at its deployment target (17.0). Skipped while the extension directory does not exist.
+typecheck_extension() {
+  local triple="$1" sdk="$2" out="$3" dir="$4" label="$5" files
+  if [ ! -d "$dir" ]; then
+    results+=("$label: skipped (no $(basename "$dir"))")
+    return 0
+  fi
+  mapfile -t files < <({ find "$dir" -name '*.swift'; [ -d "$shared_dir" ] && find "$shared_dir" -name '*.swift'; } | sort)
+  run "$label" "$out/NapStopLiveActivity.log" \
+    "$swiftc" "${common_flags[@]}" -typecheck -parse-as-library -swift-version 5 -module-name NapStopLiveActivity \
+    -application-extension -target "$triple" -sdk "$sdk" -I "$out" "${files[@]}"
 }
 
 if [ "$self_test" = true ]; then
@@ -179,6 +197,23 @@ if [ "$self_test" = true ]; then
     exit 1
   fi
   echo "self-test OK (Broken.swift rejected: $(grep -m 1 'Broken.swift' "$out/Runner-diag-off.log"))"
+  # Same negative control for the extension (T23.6 LC02): a call to an API that does not exist.
+  if [ -d "$extension_dir" ]; then
+    mkdir -p "$out/NapStopLiveActivity"
+    cp -R "$extension_dir/." "$out/NapStopLiveActivity/"
+    printf 'import WidgetKit\nfunc napstopSelfTest() { WidgetCenter.shared.napstopNoSuchApi() }\n' \
+      >"$out/NapStopLiveActivity/Broken.swift"
+    if typecheck_extension arm64-apple-ios17.0 "$device_sdk" "$out" "$out/NapStopLiveActivity" "self-test extension" 2>/dev/null; then
+      echo "self-test FAILED: the broken extension file typechecked" >&2
+      exit 1
+    fi
+    if ! grep -q 'Broken.swift:[0-9]*:[0-9]*: error:' "$out/NapStopLiveActivity.log"; then
+      echo "self-test FAILED: the extension failed, but not on Broken.swift:" >&2
+      sed -n '1,40p' "$out/NapStopLiveActivity.log" >&2
+      exit 1
+    fi
+    echo "self-test OK (extension Broken.swift rejected: $(grep -m 1 'Broken.swift' "$out/NapStopLiveActivity.log"))"
+  fi
   exit 0
 fi
 
@@ -194,6 +229,8 @@ for triple in arm64-apple-ios16.0 arm64-apple-ios16.0-simulator; do
   for diag in off on; do
     typecheck_runner "$triple" "$sdk" "$slice" "$out" "$runner_dir" "$diag" "$triple Runner diag=$diag" || true
   done
+  ext_triple="${triple/ios16.0/ios17.0}"
+  typecheck_extension "$ext_triple" "$sdk" "$out" "$extension_dir" "$ext_triple NapStopLiveActivity" || true
 done
 
 echo

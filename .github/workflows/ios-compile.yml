@@ -21,6 +21,8 @@
 #   T29.2: Firebase checks of the bundle (app/ios/scripts/firebase-ci-check.sh: plist, collection keys off, no
 #   AdSupport/ATT, privacy manifests; blocking), then the dSYMs go to Crashlytics (not blocking) and to the artifact
 #   `napstop-ios-dsyms`.
+#   T23.6: the app embeds the NapStopLiveActivity widget extension; app/ios/scripts/appex-ci-check.sh checks it in the
+#   app and the ipa (LC01, blocking). If xtool cannot sign it: app/ios/scripts/strip-appex.sh (Q7 = A).
 # - publish-results (ubuntu): the only job with contents: write (.github/scripts/publish-ci-results.sh).
 #
 # FIREBASE_ANALYTICS_WITHOUT_ADID (workflow env, T29.2 D6): firebase_analytics then links FirebaseAnalyticsCore (no
@@ -643,6 +645,12 @@ jobs:
             exit 1
           fi
 
+      # T23.8 B0: the region probe of diag builds asks for "Always"; the key goes into the built app only (the source
+      # Info.plist gets it at T23.8 C2). Before packaging; the app is unsigned, xtool signs it.
+      - name: Diag Always key (T23.8 B0)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.plan.outputs.diag == 'true' }}
+        run: bash ios/scripts/diag-always-key.sh build/ios/iphoneos/Runner.app
+
       # T29.2 FD01: self-test first (each broken fake bundle must fail), then the real bundle. Blocking; never prints
       # the API key or the plist.
       - name: Firebase checks
@@ -694,6 +702,16 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      # T23.6 LC01 (spike B0 version): the widget extension is in the app and in the ipa. Blocking, after the upload so
+      # the ipa of a red run stays available.
+      - name: Appex checks
+        id: appex-check
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        run: |
+          set -o pipefail
+          bash ios/scripts/appex-ci-check.sh check build/ios/iphoneos/Runner.app build/NapStop-unsigned.ipa |
+            tee "$RUNNER_TEMP/appex-check.txt"
+
       - name: Result files
         if: always()
         env:
@@ -705,6 +723,7 @@ jobs:
           TELEMETRY: ${{ needs.plan.outputs.telemetry }}
           FB_CHECK: ${{ steps.firebase-check.outcome }}
           DSYM: ${{ steps.dsyms.outcome }}
+          APPEX: ${{ steps.appex-check.outcome }}
         run: |
           d="$RUNNER_TEMP/result/ios-device"
           mkdir -p "$d"
@@ -717,6 +736,8 @@ jobs:
             if [ -f "$RUNNER_TEMP/firebase-check.txt" ]; then cat "$RUNNER_TEMP/firebase-check.txt"; fi
             echo "- dSYM step: ${DSYM:-not run}"
             if [ -f "$RUNNER_TEMP/dsym.txt" ]; then cat "$RUNNER_TEMP/dsym.txt"; fi
+            echo "- appex checks (T23.6): ${APPEX:-not run}"
+            if [ -f "$RUNNER_TEMP/appex-check.txt" ]; then sed 's/^- /  - /' "$RUNNER_TEMP/appex-check.txt"; fi
             echo "- Flutter: $(flutter --version 2>/dev/null | head -n 1); Xcode: $(xcodebuild -version | head -n 1)"
             echo "- SwiftPM cache: hit=${CACHE_HIT:-false} ${CACHE_KEY:+(restored $CACHE_KEY)}"
             echo "- $(cat "$RUNNER_TEMP/build-settings.txt" 2>/dev/null || echo 'build settings: not checked')"
