@@ -1,4 +1,7 @@
 #if NAPSTOP_DIAG
+  #if canImport(ActivityKit)
+    import ActivityKit
+  #endif
   import AppIntents
   import Foundation
   import NapStopIOS
@@ -84,6 +87,48 @@
       return .result()
     }
   }
+
+  #if canImport(ActivityKit)
+    /// Spike T23.6-B0 (docs/spikes/T23.6.md H3): starts or ends a sample Live Activity (NapStopB0Attributes) from
+    /// Shortcuts. A LiveActivityIntent may start an activity while the app is in the background. The journal gets the
+    /// outcome or the error type only (event `la`), never any content.
+    @available(iOS 17.0, *)
+    struct DiagLiveActivityIntent: LiveActivityIntent {
+      static var title: LocalizedStringResource = "NapStop: thử Live Activity"
+
+      @Parameter(title: "Bắt đầu (tắt = kết thúc)", default: true)
+      var start: Bool
+
+      func perform() async throws -> some IntentResult {
+        let host = RuntimeHost.shared ?? RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory)
+        if start {
+          guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            host.journal.record("la", ["op": "start", "kind": "diag_b0", "ok": "false", "err": "disabled"])
+            return .result()
+          }
+          do {
+            let content = ActivityContent(
+              state: NapStopB0Attributes.ContentState(label: "Live Activity B0"),
+              staleDate: Date().addingTimeInterval(900))
+            _ = try Activity.request(
+              attributes: NapStopB0Attributes(title: "NapStop B0"), content: content, pushType: nil)
+            host.journal.record("la", ["op": "start", "kind": "diag_b0", "ok": "true",
+                                       "count": "\(Activity<NapStopB0Attributes>.activities.count)"])
+          } catch {
+            host.journal.record("la", ["op": "start", "kind": "diag_b0", "ok": "false",
+                                       "err": String(describing: type(of: error))])
+          }
+        } else {
+          let all = Activity<NapStopB0Attributes>.activities
+          for activity in all {
+            await activity.end(nil, dismissalPolicy: .immediate)
+          }
+          host.journal.record("la", ["op": "end", "kind": "diag_b0", "ok": "true", "count": "\(all.count)"])
+        }
+        return .result()
+      }
+    }
+  #endif
 
   /// T29.2 §4.2 PM04: a native crash for Crashlytics. Opens the app, then crashes 8 s later so Dart has configured
   /// Firebase in this process (crashes before that are not recorded, RK-T292-5). The message is a literal (FU05).

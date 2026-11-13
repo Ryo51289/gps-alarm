@@ -30,6 +30,11 @@ import UIKit
     // T17: the trip runtime exists before Flutter, also when iOS launches the app in the background (StopIntent).
     let host = RuntimeHost.bootstrap(options: AlarmIntents.options(), intentFactory: AlarmIntents.factory, traces: traces)
     host.journal.record("backup_exclusion", excluded.mapValues { $0 ? "ok" : "failed" })
+    #if NAPSTOP_DIAG
+      // Spike T23.8-B0: re-creates the region probe (monitor, legacy delegate, service session, notification delegate) at
+      // every launch, also a background launch for a region event. Does nothing until a probe region is set.
+      DiagCommuteProbe.launch(launchOptions: launchOptions, host: host)
+    #endif
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
