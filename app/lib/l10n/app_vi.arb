@@ -2627,6 +2627,46 @@
   "@settingsLicenses": {
     "description": "Screen 12 row: opens the license page."
   },
+  "settingsFeedback": "Góp ý",
+  "@settingsFeedback": {
+    "description": "Screen 12 row: opens an email to the team (T28.4)."
+  },
+  "settingsFeedbackHint": "Gửi email cho nhóm phát triển",
+  "@settingsFeedbackHint": {
+    "description": "Subtitle of the feedback row."
+  },
+  "feedbackSubjectWord": "Góp ý",
+  "@feedbackSubjectWord": {
+    "description": "Word in the email subject after \"[NapStop]\"."
+  },
+  "feedbackBodyPrompt": "Viết góp ý của bạn ở đây:",
+  "@feedbackBodyPrompt": {
+    "description": "First line of the email body."
+  },
+  "feedbackDiagHeader": "Thông tin máy để tìm lỗi. Không có vị trí của bạn. Bạn có thể xoá phần này.",
+  "@feedbackDiagHeader": {
+    "description": "Header of the diagnostics block in the email."
+  },
+  "feedbackNoMailTitle": "Chưa mở được ứng dụng email",
+  "@feedbackNoMailTitle": {
+    "description": "Dialog title when no mail app opened."
+  },
+  "feedbackNoMailBody": "Bạn có thể gửi góp ý tới địa chỉ này:",
+  "@feedbackNoMailBody": {
+    "description": "Dialog text above the address."
+  },
+  "feedbackCopyAddress": "Sao chép địa chỉ",
+  "@feedbackCopyAddress": {
+    "description": "Dialog button: copies the feedback address."
+  },
+  "feedbackClose": "Đóng",
+  "@feedbackClose": {
+    "description": "Dialog button: closes the feedback dialog."
+  },
+  "feedbackAddressCopied": "Đã sao chép địa chỉ",
+  "@feedbackAddressCopied": {
+    "description": "Snackbar after copying (not on Android 13+)."
+  },
   "settingsVersion": "phiên bản {version} ({build})",
   "@settingsVersion": {
     "description": "Screen 12 footer: app version and build number.",

@@ -19,6 +19,7 @@ import 'package:napstop/features/alarm_settings/domain/alarm_settings_args.dart'
 import 'package:napstop/features/alarm_settings/domain/alarm_settings_params.dart';
 import 'package:napstop/features/alarm_settings/domain/platform_alarm_caps.dart';
 import 'package:napstop/features/alarm_settings/presentation/alarm_settings_strings.dart';
+import 'package:napstop/features/feedback/presentation/feedback_action.dart';
 import 'package:napstop/features/home/domain/readiness.dart';
 import 'package:napstop/features/home/presentation/home_providers.dart';
 import 'package:napstop/features/settings/domain/settings_logic.dart';
@@ -50,6 +51,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   /// Slider value while dragging; stored on release only.
   double? _dragVolume;
+
+  /// "Góp ý" is reading device details / opening the composer (T28.4 W04).
+  bool _feedbackBusy = false;
 
   @override
   void initState() {
@@ -165,6 +169,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (mounted) {
       ref.invalidate(readinessProvider);
     }
+  }
+
+  void _onFeedback() {
+    if (_feedbackBusy) {
+      return;
+    }
+    _feedbackBusy = true;
+    unawaited(
+      openFeedback(context, ref).whenComplete(() => _feedbackBusy = false),
+    );
   }
 
   void _openLicenses(String? version) => showLicensePage(
@@ -517,6 +531,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                   chevron: true,
                   onTap: () => unawaited(_openPermissions()),
+                ),
+                NapListRow(
+                  key: const ValueKey('settings-feedback'),
+                  title: l.settingsFeedback,
+                  subtitle: l.settingsFeedbackHint,
+                  chevron: true,
+                  onTap: _onFeedback,
                 ),
                 NapListRow(
                   title: l.settingsLicenses,
