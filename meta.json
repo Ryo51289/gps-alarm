@@ -1,0 +1,14 @@
+{
+  "ref": "ci/ios-swift-t238c1b",
+  "sha": "7072f2b3ac6a5aca8db3d8f45b65623dd1d4d859",
+  "runId": "43394109766",
+  "runUrl": "https://github.com/Ryo51289/gps-alarm/actions/runs/43394109766",
+  "publishedAt": "2026-11-13T08:41:24Z",
+  "jobs": {
+    "plan": "success",
+    "swift-macos": "success",
+    "ios-sim": "skipped",
+    "ios-device": "skipped"
+  },
+  "warnings": 0
+}
