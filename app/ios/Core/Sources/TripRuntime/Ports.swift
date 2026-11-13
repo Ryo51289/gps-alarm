@@ -81,10 +81,14 @@ public struct LocationAccess: Sendable, Equatable {
     public let fullAccuracy: Bool
     /// CLLocationManager.locationServicesEnabled(), never on main.
     public let servicesEnabled: Bool
-    public init(whenInUseOrAlways: Bool, fullAccuracy: Bool, servicesEnabled: Bool) {
+    /// T23.8 §5.5: authorizationStatus == .authorizedAlways. Only the commute feature reads it (C1: evaluator; the
+    /// platform readers fill it in C2, until then it stays false).
+    public let always: Bool
+    public init(whenInUseOrAlways: Bool, fullAccuracy: Bool, servicesEnabled: Bool, always: Bool = false) {
         self.whenInUseOrAlways = whenInUseOrAlways
         self.fullAccuracy = fullAccuracy
         self.servicesEnabled = servicesEnabled
+        self.always = always
     }
 
     /// §5.4: reduced accuracy alone is not a revocation (fixes are dropped by FixFilter instead).

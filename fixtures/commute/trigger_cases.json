@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "defaults": {
+    "route": {
+      "revision": 1,
+      "enabled": true,
+      "towardB": {"enabled": true, "startMinute": 420, "endMinute": 480, "weekdayMask": 31},
+      "towardA": {"enabled": true, "startMinute": 1050, "endMinute": 1170, "weekdayMask": 31}
+    },
+    "state": {"revision": 1, "lastState": {"A": "outside", "B": "outside"}, "lastEventAtMs": {}, "firedKeys": []},
+    "ctx": {"utcOffsetS": 25200, "always": true, "fullAccuracy": true, "servicesEnabled": true, "tripActive": false,
+      "osSupported": true}
+  },
+  "cases": [
+    {"name": "entry into A inside the window on Tuesday", "ids": ["CU01"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}, "expectFiredKeys": ["towardB@2026-11-17"]}]},
+    {"name": "one second before the window", "ids": ["CU02"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T06:59:59+07:00"}, "expect": {"skip": "outsideWindow"}}]},
+    {"name": "window end is exclusive", "ids": ["CU02"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T08:00:00+07:00"}, "expect": {"skip": "outsideWindow"}}]},
+    {"name": "window start is inclusive", "ids": ["CU02"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:00:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "last second of the window", "ids": ["CU02"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:59:59+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "Sunday is not in Monday-Friday", "ids": ["CU03"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-22T07:30:00+07:00"}, "expect": {"skip": "weekday"}}]},
+    {"name": "Saturday is not in Monday-Friday", "ids": ["CU03"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-21T07:30:00+07:00"}, "expect": {"skip": "weekday"}}]},
+    {"name": "Monday and Friday are in the mask", "ids": ["CU03"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-16T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-16"}},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-16T07:45:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-20T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-20"}}]},
+    {"name": "Sunday-only mask", "ids": ["CU03"], "route": {"towardB": {"weekdayMask": 64}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-22T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-22"}}]},
+    {"name": "first determination never triggers, the next real entry does", "ids": ["CU04"],
+     "state": {"lastState": {}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"skip": "firstDetermination"}, "expectLastState": {"A": "inside"}},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:40:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "outside"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:45:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "first determination outside", "ids": ["CU04"], "state": {"lastState": {}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "outside"}}]},
+    {"name": "once per direction per day", "ids": ["CU05"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:40:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:50:00+07:00"},
+       "expect": {"skip": "alreadyFiredToday"}, "expectFiredKeys": ["towardB@2026-11-17"]}]},
+    {"name": "fired yesterday does not block today", "ids": ["CU05"], "state": {"firedKeys": ["towardB@2026-11-17"]}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-18T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-18"}},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-18T07:35:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-18T17:40:00+07:00"},
+       "expect": {"start": "towardA", "dateKey": "2026-11-18"},
+       "expectFiredKeys": ["towardB@2026-11-17", "towardB@2026-11-18", "towardA@2026-11-18"]}]},
+    {"name": "active trip does not consume the day key", "ids": ["CU06"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "ctx": {"tripActive": true},
+       "expect": {"skip": "tripActive"}, "expectFiredKeys": []},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:35:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:40:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "towardA off", "ids": ["CU07"], "route": {"towardA": {"enabled": false}}, "steps": [
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T17:40:00+07:00"}, "expect": {"skip": "directionDisabled"}}]},
+    {"name": "route paused", "ids": ["CU07"], "route": {"enabled": false}, "steps": [
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T17:40:00+07:00"}, "expect": {"skip": "routeDisabled"}}]},
+    {"name": "entry into B starts towardA", "ids": ["CU07"], "steps": [
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T17:30:00+07:00"},
+       "expect": {"start": "towardA", "dateKey": "2026-11-17"}}]},
+    {"name": "overlapping windows: arriving at B during the towardB trip never starts towardA until B is left", "ids": ["CU08"],
+     "route": {"towardB": {"startMinute": 420, "endMinute": 1200}, "towardA": {"startMinute": 420, "endMinute": 1200}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:40:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T08:10:00+07:00"}, "ctx": {"tripActive": true},
+       "expect": {"skip": "tripActive"}},
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T08:30:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.B", "state": "outside", "at": "2026-11-17T09:00:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T17:00:00+07:00"},
+       "expect": {"start": "towardA", "dateKey": "2026-11-17"}}]},
+    {"name": "same instant at UTC+7 is 07:30", "ids": ["CU09"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T00:30:00Z"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "same instant at UTC+9 is 09:30", "ids": ["CU09"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T00:30:00Z"}, "ctx": {"utcOffsetS": 32400},
+       "expect": {"skip": "outsideWindow"}}]},
+    {"name": "late delivery: window judged at event time", "ids": ["CU10"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:58:00+07:00"},
+       "ctx": {"processedAt": "2026-11-17T08:04:00+07:00"}, "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "exactly 10 minutes old is not stale", "ids": ["CU10"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:58:00+07:00"},
+       "ctx": {"processedAt": "2026-11-17T08:08:00+07:00"}, "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "more than 10 minutes old is stale", "ids": ["CU10"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:58:00+07:00"},
+       "ctx": {"processedAt": "2026-11-17T08:09:00+07:00"}, "expect": {"skip": "stale"}, "expectLastState": {"A": "inside"}}]},
+    {"name": "stale is checked before routeDisabled", "ids": ["CU10"], "route": {"enabled": false}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:00:00+07:00"},
+       "ctx": {"processedAt": "2026-11-17T07:20:00+07:00"}, "expect": {"skip": "stale"}}]},
+    {"name": "duplicate event", "ids": ["CU11"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}, "rejected": true},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "duplicate"},
+       "expectFiredKeys": []}]},
+    {"name": "rejected start does not consume the day key", "ids": ["CU11"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}, "rejected": true},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:35:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:40:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]},
+    {"name": "event of an older revision", "ids": ["CU12"], "route": {"revision": 4}, "state": {"revision": 4}, "steps": [
+      {"event": {"id": "nc.r3.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "staleRevision"}}]},
+    {"name": "unknown identifiers", "ids": ["CU12"], "steps": [
+      {"event": {"id": "nc.r1.C", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "unknownIdentifier"}},
+      {"event": {"id": "napstop.diag.commute.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"skip": "unknownIdentifier"}},
+      {"event": {"id": "nc.r01.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "unknownIdentifier"}},
+      {"event": {"id": "nc.r-1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "unknownIdentifier"}},
+      {"event": {"id": "nc.r1.a", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "unknownIdentifier"}}]},
+    {"name": "state of an older revision is rebased: first determination", "ids": ["CU12"], "route": {"revision": 2}, "steps": [
+      {"event": {"id": "nc.r2.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"skip": "firstDetermination"}, "expectLastState": {"A": "inside"}}]},
+    {"name": "When In Use only", "ids": ["CU13"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "ctx": {"always": false},
+       "expect": {"skip": "notAlways"}}]},
+    {"name": "event flagged authorization denied", "ids": ["CU13"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00", "authorizationDenied": true},
+       "expect": {"skip": "notAlways"}}]},
+    {"name": "precise location off", "ids": ["CU13"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "ctx": {"fullAccuracy": false},
+       "expect": {"skip": "notPrecise"}}]},
+    {"name": "location services off", "ids": ["CU13"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "ctx": {"servicesEnabled": false},
+       "expect": {"skip": "servicesOff"}}]},
+    {"name": "iOS older than 17, checked before permissions", "ids": ["CU13"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "ctx": {"osSupported": false, "always": false}, "expect": {"skip": "unsupportedOs"}}]},
+    {"name": "last second of the day keeps the date", "ids": ["CU14"],
+     "route": {"towardA": {"startMinute": 1380, "endMinute": 1440, "weekdayMask": 2}}, "steps": [
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T23:59:59+07:00"},
+       "expect": {"start": "towardA", "dateKey": "2026-11-17"}}]},
+    {"name": "midnight belongs to the next day", "ids": ["CU14"],
+     "route": {"towardA": {"startMinute": 1380, "endMinute": 1440, "weekdayMask": 127}}, "steps": [
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-18T00:00:00+07:00"}, "expect": {"skip": "outsideWindow"}}]},
+    {"name": "leap day 2028-02-29 is a Tuesday", "ids": ["CU14"], "route": {"towardB": {"weekdayMask": 2}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2028-02-29T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2028-02-29"}}]},
+    {"name": "2028-03-01 is a Wednesday", "ids": ["CU14"], "route": {"towardB": {"weekdayMask": 2}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2028-03-01T07:30:00+07:00"}, "expect": {"skip": "weekday"}}]},
+    {"name": "exit and unknown are never entries; unknown keeps the known state", "ids": [],
+     "state": {"lastState": {"A": "inside", "B": "outside"}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "notEntry"}},
+      {"event": {"id": "nc.r1.B", "state": "unknown", "at": "2026-11-17T17:30:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "outside", "B": "outside"}},
+      {"event": {"id": "nc.r1.B", "state": "inside", "at": "2026-11-17T17:35:00+07:00"},
+       "expect": {"start": "towardA", "dateKey": "2026-11-17"}, "expectLastState": {"B": "inside"}}]},
+    {"name": "inside to inside is not an entry", "ids": [], "state": {"lastState": {"A": "inside"}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"}, "expect": {"skip": "notEntry"}}]},
+    {"name": "outside, unknown, inside is an entry", "ids": ["CU29"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "unknown", "at": "2026-11-17T07:20:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "outside"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}, "expectLastState": {"A": "inside"},
+       "expectFiredKeys": ["towardB@2026-11-17"]}]},
+    {"name": "inside, unknown, inside is not an entry", "ids": ["CU29"], "state": {"lastState": {"A": "inside"}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "unknown", "at": "2026-11-17T07:20:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "inside"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectFiredKeys": []}]},
+    {"name": "never known, unknown, inside is a first determination", "ids": ["CU29"], "state": {"lastState": {}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "unknown", "at": "2026-11-17T07:20:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "unknown"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"skip": "firstDetermination"}, "expectLastState": {"A": "inside"}}]},
+    {"name": "an older outside delivered late changes nothing", "ids": ["CU30"], "steps": [
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}, "rejected": true},
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:20:00+07:00"},
+       "ctx": {"processedAt": "2026-11-17T07:31:00+07:00"}, "expect": {"skip": "outOfOrder"},
+       "expectLastState": {"A": "inside"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:40:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectFiredKeys": []}]},
+    {"name": "clock set back: a recorded date in the future does not block older events", "ids": ["CU30"],
+     "state": {"lastState": {"A": "inside", "B": "outside"}, "lastEventAtMs": {"A": 1794880800000}}, "steps": [
+      {"event": {"id": "nc.r1.A", "state": "outside", "at": "2026-11-17T07:20:00+07:00"},
+       "expect": {"skip": "notEntry"}, "expectLastState": {"A": "outside"}},
+      {"event": {"id": "nc.r1.A", "state": "inside", "at": "2026-11-17T07:30:00+07:00"},
+       "expect": {"start": "towardB", "dateKey": "2026-11-17"}}]}
+  ]
+}
