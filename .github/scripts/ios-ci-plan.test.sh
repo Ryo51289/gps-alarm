@@ -38,6 +38,8 @@ check 0 "false true false false false" push ci/ios-sim-t17-r1
 check 0 "false false true true false" push ci/ios-ipa-t012
 check 0 "true true true true false" push ci/ios-all-t17-r1
 check 0 "true true true true false" push ci/ios-all-a.b_c-1
+check 0 "false false true false false" push ci/ios-ipa-t42ads-base
+check 0 "false true false false false" push ci/ios-sim-t42ads-gma
 check 2 - push ci/ios-foo
 check 2 - push ci/ios-foo-t012
 check 2 - push ci/ios-

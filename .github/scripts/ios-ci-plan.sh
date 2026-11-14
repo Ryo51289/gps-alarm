@@ -56,6 +56,8 @@ case "$event" in
     if [ "$ipa" = true ]; then
       case "$id" in fb-*) telemetry=true ;; esac
     fi
+    # T42.1 E1 (temporary, CI branch only): the measurement IPAs must be close to a release build, so no NAPSTOP_DIAG.
+    case "$id" in t42ads-*) diag=false ;; esac
     ;;
   workflow_dispatch)
     case "$diag_in" in

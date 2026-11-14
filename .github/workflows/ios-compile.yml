@@ -462,6 +462,15 @@ jobs:
             grep -E "Test Suite .* (passed|failed)|Executed [0-9]+ tests?, with|\*\* TEST (SUCCEEDED|FAILED) \*\*|error:" \
               "$RUNNER_TEMP/xctest.log" 2>/dev/null | tail -n 40 || echo "no XCTest summary"
             echo '```'
+            # T42.1 E1-e (temporary): each case of AdsPrivacyConfigTests (passed / failed / skipped + reason), and
+            # whether Swift could see the GoogleMobileAds module at all.
+            echo
+            echo "### E1-e AdsPrivacyConfigTests"
+            echo
+            echo '```'
+            grep -E "AdsPrivacyConfig|GoogleMobileAds|XCTSkip|skipped" "$RUNNER_TEMP/xctest.log" 2>/dev/null |
+              grep -v -E "^\s*(cd|export|/Applications/Xcode)" | head -n 30 || echo "no AdsPrivacyConfigTests line"
+            echo '```'
             echo
             echo "### Integration tests"
             echo
@@ -685,6 +694,18 @@ jobs:
           (cd build/ipa-staging && zip -qry ../NapStop-unsigned.ipa Payload)
           ls -l build/NapStop-unsigned.ipa
 
+      # T42.1 E1 (temporary, CI branches ci/ios-*-t42ads-* only, never merged): sizes, link type, AdSupport/ATT
+      # signals, privacy manifests and SwiftPM pins of the bundle. Read in summary.md (appended) and e1.md.
+      - name: E1 report (T42.1, temporary)
+        id: e1
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/result/ios-device"
+          bash ../.github/scripts/t42-e1-report.sh build/ios/iphoneos/Runner.app build/NapStop-unsigned.ipa ios \
+            > "$RUNNER_TEMP/result/ios-device/e1.md"
+          cat "$RUNNER_TEMP/result/ios-device/e1.md"
+
       - name: Upload unsigned ipa
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -725,6 +746,12 @@ jobs:
             else
               echo "- ipa: not built"
             fi
+            # T42.1 E1-c (temporary): compile errors (e.g. `import GoogleMobileAds` not visible from Runner).
+            if [ "$BUILD" = failure ] && [ -f "$RUNNER_TEMP/build.log" ]; then
+              echo; echo '```'; grep -m 20 -E "error:|No such module" "$RUNNER_TEMP/build.log" || echo "no error: line"; echo '```'
+            fi
+            # T42.1 E1 (temporary): the whole E1 report in the published summary.
+            if [ -s "$d/e1.md" ]; then echo; cat "$d/e1.md"; else echo "- E1 report: not produced"; fi
           } > "$d/summary.md"
           if [ -f "$RUNNER_TEMP/build.log" ]; then tail -n 400 "$RUNNER_TEMP/build.log" > "$d/build.tail.log"; fi
           printf 'start_epoch=%s\nend_epoch=%s\n' "$JOB_START" "$(date -u +%s)" > "$d/timing.env"
