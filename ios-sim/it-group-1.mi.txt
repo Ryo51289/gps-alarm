@@ -1,0 +1,17 @@
+MI01 center=15.950,105.850 initialCameraEnd=null applied=2 events=[layout@3715, resize@3803]
+MI01 later center=15.950,105.850 applied=2 events=[layout@3715, resize@3803] boundaryEast=107.28577490385871
+MI05 lat=16.5 center.lng=106.500 visible.w=102.096 visible.e=110.904 distanceM=2445760.2943150825 maxDistanceM=2450154.230887567 boundaryEast=106.5
+MI05 lat=12.2 center.lng=106.500 visible.w=102.096 visible.e=110.904 distanceM=2492296.414621546 maxDistanceM=2450154.230887567 boundaryEast=106.5
+MI05 lat=9.0 center.lng=106.500 visible.w=102.096 visible.e=110.904 distanceM=2517980.7916247947 maxDistanceM=2450154.230887567 boundaryEast=106.5
+MI05b lat=16.5 center.lng=106.500 visible.w=102.090 visible.e=110.910 distanceM=654876.988389461 maxDistanceM=655177.0651354832 boundaryEast=106.5
+MI05b lat=12.2 center.lng=106.500 visible.w=102.090 visible.e=110.910 distanceM=667337.5039961879 maxDistanceM=655177.0651354832 boundaryEast=106.5
+MI05b lat=9.0 center.lng=106.500 visible.w=102.090 visible.e=110.910 distanceM=674214.7550087437 maxDistanceM=655177.0651354832 boundaryEast=106.5
+MI05d before boundaryEast=106.5
+MI05d framed center.lng=109.3768 boundaryEast=109.4
+MI05e visible.w=108.993 visible.e=109.376 boundaryEast=109.4
+MI05f screen2 visible.w=102.236 visible.e=109.464 distanceM=2012592.9342479159 maxDistanceM=2450154.230887567 boundaryEast=107.28577490385871
+MI05f 800x300 visible.w=101.443 visible.e=110.257 distanceM=656199.9433983297 maxDistanceM=655177.0651354832 boundaryEast=106.5
+MI06b lat=16.5 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1334277.1476346764 maxDistanceM=1327528.627323326 boundaryEast=106.50000000000341
+MI06b lat=12.2 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1359664.7876290039 maxDistanceM=1327528.627323326 boundaryEast=106.50000000000341
+MI06b lat=9.0 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1373676.8219916215 maxDistanceM=1327528.627323326 boundaryEast=106.50000000000341
+MI06c framed center.lng=106.5997 boundaryEast=109.4

@@ -1,0 +1,59 @@
+Xcode build done.                                           141.9s
+::group::✅ Passing tests
+✅ ios_smoke_test app starts
+✅ ios_smoke_test deviceInfo reports iOS
+✅ ios_smoke_test currentTrip answers
+✅ ios_smoke_test pendingFinishedTrips answers
+::group::✅ ios_smoke_test diag: permissions and startTrip probe
+NAPSTOP_DIAG permissions: location=whileInUse precise=granted services=true notifications=notDetermined alarmKit=notDetermined
+NAPSTOP_DIAG startTrip probe: accepted
+::group::✅ Passing tests
+✅ firebase_ios_test SI01 Firebase on iOS: real SDK, collection off
+✅ t18_1_ios_simulation_test SIC02 bus at 600x rings DISTANCE within 15 s, 5 runs out of 5
+✅ t18_1_ios_simulation_test SIC03 a stub id or an unknown trace is simulation-unavailable
+::group::✅ map_ios_test MI01 screen 2 has the MapKit view and it gets ready
+MI01 center=15.950,105.850 initialCameraEnd=null applied=2 events=[layout@3715, resize@3803]
+MI01 later center=15.950,105.850 applied=2 events=[layout@3715, resize@3803] boundaryEast=107.28577490385871
+::group::✅ Passing tests
+✅ map_ios_test MI02 long press drops a pin
+✅ map_ios_test MI03 pin drags: 300 m keeps the station, 2 km pins, undo
+✅ map_ios_test MI04 choosing a station frames it and its zone
+::group::✅ map_ios_test MI05 screen 2: the camera cannot show the islands
+MI05 lat=16.5 center.lng=106.500 visible.w=102.096 visible.e=110.904 distanceM=2445760.2943150825 maxDistanceM=2450154.230887567 boundaryEast=106.5
+MI05 lat=12.2 center.lng=106.500 visible.w=102.096 visible.e=110.904 distanceM=2492296.414621546 maxDistanceM=2450154.230887567 boundaryEast=106.5
+MI05 lat=9.0 center.lng=106.500 visible.w=102.096 visible.e=110.904 distanceM=2517980.7916247947 maxDistanceM=2450154.230887567 boundaryEast=106.5
+::group::✅ map_ios_test MI05b landscape view 800x300: the span limit follows the view
+MI05b lat=16.5 center.lng=106.500 visible.w=102.090 visible.e=110.910 distanceM=654876.988389461 maxDistanceM=655177.0651354832 boundaryEast=106.5
+MI05b lat=12.2 center.lng=106.500 visible.w=102.090 visible.e=110.910 distanceM=667337.5039961879 maxDistanceM=655177.0651354832 boundaryEast=106.5
+MI05b lat=9.0 center.lng=106.500 visible.w=102.090 visible.e=110.910 distanceM=674214.7550087437 maxDistanceM=655177.0651354832 boundaryEast=106.5
+::group::✅ Passing tests
+✅ map_ios_test MI05c the easternmost station can be centered
+::group::✅ map_ios_test MI05d zoomed out first, then framing the easternmost station (R2-1)
+MI05d before boundaryEast=106.5
+MI05d framed center.lng=109.3768 boundaryEast=109.4
+::group::✅ map_ios_test MI05e Ga Hà Nội, then Ga Nha Trang (animated): station in view, east edge within the limit (R3-2)
+MI05e visible.w=108.993 visible.e=109.376 boundaryEast=109.4
+::group::✅ map_ios_test MI05f first camera of screen 2 and of an 800x300 view, no gesture: east edge below 111
+MI05f screen2 visible.w=102.236 visible.e=109.464 distanceM=2012592.9342479159 maxDistanceM=2450154.230887567 boundaryEast=107.28577490385871
+MI05f 800x300 visible.w=101.443 visible.e=110.257 distanceM=656199.9433983297 maxDistanceM=655177.0651354832 boundaryEast=106.5
+::group::✅ map_ios_test MI06 screen 4 card of a simulated trip: no location dot, fixed pin; MI06b islands hidden in the card
+MI06b lat=16.5 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1334277.1476346764 maxDistanceM=1327528.627323326 boundaryEast=106.50000000000341
+MI06b lat=12.2 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1359664.7876290039 maxDistanceM=1327528.627323326 boundaryEast=106.50000000000341
+MI06b lat=9.0 center.lng=106.500 visible.w=102.100 visible.e=110.900 distanceM=1373676.8219916215 maxDistanceM=1327528.627323326 boundaryEast=106.50000000000341
+MI06c framed center.lng=106.5997 boundaryEast=109.4
+::group::✅ Passing tests
+✅ map_ios_test MI07 bus glyph in the pin
+✅ map_ios_test MI07b choose a bus stop, then a station
+✅ address_search_ios_test AS-I01 fake suggestions come through the real channel
+✅ address_search_ios_test AS-I02 a point outside the supported area is refused
+✅ address_search_ios_test AS-I03 real MapKit answers in a decodable way
+✅ t17_ios_runtime_test II01 start inside the alarm zone rings, dismiss ends on time
+✅ t17_ios_runtime_test II02 second start is refused while a trip runs
+✅ t17_ios_runtime_test II03 + II04 far trip: no simulation echoed, stopTrip ends it cancelled
+✅ t17_ios_runtime_test II05 a simulated trip with a stub id is simulation-unavailable
+✅ t17_2_ios_alarm_test AC04 now alarm: snooze button + default sound; snooze → SnoozedMsg
+✅ t28_3_ios_ui_test PI01 screen 12: no volume slider, iOS notes; "Nghe thử" horn plays
+::group::✅ t28_3_ios_ui_test PI02 alarm while the app is open: Flutter screen 5 within 6 s, no "Mở màn báo thức"; swipe → TripEndedMsg
+::group::✅ Passing tests
+✅ t28_3_ios_ui_test PI03 screen 8: "Chỉ đường quay lại" opens the Google Maps URL (T27 D8)
+🎉 32 tests passed.
