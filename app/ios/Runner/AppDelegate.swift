@@ -16,6 +16,8 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    // T42.1 E1 (CI branch only): GMA privacy flags before anything else, before GeneratedPluginRegistrant.register.
+    AdsPrivacyConfig.apply()
     // T17.1 D10: keep the database (destination coordinates, screen 0 flags) and the runtime files out of backups. At
     // every launch, before Flutter opens the database; a failure never blocks the launch.
     let excluded = BackupExclusion.excludeAppSupportSubdirectories(["napstop_db", "napstop_trip"])
