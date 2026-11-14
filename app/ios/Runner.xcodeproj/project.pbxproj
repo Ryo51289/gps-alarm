@@ -22,6 +22,7 @@
 		D17A000D2EC6000100A0B001 /* MsgMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A00092EC6000100A0B001 /* MsgMapper.swift */; };
 		D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A000A2EC6000100A0B001 /* AlarmIntents.swift */; };
 		D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17A000B2EC6000100A0B001 /* DiagIntents.swift */; };
+		D2380B012ED0000100A0B001 /* DiagCommuteProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2380B022ED0000100A0B001 /* DiagCommuteProbe.swift */; };
 		D17B00012EC7000100A0B001 /* IOSPermissionHostApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17B00052EC7000100A0B001 /* IOSPermissionHostApi.swift */; };
 		D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17B00062EC7000100A0B001 /* DeviceBridge.swift */; };
 		D17B00032EC7000100A0B001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = D17B000A2EC7000100A0B001 /* InfoPlist.strings */; };
@@ -37,6 +38,10 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		D23600052ED0000100A0B001 /* NapStopLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23600022ED0000100A0B001 /* NapStopLiveActivityBundle.swift */; };
+		D23600062ED0000100A0B001 /* NapStopB0Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23600042ED0000100A0B001 /* NapStopB0Attributes.swift */; };
+		D23600072ED0000100A0B001 /* NapStopB0Attributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23600042ED0000100A0B001 /* NapStopB0Attributes.swift */; };
+		D23600082ED0000100A0B001 /* NapStopLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D23600012ED0000100A0B001 /* NapStopLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +51,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
+		};
+		D236000A2ED0000100A0B001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D236000E2ED0000100A0B001;
+			remoteInfo = NapStopLiveActivity;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -58,6 +70,17 @@
 			files = (
 			);
 			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D23600092ED0000100A0B001 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D23600082ED0000100A0B001 /* NapStopLiveActivity.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -86,6 +109,7 @@
 		D17A00092EC6000100A0B001 /* MsgMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MsgMapper.swift; sourceTree = "<group>"; };
 		D17A000A2EC6000100A0B001 /* AlarmIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmIntents.swift; sourceTree = "<group>"; };
 		D17A000B2EC6000100A0B001 /* DiagIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagIntents.swift; sourceTree = "<group>"; };
+		D2380B022ED0000100A0B001 /* DiagCommuteProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagCommuteProbe.swift; sourceTree = "<group>"; };
 		D17B00052EC7000100A0B001 /* IOSPermissionHostApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSPermissionHostApi.swift; sourceTree = "<group>"; };
 		D17B00062EC7000100A0B001 /* DeviceBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBridge.swift; sourceTree = "<group>"; };
 		D17B00072EC7000100A0B001 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -99,6 +123,10 @@
 		D17200062EC8000100A0B001 /* alarm_horn.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_horn.wav; sourceTree = "<group>"; };
 		D17200072EC8000100A0B001 /* alarm_bell.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_bell.wav; sourceTree = "<group>"; };
 		D17200082EC8000100A0B001 /* alarm_beep.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm_beep.wav; sourceTree = "<group>"; };
+		D23600012ED0000100A0B001 /* NapStopLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NapStopLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D23600022ED0000100A0B001 /* NapStopLiveActivityBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NapStopLiveActivityBundle.swift; sourceTree = "<group>"; };
+		D23600032ED0000100A0B001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D23600042ED0000100A0B001 /* NapStopB0Attributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NapStopB0Attributes.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,6 +138,13 @@
 				D17A00052EC6000100A0B001 /* Trip in Frameworks */,
 				D17A00062EC6000100A0B001 /* TripRuntime in Frameworks */,
 				D17A00072EC6000100A0B001 /* NapStopIOS in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D23600102ED0000100A0B001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -143,6 +178,8 @@
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
+				D236000C2ED0000100A0B001 /* NapStopLiveActivity */,
+				D236000D2ED0000100A0B001 /* Shared */,
 			);
 			sourceTree = "<group>";
 		};
@@ -151,6 +188,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				D23600012ED0000100A0B001 /* NapStopLiveActivity.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -208,6 +246,7 @@
 			children = (
 				D17A000A2EC6000100A0B001 /* AlarmIntents.swift */,
 				D17A000B2EC6000100A0B001 /* DiagIntents.swift */,
+				D2380B022ED0000100A0B001 /* DiagCommuteProbe.swift */,
 			);
 			path = Native;
 			sourceTree = "<group>";
@@ -219,6 +258,23 @@
 				D1A300042ECA000100A0B001 /* AddressSearchChannel.swift */,
 			);
 			path = Map;
+			sourceTree = "<group>";
+		};
+		D236000C2ED0000100A0B001 /* NapStopLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				D23600022ED0000100A0B001 /* NapStopLiveActivityBundle.swift */,
+				D23600032ED0000100A0B001 /* Info.plist */,
+			);
+			path = NapStopLiveActivity;
+			sourceTree = "<group>";
+		};
+		D236000D2ED0000100A0B001 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				D23600042ED0000100A0B001 /* NapStopB0Attributes.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -254,12 +310,14 @@
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
+				D23600092ED0000100A0B001 /* Embed Foundation Extensions */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D236000B2ED0000100A0B001 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -271,6 +329,23 @@
 			productName = Runner;
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D236000E2ED0000100A0B001 /* NapStopLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D23600122ED0000100A0B001 /* Build configuration list for PBXNativeTarget "NapStopLiveActivity" */;
+			buildPhases = (
+				D236000F2ED0000100A0B001 /* Sources */,
+				D23600102ED0000100A0B001 /* Frameworks */,
+				D23600112ED0000100A0B001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NapStopLiveActivity;
+			productName = NapStopLiveActivity;
+			productReference = D23600012ED0000100A0B001 /* NapStopLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -289,6 +364,9 @@
 					97C146ED1CF9000F007C117D = {
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
+					};
+					D236000E2ED0000100A0B001 = {
+						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
@@ -312,6 +390,7 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				D236000E2ED0000100A0B001 /* NapStopLiveActivity */,
 			);
 		};
 /* End PBXProject section */
@@ -338,6 +417,13 @@
 				D17200032EC8000100A0B001 /* alarm_horn.wav in Resources */,
 				D17200042EC8000100A0B001 /* alarm_bell.wav in Resources */,
 				D17200052EC8000100A0B001 /* alarm_beep.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D23600112ED0000100A0B001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -399,12 +485,23 @@
 				D17A000C2EC6000100A0B001 /* RealTripBackend.swift in Sources */,
 				D17A000E2EC6000100A0B001 /* AlarmIntents.swift in Sources */,
 				D17A000F2EC6000100A0B001 /* DiagIntents.swift in Sources */,
+				D2380B012ED0000100A0B001 /* DiagCommuteProbe.swift in Sources */,
 				D17B00012EC7000100A0B001 /* IOSPermissionHostApi.swift in Sources */,
 				D17200012EC8000100A0B001 /* IOSAlarmHostApi.swift in Sources */,
 				D17B00022EC7000100A0B001 /* DeviceBridge.swift in Sources */,
 				D18100012EC9000100A0B001 /* FlutterAssetTraceStore.swift in Sources */,
 				D1A300012ECA000100A0B001 /* NapMapPlatformView.swift in Sources */,
 				D1A300052ECA000100A0B001 /* AddressSearchChannel.swift in Sources */,
+				D23600072ED0000100A0B001 /* NapStopB0Attributes.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D236000F2ED0000100A0B001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D23600052ED0000100A0B001 /* NapStopLiveActivityBundle.swift in Sources */,
+				D23600062ED0000100A0B001 /* NapStopB0Attributes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -415,6 +512,11 @@
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
+		};
+		D236000B2ED0000100A0B001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D236000E2ED0000100A0B001 /* NapStopLiveActivity */;
+			targetProxy = D236000A2ED0000100A0B001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -746,6 +848,80 @@
 			};
 			name = Release;
 		};
+		D23600132ED0000100A0B001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NapStopLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.napstop.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D23600142ED0000100A0B001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NapStopLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.napstop.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D23600152ED0000100A0B001 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NapStopLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = app.napstop.LiveActivity;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -775,6 +951,16 @@
 				97C147061CF9000F007C117D /* Debug */,
 				97C147071CF9000F007C117D /* Release */,
 				249021D4217E4FDB00AE95B9 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D23600122ED0000100A0B001 /* Build configuration list for PBXNativeTarget "NapStopLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D23600132ED0000100A0B001 /* Debug */,
+				D23600142ED0000100A0B001 /* Release */,
+				D23600152ED0000100A0B001 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
